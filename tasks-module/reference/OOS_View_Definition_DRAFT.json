@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "definitionVersion": "draft-v1",
+  "templateCode": "OOS-RECON-001",
+  "viewKey": "OOS_RECON_V1",
+  "workflowKey": "OOS_RECONCILIATION",
+  "status": "DRAFT",
+  "isActive": false,
+  "layout": "drawer-with-expand",
+  "tabs": [
+    {
+      "id": "overview",
+      "label": "Overview",
+      "widget": "task.overview"
+    },
+    {
+      "id": "sources",
+      "label": "Data Sources",
+      "widget": "oos.source-intake"
+    },
+    {
+      "id": "asins",
+      "label": "Affected ASINs",
+      "widget": "oos.reconciliation-grid",
+      "actions": [
+        "oos.preview-export",
+        "oos.export-csv",
+        "oos.create-export",
+        "oos.download-export",
+        "oos.export-history"
+      ],
+      "layout": "virtualized-data-grid-with-expand",
+      "columnPresets": [
+        "ESSENTIAL",
+        "INVENTORY",
+        "GMS_PRIORITY",
+        "FOLLOWUP",
+        "ALL"
+      ],
+      "filterKeys": [
+        "sellerId",
+        "channel",
+        "classification",
+        "paretoTier",
+        "resyncStatus",
+        "incidentStatus",
+        "ownerId",
+        "followUpDate",
+        "freshness"
+      ],
+      "exportScopes": [
+        "ALL_AUTHORIZED",
+        "CURRENT_FILTER",
+        "SELECTED"
+      ],
+      "rowDrilldown": "oos.case-detail",
+      "dataEndpoint": "GET /api/pems/instances/:id/oos/affected-asins"
+    },
+    {
+      "id": "followup",
+      "label": "Follow-ups & Export",
+      "widget": "oos.incident-handover"
+    },
+    {
+      "id": "sop",
+      "label": "SOP",
+      "widget": "task.playbook"
+    },
+    {
+      "id": "review",
+      "label": "Review",
+      "widget": "oos.review-readiness"
+    }
+  ],
+  "dataRequirements": [
+    {
+      "key": "retailops_snapshot",
+      "mode": "SYSTEM",
+      "required": true
+    },
+    {
+      "key": "brandcentral_report",
+      "mode": "FILE",
+      "required": true
+    },
+    {
+      "key": "vendorcentral_report",
+      "mode": "FILE_OR_APPROVED_NA",
+      "required": "CHANNEL_POLICY"
+    },
+    {
+      "key": "seller_gms",
+      "mode": "SYSTEM",
+      "required": "FOR_VERIFIED_PARETO"
+    }
+  ],
+  "gates": [
+    "task_scope_verified",
+    "all_required_sources_dispositioned",
+    "all_cases_classified_or_excepted",
+    "all_open_incidents_have_handover",
+    "four_sheet_export_present",
+    "independent_reviewer"
+  ],
+  "note": "Design example only. Not a production API payload. All actions must be authorized and validated by the server.",
+  "priorityPolicy": {
+    "displayGroups": [
+      "80%",
+      "20%"
+    ],
+    "newAsinsGroup": "20%",
+    "newAsinDefinition": "CONFIGURABLE_AND_VERIFIED",
+    "missingGms": "GMS_UNVERIFIED_FLAG_NOT_20_PERCENT_BY_DEFAULT",
+    "paretoDenominator": "FULL_ELIGIBLE_SELLER_CATALOG",
+    "label": "Priority group"
+  }
+}

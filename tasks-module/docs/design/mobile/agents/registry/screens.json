@@ -1,0 +1,3169 @@
+{
+  "$schema": "./screens.schema.json",
+  "name": "retailops.mobile.screens",
+  "version": "1.0.0",
+  "generatedBy": "agents/tools/build-registry.mjs",
+  "sources": {
+    "inventory": "03-screen-inventory.md",
+    "roles": "agents/registry/roles.json",
+    "prompts": [
+      "08-stitch-prompts-auth-home-catalog.md",
+      "09-stitch-prompts-growth-ops.md",
+      "10-stitch-prompts-more-system.md",
+      "11-stitch-prompts-seller.md"
+    ]
+  },
+  "totals": {
+    "screens": 140,
+    "withPrompt": 140,
+    "critical": 12,
+    "internal": 94,
+    "seller": 26,
+    "both": 18,
+    "auxiliary": 1
+  },
+  "auxiliary": [
+    {
+      "id": "X-01",
+      "kind": "navigation-shell",
+      "name": "More / navigation drawer",
+      "roleHeader": "Role: internal RetailOps staff — all internal roles (items are permission-filtered at runtime).\nKind: navigation shell, not a screen. Items shown here are the union across roles; the rendered list must contain only destinations the current permissions allow.",
+      "hasPrompt": true
+    }
+  ],
+  "screens": [
+    {
+      "id": "AUTH-01",
+      "name": "Splash / bootstrap",
+      "surface": "both",
+      "group": "AUTH",
+      "critical": false,
+      "roleKeys": [
+        "ALL_AUTHENTICATED"
+      ],
+      "permission": null,
+      "scope": null,
+      "states": [
+        "loading-first",
+        "error-recovery"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: both surfaces — any signed-in user, internal or seller.\nRequired states: loading-first, error-recovery."
+    },
+    {
+      "id": "AUTH-02",
+      "name": "Sign in",
+      "surface": "both",
+      "group": "AUTH",
+      "critical": true,
+      "roleKeys": [
+        "ALL_AUTHENTICATED"
+      ],
+      "permission": null,
+      "scope": null,
+      "states": [
+        "idle",
+        "submitting",
+        "invalid",
+        "locked",
+        "rate-limited",
+        "offline-cached"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: both surfaces — any signed-in user, internal or seller.\nRequired states: idle, submitting, invalid, locked, rate-limited, offline-cached."
+    },
+    {
+      "id": "AUTH-03",
+      "name": "Verify code (OTP)",
+      "surface": "both",
+      "group": "AUTH",
+      "critical": false,
+      "roleKeys": [
+        "ALL_AUTHENTICATED"
+      ],
+      "permission": null,
+      "scope": null,
+      "states": [
+        "idle",
+        "submitting",
+        "invalid",
+        "expired",
+        "resent"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: both surfaces — any signed-in user, internal or seller.\nRequired states: idle, submitting, invalid, expired, resent."
+    },
+    {
+      "id": "AUTH-04",
+      "name": "Forgot password",
+      "surface": "both",
+      "group": "AUTH",
+      "critical": false,
+      "roleKeys": [
+        "ALL_AUTHENTICATED"
+      ],
+      "permission": null,
+      "scope": null,
+      "states": [
+        "error-recovery"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: both surfaces — any signed-in user, internal or seller.\nRequired states: error-recovery."
+    },
+    {
+      "id": "AUTH-05",
+      "name": "Reset password",
+      "surface": "both",
+      "group": "AUTH",
+      "critical": false,
+      "roleKeys": [
+        "ALL_AUTHENTICATED"
+      ],
+      "permission": null,
+      "scope": null,
+      "states": [
+        "error-recovery"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: both surfaces — any signed-in user, internal or seller.\nRequired states: error-recovery."
+    },
+    {
+      "id": "AUTH-06",
+      "name": "Set password (first login)",
+      "surface": "both",
+      "group": "AUTH",
+      "critical": false,
+      "roleKeys": [
+        "ALL_AUTHENTICATED"
+      ],
+      "permission": null,
+      "scope": null,
+      "states": [
+        "idle",
+        "submitting",
+        "invalid",
+        "error-recovery"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: both surfaces — any signed-in user, internal or seller.\nRequired states: idle, submitting, invalid, error-recovery."
+    },
+    {
+      "id": "AUTH-07",
+      "name": "Security policy consent",
+      "surface": "both",
+      "group": "AUTH",
+      "critical": false,
+      "roleKeys": [
+        "ALL_AUTHENTICATED"
+      ],
+      "permission": null,
+      "scope": null,
+      "states": [
+        "idle",
+        "submitting",
+        "error-recovery"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: both surfaces — any signed-in user, internal or seller.\nRequired states: idle, submitting, error-recovery."
+    },
+    {
+      "id": "AUTH-08",
+      "name": "Trusted devices",
+      "surface": "both",
+      "group": "AUTH",
+      "critical": false,
+      "roleKeys": [
+        "ALL_AUTHENTICATED"
+      ],
+      "permission": null,
+      "scope": null,
+      "states": [
+        "empty-true",
+        "error-recovery"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: both surfaces — any signed-in user, internal or seller.\nRequired states: empty-true, error-recovery."
+    },
+    {
+      "id": "AUTH-09",
+      "name": "Setup wizard",
+      "surface": "int",
+      "group": "AUTH",
+      "critical": false,
+      "roleKeys": [
+        "admin"
+      ],
+      "permission": "settings_manage",
+      "scope": null,
+      "states": [
+        "empty-true"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin. Permission: settings_manage.\nRequired states: empty-true."
+    },
+    {
+      "id": "AUTH-10",
+      "name": "Welcome / onboarding (seller)",
+      "surface": "sel",
+      "group": "AUTH",
+      "critical": false,
+      "roleKeys": [
+        "seller_client"
+      ],
+      "permission": null,
+      "scope": null,
+      "states": [
+        "default",
+        "dismissed"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Seller.\nRequired states: default, dismissed."
+    },
+    {
+      "id": "AUTH-11",
+      "name": "Biometric unlock",
+      "surface": "both",
+      "group": "AUTH",
+      "critical": false,
+      "roleKeys": [
+        "ALL_AUTHENTICATED"
+      ],
+      "permission": null,
+      "scope": null,
+      "states": [
+        "error-recovery"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: both surfaces — any signed-in user, internal or seller.\nRequired states: error-recovery."
+    },
+    {
+      "id": "AUTH-12",
+      "name": "Session expired",
+      "surface": "both",
+      "group": "AUTH",
+      "critical": false,
+      "roleKeys": [
+        "ALL_AUTHENTICATED"
+      ],
+      "permission": null,
+      "scope": null,
+      "states": [
+        "idle",
+        "re-authenticating",
+        "error-recovery"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: both surfaces — any signed-in user, internal or seller.\nRequired states: idle, re-authenticating, error-recovery."
+    },
+    {
+      "id": "AUTH-13",
+      "name": "Account locked",
+      "surface": "both",
+      "group": "AUTH",
+      "critical": false,
+      "roleKeys": [
+        "ALL_AUTHENTICATED"
+      ],
+      "permission": null,
+      "scope": null,
+      "states": [
+        "locked",
+        "error-recovery"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: both surfaces — any signed-in user, internal or seller.\nRequired states: locked, error-recovery."
+    },
+    {
+      "id": "INT-CT-01",
+      "name": "ASIN Manager list",
+      "surface": "internal",
+      "group": "INT-CT",
+      "critical": true,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "asinmanager_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "empty-filtered",
+        "selection-bulk",
+        "offline-cached",
+        "stale-partial"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: asinmanager_view.\nRequired states: empty-true, empty-filtered, selection-bulk, offline-cached, stale-partial."
+    },
+    {
+      "id": "INT-CT-02",
+      "name": "ASIN detail",
+      "surface": "internal",
+      "group": "INT-CT",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "asinmanager_view",
+      "scope": "all/assigned",
+      "states": [
+        "offline-cached",
+        "stale-partial",
+        "error-recovery"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: asinmanager_view.\nRequired states: offline-cached, stale-partial, error-recovery."
+    },
+    {
+      "id": "INT-CT-03",
+      "name": "ASIN edit",
+      "surface": "internal",
+      "group": "INT-CT",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager"
+      ],
+      "permission": "asinmanager_manage",
+      "scope": "all/assigned",
+      "states": [
+        "conflict",
+        "error-recovery"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager. Scope: all/assigned. Permission: asinmanager_manage.\nRequired states: conflict, error-recovery."
+    },
+    {
+      "id": "INT-CT-04",
+      "name": "ASIN import",
+      "surface": "internal",
+      "group": "INT-CT",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager"
+      ],
+      "permission": "asinmanager_import",
+      "scope": "all/assigned",
+      "states": [
+        "upload-download",
+        "conflict"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all/assigned. Permission: asinmanager_import.\nRequired states: upload-download, conflict."
+    },
+    {
+      "id": "INT-CT-05",
+      "name": "ASIN export",
+      "surface": "internal",
+      "group": "INT-CT",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "asinmanager_export",
+      "scope": "all/assigned",
+      "states": [
+        "upload-download"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: asinmanager_export.\nRequired states: upload-download."
+    },
+    {
+      "id": "INT-CT-06",
+      "name": "Bulk action sheet",
+      "surface": "internal",
+      "group": "INT-CT",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "asinmanager_manage",
+      "scope": "all/assigned",
+      "states": [
+        "selection-bulk"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: asinmanager_manage.\nRequired states: selection-bulk."
+    },
+    {
+      "id": "INT-CT-07",
+      "name": "Filter & sort sheet",
+      "surface": "internal",
+      "group": "INT-CT",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "asinmanager_view",
+      "scope": "—",
+      "states": [
+        "empty-true"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Permission: asinmanager_view.\nRequired states: empty-true."
+    },
+    {
+      "id": "INT-CT-08",
+      "name": "ASIN Tracker list",
+      "surface": "internal",
+      "group": "INT-CT",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "asintracker_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "empty-filtered",
+        "offline-cached",
+        "stale-partial"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: asintracker_view.\nRequired states: empty-true, empty-filtered, offline-cached, stale-partial."
+    },
+    {
+      "id": "INT-CT-09",
+      "name": "ASIN Tracker history",
+      "surface": "internal",
+      "group": "INT-CT",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "asintracker_view",
+      "scope": "all/assigned",
+      "states": [
+        "offline-cached",
+        "stale-partial",
+        "error-recovery"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: asintracker_view.\nRequired states: offline-cached, stale-partial, error-recovery."
+    },
+    {
+      "id": "INT-CT-10",
+      "name": "Listing Quality list",
+      "surface": "internal",
+      "group": "INT-CT",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "asinmanager_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "empty-filtered",
+        "offline-cached"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: asinmanager_view.\nRequired states: empty-true, empty-filtered, offline-cached."
+    },
+    {
+      "id": "INT-CT-11",
+      "name": "Listing Quality audit",
+      "surface": "internal",
+      "group": "INT-CT",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "asinmanager_view",
+      "scope": "all/assigned",
+      "states": [
+        "offline-cached",
+        "error-recovery"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: asinmanager_view.\nRequired states: offline-cached, error-recovery."
+    },
+    {
+      "id": "INT-CT-12",
+      "name": "Keyword Research search",
+      "surface": "internal",
+      "group": "INT-CT",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "keywords_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: keywords_view.\nRequired states: empty-true."
+    },
+    {
+      "id": "INT-CT-13",
+      "name": "Keyword results",
+      "surface": "internal",
+      "group": "INT-CT",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "keywords_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "empty-filtered",
+        "offline-cached",
+        "stale-partial"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: keywords_view.\nRequired states: empty-true, empty-filtered, offline-cached, stale-partial."
+    },
+    {
+      "id": "INT-CT-14",
+      "name": "Keyword set detail",
+      "surface": "internal",
+      "group": "INT-CT",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "keywords_view",
+      "scope": "all/assigned",
+      "states": [
+        "offline-cached",
+        "stale-partial"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: keywords_view.\nRequired states: offline-cached, stale-partial."
+    },
+    {
+      "id": "INT-CT-15",
+      "name": "Keyword export",
+      "surface": "internal",
+      "group": "INT-CT",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "keywords_export",
+      "scope": "all/assigned",
+      "states": [
+        "upload-download"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: keywords_export.\nRequired states: upload-download."
+    },
+    {
+      "id": "INT-GR-01",
+      "name": "Ads — overview",
+      "surface": "internal",
+      "group": "INT-GR",
+      "critical": true,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "adsreport_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "offline-cached",
+        "stale-partial",
+        "error-recovery"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: adsreport_view.\nRequired states: empty-true, offline-cached, stale-partial, error-recovery."
+    },
+    {
+      "id": "INT-GR-02",
+      "name": "Ads — trend series",
+      "surface": "internal",
+      "group": "INT-GR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "adsreport_view",
+      "scope": "all/assigned",
+      "states": [
+        "offline-cached",
+        "stale-partial"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: adsreport_view.\nRequired states: offline-cached, stale-partial."
+    },
+    {
+      "id": "INT-GR-03",
+      "name": "Ads — campaign table",
+      "surface": "internal",
+      "group": "INT-GR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "adsreport_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "empty-filtered",
+        "selection-bulk",
+        "offline-cached"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: adsreport_view.\nRequired states: empty-true, empty-filtered, selection-bulk, offline-cached."
+    },
+    {
+      "id": "INT-GR-04",
+      "name": "Ads — AI review",
+      "surface": "internal",
+      "group": "INT-GR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "adsreport_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "error-recovery"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: adsreport_view.\nRequired states: empty-true, error-recovery."
+    },
+    {
+      "id": "INT-GR-05",
+      "name": "Ads — import workbook",
+      "surface": "internal",
+      "group": "INT-GR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager"
+      ],
+      "permission": "adsreport_import",
+      "scope": "all/assigned",
+      "states": [
+        "upload-download",
+        "conflict"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all/assigned. Permission: adsreport_import.\nRequired states: upload-download, conflict."
+    },
+    {
+      "id": "INT-GR-06",
+      "name": "Ads — report / export",
+      "surface": "internal",
+      "group": "INT-GR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "adsreport_export",
+      "scope": "all/assigned",
+      "states": [
+        "upload-download"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: adsreport_export.\nRequired states: upload-download."
+    },
+    {
+      "id": "INT-GR-07",
+      "name": "Targets — dashboard",
+      "surface": "internal",
+      "group": "INT-GR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "targets_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "offline-cached",
+        "stale-partial"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: targets_view.\nRequired states: empty-true, offline-cached, stale-partial."
+    },
+    {
+      "id": "INT-GR-08",
+      "name": "Target detail vs achievement",
+      "surface": "internal",
+      "group": "INT-GR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "targets_view",
+      "scope": "all/assigned",
+      "states": [
+        "offline-cached",
+        "stale-partial"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: targets_view.\nRequired states: offline-cached, stale-partial."
+    },
+    {
+      "id": "INT-GR-09",
+      "name": "Target create / edit",
+      "surface": "internal",
+      "group": "INT-GR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager"
+      ],
+      "permission": "targets_create or targets_edit",
+      "scope": "all/assigned",
+      "states": [
+        "conflict",
+        "error-recovery"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager. Scope: all/assigned. Permission: targets_create or targets_edit.\nRequired states: conflict, error-recovery."
+    },
+    {
+      "id": "INT-GR-10",
+      "name": "GMS Tracker",
+      "surface": "internal",
+      "group": "INT-GR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "gms_tracker_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "offline-cached",
+        "stale-partial"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: gms_tracker_view.\nRequired states: empty-true, offline-cached, stale-partial."
+    },
+    {
+      "id": "INT-GR-11",
+      "name": "GMS import",
+      "surface": "internal",
+      "group": "INT-GR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager"
+      ],
+      "permission": "gms_tracker_import",
+      "scope": "all/assigned",
+      "states": [
+        "upload-download",
+        "error-recovery"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all/assigned. Permission: gms_tracker_import.\nRequired states: upload-download, error-recovery."
+    },
+    {
+      "id": "INT-GR-12",
+      "name": "Reports hub",
+      "surface": "internal",
+      "group": "INT-GR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "skureport_view or parentreport_view or monthlyreport_view or pnlreport_view or inventoryreport_view or goalsreport_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: skureport_view or parentreport_view or monthlyreport_view or pnlreport_view or inventoryreport_view or goalsreport_view.\nRequired states: empty-true."
+    },
+    {
+      "id": "INT-GR-13",
+      "name": "SKU report",
+      "surface": "internal",
+      "group": "INT-GR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "skureport_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "empty-filtered",
+        "offline-cached"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: skureport_view.\nRequired states: empty-true, empty-filtered, offline-cached."
+    },
+    {
+      "id": "INT-GR-14",
+      "name": "Parent ASIN report",
+      "surface": "internal",
+      "group": "INT-GR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "parentreport_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "empty-filtered",
+        "offline-cached"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: parentreport_view.\nRequired states: empty-true, empty-filtered, offline-cached."
+    },
+    {
+      "id": "INT-GR-15",
+      "name": "Monthly trends",
+      "surface": "internal",
+      "group": "INT-GR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "monthlyreport_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "offline-cached"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: monthlyreport_view.\nRequired states: empty-true, offline-cached."
+    },
+    {
+      "id": "INT-GR-16",
+      "name": "P&L report",
+      "surface": "internal",
+      "group": "INT-GR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "pnlreport_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "offline-cached",
+        "stale-partial"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: pnlreport_view.\nRequired states: empty-true, offline-cached, stale-partial."
+    },
+    {
+      "id": "INT-GR-17",
+      "name": "Inventory report",
+      "surface": "internal",
+      "group": "INT-GR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "inventoryreport_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "offline-cached",
+        "stale-partial"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: inventoryreport_view.\nRequired states: empty-true, offline-cached, stale-partial."
+    },
+    {
+      "id": "INT-GR-18",
+      "name": "Goals report",
+      "surface": "internal",
+      "group": "INT-GR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "goalsreport_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "offline-cached"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: goalsreport_view.\nRequired states: empty-true, offline-cached."
+    },
+    {
+      "id": "INT-GR-19",
+      "name": "Revenue calculator",
+      "surface": "internal",
+      "group": "INT-GR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "calculator_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "error-recovery"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: calculator_view.\nRequired states: empty-true, error-recovery."
+    },
+    {
+      "id": "INT-GR-20",
+      "name": "Report viewer (generic)",
+      "surface": "internal",
+      "group": "INT-GR",
+      "critical": true,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "skureport_view or parentreport_view or monthlyreport_view or pnlreport_view or inventoryreport_view or goalsreport_view",
+      "scope": "all/assigned",
+      "states": [
+        "offline-cached",
+        "stale-partial",
+        "error-recovery"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: skureport_view or parentreport_view or monthlyreport_view or pnlreport_view or inventoryreport_view or goalsreport_view.\nRequired states: offline-cached, stale-partial, error-recovery."
+    },
+    {
+      "id": "INT-GR-21",
+      "name": "Report export",
+      "surface": "internal",
+      "group": "INT-GR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "skureport_export or parentreport_export or monthlyreport_export or pnlreport_export or inventoryreport_export",
+      "scope": "all/assigned",
+      "states": [
+        "upload-download"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: skureport_export or parentreport_export or monthlyreport_export or pnlreport_export or inventoryreport_export.\nRequired states: upload-download."
+    },
+    {
+      "id": "INT-HM-01",
+      "name": "Dashboard",
+      "surface": "internal",
+      "group": "INT-HM",
+      "critical": true,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "dashboard_view or targets_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "offline-cached",
+        "stale-partial",
+        "error-recovery"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: dashboard_view or targets_view.\nRequired states: empty-true, offline-cached, stale-partial, error-recovery."
+    },
+    {
+      "id": "INT-HM-02",
+      "name": "Alerts inbox",
+      "surface": "internal",
+      "group": "INT-HM",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "dashboard_view or targets_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "empty-filtered",
+        "offline-cached",
+        "stale-partial"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: dashboard_view or targets_view.\nRequired states: empty-true, empty-filtered, offline-cached, stale-partial."
+    },
+    {
+      "id": "INT-HM-03",
+      "name": "Alert detail",
+      "surface": "internal",
+      "group": "INT-HM",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "dashboard_view or targets_view",
+      "scope": "all/assigned",
+      "states": [
+        "offline-cached",
+        "error-recovery"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: dashboard_view or targets_view.\nRequired states: offline-cached, error-recovery."
+    },
+    {
+      "id": "INT-HM-04",
+      "name": "Alert rules",
+      "surface": "internal",
+      "group": "INT-HM",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager"
+      ],
+      "permission": "rules_view",
+      "scope": "all",
+      "states": [
+        "empty-true",
+        "error-recovery"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all. Permission: rules_view.\nRequired states: empty-true, error-recovery."
+    },
+    {
+      "id": "INT-HM-05",
+      "name": "Alert rule editor",
+      "surface": "internal",
+      "group": "INT-HM",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager"
+      ],
+      "permission": "rules_manage",
+      "scope": "all",
+      "states": [
+        "conflict",
+        "error-recovery"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all. Permission: rules_manage.\nRequired states: conflict, error-recovery."
+    },
+    {
+      "id": "INT-HM-06",
+      "name": "Notifications centre",
+      "surface": "internal",
+      "group": "INT-HM",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": null,
+      "scope": "own",
+      "states": [
+        "empty-true",
+        "empty-filtered",
+        "offline-cached"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: own.\nRequired states: empty-true, empty-filtered, offline-cached."
+    },
+    {
+      "id": "INT-HM-07",
+      "name": "Global search",
+      "surface": "internal",
+      "group": "INT-HM",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": null,
+      "scope": "all/assigned",
+      "states": [
+        "empty-filtered",
+        "empty-true"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned.\nRequired states: empty-filtered, empty-true."
+    },
+    {
+      "id": "INT-HM-08",
+      "name": "Seller switcher",
+      "surface": "internal",
+      "group": "INT-HM",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": null,
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "empty-filtered"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned.\nRequired states: empty-true, empty-filtered."
+    },
+    {
+      "id": "INT-HM-09",
+      "name": "Customise dashboard",
+      "surface": "internal",
+      "group": "INT-HM",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "dashboard_view",
+      "scope": "own",
+      "states": [
+        "empty-true"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: own. Permission: dashboard_view.\nRequired states: empty-true."
+    },
+    {
+      "id": "INT-HM-10",
+      "name": "KPI detail / metric drilldown",
+      "surface": "internal",
+      "group": "INT-HM",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "dashboard_view",
+      "scope": "all/assigned",
+      "states": [
+        "stale-partial",
+        "error-recovery"
+      ],
+      "promptFile": "08-stitch-prompts-auth-home-catalog.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: dashboard_view.\nRequired states: stale-partial, error-recovery."
+    },
+    {
+      "id": "INT-MR-01",
+      "name": "Sellers — list",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "seller_view",
+      "scope": "all",
+      "states": [
+        "empty-true",
+        "empty-filtered"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all. Permission: seller_view.\nRequired states: empty-true, empty-filtered."
+    },
+    {
+      "id": "INT-MR-02",
+      "name": "Seller detail",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "seller_view",
+      "scope": "all",
+      "states": [
+        "offline-cached",
+        "stale-partial"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all. Permission: seller_view.\nRequired states: offline-cached, stale-partial."
+    },
+    {
+      "id": "INT-MR-03",
+      "name": "Seller create / edit",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager"
+      ],
+      "permission": "seller_manage",
+      "scope": "all",
+      "states": [
+        "conflict"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all. Permission: seller_manage.\nRequired states: conflict."
+    },
+    {
+      "id": "INT-MR-04",
+      "name": "Teams — list",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager"
+      ],
+      "permission": "teams_manage",
+      "scope": "all",
+      "states": [
+        "empty-true"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all. Permission: teams_manage.\nRequired states: empty-true."
+    },
+    {
+      "id": "INT-MR-05",
+      "name": "Team detail",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager"
+      ],
+      "permission": "teams_manage",
+      "scope": "all",
+      "states": [
+        "conflict"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all. Permission: teams_manage.\nRequired states: conflict."
+    },
+    {
+      "id": "INT-MR-06",
+      "name": "Conversations",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "chat_view",
+      "scope": "own",
+      "states": [
+        "empty-true",
+        "empty-filtered",
+        "offline-cached"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: own. Permission: chat_view.\nRequired states: empty-true, empty-filtered, offline-cached."
+    },
+    {
+      "id": "INT-MR-07",
+      "name": "Conversation",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": true,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "chat_view",
+      "scope": "own",
+      "states": [
+        "empty-true",
+        "offline-cached",
+        "conflict",
+        "upload-download"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: own. Permission: chat_view.\nRequired states: empty-true, offline-cached, conflict, upload-download."
+    },
+    {
+      "id": "INT-MR-08",
+      "name": "Shared media",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "chat_view",
+      "scope": "own",
+      "states": [
+        "empty-true",
+        "upload-download"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: own. Permission: chat_view.\nRequired states: empty-true, upload-download."
+    },
+    {
+      "id": "INT-MR-09",
+      "name": "New conversation / group",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "chat_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-filtered"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: chat_view.\nRequired states: empty-filtered."
+    },
+    {
+      "id": "INT-MR-10",
+      "name": "Active call",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "chat_view",
+      "scope": "own",
+      "states": [
+        "error-recovery"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: own. Permission: chat_view.\nRequired states: error-recovery."
+    },
+    {
+      "id": "INT-MR-11",
+      "name": "Call history",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "chat_view",
+      "scope": "own",
+      "states": [
+        "empty-true",
+        "offline-cached"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: own. Permission: chat_view.\nRequired states: empty-true, offline-cached."
+    },
+    {
+      "id": "INT-MR-12",
+      "name": "Call detail",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "chat_view",
+      "scope": "own",
+      "states": [
+        "offline-cached"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: own. Permission: chat_view.\nRequired states: offline-cached."
+    },
+    {
+      "id": "INT-MR-13",
+      "name": "Users — list",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "admin"
+      ],
+      "permission": "users_view",
+      "scope": "all",
+      "states": [
+        "empty-true",
+        "empty-filtered"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin. Scope: all. Permission: users_view.\nRequired states: empty-true, empty-filtered."
+    },
+    {
+      "id": "INT-MR-14",
+      "name": "User detail / edit",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "admin"
+      ],
+      "permission": "users_manage",
+      "scope": "all",
+      "states": [
+        "conflict"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin. Scope: all. Permission: users_manage.\nRequired states: conflict."
+    },
+    {
+      "id": "INT-MR-15",
+      "name": "Roles & permissions",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "admin"
+      ],
+      "permission": "roles_view",
+      "scope": "all",
+      "states": [
+        "empty-true"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin. Scope: all. Permission: roles_view.\nRequired states: empty-true."
+    },
+    {
+      "id": "INT-MR-16",
+      "name": "Role detail / permission editor",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "admin"
+      ],
+      "permission": "roles_manage",
+      "scope": "all",
+      "states": [
+        "conflict"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin. Scope: all. Permission: roles_manage.\nRequired states: conflict."
+    },
+    {
+      "id": "INT-MR-17",
+      "name": "API keys",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "admin"
+      ],
+      "permission": "apikeys_manage",
+      "scope": "all",
+      "states": [
+        "empty-true",
+        "error-recovery"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin. Scope: all. Permission: apikeys_manage.\nRequired states: empty-true, error-recovery."
+    },
+    {
+      "id": "INT-MR-18",
+      "name": "System settings",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "admin"
+      ],
+      "permission": "settings_manage",
+      "scope": "all",
+      "states": [
+        "conflict"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin. Scope: all. Permission: settings_manage.\nRequired states: conflict."
+    },
+    {
+      "id": "INT-MR-19",
+      "name": "Activity log",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager"
+      ],
+      "permission": "activitylogs_view",
+      "scope": "all",
+      "states": [
+        "empty-true",
+        "empty-filtered",
+        "offline-cached"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all. Permission: activitylogs_view.\nRequired states: empty-true, empty-filtered, offline-cached."
+    },
+    {
+      "id": "INT-MR-20",
+      "name": "File manager",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager"
+      ],
+      "permission": "files_manage",
+      "scope": "all",
+      "states": [
+        "empty-true",
+        "upload-download"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all. Permission: files_manage.\nRequired states: empty-true, upload-download."
+    },
+    {
+      "id": "INT-MR-21",
+      "name": "Upload / export queue",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "ALL_AUTHENTICATED"
+      ],
+      "permission": null,
+      "scope": "own",
+      "states": [
+        "upload-download",
+        "error-recovery"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — any signed-in user, internal or seller. Scope: own.\nRequired states: upload-download, error-recovery."
+    },
+    {
+      "id": "INT-MR-22",
+      "name": "Profile",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "ALL_SURFACES"
+      ],
+      "permission": null,
+      "scope": "own",
+      "states": [
+        "empty-true"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — any signed-in user, internal or seller. Scope: own.\nRequired states: empty-true."
+    },
+    {
+      "id": "INT-MR-23",
+      "name": "Security",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "ALL_SURFACES"
+      ],
+      "permission": null,
+      "scope": "own",
+      "states": [
+        "empty-true",
+        "error-recovery"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — any signed-in user, internal or seller. Scope: own.\nRequired states: empty-true, error-recovery."
+    },
+    {
+      "id": "INT-MR-24",
+      "name": "Notification preferences",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "ALL_SURFACES"
+      ],
+      "permission": null,
+      "scope": "own",
+      "states": [
+        "empty-true"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — any signed-in user, internal or seller. Scope: own.\nRequired states: empty-true."
+    },
+    {
+      "id": "INT-MR-25",
+      "name": "Appearance & accessibility",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "ALL_SURFACES"
+      ],
+      "permission": null,
+      "scope": "own",
+      "states": [
+        "empty-true"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — any signed-in user, internal or seller. Scope: own.\nRequired states: empty-true."
+    },
+    {
+      "id": "INT-MR-26",
+      "name": "About & diagnostics",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "ALL_SURFACES"
+      ],
+      "permission": null,
+      "scope": "own",
+      "states": [
+        "empty-true"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — any signed-in user, internal or seller. Scope: own.\nRequired states: empty-true."
+    },
+    {
+      "id": "INT-MR-27",
+      "name": "Help & support",
+      "surface": "internal",
+      "group": "INT-MR",
+      "critical": false,
+      "roleKeys": [
+        "ALL_SURFACES"
+      ],
+      "permission": null,
+      "scope": "own",
+      "states": [
+        "empty-true"
+      ],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — any signed-in user, internal or seller. Scope: own.\nRequired states: empty-true."
+    },
+    {
+      "id": "INT-OP-01",
+      "name": "Tasks hub",
+      "surface": "internal",
+      "group": "INT-OP",
+      "critical": true,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "tasks_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "empty-filtered",
+        "selection-bulk",
+        "offline-cached"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: tasks_view.\nRequired states: empty-true, empty-filtered, selection-bulk, offline-cached."
+    },
+    {
+      "id": "INT-OP-02",
+      "name": "Task detail",
+      "surface": "internal",
+      "group": "INT-OP",
+      "critical": true,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "tasks_view",
+      "scope": "all/assigned",
+      "states": [
+        "offline-cached",
+        "conflict",
+        "error-recovery"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: tasks_view.\nRequired states: offline-cached, conflict, error-recovery."
+    },
+    {
+      "id": "INT-OP-03",
+      "name": "Task create",
+      "surface": "internal",
+      "group": "INT-OP",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "tasks_manage",
+      "scope": "all/assigned",
+      "states": [
+        "conflict",
+        "error-recovery"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: tasks_manage.\nRequired states: conflict, error-recovery."
+    },
+    {
+      "id": "INT-OP-04",
+      "name": "Task comments & activity",
+      "surface": "internal",
+      "group": "INT-OP",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "tasks_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "offline-cached"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: tasks_view.\nRequired states: empty-true, offline-cached."
+    },
+    {
+      "id": "INT-OP-05",
+      "name": "Task templates",
+      "surface": "internal",
+      "group": "INT-OP",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager"
+      ],
+      "permission": "templates_manage",
+      "scope": "all",
+      "states": [
+        "empty-true"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all. Permission: templates_manage.\nRequired states: empty-true."
+    },
+    {
+      "id": "INT-OP-06",
+      "name": "Task template detail",
+      "surface": "internal",
+      "group": "INT-OP",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager"
+      ],
+      "permission": "templates_manage",
+      "scope": "all",
+      "states": [
+        "conflict"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all. Permission: templates_manage.\nRequired states: conflict."
+    },
+    {
+      "id": "INT-OP-07",
+      "name": "Approval queue",
+      "surface": "internal",
+      "group": "INT-OP",
+      "critical": false,
+      "roleKeys": [
+        "reviewer",
+        "admin"
+      ],
+      "permission": "tasks_manage",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "empty-filtered"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Reviewer, Admin / Super Admin. Scope: all/assigned. Permission: tasks_manage.\nRequired states: empty-true, empty-filtered."
+    },
+    {
+      "id": "INT-OP-08",
+      "name": "Escalations",
+      "surface": "internal",
+      "group": "INT-OP",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager"
+      ],
+      "permission": "tasks_view",
+      "scope": "all",
+      "states": [
+        "empty-true",
+        "stale-partial"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all. Permission: tasks_view.\nRequired states: empty-true, stale-partial."
+    },
+    {
+      "id": "INT-OP-09",
+      "name": "SLA policies",
+      "surface": "internal",
+      "group": "INT-OP",
+      "critical": false,
+      "roleKeys": [
+        "admin"
+      ],
+      "permission": "tasks_manage",
+      "scope": "all",
+      "states": [
+        "empty-true"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin. Scope: all. Permission: tasks_manage.\nRequired states: empty-true."
+    },
+    {
+      "id": "INT-OP-10",
+      "name": "PEMS daily routine",
+      "surface": "internal",
+      "group": "INT-OP",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "tasks_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "offline-cached"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: tasks_view.\nRequired states: empty-true, offline-cached."
+    },
+    {
+      "id": "INT-OP-11",
+      "name": "Scorecards",
+      "surface": "internal",
+      "group": "INT-OP",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager"
+      ],
+      "permission": "tasks_view",
+      "scope": "all",
+      "states": [
+        "empty-true",
+        "offline-cached"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all. Permission: tasks_view.\nRequired states: empty-true, offline-cached."
+    },
+    {
+      "id": "INT-OP-12",
+      "name": "Action Center list",
+      "surface": "internal",
+      "group": "INT-OP",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "actions_view",
+      "scope": "all/assigned",
+      "states": [
+        "empty-true",
+        "empty-filtered",
+        "selection-bulk"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: actions_view.\nRequired states: empty-true, empty-filtered, selection-bulk."
+    },
+    {
+      "id": "INT-OP-13",
+      "name": "Action detail",
+      "surface": "internal",
+      "group": "INT-OP",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "actions_view",
+      "scope": "all/assigned",
+      "states": [
+        "offline-cached",
+        "error-recovery"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: actions_view.\nRequired states: offline-cached, error-recovery."
+    },
+    {
+      "id": "INT-OP-14",
+      "name": "Rulesets list",
+      "surface": "internal",
+      "group": "INT-OP",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "rules_view",
+      "scope": "all",
+      "states": [
+        "empty-true",
+        "empty-filtered"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all. Permission: rules_view.\nRequired states: empty-true, empty-filtered."
+    },
+    {
+      "id": "INT-OP-15",
+      "name": "Ruleset detail",
+      "surface": "internal",
+      "group": "INT-OP",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "rules_view",
+      "scope": "all",
+      "states": [
+        "offline-cached"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all. Permission: rules_view.\nRequired states: offline-cached."
+    },
+    {
+      "id": "INT-OP-16",
+      "name": "Ruleset run summary",
+      "surface": "internal",
+      "group": "INT-OP",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "rules_view",
+      "scope": "all",
+      "states": [
+        "empty-true",
+        "stale-partial"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all. Permission: rules_view.\nRequired states: empty-true, stale-partial."
+    },
+    {
+      "id": "INT-OP-17",
+      "name": "Scheduled runs",
+      "surface": "internal",
+      "group": "INT-OP",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "scraping_view",
+      "scope": "all",
+      "states": [
+        "empty-true",
+        "empty-filtered",
+        "offline-cached"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all. Permission: scraping_view.\nRequired states: empty-true, empty-filtered, offline-cached."
+    },
+    {
+      "id": "INT-OP-18",
+      "name": "Run detail & logs",
+      "surface": "internal",
+      "group": "INT-OP",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "scraping_view",
+      "scope": "all",
+      "states": [
+        "offline-cached",
+        "error-recovery"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all. Permission: scraping_view.\nRequired states: offline-cached, error-recovery."
+    },
+    {
+      "id": "INT-OP-19",
+      "name": "Scraper tasks",
+      "surface": "internal",
+      "group": "INT-OP",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "scraping_view",
+      "scope": "all",
+      "states": [
+        "empty-true",
+        "offline-cached",
+        "stale-partial"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all. Permission: scraping_view.\nRequired states: empty-true, offline-cached, stale-partial."
+    },
+    {
+      "id": "INT-OP-20",
+      "name": "Scraper task detail",
+      "surface": "internal",
+      "group": "INT-OP",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "scraping_view",
+      "scope": "all",
+      "states": [
+        "offline-cached",
+        "error-recovery"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all. Permission: scraping_view.\nRequired states: offline-cached, error-recovery."
+    },
+    {
+      "id": "INT-OP-21",
+      "name": "Live sync monitor",
+      "surface": "internal",
+      "group": "INT-OP",
+      "critical": false,
+      "roleKeys": [
+        "admin",
+        "operational_manager",
+        "Brand Manager",
+        "catalog_manager",
+        "listing_team",
+        "reviewer",
+        "viewer"
+      ],
+      "permission": "scraping_view",
+      "scope": "all",
+      "states": [
+        "offline-cached",
+        "stale-partial"
+      ],
+      "promptFile": "09-stitch-prompts-growth-ops.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all. Permission: scraping_view.\nRequired states: offline-cached, stale-partial."
+    },
+    {
+      "id": "SEL-HM-01",
+      "name": "Home — snapshot",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": true,
+      "roleKeys": [],
+      "permission": "dashboard_view",
+      "scope": "own",
+      "states": [
+        "empty-true",
+        "offline-cached",
+        "stale-partial",
+        "error-recovery"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: dashboard_view.\nRequired states: empty-true, offline-cached, stale-partial, error-recovery."
+    },
+    {
+      "id": "SEL-HM-02",
+      "name": "What changed",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": false,
+      "roleKeys": [],
+      "permission": "dashboard_view",
+      "scope": "own",
+      "states": [
+        "empty-true",
+        "offline-cached"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: dashboard_view.\nRequired states: empty-true, offline-cached."
+    },
+    {
+      "id": "SEL-HM-03",
+      "name": "Needs your input",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": false,
+      "roleKeys": [],
+      "permission": "tasks_view",
+      "scope": "own",
+      "states": [
+        "empty-true",
+        "offline-cached"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: tasks_view.\nRequired states: empty-true, offline-cached."
+    },
+    {
+      "id": "SEL-MR-01",
+      "name": "Chat with account team",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": true,
+      "roleKeys": [],
+      "permission": "chat_view",
+      "scope": "own",
+      "states": [
+        "empty-true",
+        "offline-cached",
+        "conflict",
+        "upload-download"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: chat_view.\nRequired states: empty-true, offline-cached, conflict, upload-download."
+    },
+    {
+      "id": "SEL-MR-02",
+      "name": "Account manager",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": false,
+      "roleKeys": [],
+      "permission": null,
+      "scope": "own",
+      "states": [
+        "empty-true"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own.\nRequired states: empty-true."
+    },
+    {
+      "id": "SEL-MR-03",
+      "name": "Account & preferences",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": false,
+      "roleKeys": [],
+      "permission": null,
+      "scope": "own",
+      "states": [
+        "empty-true"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own.\nRequired states: empty-true."
+    },
+    {
+      "id": "SEL-MR-04",
+      "name": "Help & support",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": false,
+      "roleKeys": [],
+      "permission": null,
+      "scope": "own",
+      "states": [
+        "empty-true"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own.\nRequired states: empty-true."
+    },
+    {
+      "id": "SEL-MR-05",
+      "name": "Onboarding checklist",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": false,
+      "roleKeys": [],
+      "permission": null,
+      "scope": "own",
+      "states": [
+        "empty-true"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own.\nRequired states: empty-true."
+    },
+    {
+      "id": "SEL-PF-01",
+      "name": "Performance overview",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": true,
+      "roleKeys": [],
+      "permission": "dashboard_view",
+      "scope": "own",
+      "states": [
+        "empty-true",
+        "offline-cached",
+        "stale-partial"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: dashboard_view.\nRequired states: empty-true, offline-cached, stale-partial."
+    },
+    {
+      "id": "SEL-PF-02",
+      "name": "Sales / GMS",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": false,
+      "roleKeys": [],
+      "permission": "gms_tracker_view",
+      "scope": "own",
+      "states": [
+        "empty-true",
+        "offline-cached",
+        "stale-partial"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: gms_tracker_view.\nRequired states: empty-true, offline-cached, stale-partial."
+    },
+    {
+      "id": "SEL-PF-03",
+      "name": "Advertising",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": false,
+      "roleKeys": [],
+      "permission": "adsreport_view",
+      "scope": "own",
+      "states": [
+        "empty-true",
+        "offline-cached",
+        "stale-partial"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: adsreport_view.\nRequired states: empty-true, offline-cached, stale-partial."
+    },
+    {
+      "id": "SEL-PF-04",
+      "name": "Campaign detail",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": false,
+      "roleKeys": [],
+      "permission": "adsreport_view",
+      "scope": "own",
+      "states": [
+        "offline-cached",
+        "stale-partial"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: adsreport_view.\nRequired states: offline-cached, stale-partial."
+    },
+    {
+      "id": "SEL-PF-05",
+      "name": "Target vs achievement",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": false,
+      "roleKeys": [],
+      "permission": "targets_view",
+      "scope": "own",
+      "states": [
+        "empty-true",
+        "offline-cached"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: targets_view.\nRequired states: empty-true, offline-cached."
+    },
+    {
+      "id": "SEL-PF-06",
+      "name": "Reports library",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": false,
+      "roleKeys": [],
+      "permission": "skureport_view or parentreport_view or monthlyreport_view or pnlreport_view or inventoryreport_view or goalsreport_view",
+      "scope": "own",
+      "states": [
+        "empty-true"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: skureport_view or parentreport_view or monthlyreport_view or pnlreport_view or inventoryreport_view or goalsreport_view.\nRequired states: empty-true."
+    },
+    {
+      "id": "SEL-PF-07",
+      "name": "Report viewer",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": false,
+      "roleKeys": [],
+      "permission": "skureport_view or parentreport_view or monthlyreport_view or pnlreport_view or inventoryreport_view or goalsreport_view",
+      "scope": "own",
+      "states": [
+        "offline-cached",
+        "stale-partial"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: skureport_view or parentreport_view or monthlyreport_view or pnlreport_view or inventoryreport_view or goalsreport_view.\nRequired states: offline-cached, stale-partial."
+    },
+    {
+      "id": "SEL-PF-08",
+      "name": "Report export",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": false,
+      "roleKeys": [],
+      "permission": "skureport_export or parentreport_export or monthlyreport_export or pnlreport_export or inventoryreport_export",
+      "scope": "own",
+      "states": [
+        "upload-download"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: skureport_export or parentreport_export or monthlyreport_export or pnlreport_export or inventoryreport_export.\nRequired states: upload-download."
+    },
+    {
+      "id": "SEL-PR-01",
+      "name": "My Products — list",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": false,
+      "roleKeys": [],
+      "permission": "asinmanager_view",
+      "scope": "own",
+      "states": [
+        "empty-true",
+        "empty-filtered",
+        "offline-cached",
+        "stale-partial"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: asinmanager_view.\nRequired states: empty-true, empty-filtered, offline-cached, stale-partial."
+    },
+    {
+      "id": "SEL-PR-02",
+      "name": "Product detail",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": false,
+      "roleKeys": [],
+      "permission": "asinmanager_view",
+      "scope": "own",
+      "states": [
+        "offline-cached",
+        "stale-partial",
+        "error-recovery"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: asinmanager_view.\nRequired states: offline-cached, stale-partial, error-recovery."
+    },
+    {
+      "id": "SEL-PR-03",
+      "name": "Listing quality",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": false,
+      "roleKeys": [],
+      "permission": "asinmanager_view",
+      "scope": "own",
+      "states": [
+        "empty-true",
+        "offline-cached"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: asinmanager_view.\nRequired states: empty-true, offline-cached."
+    },
+    {
+      "id": "SEL-PR-04",
+      "name": "Price & rank history",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": false,
+      "roleKeys": [],
+      "permission": "asintracker_view",
+      "scope": "own",
+      "states": [
+        "offline-cached",
+        "stale-partial"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: asintracker_view.\nRequired states: offline-cached, stale-partial."
+    },
+    {
+      "id": "SEL-PR-05",
+      "name": "Keyword visibility",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": false,
+      "roleKeys": [],
+      "permission": "keywords_view",
+      "scope": "own",
+      "states": [
+        "empty-true",
+        "empty-filtered",
+        "offline-cached"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: keywords_view.\nRequired states: empty-true, empty-filtered, offline-cached."
+    },
+    {
+      "id": "SEL-RQ-01",
+      "name": "Requests — open",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": false,
+      "roleKeys": [],
+      "permission": "tasks_view",
+      "scope": "own",
+      "states": [
+        "empty-true",
+        "empty-filtered",
+        "offline-cached"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: tasks_view.\nRequired states: empty-true, empty-filtered, offline-cached."
+    },
+    {
+      "id": "SEL-RQ-02",
+      "name": "Request detail",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": false,
+      "roleKeys": [],
+      "permission": "tasks_view",
+      "scope": "own",
+      "states": [
+        "offline-cached",
+        "conflict",
+        "error-recovery"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: tasks_view.\nRequired states: offline-cached, conflict, error-recovery."
+    },
+    {
+      "id": "SEL-RQ-03",
+      "name": "Raise a request",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": false,
+      "roleKeys": [],
+      "permission": "tasks_view",
+      "scope": "own",
+      "states": [
+        "conflict",
+        "upload-download"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: tasks_view.\nRequired states: conflict, upload-download."
+    },
+    {
+      "id": "SEL-RQ-04",
+      "name": "Waiting on you (approvals)",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": false,
+      "roleKeys": [],
+      "permission": "tasks_view",
+      "scope": "own",
+      "states": [
+        "empty-true",
+        "empty-filtered"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: tasks_view.\nRequired states: empty-true, empty-filtered."
+    },
+    {
+      "id": "SEL-RQ-05",
+      "name": "Completed requests",
+      "surface": "seller",
+      "group": "SEL",
+      "critical": false,
+      "roleKeys": [],
+      "permission": "tasks_view",
+      "scope": "own",
+      "states": [
+        "empty-true",
+        "empty-filtered",
+        "offline-cached"
+      ],
+      "promptFile": "11-stitch-prompts-seller.md",
+      "kind": null,
+      "hasPrompt": true,
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: tasks_view.\nRequired states: empty-true, empty-filtered, offline-cached."
+    },
+    {
+      "id": "SYS-01",
+      "name": "No access (403)",
+      "surface": "both",
+      "group": "SYS",
+      "critical": true,
+      "roleKeys": [],
+      "permission": null,
+      "scope": null,
+      "states": [],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": "state screen",
+      "hasPrompt": true,
+      "roleHeader": "Role: both surfaces — any signed-in user.\nKind: state screen — this screen is itself a state. Do not design additional state variants."
+    },
+    {
+      "id": "SYS-02",
+      "name": "You're offline",
+      "surface": "both",
+      "group": "SYS",
+      "critical": false,
+      "roleKeys": [],
+      "permission": null,
+      "scope": null,
+      "states": [],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": "state screen",
+      "hasPrompt": true,
+      "roleHeader": "Role: both surfaces — any signed-in user.\nKind: state screen — this screen is itself a state. Do not design additional state variants."
+    },
+    {
+      "id": "SYS-03",
+      "name": "Maintenance",
+      "surface": "both",
+      "group": "SYS",
+      "critical": false,
+      "roleKeys": [],
+      "permission": null,
+      "scope": null,
+      "states": [],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": "state screen",
+      "hasPrompt": true,
+      "roleHeader": "Role: both surfaces — any signed-in user.\nKind: state screen — this screen is itself a state. Do not design additional state variants."
+    },
+    {
+      "id": "SYS-04",
+      "name": "Update required",
+      "surface": "both",
+      "group": "SYS",
+      "critical": false,
+      "roleKeys": [],
+      "permission": null,
+      "scope": null,
+      "states": [],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": "state screen",
+      "hasPrompt": true,
+      "roleHeader": "Role: both surfaces — any signed-in user.\nKind: state screen — this screen is itself a state. Do not design additional state variants."
+    },
+    {
+      "id": "SYS-05",
+      "name": "Rate limited (429)",
+      "surface": "both",
+      "group": "SYS",
+      "critical": false,
+      "roleKeys": [],
+      "permission": null,
+      "scope": null,
+      "states": [],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": "state screen",
+      "hasPrompt": true,
+      "roleHeader": "Role: both surfaces — any signed-in user.\nKind: state screen — this screen is itself a state. Do not design additional state variants."
+    },
+    {
+      "id": "SYS-06",
+      "name": "Something went wrong",
+      "surface": "both",
+      "group": "SYS",
+      "critical": false,
+      "roleKeys": [],
+      "permission": null,
+      "scope": null,
+      "states": [],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": "state screen",
+      "hasPrompt": true,
+      "roleHeader": "Role: both surfaces — any signed-in user.\nKind: state screen — this screen is itself a state. Do not design additional state variants."
+    },
+    {
+      "id": "SYS-07",
+      "name": "Sync failed",
+      "surface": "both",
+      "group": "SYS",
+      "critical": false,
+      "roleKeys": [],
+      "permission": null,
+      "scope": null,
+      "states": [],
+      "promptFile": "10-stitch-prompts-more-system.md",
+      "kind": "state screen",
+      "hasPrompt": true,
+      "roleHeader": "Role: both surfaces — any signed-in user.\nKind: state screen — this screen is itself a state. Do not design additional state variants."
+    }
+  ]
+}

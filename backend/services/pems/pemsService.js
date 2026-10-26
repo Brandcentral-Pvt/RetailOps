@@ -1288,7 +1288,7 @@ async function getOosAffectedAsins(taskInstanceId, pool) {
     SELECT 
       a.AsinCode,
       a.SellerId,
-      s.SellerName,
+      s.Name as SellerName,
       a.Availability,
       a.AvailabilityStatus,
       a.StockLevel,
@@ -1306,7 +1306,7 @@ async function getOosAffectedAsins(taskInstanceId, pool) {
         OR LOWER(ISNULL(a.AvailabilityStatus, '')) LIKE '%unavailable%'
         OR LOWER(ISNULL(a.AvailabilityStatus, '')) LIKE '%out of stock%'
       )
-    ORDER BY s.SellerName, a.AsinCode
+    ORDER BY s.Name, a.AsinCode
   `);
 
   // Group by seller for UI
@@ -2969,6 +2969,7 @@ module.exports = {
   bulkReview, getReviewStats, getMyDay,
   checkEscalations, getRiskPanel, getTopPerformers,
   getSellersForPEMS, getBrandManagersForPEMS, getReviewersForPEMS, userCoversSeller, resolveAssigneeForSeller,
+  getOosAffectedAsins,
   // V3 additions
   calculateWeightedProgress, upsertAssignmentRules, getAssignmentRules,
   getTemplateAnalytics, recalculateAllWeightedProgress,

@@ -11,13 +11,13 @@ import {
   WarningOutlined, FlagOutlined, BulbOutlined, ExperimentOutlined,
   LinkOutlined, PlusOutlined, ShopOutlined, ExportOutlined,
   TableOutlined, DatabaseOutlined, ExclamationCircleOutlined,
-  ThunderboltOutlined
 } from '@ant-design/icons';
 import tasksApi from '../../services/tasksApi';
 import { useAuth } from '../../../contexts/AuthContext';
 import dayjs from 'dayjs';
 import { resolveViewForTask, getView, getWidget } from '../view-registry/taskViewRegistry';
 import GenericTaskView from '../views/generic/GenericTaskView';
+import { WORKFLOW_STATUSES, VALID_TRANSITIONS, calculateHealth, STATUS_COLORS } from '../constants';
 
 const { Text } = Typography;
 
@@ -107,6 +107,7 @@ export default function SharedTaskShell({ open, onClose, taskId, onRefresh }) {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [viewData, setViewData] = useState(null);
+  const [transModal, setTransModal] = useState({ toStatus: null, remarks: '' });
 
   const loadTask = useCallback(async (opts = {}) => {
     if (!taskId) return;

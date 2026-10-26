@@ -403,6 +403,47 @@ exports.updateIncident = async (req, res) => {
   } catch (err) { return fail(res, err); }
 };
 
+exports.resolveOosIncident = async (req, res) => {
+  try {
+    const task = await ensureTaskAccess(req, res, req.params.id);
+    if (!task) return;
+
+    const caseId = req.params.caseId;
+    const { action, waiveReason } = req.body || {};
+    
+    if (!action || !['resolve', 'waive'].includes(action)) {
+      return res.status(400).json({ success: false, error: 'action must be "resolve" or "waive"' });
+    }
+    if (action === 'waive' && !waiveReason) {
+      return res.status(400).json({ success: false, error: 'waiveReason required when waiving' });
+    }
+
+    const pool = await getPool();
+    const incident = await pool.request().input('id', sql.VarChar, caseId).query('SELECT TOP 1 * FROM OosIncidents WHERE Id = @id');
+    if (!incident.recordset[0]) return res.status(404).json({ success: false, error: 'Incident not found' });
+
+    const incidentData = incident.recordset[0];
+    
+    // Verify this incident belongs to the task's run
+    const runCheck = await pool.request()
+      .input('runId', sql.VarChar, incidentData.RunId)
+      .input('taskInstanceId', sql.VarChar, req.params.id)
+      .query('SELECT Id FROM OosTaskBindings WHERE TaskInstanceId = @taskInstanceId AND OosRunId = @runId');
+    if (!runCheck.recordset.length) {
+      return res.status(403).json({ success: false, error: 'Incident does not belong to this task' });
+    }
+
+    const result = await incidents.resolveIncident(caseId, {
+      actorId: req.user?.Id,
+      runId: incidentData.RunId,
+      detail: { action, waiveReason },
+      status: action === 'waive' ? 'WAIVED' : 'RESOLVED'
+    });
+
+    return res.json({ success: true, incident: result.incident, changed: result.changed });
+  } catch (err) { return fail(res, err); }
+};
+
 exports.buildExport = async (req, res) => {
   try {
     const task = await ensureTaskAccess(req, res, req.params.id);

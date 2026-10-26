@@ -1,0 +1,27 @@
+flowchart TD
+  START[Open OOS-RECON-001 from assigned PEMS task] --> SCOPE[Resolve permitted sellers and task-run links]
+  SCOPE --> SNAP[System snapshots RetailOps unavailable ASINs + timestamps]
+  SNAP --> UP[Upload BrandCentral report; Vendor report or approved N/A]
+  UP --> VALID{Valid source inputs, freshness and coverage?}
+  VALID -->|No| FIX[Correct/reupload or record reviewed exception]
+  FIX --> VALID
+  VALID -->|Yes| REC[Reconcile 3 source union per seller/channel/ASIN]
+  REC --> PAR[Compute full-catalog seller GMS Pareto and assign affected tiers]
+  PAR --> DEC{Classification}
+  DEC -->|Confirmed OOS| INC[Durable replenishment incident]
+  DEC -->|Unknown or missing| MAN[Manual evidence investigation]
+  DEC -->|Positive stock reports but unavailable marketplace| SYNCQ[Authorize targeted marketplace resync]
+  SYNCQ --> EXEC[Execute actual rate-gated sync job]
+  EXEC --> VERIFY{Server obtains newer trusted post-sync observation}
+  VERIFY -->|In stock| RES[Resolved with evidence and audit]
+  VERIFY -->|Still unavailable or failed| INC
+  MAN --> INC
+  INC --> FOLLOW[Owner + seller communication + ETA + next follow-up]
+  FOLLOW --> EXPORT[Export 01 Active OOS; 02 Discrepancies; 03 Resync Resolved; 04 Summary & Sources]
+  RES --> EXPORT
+  EXPORT --> GATE{Server checks every task-bound run and required evidence}
+  GATE -->|Missing| FOLLOW
+  GATE -->|Pass| SUB[Executor submits to PEMS Review Queue]
+  SUB --> DECIDE{Independent reviewer}
+  DECIDE -->|Reject| FIX
+  DECIDE -->|Approve| CLOSE[Close daily task, not persistent unresolved incidents]

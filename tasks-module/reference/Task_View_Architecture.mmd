@@ -1,0 +1,29 @@
+flowchart TB
+  U[My Day / Tasks / Review Queue] --> I[Open PEMS Task Instance]
+  I --> G{Authenticate and check task/seller scope}
+  G -->|Denied| X[403 No access]
+  G -->|Allowed| C[Fetch immutable Task View Definition for instance]
+  C --> S[Shared Task Shell: status, SLA, owner, comments, audit]
+  S --> R{Registered View Key}
+  R -->|STANDARD_V1| STD[Generic Checklist Task View]
+  R -->|OOS_RECON_V1| OOS[OOS Reconciliation Task View]
+  R -->|BUYBOX_MONITOR_V1| BB[Buy Box Task View when implemented]
+  R -->|Other registered views| OTH[Specialized Task View]
+  R -->|Unknown view| SAFE[Safe read-only fallback or clear unsupported error]
+  OOS --> RPT[Report uploads and raw source validation]
+  OOS --> AFT[Affected ASINs and GMS priorities]
+  OOS --> RSL[Resync, incident follow-ups and exports]
+  STD --> PERM[Backend business rules / permissions]
+  RPT --> PERM
+  AFT --> PERM
+  RSL --> PERM
+  BB --> PERM
+  OTH --> PERM
+  PERM --> EV[Versioned evidence, task link and audit events]
+  EV --> RG{Server submission gate}
+  RG -->|Incomplete| BACK[Remain in progress with blockers]
+  RG -->|Complete| PEMS[PEMS Review Queue]
+  PEMS --> REVIEW{Independent reviewer decision}
+  REVIEW -->|Reject| REWORK[Task Rework]
+  REVIEW -->|Approve| DONE[Approved daily task]
+  DONE --> KEEP[Keep unresolved OOS incidents open with follow-up owner]

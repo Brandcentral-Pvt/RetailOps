@@ -1,0 +1,1414 @@
+{
+  "$schema": "./progress.schema.json",
+  "name": "retailops.mobile.progress",
+  "version": "1.0.0",
+  "description": "Per-screen generation state. Written by A0 Orchestrator, updated after every audit gate. Seeded from registry/screens.json; regenerate only to reset.",
+  "seededFrom": "agents/registry/screens.json",
+  "totals": {
+    "planned": 140,
+    "accepted": 0,
+    "exported": 0
+  },
+  "screens": [
+    {
+      "id": "AUTH-01",
+      "name": "Splash / bootstrap",
+      "surface": "both",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "AUTH-02",
+      "name": "Sign in",
+      "surface": "both",
+      "critical": true,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "AUTH-03",
+      "name": "Verify code (OTP)",
+      "surface": "both",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "AUTH-04",
+      "name": "Forgot password",
+      "surface": "both",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "AUTH-05",
+      "name": "Reset password",
+      "surface": "both",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "AUTH-06",
+      "name": "Set password (first login)",
+      "surface": "both",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "AUTH-07",
+      "name": "Security policy consent",
+      "surface": "both",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "AUTH-08",
+      "name": "Trusted devices",
+      "surface": "both",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "AUTH-09",
+      "name": "Setup wizard",
+      "surface": "int",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "AUTH-10",
+      "name": "Welcome / onboarding (seller)",
+      "surface": "sel",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "AUTH-11",
+      "name": "Biometric unlock",
+      "surface": "both",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "AUTH-12",
+      "name": "Session expired",
+      "surface": "both",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "AUTH-13",
+      "name": "Account locked",
+      "surface": "both",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-CT-01",
+      "name": "ASIN Manager list",
+      "surface": "internal",
+      "critical": true,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-CT-02",
+      "name": "ASIN detail",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-CT-03",
+      "name": "ASIN edit",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-CT-04",
+      "name": "ASIN import",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-CT-05",
+      "name": "ASIN export",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-CT-06",
+      "name": "Bulk action sheet",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-CT-07",
+      "name": "Filter & sort sheet",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-CT-08",
+      "name": "ASIN Tracker list",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-CT-09",
+      "name": "ASIN Tracker history",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-CT-10",
+      "name": "Listing Quality list",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-CT-11",
+      "name": "Listing Quality audit",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-CT-12",
+      "name": "Keyword Research search",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-CT-13",
+      "name": "Keyword results",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-CT-14",
+      "name": "Keyword set detail",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-CT-15",
+      "name": "Keyword export",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-GR-01",
+      "name": "Ads — overview",
+      "surface": "internal",
+      "critical": true,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-GR-02",
+      "name": "Ads — trend series",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-GR-03",
+      "name": "Ads — campaign table",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-GR-04",
+      "name": "Ads — AI review",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-GR-05",
+      "name": "Ads — import workbook",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-GR-06",
+      "name": "Ads — report / export",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-GR-07",
+      "name": "Targets — dashboard",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-GR-08",
+      "name": "Target detail vs achievement",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-GR-09",
+      "name": "Target create / edit",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-GR-10",
+      "name": "GMS Tracker",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-GR-11",
+      "name": "GMS import",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-GR-12",
+      "name": "Reports hub",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-GR-13",
+      "name": "SKU report",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-GR-14",
+      "name": "Parent ASIN report",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-GR-15",
+      "name": "Monthly trends",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-GR-16",
+      "name": "P&L report",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-GR-17",
+      "name": "Inventory report",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-GR-18",
+      "name": "Goals report",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-GR-19",
+      "name": "Revenue calculator",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-GR-20",
+      "name": "Report viewer (generic)",
+      "surface": "internal",
+      "critical": true,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-GR-21",
+      "name": "Report export",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-HM-01",
+      "name": "Dashboard",
+      "surface": "internal",
+      "critical": true,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-HM-02",
+      "name": "Alerts inbox",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-HM-03",
+      "name": "Alert detail",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-HM-04",
+      "name": "Alert rules",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-HM-05",
+      "name": "Alert rule editor",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-HM-06",
+      "name": "Notifications centre",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-HM-07",
+      "name": "Global search",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-HM-08",
+      "name": "Seller switcher",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-HM-09",
+      "name": "Customise dashboard",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-HM-10",
+      "name": "KPI detail / metric drilldown",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-01",
+      "name": "Sellers — list",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-02",
+      "name": "Seller detail",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-03",
+      "name": "Seller create / edit",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-04",
+      "name": "Teams — list",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-05",
+      "name": "Team detail",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-06",
+      "name": "Conversations",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-07",
+      "name": "Conversation",
+      "surface": "internal",
+      "critical": true,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-08",
+      "name": "Shared media",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-09",
+      "name": "New conversation / group",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-10",
+      "name": "Active call",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-11",
+      "name": "Call history",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-12",
+      "name": "Call detail",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-13",
+      "name": "Users — list",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-14",
+      "name": "User detail / edit",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-15",
+      "name": "Roles & permissions",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-16",
+      "name": "Role detail / permission editor",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-17",
+      "name": "API keys",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-18",
+      "name": "System settings",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-19",
+      "name": "Activity log",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-20",
+      "name": "File manager",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-21",
+      "name": "Upload / export queue",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-22",
+      "name": "Profile",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-23",
+      "name": "Security",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-24",
+      "name": "Notification preferences",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-25",
+      "name": "Appearance & accessibility",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-26",
+      "name": "About & diagnostics",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-MR-27",
+      "name": "Help & support",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-OP-01",
+      "name": "Tasks hub",
+      "surface": "internal",
+      "critical": true,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-OP-02",
+      "name": "Task detail",
+      "surface": "internal",
+      "critical": true,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-OP-03",
+      "name": "Task create",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-OP-04",
+      "name": "Task comments & activity",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-OP-05",
+      "name": "Task templates",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-OP-06",
+      "name": "Task template detail",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-OP-07",
+      "name": "Approval queue",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-OP-08",
+      "name": "Escalations",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-OP-09",
+      "name": "SLA policies",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-OP-10",
+      "name": "PEMS daily routine",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-OP-11",
+      "name": "Scorecards",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-OP-12",
+      "name": "Action Center list",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-OP-13",
+      "name": "Action detail",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-OP-14",
+      "name": "Rulesets list",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-OP-15",
+      "name": "Ruleset detail",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-OP-16",
+      "name": "Ruleset run summary",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-OP-17",
+      "name": "Scheduled runs",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-OP-18",
+      "name": "Run detail & logs",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-OP-19",
+      "name": "Scraper tasks",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-OP-20",
+      "name": "Scraper task detail",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "INT-OP-21",
+      "name": "Live sync monitor",
+      "surface": "internal",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-HM-01",
+      "name": "Home — snapshot",
+      "surface": "seller",
+      "critical": true,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-HM-02",
+      "name": "What changed",
+      "surface": "seller",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-HM-03",
+      "name": "Needs your input",
+      "surface": "seller",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-MR-01",
+      "name": "Chat with account team",
+      "surface": "seller",
+      "critical": true,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-MR-02",
+      "name": "Account manager",
+      "surface": "seller",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-MR-03",
+      "name": "Account & preferences",
+      "surface": "seller",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-MR-04",
+      "name": "Help & support",
+      "surface": "seller",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-MR-05",
+      "name": "Onboarding checklist",
+      "surface": "seller",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-PF-01",
+      "name": "Performance overview",
+      "surface": "seller",
+      "critical": true,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-PF-02",
+      "name": "Sales / GMS",
+      "surface": "seller",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-PF-03",
+      "name": "Advertising",
+      "surface": "seller",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-PF-04",
+      "name": "Campaign detail",
+      "surface": "seller",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-PF-05",
+      "name": "Target vs achievement",
+      "surface": "seller",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-PF-06",
+      "name": "Reports library",
+      "surface": "seller",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-PF-07",
+      "name": "Report viewer",
+      "surface": "seller",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-PF-08",
+      "name": "Report export",
+      "surface": "seller",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-PR-01",
+      "name": "My Products — list",
+      "surface": "seller",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-PR-02",
+      "name": "Product detail",
+      "surface": "seller",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-PR-03",
+      "name": "Listing quality",
+      "surface": "seller",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-PR-04",
+      "name": "Price & rank history",
+      "surface": "seller",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-PR-05",
+      "name": "Keyword visibility",
+      "surface": "seller",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-RQ-01",
+      "name": "Requests — open",
+      "surface": "seller",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-RQ-02",
+      "name": "Request detail",
+      "surface": "seller",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-RQ-03",
+      "name": "Raise a request",
+      "surface": "seller",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-RQ-04",
+      "name": "Waiting on you (approvals)",
+      "surface": "seller",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SEL-RQ-05",
+      "name": "Completed requests",
+      "surface": "seller",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SYS-01",
+      "name": "No access (403)",
+      "surface": "both",
+      "critical": true,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SYS-02",
+      "name": "You're offline",
+      "surface": "both",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SYS-03",
+      "name": "Maintenance",
+      "surface": "both",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SYS-04",
+      "name": "Update required",
+      "surface": "both",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SYS-05",
+      "name": "Rate limited (429)",
+      "surface": "both",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SYS-06",
+      "name": "Something went wrong",
+      "surface": "both",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    },
+    {
+      "id": "SYS-07",
+      "name": "Sync failed",
+      "surface": "both",
+      "critical": false,
+      "state": "planned",
+      "attempts": 0,
+      "audit": null,
+      "exportedAt": null
+    }
+  ]
+}

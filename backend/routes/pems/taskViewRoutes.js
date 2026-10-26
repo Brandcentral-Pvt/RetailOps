@@ -41,6 +41,7 @@ router.get('/instances/:id/oos/affected-asins/:caseId', canView, controller.getA
 router.post('/instances/:id/oos/runs/:runId/resync/:caseId', canManage, controller.requestResync);
 router.get('/instances/:id/oos/runs/:runId/resync/:caseId', canView, controller.getResyncStatus);
 router.patch('/instances/:id/oos/incidents/:caseId', canManage, controller.updateIncident);
+router.post('/instances/:id/oos/incidents/:caseId/resolve', canManage, controller.resolveOosIncident);
 router.post('/instances/:id/oos/exports', canManage, controller.buildExport);
 router.get('/instances/:id/oos/exports', canView, controller.listExports);
 router.get('/instances/:id/oos/exports/:exportId/download', canView, controller.downloadExport);
