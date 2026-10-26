@@ -120,12 +120,11 @@ function normalizeRows(rows, mappingOverride) {
 /**
  * Save uploaded file to disk and return storage path.
  */
-function saveOriginalFile(buffer, fileName, runId, sourceType) {
-  const dir = path.join(UPLOAD_DIR, path.dirname(path.join(runId))); // flat under uploads/oos/
+function saveOriginalFile(buffer, originalFileName, runId, sourceType) {
+  const dir = path.join(UPLOAD_DIR, path.dirname(path.join(runId)));
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  const ext = path.extname(fileName);
-  const base = path.basename(fileName, ext);
-  const timestamp = Date.now();
+  const ext = path.extname(originalFileName);
+  const base = path.basename(originalFileName, ext);
   const fileName = `${base}_${Date.now()}${ext}`;
   const filePath = path.join(dir, fileName);
   fs.writeFileSync(filePath, buffer);

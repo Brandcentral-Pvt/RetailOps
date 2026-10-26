@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const router = express.Router();
 const controller = require('../../controllers/pems/taskViewController');
-const { authenticate, requirePermission } = require('../middleware/auth');
+const { authenticate, requirePermission } = require('../../middleware/auth');
 
 const canView = requirePermission('tasks_view');
 const canManage = requirePermission('tasks_manage');

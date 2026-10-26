@@ -10,7 +10,7 @@ const sync = require('../../services/oos/oosSyncService');
 const exportsService = require('../../services/oos/oosExportService');
 const submission = require('../../services/oos/oosSubmissionService');
 const { resolveSellerScope } = require('../../utils/sellerScope');
-const { getViewDefinitionForTaskInstance } = require('../pems/taskViewDefinitionService');
+const { getViewDefinitionForTaskInstance } = require('../../services/pems/taskViewDefinitionService');
 
 function fail(res, err) {
   const status = err.status || 500;
