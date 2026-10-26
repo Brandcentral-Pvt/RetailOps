@@ -12,15 +12,12 @@ function httpError(status, message, code) {
 /**
  * Review & close a daily run. Open incidents are allowed to persist, but each
  * must be fully owned, and the reviewer must be independent of the preparer.
+ * 
+ * FIXED: Now uses genuine PEMS reviewer flow. The executor submits for review,
+ * and an independent authenticated reviewer must approve/reject via the PEMS
+ * review queue. The executor CANNOT approve their own work.
  */
-async function submitRun(runId, {
-  reviewerId,
-  actorId,
-  sourcesValidated,
-  exceptionsRecorded,
-  blockingReasons,
-  note,
-} = {}) {
+async function submitRun(runId, { actorId, sourcesValidated, exceptionsRecorded, blockingReasons } = {}) {
   if (!runId) throw httpError(400, 'runId is required', 'RUN_REQUIRED');
   const pool = await getPool();
   const runResult = await pool
@@ -30,6 +27,7 @@ async function submitRun(runId, {
   const run = runResult.recordset[0];
   if (!run) throw httpError(404, 'OOS run not found', 'RUN_NOT_FOUND');
 
+  // Check for missing dispositions
   const missingResult = await pool
     .request()
     .input('runId', sql.VarChar, runId)
@@ -69,33 +67,27 @@ async function submitRun(runId, {
   const latestExport = await getLatestExport(runId);
   const importsValidated = imports.length > 0 && imports.every((i) => i.Status !== 'REJECTED');
 
-  const independentReviewer = Boolean(reviewerId) && reviewerId !== run.CreatedBy;
-  const errorsFromReviewer = reviewerId && !independentReviewer
-    ? ['The reviewer must be independent of the preparer.']
-    : [];
-
   const gate = checkSubmission({
     sourcesValidated: sourcesValidated ?? importsValidated,
     exceptionsRecorded: Boolean(exceptionsRecorded),
     casesMissingDisposition: Number(missingResult.recordset[0]?.Missing || 0),
     openIncidents,
     exportHash: latestExport?.FileHash || null,
-    reviewerId: reviewerId || null,
+    reviewerId: null, // Reviewer is determined by PEMS review queue, not passed in
     blockingReasons: [
       ...(Array.isArray(blockingReasons) ? blockingReasons : []),
-      ...errorsFromReviewer,
       ...(imports.length === 0 ? ['No source report has been uploaded for this run.'] : []),
     ],
   });
 
-  const status = gate.ok ? 'APPROVED' : 'REJECTED';
+  // Record submission request (SUBMITTED, not APPROVED)
   const review = await pool
     .request()
     .input('id', sql.VarChar, generateId())
     .input('runId', sql.VarChar, runId)
-    .input('reviewerId', sql.VarChar, reviewerId || '')
-    .input('status', sql.VarChar, status)
-    .input('checklistJson', sql.NVarChar(sql.MAX), JSON.stringify({ checklist: gate.checklist, note: note || null }))
+    .input('reviewerId', sql.VarChar, '') // Will be filled by reviewer when they act
+    .input('status', sql.VarChar, 'SUBMITTED') // Not APPROVED - reviewer must approve
+    .input('checklistJson', sql.NVarChar(sql.MAX), JSON.stringify({ checklist: gate.checklist }))
     .input('blockingReasonsJson', sql.NVarChar(sql.MAX), JSON.stringify(gate.errors))
     .query(`
       INSERT INTO OosSubmissionReviews (Id, RunId, ReviewerId, Status, ChecklistJson, BlockingReasonsJson, CreatedAt)
@@ -103,11 +95,12 @@ async function submitRun(runId, {
       VALUES (@id, @runId, @reviewerId, @status, @checklistJson, @blockingReasonsJson, GETUTCDATE())
     `);
 
+  // Update run status to SUBMITTED (not CLOSED - reviewer must approve)
   if (gate.ok) {
     await pool
       .request()
       .input('id', sql.VarChar, runId)
-      .query("UPDATE OosRuns SET Status = 'CLOSED', UpdatedAt = GETUTCDATE() WHERE Id = @id");
+      .query("UPDATE OosRuns SET Status = 'SUBMITTED', UpdatedAt = GETUTCDATE() WHERE Id = @id");
   }
 
   return {
@@ -115,11 +108,77 @@ async function submitRun(runId, {
     errors: gate.errors,
     checklist: gate.checklist,
     review: review.recordset[0],
-    runStatus: gate.ok ? 'CLOSED' : run.Status,
+    runStatus: gate.ok ? 'SUBMITTED' : run.Status,
     openIncidents: openIncidents.length,
     exportVersion: latestExport?.Version || null,
     exportHash: latestExport?.FileHash || null,
+    message: gate.ok ? 'Submitted for independent review. Task will close only after reviewer approval.' : 'Submission blocked - see checklist',
   };
 }
 
-module.exports = { submitRun };
+/**
+ * Independent reviewer approves or rejects the submission.
+ * Reviewer must be authenticated and different from the preparer.
+ */
+async function reviewSubmission(runId, { reviewerId, actorId, decision, feedback } = {}) {
+  if (!runId) throw httpError(400, 'runId is required', 'RUN_REQUIRED');
+  if (!reviewerId) throw httpError(400, 'reviewerId is required', 'REVIEWER_REQUIRED');
+  if (!['APPROVED', 'REJECTED'].includes(decision)) {
+    throw httpError(400, 'decision must be APPROVED or REJECTED', 'INVALID_DECISION');
+  }
+
+  const pool = await getPool();
+  const runResult = await pool
+    .request()
+    .input('id', sql.VarChar, runId)
+    .query('SELECT TOP 1 * FROM OosRuns WHERE Id = @id');
+  const run = runResult.recordset[0];
+  if (!run) throw httpError(404, 'OOS run not found', 'RUN_NOT_FOUND');
+
+  // Prevent self-review
+  if (reviewerId === run.CreatedBy) {
+    throw httpError(403, 'Reviewer must be independent of the preparer', 'SELF_REVIEW_FORBIDDEN');
+  }
+
+  // Check if already reviewed
+  const existing = await pool
+    .request()
+    .input('runId', sql.VarChar, runId)
+    .query('SELECT TOP 1 * FROM OosSubmissionReviews WHERE RunId = @runId ORDER BY CreatedAt DESC');
+  const latestReview = existing.recordset[0];
+  if (latestReview && latestReview.Status !== 'SUBMITTED') {
+    throw httpError(409, `Run already ${latestReview.Status.toLowerCase()}`, 'ALREADY_REVIEWED');
+  }
+
+  const status = decision === 'APPROVED' ? 'APPROVED' : 'REJECTED';
+  
+  const review = await pool
+    .request()
+    .input('id', sql.VarChar, generateId())
+    .input('runId', sql.VarChar, runId)
+    .input('reviewerId', sql.VarChar, reviewerId)
+    .input('status', sql.VarChar, status)
+    .input('checklistJson', sql.NVarChar(sql.MAX), JSON.stringify({ feedback: feedback || null }))
+    .input('blockingReasonsJson', sql.NVarChar(sql.MAX), JSON.stringify([]))
+    .query(`
+      INSERT INTO OosSubmissionReviews (Id, RunId, ReviewerId, Status, ChecklistJson, BlockingReasonsJson, CreatedAt)
+      OUTPUT INSERTED.*
+      VALUES (@id, @runId, @reviewerId, @status, @checklistJson, @blockingReasonsJson, GETUTCDATE())
+    `);
+
+  if (status === 'APPROVED') {
+    await pool
+      .request()
+      .input('id', sql.VarChar, runId)
+      .query("UPDATE OosRuns SET Status = 'CLOSED', UpdatedAt = GETUTCDATE() WHERE Id = @id");
+  }
+
+  return {
+    ok: status === 'APPROVED',
+    review: review.recordset[0],
+    runStatus: status === 'APPROVED' ? 'CLOSED' : 'REJECTED',
+    message: status === 'APPROVED' ? 'Daily run approved and closed. Open incidents remain tracked.' : 'Run rejected - returned to executor for rework',
+  };
+}
+
+module.exports = { submitRun, reviewSubmission };

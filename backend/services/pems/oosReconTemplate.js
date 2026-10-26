@@ -1,12 +1,12 @@
 /**
  * OOS-RECON-001 — "OOS Monitoring & Reconciliation" draft template definition.
  *
- * PURE module (no I/O). It describes the employee-facing task only: six
- * playbook phases and twelve human outcome-confirmation activities. The heavy
- * lifting described in the rebuild spec (report intake, reconciliation engine,
+ * PURE module (no I/O). It describes the employee-facing task only: four
+ * playbook phases matching the rebuild spec workflow, with outcome-confirmation
+ * activities. The heavy lifting (report intake, reconciliation engine,
  * per-seller GMS Pareto, privileged resync, durable incidents, four-sheet
- * export, submission policy) is NOT implemented here — those need services,
- * storage and UI. This template is the governed front door for that work.
+ * export, submission policy) is implemented in backend services; this template
+ * is the governed front door for that work.
  *
  * Deliberately a DRAFT:
  *   - isActive: false        → never schedulable until policies + reviewer +
@@ -34,155 +34,147 @@ function outcome(title, instructions, expectedOutput, extra = {}) {
 
 const SUB_TASK_DEFINITIONS = [
   {
-    title: '01 Scope & snapshot',
-    description: 'The system resolves the assigned sellers/channels, eligible catalog, latest raw availability and GMS snapshot (read-only).',
-    expectedOutput: 'Run manifest with scope IDs and source timestamps.',
+    title: 'PHASE 1: COLLECT AND VALIDATE DATA',
+    description: 'RetailOps resolves sellers/channels/active ASINs and retrieves the latest availability snapshot + GMS; employee uploads BrandCentral and applicable Vendor Central reports; system validates coverage, freshness and required fields; candidate union built from RetailOps unavailable OR BrandCentral zero OR Vendor Central zero.',
+    expectedOutput: 'Validated scope manifest, accepted reports with timestamps, candidate ASIN set.',
     activities: [
       outcome(
-        'Verify scope and freshness',
+        'Verify RetailOps scope and snapshot',
         [
-          'Open the run manifest generated for today.',
-          'Confirm the assigned sellers/channels and eligible catalog match your brands — there are no missing or extra sellers.',
-          'Review the freshness exception status for each source (RetailOps availability, uploaded reports, GMS).',
-          'If a source is stale or missing, record the exception and its reason before continuing.',
+          'Open the run manifest generated for today — confirm assigned sellers, marketplace channels and active ASIN count.',
+          'Review the RetailOps availability snapshot: unavailable ASINs and GMS period match the agreed window.',
+          'If the snapshot is stale or incomplete, record the freshness exception and reason before continuing.',
         ],
-        'Scope IDs and timestamps confirmed; every freshness exception recorded.',
+        'Scope IDs, freshness timestamps and unavailable count confirmed; any exceptions recorded.',
       ),
       outcome(
-        'Acknowledge snapshot completeness',
+        'Upload and validate source reports',
         [
-          'Confirm the GMS period shown matches the agreed trailing window.',
-          'Confirm the RetailOps unavailable count in the manifest is present (not blank).',
-          'Acknowledge the snapshot so reconciliation may proceed; note any source you have flagged as unreliable.',
+          'Upload the BrandCentral inventory report for each assigned seller.',
+          'Upload the Vendor Central report where that channel applies; explicitly mark N/A where it does not.',
+          'A blank upload is not zero stock — never leave a required report blank.',
+          'Wait for server-side format validation: file coverage, seller mapping, required fields, freshness.',
         ],
-        'Snapshot acknowledged with GMS period and unavailable count verified.',
+        'Every seller has a BrandCentral file; Vendor Central is uploaded or explicitly N/A; all files pass validation.',
+      ),
+      outcome(
+        'Confirm candidate union',
+        [
+          'Verify the system built the candidate set from: RetailOps unavailable OR BrandCentral zero stock OR applicable Vendor Central zero stock.',
+          'Confirm no candidate was silently dropped and that channel quantities (BrandCentral vs Vendor Central) remain separate.',
+          'If any mapping is ambiguous, flag it for manual exception with a reason.',
+        ],
+        'Candidate ASIN set confirmed; channel quantities kept separate; exceptions documented.',
       ),
     ],
   },
   {
-    title: '02 Report intake',
-    description: 'The system stores original uploads, maps the schema, validates rows and preserves channel identities.',
-    expectedOutput: 'File IDs, checksums and timestamps for every accepted report; invalid rows rejected.',
+    title: 'PHASE 2: RECONCILE AVAILABILITY',
+    description: 'System joins source observations, classifies each candidate and surfaces read-only decisions. Employee reviews and confirms — never re-does the automation.',
+    expectedOutput: 'Classification decisions (Confirmed OOS / Resync candidate / Unverified-Conflict) audited with reasons.',
     activities: [
       outcome(
-        'Upload source reports',
+        'Review Confirmed Channel OOS',
         [
-          'Upload the BrandCentral report for each assigned seller.',
-          'Upload the Vendor Central report where that channel applies; mark it explicitly N/A where it does not.',
-          'Never leave a required upload blank — a blank upload is not zero stock.',
-          'Wait for the server-side format check to pass for each file.',
+          'For cases where RetailOps unavailable AND no applicable report shows positive stock → Confirmed Channel OOS.',
+          'Confirm the channel is identified and source evidence (RetailOps + BC/VC) is retained.',
+          'If evidence disagrees, record why the case still qualifies as confirmed.',
         ],
-        'Every seller has a BrandCentral file, and Vendor Central is uploaded or explicitly marked N/A.',
+        'Each Confirmed Channel OOS has channel identified and evidence preserved.',
       ),
       outcome(
-        'Resolve invalid inputs',
+        'Act on Resync Candidates',
         [
-          'Review the rows the intake validation rejected (bad SKU/ASIN, conflicting matches, missing quantity).',
-          'Correct and re-upload, or move genuinely ambiguous rows to manual exception with a reason.',
-          'Keep channel identities separate — do not merge BrandCentral and Vendor Central quantities.',
+          'For cases where RetailOps unavailable BUT both applicable reports show fresh positive stock → Resync Candidate.',
+          'Queue one controlled marketplace resync per candidate; log request ID, time and pre-status.',
+          'Wait for fresh post-sync RetailOps observation — an accepted request is NOT a recovery.',
         ],
-        'No rejected row is silently dropped; each is corrected or logged as an exception.',
+        'Each Resync Candidate has a queued job ID with pre-status; outcome pending verification.',
+      ),
+      outcome(
+        'Verify Resync Results',
+        [
+          'A verified newer in-stock observation resolves the mismatch — record before/after audit and omit from active OOS.',
+          'If resync is unavailable, failed, timed out or status unchanged → keep discrepancy open; record why.',
+          'Deduplicate against the existing job for the same discrepancy revision — do not retry broadly.',
+        ],
+        'Every Resync Candidate is either verified recovered (with evidence) or remains an open discrepancy with a documented reason.',
+      ),
+      outcome(
+        'Disposition Unverified / Conflict Cases',
+        [
+          'For missing, stale or divergent evidence → Unverified / Conflict.',
+          'Request manual check; record a reasoned decision for each (the decision is audited).',
+          'Never silently treat GMS-unavailable cases as standard — confirm GMS_UNVERIFIED disposition.',
+        ],
+        'Every Unverified/Conflict case has an audited, reasoned decision.',
       ),
     ],
   },
   {
-    title: '03 Reconcile & prioritize',
-    description: 'The system joins source observations, classifies, deduplicates and computes the seller-wide Pareto (read-only decisions surfaced for review).',
-    expectedOutput: 'Classification decisions, GMS scoring snapshot and per-seller Tier 1 cohort.',
+    title: 'PHASE 3: PRIORITIZE AND EXPORT',
+    description: 'System deduplicates OPEN OOS + OPEN discrepancies per seller + channel + ASIN; computes seller-wide GMS Pareto (80% threshold, full catalog denominator); produces the immutable 4-tab workbook.',
+    expectedOutput: 'Tier 1 Pareto cohorts confirmed; 4-tab workbook exported with hash; open incidents upserted with ownership fields.',
     activities: [
       outcome(
-        'Decide ambiguous mappings and GMS-unverified cases',
+        'Confirm deduplication and Pareto',
         [
-          'Review every case the engine could not classify with confidence.',
-          'Record a reason for each manual decision (the decision is audited).',
-          'Where GMS is unavailable, confirm the case is dispositioned as GMS_UNVERIFIED — never silently treated as standard.',
+          'Review OPEN OOS + OPEN discrepancies deduplicated per seller + channel + ASIN.',
+          'Confirm each seller\'s Tier 1 cohort: smallest set reaching ≥80% of that seller\'s entire eligible GMS (full catalog denominator).',
+          'If GMS is unavailable for a seller, confirm the cohort is marked GMS_UNVERIFIED — never silently low priority.',
         ],
-        'Every ambiguous and GMS-unverified case has a reasoned, audited decision.',
+        'Per-seller Tier 1 cohorts confirmed against full-catalog denominator; GMS_UNVERIFIED flagged.',
       ),
       outcome(
-        'Confirm the priority cohort',
+        'Export and verify the 4-tab workbook',
         [
-          'Review each seller’s Tier 1 Pareto cohort (smallest set reaching ≥80% of that seller’s eligible GMS).',
-          'Confirm the denominator is the entire eligible active catalog, not only OOS ASINs.',
-          'Flag any seller whose cohort looks wrong before handover.',
+          'Preview the four sheets: (1) Seller/channel summary, (2) Source manifest, (3) Incidents & follow-ups, (4) Resolved audit.',
+          'Download the immutable export; record its version and SHA-256 hash.',
+          'Confirm open incident IDs, owners and follow-up dates appear in the Incidents tab.',
         ],
-        'Per-seller Tier 1 cohort confirmed against the full-catalog denominator.',
-      ),
-    ],
-  },
-  {
-    title: '04 Marketplace verification',
-    description: 'The system queues authorized targeted resync under quota/idempotency and waits for a fresh observation.',
-    expectedOutput: 'Resync job ID plus pre/post status and observation times for each candidate.',
-    activities: [
-      outcome(
-        'Act on resync results',
-        [
-          'Review the scoped resync candidates (RetailOps unavailable with fresh positive quantities from both applicable reports for the same channel).',
-          'A request being accepted is not a recovery — only a verified newer in-stock observation resolves the mismatch.',
-          'For blocked, unchanged, failed or timed-out jobs, keep the discrepancy open and record the outcome.',
-        ],
-        'Each candidate is either verified recovered with before/after evidence, or remains an open discrepancy.',
+        'Export version/hash recorded; workbook contains all required tabs and open incident data.',
       ),
       outcome(
-        'Handle exceptions',
-        [
-          'For candidates the resync could not resolve, record why (quota, unchanged, timeout).',
-          'Escalate any privileged-sync failure to the authorised executor.',
-          'Do not retry broadly — deduplicate against the existing job for the same discrepancy revision.',
-        ],
-        'Unresolved candidates carry a documented reason and an escalation where required.',
-      ),
-    ],
-  },
-  {
-    title: '05 Export & handover',
-    description: 'The system produces the four-tab workbook and upserts durable incidents.',
-    expectedOutput: 'Export version/hash and an ownership + communication log for every open incident.',
-    activities: [
-      outcome(
-        'Export and verify the workbook',
-        [
-          'Preview the four sheets (seller/channel, source manifest, incidents, resolved audit).',
-          'Download the immutable export and record its version and hash.',
-          'Confirm open incident IDs and follow-up dates appear in the export.',
-        ],
-        'Export version and hash recorded; open incidents present in the workbook.',
-      ),
-      outcome(
-        'Assign ownership and approve communication',
+        'Assign ownership and seller communication',
         [
           'Assign an owner, a replenishment ETA and a next follow-up date to every open incident.',
           'Approve seller communication explicitly before any message is sent (no automatic seller messages).',
-          'Log the communication approval and who was informed.',
+          'Log the communication approval, who was informed and when.',
         ],
         'Every open incident has an owner, ETA, follow-up date and logged communication approval.',
       ),
     ],
   },
   {
-    title: '06 Review & close daily run',
-    description: 'The system enforces submission completeness and records the audit event.',
-    expectedOutput: 'Approval record; still-open incidents remain open.',
+    title: 'PHASE 4: RESOLUTION AND GOVERNANCE',
+    description: 'Employee validates affected ASINs, assigns owners and seller communication actions; periodic verified stock refresh; close on verified restore; submit with independent review; open incidents persist.',
+    expectedOutput: 'Incidents resolved only on fresh verified stock; daily run submitted and closed under independent review; open incidents remain tracked.',
     activities: [
       outcome(
-        'Complete the submission checklist',
+        'Validate affected ASINs and assign actions',
         [
-          'Confirm sources validated or exceptions recorded.',
-          'Confirm every analysed case has a disposition and every open case has an owner and follow-up.',
-          'Confirm the export ID/hash and the named independent reviewer.',
-          'Resolve any blocking reason the checklist surfaces.',
+          'Confirm each open incident has an owner, communication status, next action and follow-up date.',
+          'Record seller replenishment ETA; update communication status as messages are approved/sent.',
         ],
-        'Submission checklist complete with no unaddressed blocking reason.',
+        'All open incidents fully owned with ETA, next action and follow-up.',
       ),
       outcome(
-        'Submit for independent review',
+        'Periodic verified stock refresh',
         [
-          'Submit the monitoring manifest to the independent reviewer.',
-          'Record the approval (or the rejection and its reason).',
-          'Close the daily run only with approval; leave every still-open incident open.',
+          'For each open incident, trigger a controlled re-verification (fresh post-sync RetailOps observation).',
+          'Only a verified newer in-stock observation for the same scope closes the incident — preserve before/after audit.',
+          'If stock not restored, keep incident OPEN; follow up or escalate per approved policy.',
         ],
-        'Independent approval recorded; open incidents persist beyond task closure.',
+        'Incidents closed only on fresh verified in-stock evidence; unresolved incidents remain OPEN with documented reason.',
+      ),
+      outcome(
+        'Submit daily monitoring report and outstanding-incident handover',
+        [
+          'Complete the submission checklist: sources validated/exceptions recorded, every analysed case has a disposition, every open incident has owner+communication+next action+follow-up, export hash recorded, independent reviewer named, no blocking reasons.',
+          'Submit to the independent reviewer (must differ from the preparer).',
+          'Close the daily run ONLY with approval; leave every still-open incident OPEN and tracked for next cycle.',
+        ],
+        'Independent approval recorded; daily run closed; open incidents persist beyond task closure.',
       ),
     ],
   },
@@ -196,7 +188,7 @@ const OOS_RECON_TEMPLATE = {
   taskCode: TASK_CODE,
   name: 'OOS Monitoring & Reconciliation',
   description: [
-    'Three-source (BrandCentral + Vendor Central + RetailOps) OOS monitoring and reconciliation for assigned sellers.',
+    'Four-phase OOS monitoring and reconciliation (Collect & Validate → Reconcile → Prioritize & Export → Resolution & Governance).',
     'Employees confirm read-only automated outcomes; they never re-do the automation by hand.',
     '',
     'DRAFT: inactive and non-auto-assigning until source policies, reviewer, test coverage and independent signoff exist. DLY-004 remains untouched.',
@@ -218,7 +210,7 @@ const OOS_RECON_TEMPLATE = {
   reviewRequired: true,
   reviewerId: null,              // to be named before activation
   assigneeRole: 'brand_manager',
-  expectedOutput: 'Scope verified, sources validated or excepted, cases reconciled and prioritised, resyncs verified, workbook exported, and open incidents owned with follow-ups — all under independent review.',
+  expectedOutput: 'Scope verified, sources validated or excepted, cases reconciled and prioritised, resyncs verified, workbook exported, open incidents owned with follow-ups — all under independent review.',
   subTaskDefinitions: SUB_TASK_DEFINITIONS,
   tags: ['oos', 'reconciliation', 'pilot', TASK_CODE],
 };

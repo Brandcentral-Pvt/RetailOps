@@ -1,7 +1,10 @@
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const { getPool, sql, generateId, withTransaction } = require('../../database/db');
 const { isUsableAsinCode, normalizeAsin } = require('../../utils/asinUtils');
 const { toQuantity } = require('./oosPolicy');
+const XLSX = require('xlsx');
 
 const SOURCES = new Set(['BRAND_CENTRAL', 'VENDOR_CENTRAL', 'RETAILOPS']);
 
@@ -13,6 +16,9 @@ const DEFAULT_MAPPING = {
   status: 'status',
   timestamp: 'timestamp',
 };
+
+const UPLOAD_DIR = path.join(__dirname, '../../../uploads/oos');
+const PARSER_VERSION = '1.0.0';
 
 function httpError(status, message, code) {
   const err = new Error(message);
@@ -42,13 +48,25 @@ function readField(row, mapping, field, fallbacks) {
   return pick(row, fallbacks);
 }
 
-function hashRows(rows) {
-  return crypto.createHash('sha256').update(JSON.stringify(rows)).digest('hex');
+function hashBuffer(buffer) {
+  return crypto.createHash('sha256').update(buffer).digest('hex');
 }
 
 /**
- * Normalise an uploaded workbook into validated observation rows.
+ * Parse uploaded workbook into rows, preserving all columns.
  * Invalid ASINs are recorded (not silently dropped) and never coerced.
+ */
+function parseWorkbook(buffer, mappingOverride) {
+  const workbook = XLSX.read(buffer, { type: 'buffer' });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: null, raw: false });
+  return normalizeRows(rawRows, mappingOverride);
+}
+
+/**
+ * Normalise parsed rows into validated observation rows.
+ * Invalid ASINs are recorded (not silently dropped) and never coerced.
+ * Duplicate ASINs in one file: prefer the row that carries a real quantity.
  */
 function normalizeRows(rows, mappingOverride) {
   const mapping = { ...DEFAULT_MAPPING, ...(mappingOverride || {}) };
@@ -99,20 +117,45 @@ function normalizeRows(rows, mappingOverride) {
   return { rows: out, invalid };
 }
 
+/**
+ * Save uploaded file to disk and return storage path.
+ */
+function saveOriginalFile(buffer, fileName, runId, sourceType) {
+  const dir = path.join(UPLOAD_DIR, path.dirname(path.join(runId))); // flat under uploads/oos/
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  const ext = path.extname(fileName);
+  const base = path.basename(fileName, ext);
+  const timestamp = Date.now();
+  const fileName = `${base}_${Date.now()}${ext}`;
+  const filePath = path.join(dir, fileName);
+  fs.writeFileSync(filePath, buffer);
+  return filePath;
+}
+
+/**
+ * Ingest an uploaded file (buffer) for a run.
+ * Stores original file bytes, computes server-side SHA-256, parses and validates rows.
+ * Supports revisioning: re-upload creates new version, never overwrites original.
+ */
 async function ingestUpload({
   runId,
   sellerId,
   channel,
   sourceType,
   fileName,
-  rows,
+  fileBuffer,
   mapping,
   createdBy,
-  fileHash,
 } = {}) {
   if (!runId) throw httpError(400, 'runId is required', 'RUN_REQUIRED');
   if (!sourceType || !SOURCES.has(sourceType)) {
     throw httpError(400, `sourceType must be one of ${[...SOURCES].join(', ')}`, 'INVALID_SOURCE');
+  }
+  if (!fileBuffer || fileBuffer.length === 0) {
+    throw httpError(400, 'Empty file', 'EMPTY_FILE');
+  }
+  if (fileBuffer.length > 50 * 1024 * 1024) {
+    throw httpError(400, 'File size exceeds 50MB limit', 'FILE_TOO_LARGE');
   }
 
   const pool = await getPool();
@@ -125,28 +168,33 @@ async function ingestUpload({
 
   const effectiveSeller = sellerId || run.SellerId;
   const effectiveChannel = channel || run.Channel;
-  const effectiveHash = fileHash || hashRows(rows || []);
+  const fileHash = hashBuffer(fileBuffer);
 
+  // Save original file to disk
+  const storagePath = saveOriginalFile(fileBuffer, fileName, runId, sourceType);
+
+  // Check for existing import (same run/channel/source)
   const existing = await pool
     .request()
     .input('runId', sql.VarChar, runId)
     .input('channel', sql.NVarChar, effectiveChannel)
     .input('sourceType', sql.VarChar, sourceType)
-    .query('SELECT TOP 1 * FROM OosImports WHERE RunId = @runId AND Channel = @channel AND SourceType = @sourceType');
+    .query('SELECT TOP 1 * FROM OosImports WHERE RunId = @runId AND Channel = @channel AND SourceType = @sourceType ORDER BY UploadRevision DESC');
 
+  let uploadRevision = 1;
+  let parentImportId = null;
   if (existing.recordset[0]) {
     const prior = existing.recordset[0];
-    if (prior.FileHash === effectiveHash) {
+    if (prior.FileHash === fileHash) {
       return { import: prior, idempotent: true, accepted: 0, rejected: 0, invalid: [] };
     }
-    throw httpError(
-      409,
-      'A different file has already been stored for this run/source. Create a new run to re-upload.',
-      'IMPORT_CONFLICT',
-    );
+    // New revision
+    uploadRevision = prior.UploadRevision + 1;
+    parentImportId = prior.Id;
   }
 
-  const normalized = normalizeRows(rows, mapping);
+  // Parse and validate
+  const normalized = parseWorkbook(fileBuffer);
 
   const importId = generateId();
   const accepted = normalized.rows.length;
@@ -155,13 +203,13 @@ async function ingestUpload({
   const stored = await withTransaction(async (tx) => {
     const imp = await tx
       .request()
-      .input('id', sql.VarChar, importId)
+      .input('id', sql.VarChar, generateId())
       .input('runId', sql.VarChar, runId)
       .input('sellerId', sql.VarChar, effectiveSeller)
       .input('channel', sql.NVarChar, effectiveChannel)
       .input('sourceType', sql.VarChar, sourceType)
       .input('fileName', sql.NVarChar, fileName || null)
-      .input('fileHash', sql.VarChar(128), effectiveHash)
+      .input('fileHash', sql.VarChar(128), fileHash)
       .input('totalRows', sql.Int, (rows || []).length)
       .input('acceptedCount', sql.Int, accepted)
       .input('rejectedCount', sql.Int, rejected)
@@ -173,14 +221,27 @@ async function ingestUpload({
         })),
       }))
       .input('createdBy', sql.VarChar, createdBy || null)
+      .input('originalFileHash', sql.VarChar(128), hashBuffer(fileBuffer))
+      .input('originalFileName', sql.NVarChar, fileName || null)
+      .input('originalFileSize', sql.BigInt, fileBuffer.length)
+      .input('originalFileContentType', sql.NVarChar, 'application/octet-stream')
+      .input('originalFileStoragePath', sql.NVarChar, filePath)
+      .input('parserVersion', sql.VarChar, PARSER_VERSION)
+      .input('uploadRevision', sql.Int, 1)
+      .input('parentImportId', sql.VarChar, parentImportId)
+      .input('createdBy', sql.VarChar, createdBy || null)
       .query(`
         INSERT INTO OosImports
           (Id, RunId, SellerId, Channel, SourceType, FileName, FileHash, TotalRows, AcceptedCount, RejectedCount,
-           Status, MappingJson, ValidationJson, CreatedBy, CreatedAt)
+           Status, MappingJson, ValidationJson, CreatedBy, CreatedAt,
+           OriginalFileHash, OriginalFileName, OriginalFileSize, OriginalFileContentType, OriginalFileStoragePath,
+           ParserVersion, UploadRevision, ParentImportId)
         OUTPUT INSERTED.*
         VALUES
           (@id, @runId, @sellerId, @channel, @sourceType, @fileName, @fileHash, @totalRows, @acceptedCount, @rejectedCount,
-           @status, @mappingJson, @validationJson, @createdBy, GETUTCDATE())
+           @status, @mappingJson, @validationJson, @createdBy, GETUTCDATE(),
+           @originalFileHash, @originalFileName, @originalFileSize, @originalFileContentType, @originalFileStoragePath,
+           @parserVersion, @uploadRevision, @parentImportId)
       `);
 
     for (const r of normalized.rows) {
@@ -231,4 +292,4 @@ async function listImports(runId) {
   return result.recordset;
 }
 
-module.exports = { ingestUpload, normalizeRows, listImports, hashRows, SOURCES };
+module.exports = { ingestUpload, normalizeRows, parseWorkbook, listImports, hashBuffer, SOURCES };

@@ -217,16 +217,6 @@ export function useNavigationItems() {
             guard(
                 isAdmin || isGlobalUser || hasPermission('tasks_view'),
                 {
-                    key: 'oos-reconciliation',
-                    label: 'OOS Reconciliation',
-                    path: '/tasks/oos',
-                    icon: ScanSearch,
-                    section: 'automation',
-                }
-            ),
-            guard(
-                isAdmin || isGlobalUser || hasPermission('tasks_view'),
-                {
                     key: 'task-reviews',
                     label: 'Review Queue',
                     path: '/tasks/reviews',

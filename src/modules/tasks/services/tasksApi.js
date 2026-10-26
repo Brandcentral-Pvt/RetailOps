@@ -5,439 +5,155 @@ const authHeaders = () => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
+async function call(path, { method = 'GET', body } = {}) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method,
+    headers: {
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+      ...authHeaders(),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  let payload;
+  try { payload = await res.json(); } catch { payload = null; }
+  if (!res.ok || payload?.success === false) {
+    const err = new Error(payload?.error || `Request failed (${res.status})`);
+    err.status = res.status;
+    err.code = payload?.code;
+    err.payload = payload;
+    throw err;
+  }
+  return payload;
+}
+
 const tasksApi = {
-  // ── Templates ──
   getTemplates: async (params = {}) => {
     const q = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/pems/templates${q ? `?${q}` : ''}`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed to fetch templates');
-    return res.json();
+    return call(`/pems/templates${q ? `?${q}` : ''}`);
   },
 
-  getTemplateById: async (id) => {
-    const res = await fetch(`${API_BASE}/pems/templates/${id}`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed to fetch template');
-    return res.json();
-  },
+  getTemplateById: async (id) => call(`/pems/templates/${id}`),
 
-  createTemplate: async (data) => {
-    const res = await fetch(`${API_BASE}/pems/templates`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error('Failed to create template');
-    return res.json();
-  },
+  createTemplate: async (data) => call(`/pems/templates`, { method: 'POST', body: data }),
 
-  updateTemplate: async (id, data) => {
-    const res = await fetch(`${API_BASE}/pems/templates/${id}`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error('Failed to update template');
-    return res.json();
-  },
+  updateTemplate: async (id, data) => call(`/pems/templates/${id}`, { method: 'PUT', body: data }),
 
-  deleteTemplate: async (id) => {
-    const res = await fetch(`${API_BASE}/pems/templates/${id}`, { method: 'DELETE', headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed to delete template');
-    return res.json();
-  },
+  deleteTemplate: async (id) => call(`/pems/templates/${id}`, { method: 'DELETE' }),
 
-  getFilterOptions: async () => {
-    const res = await fetch(`${API_BASE}/pems/templates/filters`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed to fetch filter options');
-    return res.json();
-  },
+  getFilterOptions: async () => call(`/pems/templates/filters`),
 
-  /** Accurate company-wide template counts (server-side, not a page subset). */
-  getTemplateSummary: async () => {
-    const res = await fetch(`${API_BASE}/pems/templates/summary`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed to fetch template summary');
-    return res.json();
-  },
+  getTemplateSummary: async () => call(`/pems/templates/summary`),
 
-  // ── Task Instances ──
   getInstances: async (params = {}) => {
     const q = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/pems/instances${q ? `?${q}` : ''}`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed to fetch instances');
-    return res.json();
+    return call(`/pems/instances${q ? `?${q}` : ''}`);
   },
 
-  getInstanceById: async (id) => {
-    const res = await fetch(`${API_BASE}/pems/instances/${id}`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed to fetch instance');
-    return res.json();
-  },
+  getInstanceById: async (id) => call(`/pems/instances/${id}`),
 
-  createInstance: async (data) => {
-    const res = await fetch(`${API_BASE}/pems/instances`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify(data),
+  getInstanceAsins: async (id) => call(`/pems/instances/${id}/asins`),
+
+  transitionStatus: async (id, toStatus, remarks) =>
+    call(`/pems/instances/${id}/status`, { method: 'POST', body: { toStatus, remarks } }),
+
+  addComment: async (id, text) =>
+    call(`/pems/instances/${id}/comments`, { method: 'POST', body: { text } }),
+
+  uploadEvidence: async (data) =>
+    call(`/pems/instances/${data.taskInstanceId}/evidence`, { method: 'POST', body: data }),
+
+  verifyFix: async (id) => call(`/pems/instances/${id}/verify`, { method: 'POST' }),
+
+  completeActivity: async (actId) =>
+    call(`/pems/activities/${actId}/complete`, { method: 'POST' }),
+
+  completeSubTask: async (stId) =>
+    call(`/pems/subtasks/${stId}/complete`, { method: 'POST' }),
+
+  setBrandCheck: async (taskId, brandId, completed) =>
+    call(`/pems/instances/${taskId}/brands/${brandId || 'all'}`, {
+      method: 'POST',
+      body: { completed },
+    }),
+
+  submitReview: async (data) =>
+    call('/pems/reviews', { method: 'POST', body: data }),
+
+  getTaskView: async (taskInstanceId) =>
+    call(`/pems/instances/${taskInstanceId}/view`),
+
+  getOosContext: async (taskInstanceId, sellerId) =>
+    call(`/pems/instances/${taskInstanceId}/oos/context?sellerId=${sellerId}`),
+
+  getOosRuns: async (taskInstanceId, sellerId) =>
+    call(`/pems/instances/${taskInstanceId}/oos/sellers/${sellerId}/runs`),
+
+  createOosRun: async (taskInstanceId, sellerId, data) =>
+    call(`/pems/instances/${taskInstanceId}/oos/sellers/${sellerId}/runs`, { method: 'POST', body: data }),
+
+  uploadOosFile: async (taskInstanceId, runId, formData) => {
+    const res = await fetch(`${API_BASE}/pems/instances/${taskInstanceId}/oos/runs/${runId}/files`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: formData,
     });
-    if (!res.ok) throw new Error('Failed to create instance');
-    return res.json();
-  },
-
-  transitionStatus: async (id, toStatus, details = '') => {
-    const res = await fetch(`${API_BASE}/pems/instances/${id}/transition`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ toStatus, details }),
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error || 'Failed to transition status');
-    return body;
-  },
-
-  bulkTransition: async (ids, toStatus, details = '') => {
-    const res = await fetch(`${API_BASE}/pems/instances/bulk/transition`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ ids, toStatus, details }),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body?.error || 'Failed to bulk transition');
+    let payload = null;
+    try { payload = await res.json(); } catch { payload = null; }
+    if (!res.ok || payload?.success === false) {
+      const err = new Error(payload?.error || `Upload failed (${res.status})`);
+      err.status = res.status;
+      err.code = payload?.code;
+      throw err;
     }
-    return res.json();
+    return payload;
   },
 
-  updateAchievement: async (id, achievement) => {
-    const res = await fetch(`${API_BASE}/pems/instances/${id}/achievement`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ achievement }),
-    });
-    if (!res.ok) throw new Error('Failed to update achievement');
-    return res.json();
-  },
+  getOosUploads: async (taskInstanceId, runId) =>
+    call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/files`),
 
-  // ── Sub Tasks & Activities ──
-  // Tick one brand (or all, when brandRowId is null) on a multi-brand routine
-  setBrandCheck: async (taskId, brandRowId, completed) => {
-    const res = await fetch(`${API_BASE}/pems/instances/${taskId}/brands${brandRowId ? `/${brandRowId}` : ''}`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ completed }),
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok || body.success === false) throw new Error(body.message || 'Could not save that brand');
-    return body.data;
-  },
+  reconcileOosRun: async (taskInstanceId, runId) =>
+    call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/reconcile`, { method: 'POST' }),
 
-  completeSubTask: async (subTaskId) => {
-    const res = await fetch(`${API_BASE}/pems/subtasks/${subTaskId}/complete`, {
-      method: 'POST', headers: authHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to complete subtask');
-    return res.json();
-  },
-
-  completeActivity: async (activityId) => {
-    const res = await fetch(`${API_BASE}/pems/activities/${activityId}/complete`, {
-      method: 'POST', headers: authHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to complete activity');
-    return res.json();
-  },
-
-  // ── Evidence ──
-  uploadEvidence: async (data) => {
-    const res = await fetch(`${API_BASE}/pems/evidence`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error('Failed to upload evidence');
-    return res.json();
-  },
-
-  // ── Reviews ──
-  // Review + workflow transition happen atomically on the server
-  // (claim → record → decide). Do NOT call transitionStatus afterwards.
-  submitReview: async (data) => {
-    const res = await fetch(`${API_BASE}/pems/reviews`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify(data),
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error || 'Failed to submit review');
-    return body;
-  },
-
-  // { ids, decision: 'APPROVE'|'REJECT', feedback } → { data: { reviewed:[{id,to}], skipped:[{id,reason}] } }
-  bulkReview: async ({ ids, decision, feedback = '' }) => {
-    const res = await fetch(`${API_BASE}/pems/reviews/bulk`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ ids, decision, feedback }),
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error || 'Bulk review failed');
-    return body;
-  },
-
-  // ── Daily routine (Daily Operations Master) ──
-  importDailyOps: async ({ rows, overrides, dryRun = true, generateNow = true }) => {
-    const res = await fetch(`${API_BASE}/pems/routine/import`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ rows, overrides, dryRun, generateNow }),
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok || body.success === false) throw new Error(body.message || 'Import failed');
-    return body.data;
-  },
-  generateRoutineToday: async (templateId) => {
-    const res = await fetch(`${API_BASE}/pems/routine/generate`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ templateId }),
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok || body.success === false) throw new Error(body.message || 'Could not generate today\'s routine');
-    return body.data;
-  },
-
-  // Everything the current user has to act on (optionally a teammate's day for global roles).
-  getMyDay: async (userId) => {
-    const q = userId ? `?userId=${encodeURIComponent(userId)}` : '';
-    const res = await fetch(`${API_BASE}/pems/my-day${q}`, { headers: authHeaders() });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error || 'Failed to load your day');
-    return body;
-  },
-
-  getReviewStats: async () => {
-    const res = await fetch(`${API_BASE}/pems/reviews/stats`, { headers: authHeaders() });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error || 'Failed to load review stats');
-    return body;
-  },
-
-  // ── Dashboard (Legacy) ──
-  getDashboardKPIs: async (params = {}) => {
+  getAffectedAsins: async (taskInstanceId, params = {}) => {
     const q = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/pems/dashboard/kpis${q ? `?${q}` : ''}`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed to fetch dashboard KPIs');
-    return res.json();
+    return call(`/pems/instances/${taskInstanceId}/oos/affected-asins${q ? `?${q}` : ''}`);
   },
 
-  getSellerPerformance: async (params = {}) => {
-    const q = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/pems/dashboard/seller-performance${q ? `?${q}` : ''}`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed to fetch seller performance');
-    return res.json();
+  getAffectedAsinSummary: async (taskInstanceId) =>
+    call(`/pems/instances/${taskInstanceId}/oos/affected-asins/summary`),
+
+  getAffectedAsinDetail: async (taskInstanceId, caseId) =>
+    call(`/pems/instances/${taskInstanceId}/oos/affected-asins/${caseId}`),
+
+  requestResync: async (taskInstanceId, runId, caseId, data) =>
+    call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/resync/${caseId}`, { method: 'POST', body: data }),
+
+  getResyncStatus: async (taskInstanceId, runId, caseId) =>
+    call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/resync/${caseId}`),
+
+  updateIncident: async (taskInstanceId, caseId, data) =>
+    call(`/pems/instances/${taskInstanceId}/oos/incidents/${caseId}`, { method: 'PATCH', body: data }),
+
+  buildExport: async (taskInstanceId, body) =>
+    call(`/pems/instances/${taskInstanceId}/oos/exports`, { method: 'POST', body }),
+
+  downloadExport: async (taskInstanceId, exportId) => {
+    const res = await fetch(`${API_BASE}/pems/instances/${taskInstanceId}/oos/exports/${exportId}/download`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error('Export download failed');
+    return res.blob();
   },
 
-  refreshSLA: async () => {
-    const res = await fetch(`${API_BASE}/pems/dashboard/refresh-sla`, { method: 'POST', headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed to refresh SLA');
-    return res.json();
-  },
+  listExports: async (taskInstanceId) =>
+    call(`/pems/instances/${taskInstanceId}/oos/exports`),
 
-  // ── V2: Notifications ──
-  getNotifications: async (params = {}) => {
-    const q = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/pems/notifications${q ? `?${q}` : ''}`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed to fetch notifications');
-    return res.json();
-  },
+  submitOos: async (taskInstanceId, body) =>
+    call(`/pems/instances/${taskInstanceId}/oos/submit`, { method: 'POST', body }),
 
-  markNotificationRead: async (id) => {
-    const res = await fetch(`${API_BASE}/pems/notifications/${id}/read`, { method: 'POST', headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed');
-    return res.json();
-  },
-
-  markAllNotificationsRead: async () => {
-    const res = await fetch(`${API_BASE}/pems/notifications/read-all`, { method: 'POST', headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed');
-    return res.json();
-  },
-
-  // ── V2: Department & Analytics ──
-  getDepartmentPerformance: async (params = {}) => {
-    const q = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/pems/dashboard/department-performance${q ? `?${q}` : ''}`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed');
-    return res.json();
-  },
-
-  getBrandManagerPerformance: async (params = {}) => {
-    const q = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/pems/dashboard/brand-manager-performance${q ? `?${q}` : ''}`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed');
-    return res.json();
-  },
-
-  getReviewerPerformance: async (params = {}) => {
-    const q = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/pems/dashboard/reviewer-performance${q ? `?${q}` : ''}`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed');
-    return res.json();
-  },
-
-  getRiskPanel: async () => {
-    const res = await fetch(`${API_BASE}/pems/dashboard/risk-panel`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed');
-    return res.json();
-  },
-
-  getTopPerformers: async () => {
-    const res = await fetch(`${API_BASE}/pems/dashboard/top-performers`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed');
-    return res.json();
-  },
-
-  checkEscalations: async () => {
-    const res = await fetch(`${API_BASE}/pems/dashboard/check-escalations`, { method: 'POST', headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed');
-    return res.json();
-  },
-
-  // ── V2: Dynamic Data Sources ──
   getSellers: async (params = {}) => {
     const q = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/pems/sellers${q ? `?${q}` : ''}`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed');
-    return res.json();
-  },
-
-  // `sellerId` narrows the list to the people assigned to that brand, so one
-  // brand's team is not offered as assignees on another brand's task.
-  getBrandManagers: async (params = {}) => {
-    const q = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/pems/brand-managers${q ? `?${q}` : ''}`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed');
-    return res.json();
-  },
-
-  getReviewers: async (params = {}) => {
-    const q = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/pems/reviewers${q ? `?${q}` : ''}`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed');
-    return res.json();
-  },
-
-  // ── V2: Consolidated Dashboard (3 endpoints) ──
-  getDashboardSummary: async (params = {}) => {
-    const q = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/pems/dashboard/summary${q ? `?${q}` : ''}`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed to fetch dashboard summary');
-    return res.json();
-  },
-
-  getLiveTasks: async (params = {}) => {
-    const q = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/pems/dashboard/live-tasks${q ? `?${q}` : ''}`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed to fetch live tasks');
-    return res.json();
-  },
-
-  getActivityFeed: async () => {
-    const res = await fetch(`${API_BASE}/pems/dashboard/activity-feed`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed to fetch activity feed');
-    return res.json();
-  },
-
-  // ── V3: Template Detail + Assignment Rules ──
-  getTemplateDetail: async (id) => {
-    const res = await fetch(`${API_BASE}/pems/templates/${id}/detail`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed to fetch template detail');
-    return res.json();
-  },
-
-  upsertAssignmentRules: async (templateId, data) => {
-    const res = await fetch(`${API_BASE}/pems/templates/${templateId}/assignment-rules`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error('Failed');
-    return res.json();
-  },
-
-  /**
-   * Atomically create/update a template and its assignment rules in one call.
-   * The server rejects publication of an invalid configuration with a 400 and a
-   * `validation` payload, so callers can show field-level errors.
-   */
-  saveTemplateConfig: async ({ id, template, assignmentRules }) => {
-    const url = id
-      ? `${API_BASE}/pems/templates/config/${id}`
-      : `${API_BASE}/pems/templates/config`;
-    const res = await fetch(url, {
-      method: id ? 'PUT' : 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ template, assignmentRules }),
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const err = new Error(body.error || 'Failed to save template');
-      err.validation = body.validation || null;
-      err.status = res.status;
-      throw err;
-    }
-    return body;
-  },
-
-  /** Read-only publication check for the current (unsaved) configuration. */
-  validateTemplate: async (template, assignmentRules) => {
-    const res = await fetch(`${API_BASE}/pems/templates/validate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ template, assignmentRules }),
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const err = new Error(body.error || 'Failed to validate template');
-      err.status = res.status;
-      throw err;
-    }
-    return body.data;
-  },
-
-  recalculateProgress: async () => {
-    const res = await fetch(`${API_BASE}/pems/recalculate-progress`, { method: 'POST', headers: authHeaders() });
-    if (!res.ok) throw new Error('Failed');
-    return res.json();
-  },
-
-  verifyFix: async (taskId) => {
-    const res = await fetch(`${API_BASE}/pems/instances/${taskId}/verify-fix`, { method: 'POST', headers: authHeaders() });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error || 'Verification failed');
-    return body;
-  },
-
-  // ── Affected ASINs ──
-  getInstanceAsins: async (taskId) => {
-    const res = await fetch(`${API_BASE}/pems/instances/${taskId}/asins`, { headers: authHeaders() });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error || 'Failed to fetch affected ASINs');
-    return body;
-  },
-
-  updateAsinRemarks: async (taskId, asinCode, sellerId, signalCode, remarks, resolution, waiveReason) => {
-    const res = await fetch(`${API_BASE}/pems/instances/${taskId}/asins/remarks`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ asinCode, sellerId, signalCode, remarks, resolution, waiveReason }),
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error || 'Failed to update ASIN remarks');
-    return body;
-  },
-
-  resolveAsin: async (taskId, asinId, action, waiveReason) => {
-    const res = await fetch(`${API_BASE}/pems/instances/${taskId}/asins/${asinId}/resolve`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ action, waiveReason }),
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error || 'Failed to resolve ASIN');
-    return body;
-  },
-
-  addComment: async (taskId, text) => {
-    const res = await fetch(`${API_BASE}/pems/instances/${taskId}/comments`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ text }),
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error || 'Failed to add comment');
-    return body;
-  },
-
-  // ── Automation / ruleset linkage ──
-  getAutomationStats: async () => {
-    const res = await fetch(`${API_BASE}/pems/automation-stats`, { headers: authHeaders() });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error || 'Failed to load automation stats');
-    return body.data;
+    return call(`/pems/sellers${q ? `?${q}` : ''}`);
   },
 };
 

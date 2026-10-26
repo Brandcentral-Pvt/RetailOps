@@ -1,8 +1,8 @@
 /**
  * OOS-RECON-001 is a NEW draft template. These tests lock the boundaries the
  * rebuild spec calls non-negotiable: a distinct identity, no activation, no
- * auto-assignment, an independent-reviewer requirement, and six phases with
- * exactly twelve employee outcome activities.
+ * auto-assignment, an independent-reviewer requirement, and four phases with
+ * exactly thirteen employee outcome activities matching the rebuild spec workflow.
  */
 const {
   TASK_CODE,
@@ -26,12 +26,9 @@ describe('OOS-RECON-001 draft template', () => {
     expect(OOS_RECON_TEMPLATE.reviewerId).toBeNull();
   });
 
-  it('has six phases and twelve human outcome activities', () => {
-    expect(SUB_TASK_DEFINITIONS).toHaveLength(6);
-    expect(ACTIVITY_COUNT).toBe(12);
-    for (const phase of SUB_TASK_DEFINITIONS) {
-      expect(phase.activities).toHaveLength(2);
-    }
+  it('has four phases and thirteen human outcome activities', () => {
+    expect(SUB_TASK_DEFINITIONS).toHaveLength(4);
+    expect(ACTIVITY_COUNT).toBe(13);
   });
 
   it('every activity states an outcome and requires evidence', () => {
@@ -47,15 +44,20 @@ describe('OOS-RECON-001 draft template', () => {
     }
   });
 
-  it('the phase titles follow the approved six-phase playbook', () => {
+  it('the phase titles follow the approved four-phase workflow', () => {
     expect(SUB_TASK_DEFINITIONS.map((p) => p.title)).toEqual([
-      '01 Scope & snapshot',
-      '02 Report intake',
-      '03 Reconcile & prioritize',
-      '04 Marketplace verification',
-      '05 Export & handover',
-      '06 Review & close daily run',
+      'PHASE 1: COLLECT AND VALIDATE DATA',
+      'PHASE 2: RECONCILE AVAILABILITY',
+      'PHASE 3: PRIORITIZE AND EXPORT',
+      'PHASE 4: RESOLUTION AND GOVERNANCE',
     ]);
+  });
+
+  it('activity counts per phase match the workflow', () => {
+    expect(SUB_TASK_DEFINITIONS[0].activities).toHaveLength(3); // Phase 1
+    expect(SUB_TASK_DEFINITIONS[1].activities).toHaveLength(4); // Phase 2
+    expect(SUB_TASK_DEFINITIONS[2].activities).toHaveLength(3); // Phase 3
+    expect(SUB_TASK_DEFINITIONS[3].activities).toHaveLength(3); // Phase 4
   });
 
   it('passes the publish gate even though it is not published yet', () => {

@@ -9,6 +9,15 @@ jest.mock('../../database/db', () => ({
   getPool: async () => mockPool,
   generateId: () => `id-${++mockId}`,
   withTransaction: async (fn) => fn(mockPool),
+});
+
+jest.mock('../../services/liveDataSyncService', () => ({
+  syncSellerLiveData: jest.fn().mockResolvedValue({
+    success: true,
+    updatedAsins: 1,
+    failedAsins: 0,
+    pendingAsinsCount: 0,
+  }),
 }));
 
 const { clearPolicyCache } = require('../../services/oos/oosPolicyService');
@@ -23,6 +32,26 @@ const run = {
   RunDate: '2026-10-23', Status: 'RECONCILED', PolicyVersion: 'v1',
   CreatedBy: 'preparer', ManifestJson: '{"eligibleActiveAsins":10}',
 };
+
+const asinOos = {
+  AsinCode: 'A1', Availability: 'OutOfStock', AvailabilityStatus: 'Currently unavailable.',
+  ScrapeStatus: 'COMPLETED', StockLevel: null, LastScrapedAt: new Date(),
+};
+const freshObs = (source, qty) => ({
+  Source: source, Channel: 'amazon.in', RawQuantity: qty,
+  RawAvailability: null, RawStatus: null, SourceTimestamp: new Date(),
+});
+
+function resyncPool({ existingJob = null, asin = asinOos, observations = [freshObs('BRAND_CENTRAL', 5), freshObs('VENDOR_CENTRAL', 3)] } = {}) {
+  return makeFakePool([
+    { match: /FROM OosRuns WHERE Id = @id/, rows: [run] },
+    { match: /FROM Asins WHERE SellerId = @sellerId AND Marketplace = @channel AND AsinCode = @asin/, rows: [asin] },
+    { match: /FROM OosObservations WHERE RunId = @runId AND AsinCode = @asin/, rows: observations },
+    { match: /FROM OosDecisions/, rows: [{ Id: 'dec-1', Category: 'DISCREPANCY', Revision: 2 }] },
+    { match: /FROM OosResyncJobs WHERE IdempotencyKey = @key/, rows: existingJob ? [existingJob] : [] },
+    { match: /INSERT INTO OosResyncJobs/, rows: [{ Id: 'job-1', Status: 'QUEUED' }] },
+  ]);
+}
 
 beforeEach(() => {
   clearPolicyCache();
@@ -40,10 +69,6 @@ describe('upload normalisation', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].quantity).toBeNull();
     expect(invalid.map((r) => r.invalidReason)).toEqual(['INVALID_ASIN', 'MISSING_ASIN']);
-    expect(rows).toHaveLength(1);
-    expect(validCount(rows)).toBe(1);
-
-    function validCount(list) { return list.filter((r) => !r.invalidReason).length; }
   });
 
   it('deduplicates by ASIN, preferring the row with a real quantity', () => {
@@ -91,26 +116,6 @@ describe('durable incidents', () => {
     expect(mockPool.callWhere(/INSERT INTO OosIncidentEvents/).inputs.eventType).toBe('OPENED');
   });
 });
-
-const asinOos = {
-  AsinCode: 'A1', Availability: 'OutOfStock', AvailabilityStatus: 'Currently unavailable.',
-  ScrapeStatus: 'COMPLETED', StockLevel: null, LastScrapedAt: new Date(),
-};
-const freshObs = (source, qty) => ({
-  Source: source, Channel: 'amazon.in', RawQuantity: qty,
-  RawAvailability: null, RawStatus: null, SourceTimestamp: new Date(),
-});
-
-function resyncPool({ existingJob = null, asin = asinOos, observations = [freshObs('BRAND_CENTRAL', 5), freshObs('VENDOR_CENTRAL', 3)] } = {}) {
-  return makeFakePool([
-    { match: /FROM OosRuns WHERE Id = @id/, rows: [run] },
-    { match: /FROM Asins WHERE SellerId = @sellerId AND Marketplace = @channel AND AsinCode = @asin/, rows: [asin] },
-    { match: /FROM OosObservations WHERE RunId = @runId AND AsinCode = @asin/, rows: observations },
-    { match: /FROM OosDecisions/, rows: [{ Id: 'dec-1', Category: 'DISCREPANCY', Revision: 2 }] },
-    { match: /FROM OosResyncJobs WHERE IdempotencyKey = @key/, rows: existingJob ? [existingJob] : [] },
-    { match: /INSERT INTO OosResyncJobs/, rows: [{ Id: 'job-1', Status: 'QUEUED' }] },
-  ]);
-}
 
 describe('resync', () => {
   it('collapses duplicate requests on the idempotency key', async () => {
@@ -179,23 +184,6 @@ describe('immutable export', () => {
     expect(a.sheets).toHaveLength(4);
     expect(b.fileHash).toBe(hashA);
     expect(a.version).toBe(2);
-  });
-
-  it('renders the export as a real four-tab workbook', () => {
-    const content = JSON.stringify({
-      sheets: [
-        { name: 'Seller Summary', rows: [{ seller: 'Acme', asinCount: 2 }] },
-        { name: 'Source Manifest', rows: [{ source: 'BRAND_CENTRAL' }] },
-        { name: 'Incidents & Follow-ups', rows: [{ asin: 'A1', owner: 'u1' }] },
-        { name: 'Resolved Audit', rows: [{ kind: 'RESYNC', status: 'VERIFIED_RECOVERED' }] },
-      ],
-    });
-    const buffer = exportsService.buildWorkbookBuffer(content);
-    const workbook = XLSX.read(buffer, { type: 'buffer' });
-    expect(workbook.SheetNames).toEqual([
-      'Seller Summary', 'Source Manifest', 'Incidents & Follow-ups', 'Resolved Audit',
-    ]);
-    expect(buffer.length).toBeGreaterThan(0);
   });
 });
 

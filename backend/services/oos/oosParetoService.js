@@ -13,6 +13,7 @@ function httpError(status, message, code) {
 /**
  * Seller-by-seller GMS Pareto over the seller's WHOLE eligible active catalog.
  * No GMS in the window => GMS_UNVERIFIED (never silently "standard").
+ * Returns priority group as '80%' or '20%' (never Tier 1/Tier 2/Standard).
  */
 async function getSellerPareto({ sellerId, channel, pct } = {}) {
   if (!sellerId) throw httpError(400, 'sellerId is required', 'SELLER_REQUIRED');
@@ -45,10 +46,21 @@ async function getSellerPareto({ sellerId, channel, pct } = {}) {
   }));
   const pareto = computePareto(rows, targetPct);
   const tier1 = new Set(pareto.tier1Asins);
-  const tierMap = new Map();
+  const asinDetails = new Map();
   for (const r of rows) {
-    if (pareto.verified) tierMap.set(r.asin, tier1.has(r.asin) ? 'TIER_1' : 'STANDARD');
-    else tierMap.set(r.asin, 'GMS_UNVERIFIED');
+    if (pareto.verified) {
+      asinDetails.set(r.asin, {
+        priorityGroup: tier1.has(r.asin) ? '80%' : '20%',
+        priorityRule: tier1.has(r.asin) ? 'GMS_TOP_80' : 'GMS_REMAINDER_20',
+        gmsVerified: true,
+      });
+    } else {
+      asinDetails.set(r.asin, {
+        priorityGroup: null,
+        priorityRule: 'GMS_UNVERIFIED',
+        gmsVerified: false,
+      });
+    }
   }
 
   return {
@@ -58,7 +70,7 @@ async function getSellerPareto({ sellerId, channel, pct } = {}) {
     windowDays: Number(policy.gmsWindowDays) || 30,
     targetPct,
     ...pareto,
-    tierMap,
+    asinDetails,
   };
 }
 

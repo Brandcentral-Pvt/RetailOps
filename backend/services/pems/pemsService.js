@@ -341,6 +341,7 @@ async function createInstance(data) {
       if (st.activities && st.activities.length > 0) {
         for (let j = 0; j < st.activities.length; j++) {
           const act = st.activities[j];
+          const evidenceRequired = act.evidenceRequired === true ? 1 : 0;
           await pool.request()
             .input('id', sql.VarChar, genId())
             .input('subTaskId', sql.VarChar, stId)
@@ -351,9 +352,10 @@ async function createInstance(data) {
             .input('expectedOutput', sql.NVarChar, act.expectedOutput || '')
             .input('supportDocuments', sql.NVarChar(sql.MAX), JSON.stringify(act.supportDocuments || []))
             .input('isMandatory', sql.Bit, act.isMandatory !== false ? 1 : 0)
+            .input('evidenceRequired', sql.Bit, evidenceRequired)
             .query(`
-              INSERT INTO PemsActivities (Id, SubTaskId, TaskInstanceId, StepNo, Title, Instructions, ExpectedOutput, SupportDocuments, IsMandatory)
-              VALUES (@id, @subTaskId, @taskInstanceId, @stepNo, @title, @instructions, @expectedOutput, @supportDocuments, @isMandatory)
+              INSERT INTO PemsActivities (Id, SubTaskId, TaskInstanceId, StepNo, Title, Instructions, ExpectedOutput, SupportDocuments, IsMandatory, EvidenceRequired)
+              VALUES (@id, @subTaskId, @taskInstanceId, @stepNo, @title, @instructions, @expectedOutput, @supportDocuments, @isMandatory, @evidenceRequired)
             `);
         }
       }

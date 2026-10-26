@@ -68,7 +68,6 @@ const TaskInstancesPage = lazy(() => import('./modules/tasks/pages/TaskInstances
 const ReviewQueuePage = lazy(() => import('./modules/tasks/pages/ReviewQueuePage'));
 const TaskAnalyticsPage = lazy(() => import('./modules/tasks/pages/TaskAnalyticsPage'));
 const TemplateDetailPage = lazy(() => import('./modules/tasks/pages/TemplateDetailPage'));
-const OosWorkspacePage = lazy(() => import('./modules/oos/pages/OosWorkspacePage'));
 const LiveSyncTrackerPage = lazy(() => import('./pages/LiveSyncTrackerPage'));
 const LiveDataInspectorPage = lazy(() => import('./pages/LiveDataInspectorPage'));
 const LiveSyncPage = lazy(() => import('./pages/LiveSyncPage'));
@@ -205,7 +204,6 @@ function AppRoutes() {
                   <Route path="/tasks/tasks" element={<ProtectedRoute permission="tasks_view"><TaskInstancesPage /></ProtectedRoute>} />
                   <Route path="/tasks/reviews" element={<ProtectedRoute permission="tasks_view"><ReviewQueuePage /></ProtectedRoute>} />
                   <Route path="/tasks/analytics" element={<ProtectedRoute permission="tasks_view"><TaskAnalyticsPage /></ProtectedRoute>} />
-                  <Route path="/tasks/oos" element={<ProtectedRoute permission="tasks_view"><OosWorkspacePage /></ProtectedRoute>} />
                   {/* Legacy PEMS URLs — kept so existing bookmarks keep working. */}
                   <Route path="/pems/dashboard" element={<Navigate to="/tasks/dashboard" replace />} />
                   <Route path="/pems/templates" element={<Navigate to="/tasks/templates" replace />} />
