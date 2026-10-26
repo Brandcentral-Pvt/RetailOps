@@ -1183,17 +1183,25 @@ async function completeActivity(activityId, actorId, actorName) {
 
 // ════════════════════════════════════════════════════════
 // AFFECTED ASINS
-// ════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════
 
 async function getInstanceAsins(taskInstanceId, user) {
   const pool = await getPool();
 
   // Verify user can view this task (seller scope enforced)
   const taskCheck = await pool.request().input('id', sql.VarChar, taskInstanceId)
-    .query('SELECT Id FROM PemsTaskInstances WHERE Id = @id');
+    .query('SELECT Id, TemplateId, TemplateCode FROM PemsTaskInstances WHERE Id = @id');
   if (!taskCheck.recordset.length) return null;
 
-  // Get ASINs with seller grouping
+  const task = taskCheck.recordset[0];
+  const isOosTask = task.TemplateCode === 'OOS-RECON-001';
+
+  // For OOS-RECON-001 tasks, fetch RetailOps unavailable ASINs for assigned sellers
+  if (isOosTask) {
+    return await getOosAffectedAsins(taskInstanceId, pool);
+  }
+
+  // Get ASINs with seller grouping (generic task ASINs)
   const result = await pool.request().input('taskId', sql.VarChar, taskInstanceId).query(`
     SELECT pa.Id, pa.AsinCode, pa.SellerId, pa.SellerName,
            pa.SignalCode, pa.SignalLabel, pa.Severity,
@@ -1237,6 +1245,105 @@ async function getInstanceAsins(taskInstanceId, user) {
     if (row.Severity === 'critical') seller.counts.critical++;
     else if (row.Severity === 'major') seller.counts.major++;
     else seller.counts.minor++;
+    seller.counts.total++;
+  }
+
+  return {
+    taskInstanceId,
+    sellers: [...bySeller.values()].sort((a, b) => a.sellerName.localeCompare(b.sellerName))
+  };
+}
+
+async function getOosAffectedAsins(taskInstanceId, pool) {
+  // Get task's assigned sellers from PemsTaskBrands
+  const brandsResult = await pool.request().input('taskId', sql.VarChar, taskInstanceId).query(`
+    SELECT ptb.SellerId, ptb.SellerName, ptb.SortOrder
+    FROM PemsTaskBrands ptb
+    WHERE ptb.TaskInstanceId = @taskId
+    ORDER BY ptb.SortOrder
+  `);
+
+  const sellers = brandsResult.recordset;
+  if (sellers.length === 0) {
+    return { taskInstanceId, sellers: [] };
+  }
+
+  const sellerIds = sellers.map(s => s.SellerId);
+  const placeholders = sellerIds.map((_, i) => `@sid${i}`).join(',');
+  
+  // Get all active ASINs for these sellers where RetailOps shows unavailable
+  const request = pool.request();
+  sellerIds.forEach((id, i) => request.input(`sid${i}`, sql.VarChar, id));
+  
+  const unavailableResult = await request.query(`
+    SELECT 
+      a.AsinCode,
+      a.SellerId,
+      s.SellerName,
+      a.Availability,
+      a.AvailabilityStatus,
+      a.StockLevel,
+      a.LastScrapedAt,
+      a.ScrapeStatus,
+      a.Marketplace,
+      a.Title as ProductTitle,
+      a.SKU
+    FROM Asins a
+    INNER JOIN Sellers s ON s.Id = a.SellerId
+    WHERE a.SellerId IN (${placeholders})
+      AND a.Status = 'Active'
+      AND (
+        a.Availability = 'OutOfStock'
+        OR LOWER(ISNULL(a.AvailabilityStatus, '')) LIKE '%unavailable%'
+        OR LOWER(ISNULL(a.AvailabilityStatus, '')) LIKE '%out of stock%'
+      )
+    ORDER BY s.SellerName, a.AsinCode
+  `);
+
+  // Group by seller for UI
+  const bySeller = new Map();
+  for (const row of unavailableResult.recordset) {
+    const key = row.SellerId;
+    if (!bySeller.has(key)) {
+      const sellerInfo = sellers.find(s => s.SellerId === key);
+      bySeller.set(key, {
+        sellerId: row.SellerId,
+        sellerName: row.SellerName,
+        asins: [],
+        counts: { critical: 0, major: 0, minor: 0, total: 0, unavailable: 0 }
+      });
+    }
+    const seller = bySeller.get(key);
+    const isUnavailable = row.Availability === 'OutOfStock' || 
+      (row.AvailabilityStatus && (row.AvailabilityStatus.toLowerCase().includes('unavailable') || row.AvailabilityStatus.toLowerCase().includes('out of stock')));
+    
+    seller.asins.push({
+      id: `oos-${row.AsinCode}-${row.SellerId}`,
+      asinCode: row.AsinCode,
+      sku: row.SKU,
+      productTitle: row.ProductTitle,
+      signalCode: 'OOS',
+      signalLabel: 'Out of Stock',
+      severity: 'critical',
+      numericValue: null,
+      stringValue: row.AvailabilityStatus || row.Availability,
+      remarks: '',
+      status: 'OPEN',
+      resolution: '',
+      waiveReason: '',
+      resolvedAt: null,
+      resolvedBy: '',
+      createdAt: row.LastScrapedAt,
+      // OOS-specific fields
+      retailOpsAvailability: row.Availability,
+      retailOpsAvailabilityStatus: row.AvailabilityStatus,
+      retailOpsStockLevel: row.StockLevel,
+      retailOpsLastScrapedAt: row.LastScrapedAt,
+      retailOpsScrapeStatus: row.ScrapeStatus,
+      marketplace: row.Marketplace
+    });
+    if (isUnavailable) seller.counts.unavailable++;
+    seller.counts.critical++;
     seller.counts.total++;
   }
 
