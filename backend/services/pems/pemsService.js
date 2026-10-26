@@ -1185,12 +1185,21 @@ async function completeActivity(activityId, actorId, actorName) {
 // AFFECTED ASINS
 // ═════════════════════════════════════════════════════════
 
+// AFFECTED ASINS
+// ══════════════════════════════════════════════════════════
+
 async function getInstanceAsins(taskInstanceId, user) {
   const pool = await getPool();
 
   // Verify user can view this task (seller scope enforced)
+  // Join with PemsTaskTemplates to get the TaskCode (template code)
   const taskCheck = await pool.request().input('id', sql.VarChar, taskInstanceId)
-    .query('SELECT Id, TemplateId, TemplateCode FROM PemsTaskInstances WHERE Id = @id');
+    .query(`
+      SELECT ti.Id, ti.TemplateId, tt.TaskCode as TemplateCode
+      FROM PemsTaskInstances ti
+      LEFT JOIN PemsTaskTemplates tt ON tt.Id = ti.TemplateId
+      WHERE ti.Id = @id
+    `);
   if (!taskCheck.recordset.length) return null;
 
   const task = taskCheck.recordset[0];

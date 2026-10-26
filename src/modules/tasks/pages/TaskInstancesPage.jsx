@@ -326,6 +326,7 @@ export default function TaskInstancesPage() {
   const [objectives, setObjectives] = useState([]);
   const [allActions, setAllActions] = useState([]);
   const [okrSellers, setOkrSellers] = useState([]);
+  const [okrUsers, setOkrUsers] = useState([]);
   const [okrLoading, setOkrLoading] = useState(false);
   const [editingObjective, setEditingObjective] = useState(null);
   const [isObjectiveModalOpen, setIsObjectiveModalOpen] = useState(false);
