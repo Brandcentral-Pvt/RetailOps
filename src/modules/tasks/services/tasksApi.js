@@ -155,6 +155,16 @@ const tasksApi = {
     const q = new URLSearchParams(params).toString();
     return call(`/pems/sellers${q ? `?${q}` : ''}`);
   },
+
+  getLiveTasks: async (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return call(`/pems/dashboard/live-tasks${q ? `?${q}` : ''}`);
+  },
+
+  getAutomationStats: async (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return call(`/pems/automation-stats${q ? `?${q}` : ''}`);
+  },
 };
 
 export default tasksApi;
