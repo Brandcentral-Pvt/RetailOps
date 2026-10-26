@@ -42,3 +42,8 @@ coverage/
 # Misc
 *.tgz
 .cache/
+backend/uploads/
+backend/data/
+test-results/
+tasks-module/
+src/contexts/AuthContext.jsx.bak
