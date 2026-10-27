@@ -4,7 +4,7 @@ import { FileTextOutlined, InfoCircleOutlined } from '@ant-design/icons';
 
 const { Text } = Typography;
 
-export default function GenericTaskView({ task, viewDefinition, onAction }) {
+export default function GenericTaskView({ task, viewDefinition }) {
   if (!task) return <Empty description="No task data" />;
 
   const tabs = viewDefinition?.tabs || [
@@ -56,5 +56,3 @@ export default function GenericTaskView({ task, viewDefinition, onAction }) {
     </div>
   );
 }
-
-export default GenericTaskView;

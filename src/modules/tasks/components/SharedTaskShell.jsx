@@ -1,23 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Drawer, Typography, Space, Tag, Button, Row, Col, Progress, Card, Badge, Spin, Empty, Tabs, Tooltip, Avatar, Divider, Modal, App, Select } from 'antd';
-import {
-  CheckCircleOutlined, ClockCircleOutlined, EyeOutlined, ArrowRightOutlined,
-  FileTextOutlined, UploadOutlined, CommentOutlined, EditOutlined,
-  SendOutlined, ReloadOutlined, AimOutlined, TrophyOutlined, RiseOutlined,
-  PlayCircleOutlined, InfoCircleOutlined, UserOutlined,
-  CalendarOutlined, SafetyCertificateOutlined, ThunderboltOutlined,
-  CheckSquareOutlined, CloseCircleOutlined, MinusOutlined, DollarOutlined,
-  WarningOutlined, FlagOutlined, BulbOutlined, ExperimentOutlined,
-  LinkOutlined, PlusOutlined, ShopOutlined, ExportOutlined,
-  TableOutlined, DatabaseOutlined, ExclamationCircleOutlined,
-} from '@ant-design/icons';
-import tasksApi from '../../services/tasksApi';
+import { Drawer, Typography, Space, Tag, Button, Spin, Tooltip, Modal, App, Input, Alert } from 'antd';
+import { CheckCircleOutlined, ArrowRightOutlined, ReloadOutlined } from '@ant-design/icons';
+import tasksApi from '../services/tasksApi';
 import { useAuth } from '../../../contexts/AuthContext';
-import dayjs from 'dayjs';
-import { resolveViewForTask, getView, getWidget } from '../view-registry/taskViewRegistry';
+import { resolveViewForTask, getView } from '../view-registry/taskViewRegistry';
 import GenericTaskView from '../views/generic/GenericTaskView';
-import { WORKFLOW_STATUSES, VALID_TRANSITIONS, calculateHealth, STATUS_COLORS } from '../constants';
+import { WORKFLOW_STATUSES, VALID_TRANSITIONS } from '../constants';
+import { calculateHealth } from '../utils/taskHealth';
 
 const { Text } = Typography;
 
@@ -35,18 +24,6 @@ const STEP_INDEX = {
   DRAFT: 0, ASSIGNED: 1, ACCEPTED: 1, IN_PROGRESS: 2, ESCALATED: 2, REWORK: 2,
   SUBMITTED: 3, RESUBMITTED: 3, UNDER_REVIEW: 4, REJECTED: 4, APPROVED: 5, CANCELLED: -1,
 };
-const EXCEPTION_STATUSES = new Set(['REJECTED', 'REWORK', 'ESCALATED', 'CANCELLED']);
-
-function parseJsonArray(v) {
-  if (Array.isArray(v)) return v;
-  if (!v) return [];
-  try { const x = JSON.parse(v); return Array.isArray(x) ? x : []; } catch { return []; }
-}
-
-function initials(name) {
-  return (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('') || '?';
-}
-
 function WorkflowStepper({ status }) {
   const idx = STEP_INDEX[status] ?? 0;
   const cancelled = status === 'CANCELLED';
@@ -76,38 +53,14 @@ function WorkflowStepper({ status }) {
   );
 }
 
-function SectionHeader({ title, icon: Icon, count, action }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-      <Space size={6}>
-        {Icon && <Icon style={{ fontSize: 14, color: 'var(--bc-text-secondary)' }} />}
-        <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--bc-text-secondary)' }}>{title}</Text>
-        {count !== undefined && <Badge count={count} size="small" style={{ backgroundColor: 'var(--bc-border-subtle)', color: 'var(--bc-text-secondary)' }} />}
-      </Space>
-      {action}
-    </div>
-  );
-}
-
-function MetricCard({ label, value, color, subtext }) {
-  return (
-    <div style={{ padding: '10px 12px', borderRadius: 10, background: `${color}08`, border: `1px solid ${color}18`, flex: '1 1 0', minWidth: 100 }}>
-      <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, display: 'block', marginBottom: 2 }}>{label}</Text>
-      <div style={{ fontSize: 18, fontWeight: 800, color, lineHeight: 1.2, marginTop: 2 }}>{value}</div>
-      {subtext && <Text style={{ fontSize: 9, color: 'var(--bc-text-muted)' }}>{subtext}</Text>}
-    </div>
-  );
-}
-
 export default function SharedTaskShell({ open, onClose, taskId, onRefresh }) {
-  const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const { message } = App.useApp();
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
   const [viewData, setViewData] = useState(null);
   const [transModal, setTransModal] = useState({ toStatus: null, remarks: '' });
+  const [transLoading, setTransLoading] = useState(false);
 
   const loadTask = useCallback(async (opts = {}) => {
     if (!taskId) return;
@@ -124,24 +77,13 @@ export default function SharedTaskShell({ open, onClose, taskId, onRefresh }) {
     finally { if (!opts.silent) setLoading(false); }
   }, [taskId]);
 
-  useEffect(() => { loadTask(); }, [taskId, loadTask]);
-
   useEffect(() => {
     const timer = setTimeout(() => {
       setViewData(null);
-      setActiveTab('overview');
+      loadTask();
     }, 0);
     return () => clearTimeout(timer);
-  }, [taskId]);
-
-  const taskLoadedId = task?.Id;
-  useEffect(() => {
-    if (!taskLoadedId) return;
-    const timer = setTimeout(() => {
-      setActiveTab(task?.Source === 'RULESET' || task?.IsRuleTask ? 'resolve' : 'overview');
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [taskLoadedId, task?.Source, task?.IsRuleTask]);
+  }, [taskId, loadTask]);
 
   const notifyTransition = useCallback(async (toStatus) => {
     try {
@@ -156,14 +98,26 @@ export default function SharedTaskShell({ open, onClose, taskId, onRefresh }) {
   }, [taskId, task, currentUser]);
 
   const handleTransition = async (toStatus, remarks = '') => {
-    if (toStatus === 'SUBMITTED' && !remarks.trim()) return false;
+    if (!toStatus) return false;
+    if (toStatus === 'SUBMITTED' && !remarks.trim()) {
+      message.warning('Enter submission remarks before submitting for review.');
+      return false;
+    }
+    setTransLoading(true);
     try {
       await tasksApi.transitionStatus(taskId, toStatus, remarks);
       await loadTask();
       if (onRefresh) onRefresh();
       notifyTransition(toStatus);
+      setTransModal({ toStatus: null, remarks: '' });
       return true;
-    } catch (err) { console.error(err); return false; }
+    } catch (err) {
+      console.error(err);
+      message.error(err?.message || 'Task status update failed');
+      return false;
+    } finally {
+      setTransLoading(false);
+    }
   };
 
   const checkGate = (toStatus, task) => {
@@ -185,33 +139,15 @@ export default function SharedTaskShell({ open, onClose, taskId, onRefresh }) {
     return true;
   };
 
-  const loadTaskView = async () => {
-    if (!taskId) return;
-    try {
-      const res = await tasksApi.getTaskView(taskId);
-      if (res.success) setViewData(res.data);
-    } catch (err) { console.error(err); }
-  };
-
-  useEffect(() => {
-    if (taskId) loadTaskView();
-  }, [taskId]);
-
-  if (!task && !loading) return null;
-
-  const { viewKey, definition, fallback } = useMemo(
-    () => resolveViewForTask({ ...task, viewDefinition: viewData }),
+  const { viewKey, definition, fallback, warning } = useMemo(
+    () => resolveViewForTask({ ...(task || {}), viewDefinition: viewData }),
     [task, viewData]
   );
 
-  const ViewComponent = getView(viewKey) || GenericTaskView;
+  if (!task && !loading) return null;
 
   const forwardStatuses = task ? (VALID_TRANSITIONS[task.Status] || []).filter(st => st !== 'APPROVED' && st !== 'REJECTED' && st !== 'CANCELLED') : [];
-  const reviewStatuses = task ? (VALID_TRANSITIONS[task.Status] || []).filter(st => st === 'APPROVED' || st === 'REJECTED') : [];
   const primaryStatus = forwardStatuses[0];
-
-  const checkGateWrapper = (st) => checkGate(st, task);
-  const startTransition = (st) => { if (checkGateWrapper(st)) setTransModal({ toStatus: st, remarks: '' }); };
 
   if (loading || !task) {
     return (
@@ -219,7 +155,7 @@ export default function SharedTaskShell({ open, onClose, taskId, onRefresh }) {
         title={null}
         open={open}
         onClose={onClose}
-        size="min(1180px, 92vw)"
+        width="min(1180px, 92vw)"
         destroyOnHidden
         styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }, header: { display: 'none' } }}
       >
@@ -229,12 +165,13 @@ export default function SharedTaskShell({ open, onClose, taskId, onRefresh }) {
   }
 
   return (
-    <Drawer
-      title={null}
-      open={open}
-      onClose={onClose}
-      size="min(1180px, 92vw)"
-      destroyOnHidden
+    <>
+      <Drawer
+        title={null}
+        open={open}
+        onClose={onClose}
+        width="min(1180px, 92vw)"
+        destroyOnHidden
       styles={{
         body: { padding: 0, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' },
         header: { display: 'none' },
@@ -269,21 +206,48 @@ export default function SharedTaskShell({ open, onClose, taskId, onRefresh }) {
           </div>
 
           <div style={{ flex: 1, overflow: 'auto', padding: '8px 24px 24px' }}>
-            <ViewComponent
-              task={task}
-              viewDefinition={task.viewDefinition?.definition}
-              onAction={async (action) => {
+            {fallback && (
+              <Alert
+                type="warning"
+                showIcon
+                style={{ margin: '8px 0 12px' }}
+                message={warning || `View "${viewKey}" is unavailable; using the standard task view.`}
+              />
+            )}
+            {React.createElement(getView(viewKey) || GenericTaskView, {
+              task,
+              viewDefinition: definition,
+              onAction: async (action) => {
                 if (action.type === 'TRANSITION') {
-                  await tasksApi.transitionStatus(taskId, action.toStatus, action.remarks);
-                  await loadTask();
+                  await handleTransition(action.toStatus, action.remarks);
                 }
-              }}
-            />
+              },
+            })}
           </div>
         </div>
+      </div>
       </Drawer>
-    );
+
+      <Modal
+        open={Boolean(transModal.toStatus)}
+        title={`Transition to ${WORKFLOW_STATUSES[transModal.toStatus]?.label || transModal.toStatus || ''}`}
+        okText="Confirm"
+        onOk={() => handleTransition(transModal.toStatus, transModal.remarks)}
+        confirmLoading={transLoading}
+        onCancel={() => setTransModal({ toStatus: null, remarks: '' })}
+      >
+        <Text style={{ fontSize: 12, color: 'var(--bc-text-secondary)', display: 'block', marginBottom: 8 }}>
+          {transModal.toStatus === 'SUBMITTED'
+            ? 'Submission remarks are required.'
+            : 'Optionally add remarks for the audit trail.'}
+        </Text>
+        <Input.TextArea
+          rows={3}
+          value={transModal.remarks}
+          onChange={(event) => setTransModal(current => ({ ...current, remarks: event.target.value }))}
+          placeholder={transModal.toStatus === 'SUBMITTED' ? 'What was completed?' : 'Remarks (optional)'}
+        />
+      </Modal>
+    </>
   );
 }
-
-export default SharedTaskShell;

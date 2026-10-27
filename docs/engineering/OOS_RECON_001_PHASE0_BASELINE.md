@@ -146,14 +146,15 @@ npm run test:oos-imports
 ```
 
 It asks Vite to transform the three OOS entry points and every local module they
-import. It does not mount React and does not require a browser. Current result:
+import. It does not mount React and does not require a browser. The pre-fix result
+was:
 
 ```text
 Transformed 10 local module(s); 8 failure(s).
 exit 1
 ```
 
-| Module | Current failure |
+| Module | Pre-fix failure |
 |---|---|
 | `SharedTaskShell.jsx` | `[PARSE_ERROR] Expected corresponding JSX closing tag for 'div'.` |
 | `OosTaskView.jsx` | Cannot resolve `../../../../../contexts/AuthContext`. |
@@ -164,9 +165,16 @@ exit 1
 | `OosReviewTab.jsx` | Cannot resolve `../../../../../../contexts/AuthContext`. |
 | `OosOverviewTab.jsx` | Cannot resolve `../../../../../../contexts/AuthContext`. |
 
-The harness is intentionally failing until OOS-005 through OOS-009 are complete.
-It must be wired into CI after those tasks pass; that part of OOS-003 is still
-open.
+After the Phase 1 repairs the same harness passes:
+
+```text
+Transformed 18 local module(s); 0 failure(s).
+OOS import smoke test passed.
+exit 0
+```
+
+The harness still must be wired into CI after those tasks pass; that part of
+OOS-003 is still open.
 
 ### 3.5 Backend tests
 
@@ -308,7 +316,7 @@ production for writes, migrations, seeds, backfills or data correction.
 | `DLY-004` structurally unchanged in a restored copy | No | Blocked by restore. |
 | Production OOS containment approved and recurrence stopped | Yes | `EX-001` set `IsActive = 0` at `2026-10-27T01:02:06.840Z`; post-deadline instance-count check still pending. |
 | Orphan repair approved | No | 188 orphan bindings and 44,223 decisions require an approved plan; no in-place repair is authorized. |
-| No application behavior changed | Yes | Only docs and a test script; no app, schema or seed edits. |
+| No application behavior changed during Phase 0 | Yes | Only docs and a test script at baseline capture; the Phase 1 frontend delta is recorded in section 7. |
 
 G0 remains **not passed**: restore, migration rehearsal, structural DLY-004
 comparison, the CI log and the post-deadline OOS containment check are still
@@ -332,3 +340,30 @@ outstanding.
 
 Until items 1-3 are supplied, Phase 0 can only be marked **partially complete**.
 Do not start production-facing cutover work from this baseline.
+
+## 7. Phase 1 local implementation record (2026-10-27)
+
+Phase 1 source repairs are on `feat/oos-recon-001-remediation` only. Nothing in
+this section is merged to `main`, deployed, or applied to production.
+
+| Check | Local result |
+|---|---|
+| Import smoke | `Transformed 18 local module(s); 0 failure(s).` |
+| Targeted ESLint | 0 errors across the changed source and new test files |
+| Combined suite | `npm run test:oos` runs smoke, 10 registry tests and 4 browser tests |
+| Production build | `10,131 modules transformed`; exit 0 |
+| Registry tests | 10 Node tests pass |
+| Browser render tests | 4 pass: shell fallback, shell OOS resolution, OOS view, grid groups |
+
+Discoveries made during Phase 1:
+
+| Item | Action |
+|---|---|
+| `SharedTaskShell` imported `calculateHealth` and `STATUS_COLORS` from `constants`, which exports neither. The transform-only smoke test cannot detect missing named exports. | Fixed by importing `calculateHealth` from `utils/taskHealth` and defining the existing status colour map locally. The browser render harness now catches this class of defect. |
+| `src/modules/tasks/services/tasksApi.js` contains repeated object keys such as `getTaskView`, `getOosContext`, `getOosRuns`, `getAffectedAsins`, `buildExport`, `listExports` and `getSellers`. Later definitions win, so behaviour is currently stable, but the duplicates are a maintenance hazard. | Recorded for the API cleanup/refactor task; no behaviour change was made. |
+| `OosTaskView` keeps `activeRun` when the seller changes and passes that run ID to `getOosContext(..., sellerId)`; `OosOverviewTab` and `OosSourceUploader` also format the run ID as a date. | Functional/data-contract defects, not compile defects; tracked under OOS-016 (Phase 4) and the run/upload work in OOS-017 to OOS-022. |
+| The active `TaskInstancesPage` and `MyDayPage` still mount `TaskWorkspace`. `SharedTaskShell` and the boot-registered OOS view are therefore not user-visible yet. | Expected and unchanged; the cutover belongs to OOS-044 in Phase 8 behind the D10 flag decision. |
+
+G1 remains **Open**: CI does not yet run the smoke, registry or browser tests,
+and the repository-wide lint baseline still has pre-existing errors. G0 remains
+**Open** for the reasons recorded in section 5.

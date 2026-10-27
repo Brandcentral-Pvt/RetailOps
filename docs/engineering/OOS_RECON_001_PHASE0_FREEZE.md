@@ -54,7 +54,9 @@ The following are prohibited without a written exception:
   writes and no seller personal data.
 - Documentation, task tracking and test-only harnesses.
 - Code changes on `feat/oos-recon-001-remediation` after the relevant task is
-  approved.
+  approved. The Phase 1 frontend repairs were authorized in-session on
+  2026-10-27; this does not lift the freeze, deploy the branch, or authorize
+  production writes.
 - Restoring a backup into an isolated, non-production database.
 - Running tests against mocks, fixtures or the isolated database.
 

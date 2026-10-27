@@ -1,20 +1,20 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Card, Tabs, TabPane, Space, Button, Tag, Alert, Empty, Spin, Row, Col, Divider, Select, Input, Tooltip, Text, message } from 'antd';
-import { UploadOutlined, SyncOutlined, ExportOutlined, DownloadOutlined, ReloadOutlined, SearchOutlined, FilterOutlined, PlusOutlined } from '@ant-design/icons';
-import { useAuth } from '../../../../../contexts/AuthContext';
-import tasksApi from '../../../../services/tasksApi';
+import React, { useState, useEffect, useCallback } from 'react';
+import { App, Tabs, Space, Button, Alert, Typography, Select } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import { useAuth } from '../../../../contexts/AuthContext';
+import tasksApi from '../../services/tasksApi';
 import dayjs from 'dayjs';
 import OosAffectedAsinsTab from './components/OosAffectedAsinsTab';
 import OosSourceUploader from './components/OosSourceUploader';
-import OosExportPanel from './components/OosExportPanel';
 import OosFollowupsTab from './components/OosFollowupsTab';
 import OosReviewTab from './components/OosReviewTab';
 import OosOverviewTab from './components/OosOverviewTab';
 
-const { TabPane: Tab } = Tabs;
+const { Text } = Typography;
 
-function OosTaskView({ task, viewDefinition, onAction }) {
+function OosTaskView({ task }) {
   const { hasPermission, isAdmin, isGlobalUser } = useAuth();
+  const { message } = App.useApp();
   const canManage = isAdmin || isGlobalUser || hasPermission('tasks_manage');
   const canResync = isAdmin || isGlobalUser || hasPermission('scraping_manage');
 
@@ -34,39 +34,35 @@ function OosTaskView({ task, viewDefinition, onAction }) {
       if (res.success) {
         const list = res.data || res.sellers || [];
         setSellers(list);
-        if (list.length && !selectedSeller) {
-          setSelectedSeller(list[0].Id || list[0]._id || list[0].id);
-        }
+        setSelectedSeller(current => current || (list[0]?.Id ?? list[0]?._id ?? list[0]?.id ?? null));
       }
     } catch (err) {
       console.error(err);
     }
-  }, [selectedSeller]);
+  }, []);
 
   const loadRuns = useCallback(async () => {
-    if (!selectedSeller) return;
+    if (!taskInstanceId || !selectedSeller) return;
     setLoading(true);
     try {
-      const res = await tasksApi.getOosRuns(task.Id, selectedSeller);
+      const res = await tasksApi.getOosRuns(taskInstanceId, selectedSeller);
       if (res.success) {
         const runList = res.data || res.runs || [];
         setRuns(runList);
-        if (runList.length && !activeRun) {
-          setActiveRun(runList[0].Id);
-        }
+        setActiveRun(current => current || (runList[0]?.Id ?? null));
       }
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [task.Id, selectedSeller, activeRun]);
+  }, [taskInstanceId, selectedSeller]);
 
   const createRun = async () => {
-    if (!selectedSeller) return;
+    if (!taskInstanceId || !selectedSeller) return;
     setLoading(true);
     try {
-      const res = await tasksApi.createOosRun(task.Id, selectedSeller, { runDate: dayjs().format('YYYY-MM-DD') });
+      const res = await tasksApi.createOosRun(taskInstanceId, selectedSeller, { runDate: dayjs().format('YYYY-MM-DD') });
       if (res.success) {
         await loadRuns();
         message.success('OOS run created');
@@ -79,19 +75,22 @@ function OosTaskView({ task, viewDefinition, onAction }) {
   };
 
   useEffect(() => {
-    loadSellers();
+    const timer = setTimeout(() => { loadSellers(); }, 0);
+    return () => clearTimeout(timer);
   }, [loadSellers]);
 
   useEffect(() => {
-    if (selectedSeller) loadRuns();
+    if (!selectedSeller) return undefined;
+    const timer = setTimeout(() => { loadRuns(); }, 0);
+    return () => clearTimeout(timer);
   }, [selectedSeller, loadRuns]);
 
   const tabs = [
-    { key: 'overview', label: 'Overview', component: <OosOverviewTab task={task} activeRun={activeRun} runs={runs} loading={loading} onCreateRun={createRun} canManage={canManage} /> },
-    { key: 'sources', label: 'Data Sources', component: <OosSourceUploader task={task} activeRun={activeRun} canManage={canManage} onRunsChange={loadRuns} /> },
-    { key: 'asins', label: 'Affected ASINs', component: <OosAffectedAsinsTab task={task} activeRun={activeRun} canResync={canResync} /> },
-    { key: 'followups', label: 'Follow-ups & Export', component: <OosFollowupsTab task={task} activeRun={activeRun} canManage={canManage} /> },
-    { key: 'review', label: 'Review', component: <OosReviewTab task={task} activeRun={activeRun} canManage={canManage} /> },
+    { key: 'overview', label: 'Overview', children: <OosOverviewTab task={task} activeRun={activeRun} runs={runs} loading={loading} onCreateRun={createRun} canManage={canManage} /> },
+    { key: 'sources', label: 'Data Sources', children: <OosSourceUploader task={task} activeRun={activeRun} canManage={canManage} onRunsChange={loadRuns} /> },
+    { key: 'asins', label: 'Affected ASINs', children: <OosAffectedAsinsTab task={task} activeRun={activeRun} canResync={canResync} /> },
+    { key: 'followups', label: 'Follow-ups & Export', children: <OosFollowupsTab task={task} activeRun={activeRun} canManage={canManage} /> },
+    { key: 'review', label: 'Review', children: <OosReviewTab task={task} activeRun={activeRun} canManage={canManage} /> },
   ];
 
   return (
@@ -127,13 +126,7 @@ function OosTaskView({ task, viewDefinition, onAction }) {
 
       {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 
-      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabs.map(t => ({ key: t.key, label: t.label }))}>
-        {tabs.map(t => (
-          <TabPane tab={t.label} key={t.key} forceRender>
-            {t.component}
-          </TabPane>
-        ))}
-      </Tabs>
+      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabs} />
     </div>
   );
 }

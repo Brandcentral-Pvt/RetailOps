@@ -233,19 +233,20 @@ for order.
 **Depends on:** OOS-001<br>
 **Findings:** TV-02; TV-03; TV-04; TV-05<br>
 **Files:** src/modules/tasks/components/SharedTaskShell.jsx; src/modules/tasks/views/oos/OosTaskView.jsx; src/modules/tasks/view-registry/taskViewRegistry.js<br>
-**Status:** In Progress - harness added and reproducing 8 failures; CI wiring waits for OOS-005 through OOS-009.<br>
+**Status:** In Progress - harness now passes 18 modules after the Phase 1 repairs; CI wiring remains open.<br>
 
 **Acceptance criteria**
 
-- [ ] A test imports SharedTaskShell, OosTaskView and the OOS registration module.
-- [ ] The test reproduces the current compile/import defects before fixes.
+- [x] A test imports SharedTaskShell, OosTaskView and the OOS registration module.
+- [x] The test reproduces the current compile/import defects before fixes.
 - [ ] The test remains in CI as a regression guard.
 
 **Test and evidence**
 
-- Failing output before fix
-- Passing output after OOS-005 through OOS-009
-- Harness: `scripts/oos-import-smoke.mjs`; current output in [Phase 0 baseline](./OOS_RECON_001_PHASE0_BASELINE.md)
+- Failing output before fix: 10 modules, 8 failures (recorded in [Phase 0 baseline](./OOS_RECON_001_PHASE0_BASELINE.md#34-orphan-import-smoke-test))
+- Passing output after OOS-005 through OOS-009: `Transformed 18 local module(s); 0 failure(s).`
+- Harness: `scripts/oos-import-smoke.mjs`; `npm run test:oos-imports`
+- CI wiring is tracked under OOS-010 and remains open
 
 <a id="oos-004" name="oos-004"></a>
 
@@ -289,21 +290,24 @@ for order.
 **Owner:** Frontend | **Estimate:** 2d | **Priority:** P0 | **Type:** Frontend | **Gate:** G1 | **Wave:** 1<br>
 **Depends on:** OOS-003, OOS-004<br>
 **Findings:** TV-02<br>
-**Files:** src/modules/tasks/components/SharedTaskShell.jsx; src/modules/tasks/services/tasksApi.js<br>
+**Files:** src/modules/tasks/components/SharedTaskShell.jsx; src/modules/tasks/services/tasksApi.js; tests/shell-render.spec.js; tests/fixtures/shell.jsx<br>
+**Status:** Done - shell imports, hooks and render paths pass; the active drawer cutover remains OOS-044 in Phase 8.<br>
 
 **Acceptance criteria**
 
-- [ ] Single default export; no duplicate export statements.
-- [ ] All imports resolve, including the canonical tasks API module.
-- [ ] Undefined symbols are implemented or removed.
-- [ ] All hooks run before conditional returns.
-- [ ] Shell renders with mocked task data and no console errors.
+- [x] Single default export; no duplicate export statements.
+- [x] All imports resolve, including the canonical tasks API module.
+- [x] Undefined symbols are implemented or removed.
+- [x] All hooks run before conditional returns.
+- [x] Shell renders with mocked task data and no console errors.
 
 **Test and evidence**
 
-- Unit render test
-- ESLint import and rules-of-hooks check
-- Import smoke test
+- `tests/shell-render.spec.js`: standard fallback and registered OOS snapshot render with no console errors
+- Targeted ESLint: 0 errors in the touched frontend files
+- `npm run test:oos-imports`: 18 modules, 0 failures
+- `npm run build`: 10,131 modules, exit 0
+- Missing `calculateHealth` and `STATUS_COLORS` exports found by the render harness and repaired; see [Phase 1 local record](./OOS_RECON_001_PHASE0_BASELINE.md#7-phase-1-local-implementation-record-2026-10-27)
 
 <a id="oos-006" name="oos-006"></a>
 
@@ -312,19 +316,21 @@ for order.
 **Owner:** Frontend | **Estimate:** 2d | **Priority:** P0 | **Type:** Frontend | **Gate:** G1 | **Wave:** 1<br>
 **Depends on:** OOS-003, OOS-004<br>
 **Findings:** TV-03<br>
-**Files:** src/modules/tasks/views/oos/OosTaskView.jsx; src/modules/tasks/views/oos/components/<br>
+**Files:** src/modules/tasks/views/oos/OosTaskView.jsx; src/modules/tasks/views/oos/components/; tests/oos-view-render.spec.js; tests/fixtures/oos-view.jsx<br>
+**Status:** Done - structural repair only: all six components import and the view renders with mocked task/run data. The cross-seller `activeRun` state, wrong `getOosContext` argument and date formatting are recorded for OOS-016/Phase 4.<br>
 
 **Acceptance criteria**
 
-- [ ] All OOS child imports resolve.
-- [ ] Typography.Text replaces antd Text.
-- [ ] All antd components match the installed major version.
-- [ ] The view renders with mocked task and viewDefinition data.
+- [x] All OOS child imports resolve.
+- [x] Typography.Text replaces antd Text.
+- [x] All antd components match the installed major version.
+- [x] The view renders with mocked task and viewDefinition data.
 
 **Test and evidence**
 
-- Unit render test
-- Module-resolution test
+- `tests/oos-view-render.spec.js`: seller, run, Overview, Data Sources, Affected ASINs, Follow-ups & Export and Review render with no console errors
+- `npm run test:oos-imports`: OOS view and all children transform successfully
+- `npm run build`: 10,131 modules, exit 0
 
 <a id="oos-007" name="oos-007"></a>
 
@@ -333,20 +339,22 @@ for order.
 **Owner:** Frontend | **Estimate:** 1d | **Priority:** P0 | **Type:** Frontend | **Gate:** G1 | **Wave:** 1<br>
 **Depends on:** OOS-003<br>
 **Findings:** TV-04<br>
-**Files:** src/modules/tasks/views/oos/components/OosAffectedAsinsGrid.jsx<br>
+**Files:** src/modules/tasks/views/oos/components/OosAffectedAsinsGrid.jsx; tests/oos-grid-render.spec.js; tests/fixtures/grid.jsx<br>
+**Status:** Done - all three server groups and the `isNewAsin` badge render correctly; table changes still pass through to the server query.<br>
 
 **Acceptance criteria**
 
-- [ ] Invalid {80%} JSX is removed.
-- [ ] The server priorityGroup renders exactly as 80%, 20% or GMS_UNVERIFIED.
-- [ ] New ASIN badge appears only when isNewAsin is true.
-- [ ] One default export; no duplicate definitions.
-- [ ] Sort and filter props pass through without client-side recomputation.
+- [x] Invalid {80%} JSX is removed.
+- [x] The server priorityGroup renders exactly as 80%, 20% or GMS_UNVERIFIED.
+- [x] New ASIN badge appears only when isNewAsin is true.
+- [x] One default export; no duplicate definitions.
+- [x] Sort and filter props pass through without client-side recomputation.
 
 **Test and evidence**
 
-- Snapshot tests for all groups
-- New ASIN badge test
+- `tests/oos-grid-render.spec.js`: 80%, 20%, GMS_UNVERIFIED and exactly one New ASIN badge; no `PRIORITY_PENDING`
+- `Table.onChange` remains wired to the parent query handler; no client-side priority recomputation
+- `npm run build`: grid included, exit 0
 
 <a id="oos-008" name="oos-008"></a>
 
@@ -355,19 +363,22 @@ for order.
 **Owner:** Frontend | **Estimate:** 1d | **Priority:** P0 | **Type:** Frontend | **Gate:** G1 | **Wave:** 1<br>
 **Depends on:** OOS-005, OOS-006, OOS-007<br>
 **Findings:** TV-05<br>
-**Files:** src/modules/tasks/views/oos/index.js; src/modules/tasks/view-registry/taskViewRegistry.js<br>
+**Files:** src/main.jsx; src/modules/tasks/views/oos/index.js; src/modules/tasks/view-registry/taskViewRegistry.js; tests/shell-render.spec.js<br>
+**Status:** Done - `main.jsx` imports the registration module, the shell harness proves boot-order resolution, and duplicate registration is rejected.<br>
 
 **Acceptance criteria**
 
-- [ ] Application boot explicitly imports the OOS registration module.
-- [ ] getRegisteredViews() includes OOS_RECON_V1 after boot.
-- [ ] No unreachable side-effect registration remains.
-- [ ] Duplicate registration logs and fails safely.
+- [x] Application boot explicitly imports the OOS registration module.
+- [x] getRegisteredViews() includes OOS_RECON_V1 after boot.
+- [x] No unreachable side-effect registration remains.
+- [x] Duplicate registration logs and fails safely.
 
 **Test and evidence**
 
-- Registry unit test
-- Boot-order test
+- `tests/fixtures/shell.jsx` imports `/src/modules/tasks/views/oos/index.js` before the shell, mirroring `src/main.jsx`
+- `tests/shell-render.spec.js`: the shell resolves the registered `OOS_RECON_V1` snapshot
+- `tests/oos-grid-render` and registry tests cover the registered grid and view
+- `taskViewRegistry.test.js`: duplicate view/widget registration keeps the first and warns
 
 <a id="oos-009" name="oos-009"></a>
 
@@ -376,20 +387,21 @@ for order.
 **Owner:** Frontend | **Estimate:** 1.5d | **Priority:** P0 | **Type:** Frontend | **Gate:** G1 | **Wave:** 1<br>
 **Depends on:** OOS-008<br>
 **Findings:** TV-05<br>
-**Files:** src/modules/tasks/view-registry/taskViewRegistry.js; src/modules/tasks/components/SharedTaskShell.jsx<br>
+**Files:** src/modules/tasks/view-registry/taskViewRegistry.js; src/modules/tasks/components/SharedTaskShell.jsx; src/modules/tasks/view-registry/__tests__/taskViewRegistry.test.js<br>
+**Status:** Done - schema, fallback, forbidden-field and snapshot-version tests pass; the shell shows the fallback warning.<br>
 
 **Acceptance criteria**
 
-- [ ] View definitions are schema-validated for viewKey, version, tabs and widgets.
-- [ ] Unknown keys fall back to STANDARD_V1 with a visible warning.
-- [ ] Remote code or unvalidated JSON is rejected.
-- [ ] The resolved definition is pinned to the instance snapshot version.
+- [x] View definitions are schema-validated for viewKey, version, tabs and widgets.
+- [x] Unknown keys fall back to STANDARD_V1 with a visible warning.
+- [x] Remote code or unvalidated JSON is rejected.
+- [x] The resolved definition is pinned to the instance snapshot version.
 
 **Test and evidence**
 
-- Malformed JSON test
-- Unknown view test
-- Fallback test
+- `npm run test:task-registry`: 10 tests pass, including malformed JSON, nested remote/executable fields, unknown view fallback and duplicate registration
+- `tests/shell-render.spec.js`: fallback warning is visible and console-error free
+- Snapshot version assertion confirms an instance version overrides the definition version
 
 <a id="oos-010" name="oos-010"></a>
 
@@ -398,17 +410,21 @@ for order.
 **Owner:** Frontend | **Estimate:** 2d | **Priority:** P0 | **Type:** Test | **Gate:** G1 | **Wave:** 1<br>
 **Depends on:** OOS-005, OOS-006, OOS-007, OOS-008, OOS-009<br>
 **Findings:** TV-02; TV-03; TV-04; TV-05; QA-01<br>
-**Files:** src/modules/tasks/; tests/<br>
+**Files:** src/modules/tasks/; tests/; package.json<br>
+**Status:** In Progress - shell, OOS view, grid and registry tests exist and pass locally; CI wiring and pre-fix-branch proof remain open.<br>
 
 **Acceptance criteria**
 
-- [ ] Tests cover shell fallback, OOS render, grid groups, invalid definition and duplicate registration.
+- [x] Tests cover shell fallback, OOS render, grid groups, invalid definition and duplicate registration.
 - [ ] Tests run in CI and fail on the pre-fix branch.
 
 **Test and evidence**
 
-- Unit test suite
-- CI job output
+- `tests/shell-render.spec.js` (2 browser tests)
+- `tests/oos-view-render.spec.js` (1 browser test)
+- `tests/oos-grid-render.spec.js` (1 browser test)
+- `src/modules/tasks/view-registry/__tests__/taskViewRegistry.test.js` (10 Node tests)
+- `package.json`: `test:oos` and `test:task-registry` added; `npm run test:oos` passes locally; CI job wiring remains open
 
 ### Epic 2 - Authorization and tenancy
 

@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
-import { Table, Tag, Space, Button, Tooltip, Popconfirm, Popover, Divider, Typography } from 'antd';
-import { SyncOutlined, EyeOutlined, ExclamationCircleOutlined, PlayCircleOutlined, WarningOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import React from 'react';
+import { Table, Tag, Space, Button, Tooltip, Typography } from 'antd';
+import { PlayCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
 const { Text } = Typography;
@@ -9,7 +9,7 @@ const PRIORITY_COLORS = {
   '80%': 'red',
   '20%': 'blue',
   'GMS_UNVERIFIED': 'orange',
-  'PRIORITY_PENDING': 'orange',
+  'PRIORITY_PENDING': 'gold',
 };
 
 const CLASSIFICATION_COLORS = {
@@ -36,21 +36,29 @@ const INCIDENT_STATUS_COLORS = {
   WAIVED: 'gold',
 };
 
-function PriorityTag({ group, isNew, firstSeen, gmsVerified }) {
-  if (isNew) {
-    return (
-      <Space size={4}>
-        <Tag color="purple">New ASIN</Tag>
-        <Tag color={PRIORITY_COLORS['20%'] || 'blue'}>20%</Tag>
-        {firstSeen && <Tooltip title={`First seen: ${dayjs(firstSeen).format('DD MMM YYYY')}`}><Tag color="purple">NEW_ASIN_TO_20</Tag></Tooltip>}
-      </Space>
-    );
-  }
-  if (!gmsVerified) {
-    return <Tag color={PRIORITY_COLORS['GMS_UNVERIFIED'] || 'orange'}>Priority Pending / GMS Unverified</Tag>;
-  }
-  const color = PRIORITY_COLORS['80%'] || 'red';
-  return <Tag color={color}>{80%}</Tag>;
+export function PriorityTag({ group, isNew, firstSeen }) {
+  const priorityGroup = ['80%', '20%', 'GMS_UNVERIFIED'].includes(group)
+    ? group
+    : 'PRIORITY_PENDING';
+  const priority = (
+    <Tag color={PRIORITY_COLORS[priorityGroup]}>
+      {priorityGroup}
+    </Tag>
+  );
+
+  if (!isNew) return priority;
+
+  return (
+    <Space size={4}>
+      <Tag color="purple">New ASIN</Tag>
+      {priority}
+      {firstSeen && (
+        <Tooltip title={`First seen: ${dayjs(firstSeen).format('DD MMM YYYY')}`}>
+          <Tag color="purple">NEW_ASIN_TO_20</Tag>
+        </Tooltip>
+      )}
+    </Space>
+  );
 }
 
 function ClassificationTag({ classification, ruleId, confidence }) {
@@ -88,7 +96,7 @@ function IncidentTag({ status, owner, communicationStatus, followUpDate }) {
   );
 }
 
-function SourceQuantityCell({ quantity, rawStatus, sourceTimestamp, label }) {
+function SourceQuantityCell({ quantity, rawStatus, sourceTimestamp }) {
   if (quantity === null && !rawStatus) {
     return <Text type="secondary">Unknown</Text>;
   }
@@ -120,7 +128,7 @@ const columns = [
     key: 'channel',
     width: 110,
     fixed: 'left',
-    render: (v) => <Tag size="small">{v}</Tag>,
+    render: (v) => <Tag>{v}</Tag>,
   },
   {
     title: 'ASIN',
@@ -307,7 +315,6 @@ export default function OosAffectedAsinsGrid({
   onTableChange,
   selectedRowKeys = [],
   onSelectionChange,
-  canResync = false,
 }) {
   return (
     <Table
@@ -317,8 +324,6 @@ export default function OosAffectedAsinsGrid({
       loading={loading}
       pagination={pagination}
       onChange={onTableChange}
-      selectedRowKeys={selectedRowKeys}
-      onSelectionChange={onSelectionChange}
       rowSelection={{
         columnWidth: 40,
         selectedRowKeys,
@@ -349,5 +354,3 @@ export default function OosAffectedAsinsGrid({
     />
   );
 }
-
-export default OosAffectedAsinsGrid;

@@ -5,7 +5,7 @@
 **Repository:** `Brandcentral-Pvt/RetailOps` (private)<br>
 **Verified `main` HEAD:** `316729a4dad3b8758135a44a62553c46620a0134`<br>
 **Prior audit baseline:** `883d39869bd69d259ed78354d01a78fd02075fa2`<br>
-**Document status:** Active - Phase 0 execution started; G0 is open<br>
+**Document status:** Active - Phase 1 frontend repairs are implemented on the remediation branch; G0 and G1 remain open<br>
 **Template state at source audit:** `OOS-RECON-001` reported inactive, `AutoAssign` disabled<br>
 **Production verification (2026-10-27, read-only):** `OOS-RECON-001` was **active** with 7 instances, 188 runs, 188 orphan `OosTaskBindings` and 44,223 decisions; recurrence was scheduled for `2026-10-27T08:51:23Z`. **Containment (EX-001):** the template was deactivated at `2026-10-27T01:02:06.840Z`; existing data and `DLY-004` were unchanged. See the [production read-only snapshot](./OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md).<br>
 **Existing production task:** `DLY-004` remains active; 17 assigned open instances were observed. It must not be modified or overwritten.<br>
@@ -230,6 +230,18 @@ Exit criteria:
 - Generic fallback still renders.
 
 Estimate: M.
+
+**Local implementation record (2026-10-27):** Phase 1 source repairs are on
+`feat/oos-recon-001-remediation`, not merged or deployed. The import smoke test
+passes 18 modules with 0 failures; targeted ESLint reports 0 errors; the
+production build passes with 10,131 modules; 10 registry tests and 4 browser
+render tests pass. The render harness found two exports that the transform-only
+smoke test could not see: `SharedTaskShell` imported `calculateHealth` and
+`STATUS_COLORS` from `constants`, which does not export them. Both are repaired.
+G1 remains **Open** because CI does not yet run the smoke/registry/render tests
+and the repository-wide lint baseline is not clean. The active task drawer still
+uses `TaskWorkspace`; the OOS view becomes user-visible only under OOS-044 in
+Phase 8. See the [Phase 1 local record](./OOS_RECON_001_PHASE0_BASELINE.md#7-phase-1-local-implementation-record-2026-10-27).
 
 ### Phase 2 - Enforce task-bound authorization
 

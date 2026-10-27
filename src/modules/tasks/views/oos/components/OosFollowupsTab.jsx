@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Table, Tag, Space, Button, Alert, Empty, Spin, Modal, Form, Input, Select, DatePicker, Tooltip, Popconfirm } from 'antd';
-import { ReloadOutlined, UserOutlined, EditOutlined, CheckCircleOutlined, ExclamationCircleOutlined, CalendarOutlined, SendOutlined } from '@ant-design/icons';
-import { useAuth } from '../../../../../../contexts/AuthContext';
-import tasksApi from '../../../../../../services/tasksApi';
+import { App, Card, Table, Tag, Space, Button, Modal, Form, Input, Select, DatePicker, Popconfirm, Typography, Alert } from 'antd';
+import { ReloadOutlined, EditOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import tasksApi from '../../../services/tasksApi';
 import dayjs from 'dayjs';
+
+const { Text } = Typography;
 
 const INCIDENT_STATUSES = ['OPEN', 'RESOLVED', 'WAIVED'];
 const COMM_STATUSES = ['NOT_REQUIRED', 'PENDING', 'APPROVED', 'SENT'];
 
 function OosFollowupsTab({ task, activeRun, canManage }) {
-  const { hasPermission, isAdmin, isGlobalUser } = useAuth();
+  const { message } = App.useApp();
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -17,20 +18,26 @@ function OosFollowupsTab({ task, activeRun, canManage }) {
   const [form] = Form.useForm();
   const [error, setError] = useState(null);
 
-  const runId = activeRun;
   const taskInstanceId = task?.Id;
 
   const loadIncidents = useCallback(async () => {
-    if (!activeRun) return;
+    if (!taskInstanceId || !activeRun) return;
     setLoading(true);
     try {
-      const res = await tasksApi.getAffectedAsins(task.Id, { runId: activeRun, incidentOnly: true });
+      const res = await tasksApi.getAffectedAsins(taskInstanceId, { runId: activeRun, incidentOnly: true });
       if (res.success) setIncidents(res.data?.incidents || res.data || []);
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
-  }, [activeRun, task.Id]);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeRun, taskInstanceId]);
 
-  useEffect(() => { if (activeRun) loadIncidents(); }, [activeRun, loadIncidents]);
+  useEffect(() => {
+    if (!activeRun) return undefined;
+    const timer = setTimeout(() => { loadIncidents(); }, 0);
+    return () => clearTimeout(timer);
+  }, [activeRun, loadIncidents]);
 
   const openEdit = (incident) => {
     setEditingIncident(incident);
@@ -54,7 +61,7 @@ function OosFollowupsTab({ task, activeRun, canManage }) {
         etaDate: values.etaDate ? values.etaDate.format('YYYY-MM-DD') : null,
         followUpDate: values.followUpDate ? values.followUpDate.format('YYYY-MM-DD') : null,
       };
-      await tasksApi.updateIncident(task.Id, editingIncident.Id, payload);
+      await tasksApi.updateIncident(taskInstanceId, editingIncident.Id, payload);
       message.success('Incident updated');
       setModalOpen(false);
       loadIncidents();
@@ -76,10 +83,14 @@ function OosFollowupsTab({ task, activeRun, canManage }) {
       title: 'Actions', key: 'actions', width: 150,
       render: (_, r) => (
         <Space size={4}>
-          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>Edit</Button>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} disabled={!canManage}>Edit</Button>
           {r.Status === 'OPEN' && (
-            <Popconfirm title="Resolve this incident?" onConfirm={() => setError('Resolve not implemented')}>
-              <Button size="small" danger icon={<CheckCircleOutlined />}>Resolve</Button>
+            <Popconfirm
+              title="Resolve this incident?"
+              onConfirm={() => setError('Resolve is not implemented yet.')}
+              disabled={!canManage}
+            >
+              <Button size="small" danger icon={<CheckCircleOutlined />} disabled={!canManage}>Resolve</Button>
             </Popconfirm>
           )}
         </Space>
@@ -107,9 +118,31 @@ function OosFollowupsTab({ task, activeRun, canManage }) {
         size="small"
         bordered
         scroll={{ x: 1000 }}
-        rowKey="Id"
         locale={{ emptyText: 'No open incidents for this run' }}
       />
+
+      {error && <Alert type="error" message={error} onClose={() => setError(null)} style={{ marginTop: 12 }} />}
+
+      <Modal
+        open={modalOpen}
+        title="Edit incident follow-up"
+        onCancel={() => setModalOpen(false)}
+        onOk={handleSave}
+        confirmLoading={loading}
+        okText="Save"
+        okButtonProps={{ disabled: !canManage }}
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item name="ownerName" label="Owner"><Input placeholder="Incident owner" /></Form.Item>
+          <Form.Item name="communicationStatus" label="Communication">
+            <Select options={COMM_STATUSES.map(value => ({ value, label: value }))} />
+          </Form.Item>
+          <Form.Item name="nextAction" label="Next action"><Input placeholder="Next action" /></Form.Item>
+          <Form.Item name="etaDate" label="ETA"><DatePicker style={{ width: '100%' }} /></Form.Item>
+          <Form.Item name="followUpDate" label="Follow-up"><DatePicker style={{ width: '100%' }} /></Form.Item>
+          <Form.Item name="remarks" label="Remarks"><Input.TextArea rows={2} /></Form.Item>
+        </Form>
+      </Modal>
     </Card>
   );
 }

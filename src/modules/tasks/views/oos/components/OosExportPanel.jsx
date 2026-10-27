@@ -1,34 +1,41 @@
-import React, { useState, useCallback } from 'react';
-import { Card, Button, Space, Tag, Alert, Divider, List, Badge, Tooltip, Modal, Form, Input, Select, Checkbox } from 'antd';
-import { ExportOutlined, DownloadOutlined, FileExcelOutlined, ReloadOutlined, WarningOutlined, InfoCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
-import { useAuth } from '../../../../../../contexts/AuthContext';
-import tasksApi from '../../../../../../services/tasksApi';
+import React, { useState, useEffect, useCallback } from 'react';
+import { App, Card, Button, Space, Tag, Alert, Divider, List, Tooltip, Typography } from 'antd';
+import { DownloadOutlined, FileExcelOutlined } from '@ant-design/icons';
+import tasksApi from '../../../services/tasksApi';
 import dayjs from 'dayjs';
 
+const { Text } = Typography;
+
 function OosExportPanel({ taskId, runId, canManage }) {
-  const { hasPermission, isAdmin, isGlobalUser } = useAuth();
+  const { message } = App.useApp();
   const [exports, setExports] = useState([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [form] = Form.useForm();
-  const [scope, setScope] = useState('ALL_AUTHORIZED');
 
   const loadExports = useCallback(async () => {
-    if (!runId) return;
+    if (!taskId || !runId) return;
+    setLoading(true);
     try {
       const res = await tasksApi.listExports(taskId);
       if (res.success) setExports(res.data || res.exports || []);
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }, [taskId, runId]);
 
-  useEffect(() => { if (runId) loadExports(); }, [runId, loadExports]);
+  useEffect(() => {
+    if (!runId) return undefined;
+    const timer = setTimeout(() => { loadExports(); }, 0);
+    return () => clearTimeout(timer);
+  }, [runId, loadExports]);
 
   const handleGenerate = async () => {
-    if (!runId || !canManage) return;
+    if (!taskId || !runId || !canManage) return;
     setGenerating(true);
     try {
-      const res = await tasksApi.buildExport(taskId, { scope });
+      const res = await tasksApi.buildExport(taskId, { scope: 'ALL_AUTHORIZED', runId });
       if (res.success) {
         message.success('Export generated');
         loadExports();
@@ -56,17 +63,11 @@ function OosExportPanel({ taskId, runId, canManage }) {
     }
   };
 
-  const openModal = () => {
-    form.resetFields();
-    setScope('ALL_AUTHORIZED');
-    setModalOpen(true);
-  };
-
   return (
     <Card size="small" title={<Space><FileExcelOutlined /><Text strong>Export Panel</Text></Space>} style={{ width: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
         <Space>
-          <Button type="primary" icon={<FileExcelOutlined />} onClick={openModal} loading={generating} disabled={!canManage || !activeRun}>
+          <Button type="primary" icon={<FileExcelOutlined />} onClick={handleGenerate} loading={generating} disabled={!canManage || !runId}>
             Generate 4-Sheet XLSX
           </Button>
           {exports.length > 0 && (
@@ -82,6 +83,7 @@ function OosExportPanel({ taskId, runId, canManage }) {
       ) : (
         <List
           itemLayout="horizontal"
+          loading={loading}
           dataSource={exports}
           renderItem={item => (
             <List.Item
@@ -90,9 +92,9 @@ function OosExportPanel({ taskId, runId, canManage }) {
                   <Button size="small" icon={<DownloadOutlined />} onClick={() => handleDownload(item.Id, item.FileName || `oos-${item.RunId}-v${item.Version}.xlsx`)}>Download</Button>
                 </Tooltip>,
                 <Tooltip key="details" title="View details">
-                  <Button size="small" onClick={() => setError('Details not implemented')}>Details</Button>
+                  <Button size="small" onClick={() => message.info('Export details are not implemented yet.')}>Details</Button>
                 </Tooltip>,
-              ]
+              ]}
             >
               <List.Item.Meta
                 title={<Space>
@@ -109,7 +111,7 @@ function OosExportPanel({ taskId, runId, canManage }) {
                       Scope: {item.Scope || 'ALL_AUTHORIZED'}
                     </Text>
                   </Space>
-                />}
+                </Space>}
               />
             </List.Item>
           )}
