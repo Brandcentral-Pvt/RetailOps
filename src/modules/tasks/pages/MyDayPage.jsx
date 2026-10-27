@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import tasksApi from '../services/tasksApi';
 import { useAuth } from '../../../contexts/AuthContext';
-import TaskWorkspace from '../components/TaskWorkspace';
+import TaskViewResolver from '../components/TaskViewResolver';
 import UpNextCard from '../components/myday/UpNextCard';
 import DayTimeline from '../components/myday/DayTimeline';
 import { WorkdaySettings, HowItWorks, ReviewsCard, MiniList, DoneIcon, WaitIcon } from '../components/myday/MyDayBits';
@@ -42,7 +42,7 @@ export default function MyDayPage() {
   const [now, setNow] = useNow(60000);
   const [workday, setWorkday] = useState(() => ({ ...DEFAULT_WORKDAY, ...readJson(WORKDAY_KEY, {}) }));
   const [deferred, setDeferred] = useState(() => readJson(todayKey(), []));
-  const [workspaceId, setWorkspaceId] = useState(null);
+  const [workspaceTask, setWorkspaceTask] = useState(null);
   const inFlight = useRef(false);
 
   const load = useCallback(async ({ silent = false } = {}) => {
@@ -89,7 +89,19 @@ export default function MyDayPage() {
   const firstName = user?.firstName || user?.FirstName || (user?.fullName || '').split(' ')[0] || 'there';
   const nextSlot = plan.slots.find(s => s.type === 'task');
   const nextKey = nextSlot?.key;
-  const openTask = (id) => setWorkspaceId(id);
+  const openTask = (taskOrId) => {
+    if (typeof taskOrId === 'string' || typeof taskOrId === 'number') {
+      const allTasks = [
+        ...(data?.actionable || []),
+        ...(data?.waiting || []),
+        ...(data?.doneToday || []),
+      ];
+      const task = allTasks.find(t => t.Id === taskOrId || t.id === taskOrId);
+      if (task) setWorkspaceTask(task);
+    } else {
+      setWorkspaceTask(taskOrId);
+    }
+  };
 
   const healthChip = {
     on_track: { dot: 'good', text: 'On track' },
@@ -318,7 +330,12 @@ export default function MyDayPage() {
         </div>
       )}
 
-      <TaskWorkspace open={!!workspaceId} taskId={workspaceId} onClose={() => setWorkspaceId(null)} onRefresh={() => load({ silent: true })} />
+      <TaskViewResolver
+        open={!!workspaceTask}
+        onClose={() => setWorkspaceTask(null)}
+        task={workspaceTask}
+        onRefresh={() => load({ silent: true })}
+      />
     </div>
   );
 }

@@ -1,0 +1,95 @@
+{
+  "sellers": [
+    {
+      "sellerId": "seller-001",
+      "sellerName": "Nova Retail LLC",
+      "marketplace": "amazon.in",
+      "status": "ACTIVE",
+      "stockCases": [
+        { "asin": "B0001", "stockLevel": 0, "availabilityStatus": "Out of stock", "lastScrapedAt": "2026-10-26T08:00:00Z", "gms": 15000.00 },
+        { "asin": "B0002", "stockLevel": 50, "availabilityStatus": "In stock", "lastScrapedAt": "2026-10-26T08:00:00Z", "gms": 8000.00 },
+        { "asin": "B0003", "stockLevel": null, "availabilityStatus": null, "lastScrapedAt": null, "gms": null },
+        { "asin": "B0004", "stockLevel": 5, "availabilityStatus": "Only 5 left in stock", "lastScrapedAt": "2026-10-25T14:30:00Z", "gms": 3000.00 },
+        { "asin": "B0005", "stockLevel": 100, "availabilityStatus": "In stock", "lastScrapedAt": "2026-10-24T10:00:00Z", "gms": 12000.00 }
+      ]
+    },
+    {
+      "sellerId": "seller-002",
+      "sellerName": "Mountain View Electronics",
+      "marketplace": "amazon.in",
+      "status": "ACTIVE",
+      "stockCases": [
+        { "asin": "B0101", "stockLevel": 0, "availabilityStatus": "Out of stock", "lastScrapedAt": "2026-10-26T07:00:00Z", "gms": 25000.00 },
+        { "asin": "B0102", "stockLevel": 200, "availabilityStatus": "In stock", "lastScrapedAt": "2026-10-26T07:00:00Z", "gms": 45000.00 },
+        { "asin": "B0103", "stockLevel": null, "availabilityStatus": null, "lastScrapedAt": null, "gms": null },
+        { "asin": "B0104", "stockLevel": 0, "availabilityStatus": "Out of stock", "lastScrapedAt": "2026-10-25T20:00:00Z", "gms": 8000.00 },
+        { "asin": "B0105", "stockLevel": 10, "availabilityStatus": "Only 10 left in stock", "lastScrapedAt": "2026-10-25T15:00:00Z", "gms": 6000.00 }
+      ]
+    },
+    {
+      "sellerId": "seller-003",
+      "sellerName": "Desert Cart Traders",
+      "marketplace": "amazon.in",
+      "status": "ACTIVE",
+      "stockCases": [
+        { "asin": "B0201", "stockLevel": 0, "availabilityStatus": "Out of stock", "lastScrapedAt": "2026-10-26T09:00:00Z", "gms": 12000.00 },
+        { "asin": "B0202", "stockLevel": 300, "availabilityStatus": "In stock", "lastScrapedAt": "2026-10-26T09:00:00Z", "gms": 60000.00 },
+        { "asin": "B0203", "stockLevel": null, "availabilityStatus": null, "lastScrapedAt": null, "gms": null },
+        { "asin": "B0204", "stockLevel": 0, "availabilityStatus": "Out of stock", "lastScrapedAt": "2026-10-25T16:00:00Z", "gms": 4000.00 },
+        { "asin": "B0205", "stockLevel": 25, "availabilityStatus": "Only 25 left in stock", "lastScrapedAt": "2026-10-25T12:00:00Z", "gms": 9000.00 }
+      ]
+    },
+    {
+      "sellerId": "seller-004",
+      "sellerName": "Coastal Goods Distributors",
+      "marketplace": "ajio",
+      "status": "ACTIVE",
+      "stockCases": [
+        { "asin": "C0301", "stockLevel": 0, "availabilityStatus": "Out of stock", "lastScrapedAt": "2026-10-26T10:00:00Z", "gms": 18000.00 },
+        { "asin": "C0302", "stockLevel": 150, "availabilityStatus": "In stock", "lastScrapedAt": "2026-10-26T10:00:00Z", "gms": 35000.00 },
+        { "asin": "C0303", "stockLevel": null, "availabilityStatus": null, "lastScrapedAt": null, "gms": null },
+        { "asin": "C0304", "stockLevel": 0, "availabilityStatus": "Out of stock", "lastScrapedAt": "2026-10-25T13:00:00Z", "gms": 6000.00 },
+        { "asin": "C0305", "stockLevel": 40, "availabilityStatus": "Only 40 left in stock", "lastScrapedAt": "2026-10-25T09:00:00Z", "gms": 11000.00 }
+      ]
+    },
+    {
+      "sellerId": "seller-005",
+      "sellerName": "Hilltop Retail Partners",
+      "marketplace": "amazon.in",
+      "status": "ACTIVE",
+      "stockCases": [
+        { "asin": "B0401", "stockLevel": 0, "availabilityStatus": "Out of stock", "lastScrapedAt": "2026-10-26T06:00:00Z", "gms": 22000.00 },
+        { "asin": "B0402", "stockLevel": 75, "availabilityStatus": "In stock", "lastScrapedAt": "2026-10-26T06:00:00Z", "gms": 28000.00 },
+        { "asin": "B0403", "stockLevel": null, "availabilityStatus": null, "lastScrapedAt": null, "gms": null },
+        { "asin": "B0404", "stockLevel": 0, "availabilityStatus": "Out of stock", "lastScrapedAt": "2026-10-25T17:00:00Z", "gms": 9000.00 },
+        { "asin": "B0405", "stockLevel": 60, "availabilityStatus": "Only 60 left in stock", "lastScrapedAt": "2026-10-25T11:00:00Z", "gms": 14000.00 }
+      ]
+    },
+    {
+      "sellerId": "seller-006",
+      "sellerName": "Valley View Merchants",
+      "marketplace": "ajio",
+      "status": "ACTIVE",
+      "stockCases": [
+        { "asin": "C0501", "stockLevel": 0, "availabilityStatus": "Out of stock", "lastScrapedAt": "2026-10-26T11:00:00Z", "gms": 30000.00 },
+        { "asin": "C0502", "stockLevel": 400, "availabilityStatus": "In stock", "lastScrapedAt": "2026-10-26T11:00:00Z", "gms": 75000.00 },
+        { "asin": "C0503", "stockLevel": null, "availabilityStatus": null, "lastScrapedAt": null, "gms": null },
+        { "asin": "C0504", "stockLevel": 0, "availabilityStatus": "Out of stock", "lastScrapedAt": "2026-10-25T19:00:00Z", "gms": 10000.00 },
+        { "asin": "C0505", "stockLevel": 100, "availabilityStatus": "Only 100 left in stock", "lastScrapedAt": "2026-10-25T13:30:00Z", "gms": 18000.00 }
+      ]
+    },
+    {
+      "sellerId": "seller-007",
+      "sellerName": "Lakeside Distribution Co",
+      "marketplace": "amazon.in",
+      "status": "ACTIVE",
+      "stockCases": [
+        { "asin": "B0601", "stockLevel": 0, "availabilityStatus": "Out of stock", "lastScrapedAt": "2026-10-26T12:00:00Z", "gms": 8000.00 },
+        { "asin": "B0602", "stockLevel": 90, "availabilityStatus": "In stock", "lastScrapedAt": "2026-10-26T12:00:00Z", "gms": 19000.00 },
+        { "asin": "B0603", "stockLevel": null, "availabilityStatus": null, "lastScrapedAt": null, "gms": null },
+        { "asin": "B0604", "stockLevel": 0, "availabilityStatus": "Out of stock", "lastScrapedAt": "2026-10-25T15:30:00Z", "gms": 2000.00 },
+        { "asin": "B0605", "stockLevel": 30, "availabilityStatus": "Only 30 left in stock", "lastScrapedAt": "2026-10-25T14:00:00Z", "gms": 7000.00 }
+      ]
+    }
+  ]
+}

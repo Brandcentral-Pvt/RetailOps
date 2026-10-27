@@ -93,6 +93,7 @@ async function requestResync({ runId, asin, revision, requestedBy, preStatus } =
     .query('SELECT TOP 1 * FROM OosResyncJobs WHERE IdempotencyKey = @key');
   if (existing.recordset[0]) return { job: existing.recordset[0], created: false, eligibility };
 
+  const requestedAt = new Date();
   const inserted = await pool
     .request()
     .input('id', sql.VarChar, generateId())
@@ -105,19 +106,23 @@ async function requestResync({ runId, asin, revision, requestedBy, preStatus } =
     .input('status', sql.VarChar, 'QUEUED')
     .input('requestedBy', sql.VarChar, requestedBy || null)
     .input('preStatus', sql.NVarChar, preStatus || decision?.Category || null)
+    .input('requestedAt', sql.DateTime2, requestedAt)
+    .input('dispatchAttempt', sql.Int, 0)
     .query(`
       INSERT INTO OosResyncJobs
-        (Id, RunId, SellerId, Channel, AsinCode, DiscrepancyRevision, IdempotencyKey, Status, RequestedBy, PreStatus, CreatedAt, UpdatedAt)
+        (Id, RunId, SellerId, Channel, AsinCode, DiscrepancyRevision, IdempotencyKey, Status,
+         RequestedBy, PreStatus, RequestedAt, DispatchAttempt, CreatedAt, UpdatedAt)
       OUTPUT INSERTED.*
       VALUES
-        (@id, @runId, @sellerId, @channel, @asin, @revision, @key, @status, @requestedBy, @preStatus, GETUTCDATE(), GETUTCDATE())
+        (@id, @runId, @sellerId, @channel, @asin, @revision, @key, @status,
+         @requestedBy, @preStatus, @requestedAt, @dispatchAttempt, GETUTCDATE(), GETUTCDATE())
     `);
 
   const job = inserted.recordset[0];
 
   // Dispatch the actual resync via liveDataSyncService asynchronously
   // Don't await - let it run in background, job status will be updated by the sync service
-  dispatchResync(run.SellerId, asin, job.Id).catch(err => {
+  dispatchResync(run.SellerId, asin, run.Channel, job.Id).catch(err => {
     console.error(`Resync dispatch failed for job ${job.Id}:`, err.message);
     updateJobStatus(job.Id, 'FAILED', { error: err.message }).catch(() => {});
   });
@@ -125,33 +130,37 @@ async function requestResync({ runId, asin, revision, requestedBy, preStatus } =
   return { job: inserted.recordset[0], created: true, eligibility };
 }
 
-async function dispatchResync(sellerId, asinCode, jobId) {
+const MAX_DISPATCH_ATTEMPTS = 3;
+const RESYNC_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+
+async function dispatchResync(sellerId, asinCode, channel, jobId) {
   try {
-    await updateJobStatus(jobId, 'RUNNING');
-    
+    // Increment dispatch attempt
+    await updateJobStatus(jobId, 'RUNNING', { dispatchAttempt: 1 });
+
     const result = await liveDataSyncService.syncSellerLiveData(sellerId, {
       asinCodes: [asinCode],
     });
 
-    // Fetch the post-sync observation from Asins table
+    // Fetch the post-sync observation from Asins table using the job's channel
     const pool = await getPool();
-    const postSync = await getPool().then(pool => pool
+    const postSync = await pool
       .request()
       .input('sellerId', sql.VarChar, sellerId)
+      .input('channel', sql.VarChar, channel)
       .input('asin', sql.VarChar, asinCode)
       .query(`
         SELECT TOP 1 AsinCode, Availability, AvailabilityStatus, ScrapeStatus, StockLevel, LastScrapedAt
-        FROM Asins WHERE SellerId = @sellerId AND Marketplace = 'amazon.in' AND AsinCode = @asin
-      `));
+        FROM Asins WHERE SellerId = @sellerId AND Marketplace = @channel AND AsinCode = @asin
+      `);
 
     const postSyncObs = postSync.recordset[0] || null;
     let outcome = { status: 'FAILED', resolved: false, reason: 'Live sync did not complete successfully' };
 
     if (postSyncObs) {
       const retailOps = { state: classifyPostSync(postSyncObs) };
-      // Use the policy's applyResyncVerification logic but with server-fetched observation
       outcome = applyResyncVerification(
-        { sellerId, channel: 'amazon.in', asin: asinCode, requestedAt: new Date() },
+        { sellerId, channel, asin: asinCode, requestedAt: new Date() },
         { state: retailOps.state, observationTime: postSyncObs.LastScrapedAt }
       );
     }
@@ -159,15 +168,19 @@ async function dispatchResync(sellerId, asinCode, jobId) {
     await updateJobStatus(
       jobId,
       outcome.resolved ? 'VERIFIED_RECOVERED' : 'OPEN_DISCREPANCY',
-      { postStatus: outcome.status, observationTime: new Date(), resultJson: { outcome } }
+      {
+        postStatus: outcome.status,
+        observationTime: new Date(),
+        completedAt: new Date(),
+        resultJson: { outcome },
+      }
     );
 
     // If resolved, resolve the incident
     if (outcome.resolved) {
-      const incidents = require('./oosIncidentService');
       await incidents.resolveForAsin({
         sellerId,
-        channel: 'amazon.in',
+        channel,
         asin: asinCode,
         actorId: 'system',
         detail: { resyncJobId: jobId, outcome, autoResolved: true },
@@ -176,7 +189,27 @@ async function dispatchResync(sellerId, asinCode, jobId) {
 
   } catch (err) {
     console.error(`Resync execution failed for job ${jobId}:`, err.message);
-    await updateJobStatus(jobId, 'FAILED', { error: err.message }).catch(() => {});
+
+    // Increment dispatch attempt and retry if under limit
+    const job = await getResyncJob(jobId);
+    if (job) {
+      const nextAttempt = Number(job.DispatchAttempt || 0) + 1;
+      if (nextAttempt < MAX_DISPATCH_ATTEMPTS) {
+        // Retry with backoff
+        setTimeout(() => {
+          dispatchResync(sellerId, asinCode, channel, jobId).catch(() => {});
+        }, 2000 * nextAttempt);
+        await updateJobStatus(jobId, 'QUEUED', { dispatchAttempt: nextAttempt });
+        return;
+      }
+      // Terminal failure after max attempts
+      await updateJobStatus(jobId, 'FAILED', {
+        dispatchAttempt: nextAttempt,
+        completedAt: new Date(),
+        failureCode: 'MAX_ATTEMPTS_EXCEEDED',
+        error: err.message,
+      });
+    }
   }
 }
 
@@ -197,11 +230,14 @@ async function updateJobStatus(jobId, status, extra = {}) {
   const pool = await getPool();
   const updates = ['Status = @status', 'UpdatedAt = GETUTCDATE()'];
   const request = pool.request().input('id', sql.VarChar, jobId).input('status', sql.VarChar, status);
-  
+
   if (extra.postStatus) { request.input('postStatus', sql.NVarChar, extra.postStatus); updates.push('PostStatus = @postStatus'); }
   if (extra.observationTime) { request.input('observationTime', sql.DateTime2, extra.observationTime); updates.push('ObservationTime = @observationTime'); }
+  if (extra.completedAt) { request.input('completedAt', sql.DateTime2, extra.completedAt); updates.push('CompletedAt = @completedAt'); }
   if (extra.resultJson) { request.input('resultJson', sql.NVarChar(sql.MAX), JSON.stringify(extra.resultJson)); updates.push('ResultJson = @resultJson'); }
   if (extra.error) { request.input('error', sql.NVarChar, extra.error); updates.push('ErrorMessage = @error'); }
+  if (extra.failureCode) { request.input('failureCode', sql.VarChar, extra.failureCode); updates.push('FailureCode = @failureCode'); }
+  if (extra.dispatchAttempt !== undefined) { request.input('dispatchAttempt', sql.Int, extra.dispatchAttempt); updates.push('DispatchAttempt = @dispatchAttempt'); }
 
   await request.query(`UPDATE OosResyncJobs SET ${updates.join(', ')} WHERE Id = @id`);
 }
@@ -209,7 +245,7 @@ async function updateJobStatus(jobId, status, extra = {}) {
 /**
  * Record post-sync verification. Only a NEWER in-stock observation for the same
  * scope resolves the incident; unchanged/failed/timeout stays open.
- * 
+ *
  * FIXED: Now fetches the actual post-sync observation from the server instead of
  * accepting client-supplied state/time. Only resolves if server-fetched observation
  * shows IN_STOCK and is newer than the request.
@@ -223,10 +259,11 @@ async function verifyResync(jobId, actorId) {
   const job = jobResult.recordset[0];
   if (!job) throw httpError(404, 'Resync job not found', 'RESYNC_NOT_FOUND');
 
-  // Fetch the actual post-sync observation from the Asins table
+  // Fetch the actual post-sync observation from the Asins table using the job's channel
   const postSync = await pool
     .request()
     .input('sellerId', sql.VarChar, job.SellerId)
+    .input('channel', sql.VarChar, job.Channel)
     .input('asin', sql.VarChar, job.AsinCode)
     .query(`
       SELECT TOP 1 AsinCode, Availability, AvailabilityStatus, ScrapeStatus, StockLevel, LastScrapedAt
@@ -235,27 +272,29 @@ async function verifyResync(jobId, actorId) {
 
   const postSyncObs = postSync.recordset[0];
   if (!postSyncObs) {
-    await updateJobStatus(jobId, 'OPEN_DISCREPANCY', { 
-      resultJson: { outcome: { status: 'OPEN_DISCREPANCY', resolved: false, reason: 'No post-sync observation found' } }
+    await updateJobStatus(jobId, 'OPEN_DISCREPANCY', {
+      resultJson: { outcome: { status: 'OPEN_DISCREPANCY', resolved: false, reason: 'No post-sync observation found' } },
     });
     return { jobId, status: 'OPEN_DISCREPANCY', resolved: false, reason: 'No post-sync observation found' };
   }
 
-  const retailOpsState = classifyPostSync(postSyncObs.recordset[0]);
+  // FIXED: postSyncObs is already the row object (recordset[0]), not the recordset
+  const retailOpsState = classifyPostSync(postSyncObs);
+  const requestedAt = job.CreatedAt ? new Date(job.CreatedAt) : new Date();
   const outcome = applyResyncVerification(
-    { sellerId: job.SellerId, channel: job.Channel, asin: job.AsinCode, requestedAt: job.CreatedAt },
+    { sellerId: job.SellerId, channel: job.Channel, asin: job.AsinCode, requestedAt },
     { state: retailOpsState, observationTime: postSyncObs.LastScrapedAt }
   );
 
   await updateJobStatus(jobId, outcome.resolved ? 'VERIFIED_RECOVERED' : outcome.status, {
     postStatus: retailOpsState,
     observationTime: postSyncObs.LastScrapedAt,
-    resultJson: { outcome }
+    completedAt: new Date(),
+    resultJson: { outcome },
   });
 
   // If resolved, resolve the incident
   if (outcome.resolved) {
-    const incidents = require('./oosIncidentService');
     await incidents.resolveForAsin({
       sellerId: job.SellerId,
       channel: job.Channel,

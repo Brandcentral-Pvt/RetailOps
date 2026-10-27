@@ -106,30 +106,16 @@ exports.createOosRun = async (req, res) => {
     const scope = sellerScopeOr403(req, res, sellerId);
     if (!scope) return;
 
-    const existing = await monitoring.getRunBySellerAndDate(sellerId, req.body.runDate || dayjs().format('YYYY-MM-DD'));
-    if (existing) {
-      return res.json({ success: true, created: false, run: existing });
-    }
-
     const result = await monitoring.createOrGetRun({
       sellerId,
       channel: req.body.channel,
       runDate: req.body.runDate,
       monitoredDate: req.body.monitoredDate,
       createdBy: req.user?.Id,
+      taskInstanceId: req.params.id,
     });
 
-    await getPool().then(pool => pool.request()
-      .input('runId', sql.VarChar, result.run.Id)
-      .input('taskInstanceId', sql.VarChar, req.params.id)
-      .input('sellerId', sql.VarChar, sellerId)
-      .input('channel', sql.VarChar, result.run.Channel)
-      .query(`
-        INSERT INTO OosTaskBindings (Id, TaskInstanceId, OosRunId, SellerId, Channel, State, CreatedAt, UpdatedAt)
-        VALUES (NEWID(), @taskInstanceId, @runId, @sellerId, @channel, 'OPEN', GETUTCDATE(), GETUTCDATE())
-      `));
-
-    return res.status(201).json({ success: true, created: true, run: result.run, manifest: result.manifest });
+    return res.status(result.created ? 201 : 200).json({ success: true, created: result.created, run: result.run, manifest: result.manifest, binding: result.binding });
   } catch (err) { return fail(res, err); }
 };
 
@@ -148,22 +134,13 @@ exports.uploadOosFile = async (req, res) => {
     const sourceType = req.body.sourceType;
     if (!sourceType) return res.status(400).json({ success: false, error: 'sourceType required' });
 
-    const crypto = require('crypto');
-    const fileHash = crypto.createHash('sha256').update(file.buffer).digest('hex');
-
-    const XLSX = require('xlsx');
-    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(sheet, { defval: null, raw: false });
-
     const result = await uploads.ingestUpload({
       runId: run.Id,
       sellerId: run.SellerId,
       channel: run.Channel,
       sourceType,
       fileName: file.originalname,
-      fileHash,
-      rows,
+      fileBuffer: file.buffer,
       createdBy: req.user?.Id,
     });
 
@@ -182,6 +159,34 @@ exports.listOosUploads = async (req, res) => {
   } catch (err) { return fail(res, err); }
 };
 
+exports.downloadOosImport = async (req, res) => {
+  try {
+    const task = await ensureTaskAccess(req, res, req.params.id);
+    if (!task) return;
+
+    const importId = req.params.importId;
+    const pool = await getPool();
+    const result = await pool
+      .request()
+      .input('id', sql.VarChar, importId)
+      .query('SELECT TOP 1 * FROM OosImports WHERE Id = @id');
+    const imp = result.recordset[0];
+    if (!imp) return res.status(404).json({ success: false, error: 'Import not found' });
+
+    const fs = require('fs');
+    const path = require('path');
+    if (!fs.existsSync(imp.OriginalFileStoragePath)) {
+      return res.status(404).json({ success: false, error: 'Original file not found on disk' });
+    }
+
+    const fileBuffer = fs.readFileSync(imp.OriginalFileStoragePath);
+    res.setHeader('Content-Type', imp.OriginalFileContentType || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${imp.OriginalFileName || 'oos-upload'}"`);
+    res.setHeader('X-Import-Hash', imp.FileHash || imp.OriginalFileHash);
+    return res.send(fileBuffer);
+  } catch (err) { return fail(res, err); }
+};
+
 exports.reconcileOosRun = async (req, res) => {
   try {
     const task = await ensureTaskAccess(req, res, req.params.id);
@@ -192,6 +197,14 @@ exports.reconcileOosRun = async (req, res) => {
     return res.json({ success: true, ...result });
   } catch (err) { return fail(res, err); }
 };
+
+// Allowlist for sort keys — prevents SQL injection via sortBy (AS-02)
+const ALLOWED_SORT_KEYS = new Set([
+  'AsinCode', 'Sku', 'PriorityGroup', 'Gms', 'GmsSharePct', 'CumulativePct',
+  'Category', 'IsNewAsin', 'FirstSeenAt', 'CreatedAt', 'Classification',
+  'IncidentStatus', 'ResyncStatus'
+]);
+const ALLOWED_SORT_DIRS = new Set(['asc', 'desc']);
 
 exports.getAffectedAsins = async (req, res) => {
   try {
@@ -204,21 +217,14 @@ exports.getAffectedAsins = async (req, res) => {
     const scope = sellerScopeOr403(req, res, req.query.sellerId);
     if (!scope) return;
 
-    const page = parseInt(req.query.page) || 1;
-    const pageSize = Math.min(parseInt(req.query.pageSize) || 50, 200);
-    const sortBy = req.query.sortBy || 'priorityGroup';
-    const sortOrder = req.query.sortOrder || 'desc';
+    // Clamp and validate pagination
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const pageSize = Math.min(Math.max(parseInt(req.query.pageSize) || 50, 1), 200);
 
-    const filters = {
-      classification: req.query.classification,
-      priorityGroup: req.query.priorityGroup,
-      isNew: req.query.isNew === 'true' ? true : req.query.isNew === 'false' ? false : null,
-      gmsVerification: req.query.gmsVerification,
-      resyncStatus: req.query.resyncStatus,
-      incidentStatus: req.query.incidentStatus,
-      ownerId: req.query.ownerId,
-      search: req.query.search,
-    };
+    // Allowlist sort key/direction — default to PriorityGroup desc
+    const sortBy = ALLOWED_SORT_KEYS.has(req.query.sortBy) ? req.query.sortBy : 'PriorityGroup';
+    const sortOrder = ALLOWED_SORT_DIRS.has(String(req.query.sortOrder).toLowerCase())
+      ? String(req.query.sortOrder).toLowerCase() : 'desc';
 
     const pool = await getPool();
     const runResult = await pool.request().input('id', sql.VarChar, runId).query('SELECT TOP 1 * FROM OosRuns WHERE Id = @id');
@@ -228,40 +234,42 @@ exports.getAffectedAsins = async (req, res) => {
     const scopeCheck = sellerScopeOr403(req, res, run.SellerId);
     if (!scopeCheck) return;
 
-    let where = 'WHERE d.RunId = @runId AND d.SellerId = @sellerId AND d.Channel = @channel';
+    // Build WHERE clause against vw_OosAffectedAsins (decision metrics view)
+    let where = 'WHERE v.RunId = @runId AND v.SellerId = @sellerId AND v.Channel = @channel';
     const request = pool.request().input('runId', sql.VarChar, runId).input('sellerId', sql.VarChar, run.SellerId).input('channel', sql.VarChar, run.Channel);
 
-    if (req.query.classification) { request.input('classification', sql.VarChar, req.query.classification); where += ' AND d.Category = @classification'; }
-    if (req.query.priorityGroup) { request.input('priorityGroup', sql.VarChar, req.query.priorityGroup); where += ' AND d.PriorityGroup = @priorityGroup'; }
-    if (req.query.isNew !== undefined) { request.input('isNew', sql.Bit, req.query.isNew === 'true' ? 1 : 0); where += ' AND d.IsNewAsin = @isNew'; }
-    if (req.query.search) { request.input('search', sql.VarChar, `%${req.query.search}%`); where += ' AND (d.AsinCode LIKE @search OR d.Sku LIKE @search)'; }
+    if (req.query.classification) { request.input('classification', sql.VarChar, req.query.classification); where += ' AND v.Classification = @classification'; }
+    if (req.query.priorityGroup) { request.input('priorityGroup', sql.VarChar, req.query.priorityGroup); where += ' AND v.PriorityGroup = @priorityGroup'; }
+    if (req.query.isNew !== undefined) { request.input('isNew', sql.Bit, req.query.isNew === 'true' ? 1 : 0); where += ' AND v.IsNewAsin = @isNew'; }
+    if (req.query.gmsVerification !== undefined) { request.input('gmsVerification', sql.Bit, req.query.gmsVerification === 'true' ? 1 : 0); where += ' AND v.GmsVerified = @gmsVerification'; }
+    if (req.query.resyncStatus) { request.input('resyncStatus', sql.VarChar, req.query.resyncStatus); where += ' AND v.ResyncStatus = @resyncStatus'; }
+    if (req.query.incidentStatus) { request.input('incidentStatus', sql.VarChar, req.query.incidentStatus); where += ' AND v.IncidentStatus = @incidentStatus'; }
+    if (req.query.ownerId) { request.input('ownerId', sql.VarChar, req.query.ownerId); where += ' AND v.IncidentOwnerId = @ownerId'; }
+    if (req.query.search) { request.input('search', sql.VarChar, `%${req.query.search}%`); where += ' AND (v.AsinCode LIKE @search OR v.Sku LIKE @search)'; }
 
-    const countResult = await request.query(`SELECT COUNT(*) as total FROM OosDecisions d ${where}`);
+    const countResult = await request.query(`SELECT COUNT(*) as total FROM vw_OosAffectedAsins v ${where}`);
     const total = countResult.recordset[0].total;
 
-    const offset = (parseInt(req.query.page) - 1) * parseInt(req.query.pageSize || 50);
-    const limit = parseInt(req.query.pageSize) || 50;
+    const offset = (page - 1) * pageSize;
+    const limit = pageSize;
 
     const dataResult = await request.query(`
-      SELECT d.*, o.OwnerId, o.OwnerName, o.CommunicationStatus, o.NextAction, o.EtaDate, o.FollowUpDate, o.Status as IncidentStatus,
-             rj.Id as ResyncJobId, rj.Status as ResyncStatus, rj.CreatedAt as ResyncRequestedAt, rj.ObservationTime as ResyncObservedAt
-      FROM OosDecisions d
-      LEFT JOIN OosIncidents o ON o.SellerId = d.SellerId AND o.Channel = d.Channel AND o.AsinCode = d.AsinCode AND o.Status = 'OPEN'
-      LEFT JOIN OosResyncJobs rj ON rj.RunId = d.RunId AND rj.SellerId = d.SellerId AND rj.Channel = d.Channel AND rj.AsinCode = d.AsinCode
+      SELECT v.*
+      FROM vw_OosAffectedAsins v
       ${where}
-      ORDER BY ${req.query.sortBy || 'd.PriorityGroup'} ${req.query.sortOrder === 'asc' ? 'ASC' : 'DESC'}
+      ORDER BY v.${sortBy} ${sortOrder}
       OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
     `, { offset, limit });
 
     const rows = dataResult.recordset.map(r => ({
-      id: r.Id,
+      id: r.DecisionId,
       asinCode: r.AsinCode,
       sku: r.Sku,
       productTitle: r.ProductTitle,
       sellerId: r.SellerId,
       sellerName: r.SellerName,
       channel: r.Channel,
-      classification: r.Category,
+      classification: r.Classification,
       ruleId: r.RuleId,
       confidence: r.Confidence,
       revision: r.Revision,
@@ -273,37 +281,23 @@ exports.getAffectedAsins = async (req, res) => {
       gmsSharePct: r.GmsSharePct,
       cumulativePct: r.CumulativePct,
       retailOpsState: r.RetailOpsState,
-      retailOpsQuantity: r.RetailOpsQuantity,
-      retailOpsRawStatus: r.RetailOpsRawStatus,
-      retailOpsObservedAt: r.RetailOpsObservedAt,
-      retailOpsFreshness: r.RetailOpsFreshness,
       brandCentralState: r.BrandCentralState,
-      brandCentralQuantity: r.BrandCentralQuantity,
-      brandCentralRawStatus: r.BrandCentralRawStatus,
-      brandCentralObservedAt: r.BrandCentralObservedAt,
       vendorCentralState: r.VendorCentralState,
-      vendorCentralQuantity: r.VendorCentralQuantity,
-      vendorCentralRawStatus: r.VendorCentralRawStatus,
-      vendorCentralObservedAt: r.VendorCentralObservedAt,
-      vendorApplicable: r.VendorApplicable,
-      gmsVerified: r.GmsVerified,
-      gmsSharePct: r.GmsSharePct,
-      cumulativePct: r.CumulativePct,
+      classificationVersion: r.ClassificationVersion,
+      computedAt: r.ComputedAt,
       resyncStatus: r.ResyncStatus || 'NONE',
       resyncJobId: r.ResyncJobId,
       resyncRequestedAt: r.ResyncRequestedAt,
       resyncObservedAt: r.ResyncObservedAt,
-      resyncEligible: r.ResyncEligible,
       incidentStatus: r.IncidentStatus,
-      incidentOwner: r.OwnerId,
-      incidentOwnerName: r.OwnerName,
+      incidentOwner: r.IncidentOwnerId,
       communicationStatus: r.CommunicationStatus,
       nextAction: r.NextAction,
       etaDate: r.EtaDate,
       followUpDate: r.FollowUpDate,
     }));
 
-    return res.json({ success: true, data: { rows, total, page: parseInt(req.query.page) || 1, pageSize: parseInt(req.query.pageSize) || 50 } });
+    return res.json({ success: true, data: { rows, total, page, pageSize } });
   } catch (err) { return fail(res, err); }
 };
 
@@ -388,6 +382,27 @@ exports.getResyncStatus = async (req, res) => {
   } catch (err) { return fail(res, err); }
 };
 
+exports.verifyResync = async (req, res) => {
+  try {
+    const task = await ensureTaskAccess(req, res, req.params.id);
+    if (!task) return;
+
+    const runId = req.params.runId;
+    const caseId = req.params.caseId;
+
+    const pool = await getPool();
+    const decision = await pool.request().input('id', sql.VarChar, caseId).query('SELECT TOP 1 * FROM OosDecisions WHERE Id = @id');
+    if (!decision.recordset[0]) return res.status(404).json({ success: false, error: 'Case not found' });
+
+    const jobs = await sync.listResyncJobs(runId);
+    const job = jobs.find(j => j.AsinCode === decision.recordset[0].AsinCode);
+    if (!job) return res.status(404).json({ success: false, error: 'Resync job not found' });
+
+    const result = await sync.verifyResync(job.Id, req.user?.Id);
+    return res.json({ success: true, ...result });
+  } catch (err) { return fail(res, err); }
+};
+
 exports.updateIncident = async (req, res) => {
   try {
     const task = await ensureTaskAccess(req, res, req.params.id);
@@ -453,7 +468,10 @@ exports.buildExport = async (req, res) => {
     if (!runId) return res.status(400).json({ success: false, error: 'runId required' });
 
     const scope = req.body.scope || 'ALL_AUTHORIZED';
-    const result = await exportsService.buildExport(runId, { createdBy: req.user?.Id });
+    const result = await exportsService.buildExport(runId, {
+      createdBy: req.user?.Id,
+      taskInstanceId: req.params.id,
+    });
     return res.status(201).json({ success: true, ...result });
   } catch (err) { return fail(res, err); }
 };
@@ -499,18 +517,45 @@ exports.submitOos = async (req, res) => {
     const run = runResult.recordset[0];
     if (!run) return res.status(404).json({ success: false, error: 'Run not found' });
 
-    const reviewerId = req.body.reviewerId || req.user?.Id;
-    if (reviewerId === run.CreatedBy) {
-      return res.status(400).json({ success: false, error: 'Reviewer must be independent of preparer' });
-    }
-
+    // Submission does NOT require a reviewerId - reviewer is assigned later
+    // via the PEMS review queue. The executor submits for review only.
     const result = await submission.submitRun(runId, {
-      reviewerId,
       actorId: req.user?.Id,
       sourcesValidated: req.body.sourcesValidated,
       exceptionsRecorded: req.body.exceptionsRecorded,
       blockingReasons: req.body.blockingReasons,
-      note: req.body.note,
+    });
+
+    return res.json({ success: true, ...result });
+  } catch (err) { return fail(res, err); }
+};
+
+exports.reviewOos = async (req, res) => {
+  try {
+    const task = await ensureTaskAccess(req, res, req.params.id);
+    if (!task) return;
+
+    const runId = req.query.runId || req.body.runId;
+    if (!runId) return res.status(400).json({ success: false, error: 'runId required' });
+
+    const { decision, feedback, waiverReason, waiverExpiry } = req.body;
+    if (!decision || !['APPROVED', 'REJECTED', 'WAIVED'].includes(decision)) {
+      return res.status(400).json({ success: false, error: 'decision must be APPROVED, REJECTED, or WAIVED' });
+    }
+
+    // Reviewer is the authenticated user making the review decision
+    const reviewerId = req.user?.Id;
+    if (!reviewerId) {
+      return res.status(401).json({ success: false, error: 'Authenticated reviewer required' });
+    }
+
+    const result = await submission.reviewSubmission(runId, {
+      reviewerId,
+      actorId: req.user?.Id,
+      decision,
+      feedback,
+      waiverReason,
+      waiverExpiry,
     });
 
     return res.json({ success: true, ...result });

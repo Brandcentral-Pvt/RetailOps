@@ -1,4 +1,4 @@
-const { getPool, sql, generateId } = require('../../database/db');
+const { getPool, sql, generateId, withTransaction } = require('../../database/db');
 const { getActivePolicy } = require('./oosPolicyService');
 
 function httpError(status, message, code) {
@@ -83,7 +83,7 @@ async function buildManifest(pool, { sellerId, channel, policy }) {
  * Create today's monitoring run for a seller, or return the existing one.
  * This is the idempotent entry point for the "Start daily monitoring" activity.
  */
-async function createOrGetRun({ sellerId, channel, runDate, monitoredDate, createdBy } = {}) {
+async function createOrGetRun({ sellerId, channel, runDate, monitoredDate, createdBy, taskInstanceId } = {}) {
   if (!sellerId) throw httpError(400, 'sellerId is required', 'SELLER_REQUIRED');
   const pool = await getPool();
   const seller = await loadSeller(pool, sellerId);
@@ -92,40 +92,99 @@ async function createOrGetRun({ sellerId, channel, runDate, monitoredDate, creat
   const effectiveChannel = channel || seller.Marketplace || 'amazon.in';
   const effectiveRunDate = isoDate(runDate || new Date());
 
-  const existing = await pool
-    .request()
-    .input('runDate', sql.Date, effectiveRunDate)
-    .input('sellerId', sql.VarChar, sellerId)
-    .query('SELECT TOP 1 * FROM OosRuns WHERE RunDate = @runDate AND SellerId = @sellerId');
-  if (existing.recordset[0]) {
-    return { run: existing.recordset[0], created: false };
-  }
+  const stored = await withTransaction(async (tx) => {
+    // If taskInstanceId provided, try to find binding first
+    let binding = null;
+    if (taskInstanceId) {
+      const bRes = await tx.request()
+        .input('taskInstanceId', sql.VarChar, taskInstanceId)
+        .input('sellerId', sql.VarChar, sellerId)
+        .query('SELECT TOP 1 * FROM OosTaskBindings WHERE TaskInstanceId = @taskInstanceId AND SellerId = @sellerId');
+      binding = bRes.recordset[0] || null;
+    }
 
-  const policy = await getActivePolicy();
-  const manifest = await buildManifest(pool, { sellerId, channel: effectiveChannel, policy });
+    if (binding?.OosRunId) {
+      const existing = await getRun(binding.OosRunId);
+      if (existing) {
+        return { run: existing, created: false, binding };
+      }
+    }
 
-  const id = generateId();
-  const insert = await pool
-    .request()
-    .input('id', sql.VarChar, id)
-    .input('sellerId', sql.VarChar, sellerId)
-    .input('sellerName', sql.NVarChar, seller.Name)
-    .input('channel', sql.NVarChar, effectiveChannel)
-    .input('runDate', sql.Date, effectiveRunDate)
-    .input('monitoredDate', sql.Date, isoDate(monitoredDate || new Date()))
-    .input('status', sql.VarChar, 'MONITORING')
-    .input('policyVersion', sql.VarChar, policy.version)
-    .input('manifestJson', sql.NVarChar(sql.MAX), JSON.stringify(manifest))
-    .input('createdBy', sql.NVarChar, createdBy || null)
-    .query(`
-      INSERT INTO OosRuns
-        (Id, SellerId, SellerName, Channel, RunDate, MonitoredDate, Status, PolicyVersion, ManifestJson, CreatedBy, CreatedAt, UpdatedAt)
-      OUTPUT INSERTED.*
-      VALUES
-        (@id, @sellerId, @sellerName, @channel, @runDate, @monitoredDate, @status, @policyVersion, @manifestJson, @createdBy, GETUTCDATE(), GETUTCDATE())
-    `);
+    // Check for existing run scoped by task, seller, and date
+    let run;
+    if (taskInstanceId) {
+      const rRes = await tx.request()
+        .input('taskInstanceId', sql.VarChar, taskInstanceId)
+        .input('sellerId', sql.VarChar, sellerId)
+        .input('runDate', sql.Date, effectiveRunDate)
+        .query('SELECT TOP 1 * FROM OosRuns WHERE TaskInstanceId = @taskInstanceId AND SellerId = @sellerId AND RunDate = @runDate');
+      run = rRes.recordset[0] || null;
+    } else {
+      const rRes = await tx.request()
+        .input('runDate', sql.Date, effectiveRunDate)
+        .input('sellerId', sql.VarChar, sellerId)
+        .query('SELECT TOP 1 * FROM OosRuns WHERE RunDate = @runDate AND SellerId = @sellerId');
+      run = rRes.recordset[0] || null;
+    }
 
-  return { run: insert.recordset[0], manifest, created: true };
+    if (run) {
+      // Ensure binding exists for existing run
+      if (taskInstanceId && !binding) {
+        await tx.request()
+          .input('id', sql.VarChar, require('crypto').randomUUID ? require('crypto').randomUUID() : `${Date.now()}-${Math.random()}`)
+          .input('taskInstanceId', sql.VarChar, taskInstanceId)
+          .input('oosRunId', sql.VarChar, run.Id)
+          .input('sellerId', sql.VarChar, sellerId)
+          .input('channel', sql.VarChar, effectiveChannel)
+          .query(`IF NOT EXISTS (SELECT 1 FROM OosTaskBindings WHERE TaskInstanceId = @taskInstanceId AND SellerId = @sellerId AND Channel = @channel)
+                  INSERT INTO OosTaskBindings (Id, TaskInstanceId, OosRunId, SellerId, Channel, State, CreatedAt, UpdatedAt)
+                  VALUES (@id, @taskInstanceId, @oosRunId, @sellerId, @channel, 'OPEN', GETUTCDATE(), GETUTCDATE())`);
+      }
+      return { run, created: false, binding };
+    }
+
+    const policy = await getActivePolicy();
+    const manifest = await buildManifest(pool, { sellerId, channel: effectiveChannel, policy });
+
+    const id = generateId();
+    const insert = await tx.request()
+      .input('id', sql.VarChar, id)
+      .input('sellerId', sql.VarChar, sellerId)
+      .input('sellerName', sql.NVarChar, seller.Name)
+      .input('channel', sql.NVarChar, effectiveChannel)
+      .input('runDate', sql.Date, effectiveRunDate)
+      .input('monitoredDate', sql.Date, isoDate(monitoredDate || new Date()))
+      .input('status', sql.VarChar, 'MONITORING')
+      .input('policyVersion', sql.VarChar, policy.version)
+      .input('manifestJson', sql.NVarChar(sql.MAX), JSON.stringify(manifest))
+      .input('createdBy', sql.NVarChar, createdBy || null)
+      .input('taskInstanceId', sql.VarChar, taskInstanceId || null)
+      .query(`
+        INSERT INTO OosRuns
+          (Id, SellerId, SellerName, Channel, RunDate, MonitoredDate, Status, PolicyVersion, ManifestJson, CreatedBy, TaskInstanceId, CreatedAt, UpdatedAt)
+        OUTPUT INSERTED.*
+        VALUES
+          (@id, @sellerId, @sellerName, @channel, @runDate, @monitoredDate, @status, @policyVersion, @manifestJson, @createdBy, @taskInstanceId, GETUTCDATE(), GETUTCDATE())
+      `);
+
+    const createdRun = insert.recordset[0];
+
+    // Create binding for new run
+    if (taskInstanceId) {
+      await tx.request()
+        .input('id', sql.VarChar, require('crypto').randomUUID ? require('crypto').randomUUID() : `${Date.now()}-${Math.random()}`)
+        .input('taskInstanceId', sql.VarChar, taskInstanceId)
+        .input('oosRunId', sql.VarChar, createdRun.Id)
+        .input('sellerId', sql.VarChar, sellerId)
+        .input('channel', sql.VarChar, effectiveChannel)
+        .query(`INSERT INTO OosTaskBindings (Id, TaskInstanceId, OosRunId, SellerId, Channel, State, CreatedAt, UpdatedAt)
+                VALUES (@id, @taskInstanceId, @oosRunId, @sellerId, @channel, 'OPEN', GETUTCDATE(), GETUTCDATE())`);
+    }
+
+    return { run: createdRun, manifest, created: true, binding };
+  });
+
+  return stored;
 }
 
 async function getRun(runId) {

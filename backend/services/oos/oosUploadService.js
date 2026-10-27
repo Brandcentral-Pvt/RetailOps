@@ -17,7 +17,7 @@ const DEFAULT_MAPPING = {
   timestamp: 'timestamp',
 };
 
-const UPLOAD_DIR = path.join(__dirname, '../../../uploads/oos');
+const UPLOAD_DIR = path.join(__dirname, '../../../private/oos_uploads');
 const PARSER_VERSION = '1.0.0';
 
 function httpError(status, message, code) {
@@ -118,14 +118,49 @@ function normalizeRows(rows, mappingOverride) {
 }
 
 /**
- * Save uploaded file to disk and return storage path.
+ * Validate magic bytes (file signature) against declared file type.
+ * Prevents MIME spoofing by checking actual file content.
+ */
+function validateMagicBytes(buffer, fileName) {
+  const sig = buffer.slice(0, 8);
+  const ext = (fileName || '').toLowerCase();
+
+  // Excel XLSX / XLS: starts with PK ZIP signature (0x50 0x4B 0x03 0x04)
+  if (ext.endsWith('.xlsx') || ext.endsWith('.xls')) {
+    if (sig[0] === 0x50 && sig[1] === 0x4B && sig[2] === 0x03 && sig[3] === 0x04) {
+      return true;
+    }
+    // Some XLS files use OLE2 signature D0 CF 11 E0
+    if (sig[0] === 0xD0 && sig[1] === 0xCF && sig[2] === 0x11 && sig[3] === 0xE0) {
+      return true;
+    }
+    throw httpError(400, 'File content does not match Excel format (magic bytes invalid)', 'MAGIC_BYTES_INVALID');
+  }
+
+  // CSV: plain text - check first bytes are printable ASCII/UTF-8
+  if (ext.endsWith('.csv') || ext.endsWith('.txt')) {
+    const text = buffer.toString('utf8', 0, Math.min(buffer.length, 64));
+    const isText = /^[\x09\x0A\x0D\x20-\x7E\xC0-\xFF]*$/.test(text);
+    if (!isText) {
+      throw httpError(400, 'File content does not match CSV format (magic bytes invalid)', 'MAGIC_BYTES_INVALID');
+    }
+    return true;
+  }
+
+  return true;
+}
+
+/**
+ * Save uploaded file to private storage outside web root and return storage path.
+ * Never exposes originals via static /uploads directory.
  */
 function saveOriginalFile(buffer, originalFileName, runId, sourceType) {
-  const dir = path.join(UPLOAD_DIR, path.dirname(path.join(runId)));
+  const dir = path.join(UPLOAD_DIR, String(runId));
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  const ext = path.extname(originalFileName);
-  const base = path.basename(originalFileName, ext);
-  const fileName = `${base}_${Date.now()}${ext}`;
+  const ext = path.extname(originalFileName || '');
+  const base = path.basename(originalFileName || '', ext);
+  const safeBase = base.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const fileName = `${safeBase}_${Date.now()}${ext}`;
   const filePath = path.join(dir, fileName);
   fs.writeFileSync(filePath, buffer);
   return filePath;
@@ -157,6 +192,9 @@ async function ingestUpload({
     throw httpError(400, 'File size exceeds 50MB limit', 'FILE_TOO_LARGE');
   }
 
+  // Validate magic bytes before writing anything
+  validateMagicBytes(fileBuffer, fileName);
+
   const pool = await getPool();
   const runResult = await pool
     .request()
@@ -169,47 +207,46 @@ async function ingestUpload({
   const effectiveChannel = channel || run.Channel;
   const fileHash = hashBuffer(fileBuffer);
 
-  // Save original file to disk
-  const storagePath = saveOriginalFile(fileBuffer, fileName, runId, sourceType);
-
-  // Check for existing import (same run/channel/source)
-  const existing = await pool
-    .request()
-    .input('runId', sql.VarChar, runId)
-    .input('channel', sql.NVarChar, effectiveChannel)
-    .input('sourceType', sql.VarChar, sourceType)
-    .query('SELECT TOP 1 * FROM OosImports WHERE RunId = @runId AND Channel = @channel AND SourceType = @sourceType ORDER BY UploadRevision DESC');
-
-  let uploadRevision = 1;
-  let parentImportId = null;
-  if (existing.recordset[0]) {
-    const prior = existing.recordset[0];
-    if (prior.FileHash === fileHash) {
-      return { import: prior, idempotent: true, accepted: 0, rejected: 0, invalid: [] };
-    }
-    // New revision
-    uploadRevision = prior.UploadRevision + 1;
-    parentImportId = prior.Id;
-  }
-
-  // Parse and validate
   const normalized = parseWorkbook(fileBuffer);
 
-  const importId = generateId();
-  const accepted = normalized.rows.length;
-  const rejected = normalized.invalid.length;
-
   const stored = await withTransaction(async (tx) => {
+    // Check for existing import (same run/channel/source) inside transaction
+    const existing = await tx
+      .request()
+      .input('runId', sql.VarChar, runId)
+      .input('channel', sql.NVarChar, effectiveChannel)
+      .input('sourceType', sql.VarChar, sourceType)
+      .query('SELECT TOP 1 * FROM OosImports WHERE RunId = @runId AND Channel = @channel AND SourceType = @sourceType ORDER BY UploadRevision DESC');
+
+    let uploadRevision = 1;
+    let parentImportId = null;
+    if (existing.recordset[0]) {
+      const prior = existing.recordset[0];
+      if (prior.FileHash === fileHash) {
+        return { import: prior, idempotent: true, accepted: 0, rejected: 0, invalid: [] };
+      }
+      // New revision
+      uploadRevision = prior.UploadRevision + 1;
+      parentImportId = prior.Id;
+    }
+
+    // Save original file to private storage (inside transaction so we can rollback)
+    const storagePath = saveOriginalFile(fileBuffer, fileName, runId, sourceType);
+
+    const accepted = normalized.rows.length;
+    const rejected = normalized.invalid.length;
+    const importId = generateId();
+
     const imp = await tx
       .request()
-      .input('id', sql.VarChar, generateId())
+      .input('id', sql.VarChar, importId)
       .input('runId', sql.VarChar, runId)
       .input('sellerId', sql.VarChar, effectiveSeller)
       .input('channel', sql.NVarChar, effectiveChannel)
       .input('sourceType', sql.VarChar, sourceType)
       .input('fileName', sql.NVarChar, fileName || null)
       .input('fileHash', sql.VarChar(128), fileHash)
-      .input('totalRows', sql.Int, (rows || []).length)
+      .input('totalRows', sql.Int, normalized.rows.length)
       .input('acceptedCount', sql.Int, accepted)
       .input('rejectedCount', sql.Int, rejected)
       .input('status', sql.VarChar, 'VALIDATED')
@@ -220,13 +257,13 @@ async function ingestUpload({
         })),
       }))
       .input('createdBy', sql.VarChar, createdBy || null)
-      .input('originalFileHash', sql.VarChar(128), hashBuffer(fileBuffer))
+      .input('originalFileHash', sql.VarChar(128), fileHash)
       .input('originalFileName', sql.NVarChar, fileName || null)
       .input('originalFileSize', sql.BigInt, fileBuffer.length)
       .input('originalFileContentType', sql.NVarChar, 'application/octet-stream')
-      .input('originalFileStoragePath', sql.NVarChar, filePath)
+      .input('originalFileStoragePath', sql.NVarChar, storagePath)
       .input('parserVersion', sql.VarChar, PARSER_VERSION)
-      .input('uploadRevision', sql.Int, 1)
+      .input('uploadRevision', sql.Int, uploadRevision)
       .input('parentImportId', sql.VarChar, parentImportId)
       .input('createdBy', sql.VarChar, createdBy || null)
       .query(`

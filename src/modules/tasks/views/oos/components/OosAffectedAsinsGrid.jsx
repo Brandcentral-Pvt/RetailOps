@@ -217,7 +217,7 @@ const columns = [
     render: (_, r) => (
       <Space size={4} direction="vertical" style={{ width: '100%' }}>
         <Space>
-          <Text strong>{r.gms !== null ? r.gms.toLocaleString() : 'Unverified'}</Text>
+          <Text strong>{r.gms != null ? r.gms.toLocaleString() : 'Unverified'}</Text>
           <Tag color={r.gmsVerified ? 'green' : 'orange'}>
             {r.gmsVerified ? 'Verified' : 'Unverified'}
           </Tag>

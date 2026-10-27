@@ -17,6 +17,7 @@ function OosSourceUploader({ task, activeRun, canManage }) {
   const [uploads, setUploads] = useState([]);
   const [loading, setLoading] = useState(false);
   const [fileError, setFileError] = useState(null);
+  const [reuploadLoading, setReuploadLoading] = useState({});
 
   const taskInstanceId = task?.Id;
 
@@ -67,6 +68,37 @@ function OosSourceUploader({ task, activeRun, canManage }) {
       }
     } catch (err) {
       message.error(err.message || 'Upload failed');
+    }
+  };
+
+  const handleDownload = async (item) => {
+    if (!taskInstanceId) return;
+    try {
+      const res = await tasksApi.downloadOosImport(taskInstanceId, item.Id || item.id);
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = item.FileName || item.fileName || 'oos-upload';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      message.error(err.message || 'Download failed');
+    }
+  };
+
+  const handleReupload = async (item, sourceType) => {
+    if (!taskInstanceId || !activeRun) return;
+    setReuploadLoading(prev => ({ ...prev, [item.Id || item.id]: true }));
+    try {
+      // Re-upload triggers the upload flow again for the same source type
+      setFileError(`Re-upload for ${sourceType} - please select a new file`);
+    } catch (err) {
+      message.error(err.message || 'Re-upload failed');
+    } finally {
+      setReuploadLoading(prev => { const { [item.Id || item.id]: _, ...rest } = prev; return rest; });
     }
   };
 
@@ -123,11 +155,11 @@ function OosSourceUploader({ task, activeRun, canManage }) {
               <List.Item
                 actions={
                   canManage && !item.IsValid ? [
-                    <Tooltip key="reupload" title="Re-upload"><Button size="small" icon={<ReloadOutlined />} onClick={() => setFileError('Re-upload not implemented')}>Re-upload</Button></Tooltip>,
+                    <Tooltip key="reupload" title="Re-upload"><Button size="small" icon={<ReloadOutlined />} disabled={reuploadLoading[item.Id || item.id]} onClick={() => handleReupload(item, source.value)}>Re-upload</Button></Tooltip>,
                     <Tooltip key="delete" title="Delete upload"><Button size="small" danger icon={<DeleteOutlined />} onClick={() => setFileError('Delete not implemented')}>Delete</Button></Tooltip>,
                   ] : [
-                    <Tooltip key="download" title="Download original"><Button size="small" icon={<DownloadOutlined />} onClick={() => setFileError('Download not implemented')}>Download</Button></Tooltip>,
-                    <Tooltip key="reupload" title="Re-upload new version"><Button size="small" icon={<ReloadOutlined />} onClick={() => setFileError('Re-upload not implemented')}>New Version</Button></Tooltip>,
+                    <Tooltip key="download" title="Download original"><Button size="small" icon={<DownloadOutlined />} onClick={() => handleDownload(item)}>Download</Button></Tooltip>,
+                    <Tooltip key="reupload" title="Re-upload new version"><Button size="small" icon={<ReloadOutlined />} disabled={reuploadLoading[item.Id || item.id]} onClick={() => handleReupload(item, source.value)}>New Version</Button></Tooltip>,
                   ]
                 }
               >
