@@ -1,14 +1,17 @@
 # OOS-RECON-001 Remediation Plan
 
-**Document type:** Engineering remediation plan and release-gate record  
-**Audit date:** 2026-10-27 (Asia/Kolkata)  
-**Repository:** `Brandcentral-Pvt/RetailOps` (private)  
-**Verified `main` HEAD:** `316729a4dad3b8758135a44a62553c46620a0134`  
-**Prior audit baseline:** `883d39869bd69d259ed78354d01a78fd02075fa2`  
-**Document status:** Proposed - not approved for execution  
-**Template state at audit:** `OOS-RECON-001` inactive, `AutoAssign` disabled  
-**Existing production task:** `DLY-004` remains active and must not be modified or overwritten  
+**Document type:** Engineering remediation plan and release-gate record<br>
+**Audit date:** 2026-10-27 (Asia/Kolkata)<br>
+**Repository:** `Brandcentral-Pvt/RetailOps` (private)<br>
+**Verified `main` HEAD:** `316729a4dad3b8758135a44a62553c46620a0134`<br>
+**Prior audit baseline:** `883d39869bd69d259ed78354d01a78fd02075fa2`<br>
+**Document status:** Proposed - not approved for execution<br>
+**Template state at audit:** `OOS-RECON-001` inactive, `AutoAssign` disabled<br>
+**Existing production task:** `DLY-004` remains active and must not be modified or overwritten<br>
 **Release decision:** **NOT READY** for activation or deployment
+
+**Execution backlog:** [`OOS_RECON_001_TASK_BACKLOG.md`](./OOS_RECON_001_TASK_BACKLOG.md)<br>
+**Import file:** [`oos-recon-001-tasks.csv`](./oos-recon-001-tasks.csv)
 
 ---
 
@@ -143,9 +146,13 @@ references point to Section 7.
 
 ## 5. Work breakdown
 
-Each phase has a single exit gate. Estimates are planning ranges, not
-commitments: S = up to 2 engineer-days, M = 3-5, L = 6-10. Re-estimate after
-Phase 0.
+Granular, dependency-ordered tickets are in
+[`OOS_RECON_001_TASK_BACKLOG.md`](./OOS_RECON_001_TASK_BACKLOG.md). This section
+defines phase outcomes and gates; the backlog defines individual tasks.
+
+Each phase has a single exit gate. Phase estimates in Section 13 are the sum of
+the task estimates in the backlog; they include implementation, tests and
+evidence. Re-estimate after Phase 0.
 
 ### Phase 0 - Reproduce, baseline, and protect
 
@@ -573,14 +580,24 @@ Rules:
 
 ## 9. Data model and migration plan
 
-### 9.1 Proposed migration 035
+### 9.1 Proposed migrations 035-039
 
-Allocate the next migration number after confirming the runner order. The
+Allocate migrations sequentially after confirming the runner order. The
 repository already contains duplicate `031` migrations; do not reuse numbers.
-The migration must be idempotent, transactional where supported, and paired with
-a rollback script.
+Each migration must be idempotent, transactional where supported, independently
+reviewable, and paired with a rollback script. Do not put unrelated schema
+changes in one migration.
 
-Proposed `OosDecisions`/metrics fields (names subject to schema review):
+| Migration | Scope | Owning task |
+|---|---|---|
+| `035_oos_task_scoped_runs` | Task-scoped run uniqueness and supporting indexes | OOS-017 |
+| `036_oos_decision_metrics` | Decision metrics/read model, GMS and 80/20 fields | OOS-024 |
+| `037_oos_resync_metadata` | Request, dispatch, provider and completion metadata | OOS-031 |
+| `038_oos_export_storage` | Immutable export storage and task binding | OOS-036 |
+| `039_oos_review_waiver` | Reviewer assignment/decision and waiver fields | OOS-040 |
+
+Proposed `OosDecisions`/metrics fields for migration 036 (names subject to schema
+review):
 
 | Field | Type | Purpose |
 |---|---|---|
@@ -604,17 +621,20 @@ recomputable metrics in `OosDecisionMetrics` (1:1 by `DecisionId`), exposed by
 changes. If the team chooses denormalized columns, the same acceptance criteria
 apply.
 
-Also required:
+Cross-cutting requirements:
 
-- Task-aware run uniqueness: replace `UX_OosRuns_Date_Seller` with
+- Migration 035: replace `UX_OosRuns_Date_Seller` with
   `(TaskInstanceId, SellerId, RunDate)` for non-null task bindings and a separate
   filtered index for legacy null bindings. Backfill before dropping the old
   index.
-- `OosExports` storage columns: `FileName`, `FileSize`, `StoragePath` (or
-  `FileBytes` if the team accepts the size), and a non-null `TaskInstanceId` after
-  backfill. Reuse the existing `FileHash` for content verification.
-- Resync timing/attempt columns if not already present: `RequestedAt`,
-  `DispatchAttempt`, `ProviderRequestId`, `CompletedAt`, `FailureCode`.
+- Migration 037: resync timing/attempt columns if not already present:
+  `RequestedAt`, `DispatchAttempt`, `ProviderRequestId`, `CompletedAt`,
+  `FailureCode`.
+- Migration 038: `OosExports` storage columns `FileName`, `FileSize`,
+  `StoragePath` (or `FileBytes` if the team accepts the size), and a non-null
+  `TaskInstanceId` after backfill. Reuse the existing `FileHash` for content
+  verification.
+- Migration 039: reviewer assignment/decision separation and waiver fields.
 - Foreign keys or enforced checks for `RunId`, `TaskInstanceId`, `SellerId`, and
   `DecisionId` where the data model allows. OOS tables currently lack FKs; add
   them only after cleaning orphan rows in the restored copy.
@@ -720,21 +740,24 @@ activate the affected phase.
 
 | Phase | Scope | Estimate | Primary owner |
 |---|---|---|---|
-| 0 | Reproduce, backup, freeze | S | Backend lead + DevOps |
-| 1 | Compile, imports, registry | M | Frontend lead |
-| 2 | Task-bound auth | M | Backend + Security |
-| 3 | Runs and uploads | M | Backend |
-| 4 | Schema, query, 80/20 policy | L | Backend + Data + Product |
-| 5 | Resync evidence | M | Backend + Data |
-| 6 | Immutable export | M | Backend |
-| 7 | Review and closure | M | Backend + Product/Ops |
-| 8 | UI integration | L | Frontend |
-| 9 | QA, staging, rollout | L | QA + all |
+| 0 | Reproduce, backup, freeze | 3.5d | Backend lead + DevOps |
+| 1 | Compile, imports, registry | 9.5d | Frontend lead |
+| 2 | Task-bound auth | 9d | Backend + Security |
+| 3 | Runs and uploads | 12d | Backend |
+| 4 | Schema, query, 80/20 policy | 15.5d | Backend + Data + Product |
+| 5 | Resync evidence | 6d | Backend + Data |
+| 6 | Immutable export | 8d | Backend |
+| 7 | Review and closure | 8d | Backend + Product/Ops |
+| 8 | UI integration | 13.5d | Frontend |
+| 9 | QA, staging, rollout | 11d | QA + all |
+| **Total** |  | **96d** |  |
 
-Planning range: roughly 25-35 engineer-days for one pair, or 5-7 calendar weeks
-for two engineers with review and staging dependencies. This excludes provider
-latency, business decision time, and production change-window waits. Re-estimate
-after Phase 0 using actual failures.
+Planning range: the v1.0 backlog totals **96 engineer-days**, including
+implementation, tests, migrations, security review, staging and rollout. With two
+engineers plus shared QA/security support, plan for roughly **10-12 calendar
+weeks**; one engineer is substantially longer. This excludes provider latency,
+business decision time, review queues and production change-window waits.
+Re-estimate after Phase 0 using actual failures.
 
 Suggested staffing:
 
@@ -917,6 +940,7 @@ omitted because they drift; use the named symbols.
 | Date | Change | Author |
 |---|---|---|
 | 2026-10-27 | Initial remediation plan created from the OOS-RECON-001 audit; prior 23 October notes marked superseded | Engineering |
+| 2026-10-27 | Added the 55-task execution backlog, split schema work into migrations 035-039, added decision traceability, and revised the effort range to match the backlog | Engineering |
 
 ---
 

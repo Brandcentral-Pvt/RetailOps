@@ -1718,6 +1718,7 @@ OOS is the most complex workflow and the most likely source of handover question
 > and upload, resync, export and review contracts have release-blocking defects.
 > Do not deactivate or overwrite DLY-004. See the
 > [OOS-RECON-001 remediation plan](docs/engineering/OOS_RECON_001_REMEDIATION_PLAN.md)
+> and [execution backlog](docs/engineering/OOS_RECON_001_TASK_BACKLOG.md)
 > for the verified findings, gates and repair sequence.
 
 ```mermaid
