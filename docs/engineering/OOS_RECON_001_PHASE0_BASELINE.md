@@ -11,9 +11,11 @@
 process controls. No application code, schema, migration, seed, template
 activation, assignment or provider call was changed. This work did **not**
 activate `OOS-RECON-001`; a later read-only production check found that it was
-already active. `DLY-004` is untouched. See the
+already active. Under exception `EX-001`, the OOS template was deactivated after
+the snapshot to stop recurrence; no other production data was changed.
+`DLY-004` is untouched. See the
 [production read-only snapshot](./OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md)
-for the discovered state and the orphan-binding defect.
+for the discovered state, the orphan-binding defect and the containment record.
 
 ## 1. Branch and protection
 
@@ -237,7 +239,9 @@ mode: SELECT only, application name RetailOps-OOS-Phase0-ReadOnly
 ```
 
 The configured SQL login has `sysadmin`; the login name and password are not
-recorded. No write, migration, seed, template change, assignment, upload or
+recorded. No write was made during the read-only check. After the check, the
+user approved exception `EX-001`, which changed only `OOS-RECON-001.IsActive`
+from `1` to `0` and its `UpdatedAt`; no migration, seed, assignment, upload or
 provider call was made. Full evidence is in the
 [production read-only snapshot](./OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md).
 
@@ -245,22 +249,25 @@ Production findings that change the baseline:
 
 | Item | Observed |
 |---|---|
-| `OOS-RECON-001` template | **Active**, not inactive as the source audit assumed |
-| OOS schedule | `DAILY`, Monday-Saturday, `AutoAssign` disabled; next run `2026-10-27T08:51:23Z`; recurrence log has three `CREATED` rows |
-| OOS instances | 7: 6 `DRAFT`, 1 `ASSIGNED`; no completed or cancelled |
+| `OOS-RECON-001` template | **Active at capture**, not inactive as the source audit assumed; deactivated after capture under `EX-001` |
+| OOS schedule | `DAILY`, Monday-Saturday, `AutoAssign` disabled; next run was `2026-10-27T08:51:23Z`; recurrence log has three `CREATED` rows |
+| OOS containment | `EX-001` set `IsActive = 0` at `2026-10-27T01:02:06.840Z`, before the deadline; `NextScheduledDate`, `LastGeneratedAt`, instances, runs, bindings and decisions were not changed |
+| OOS instances | 7: 6 `DRAFT`, 1 `ASSIGNED`; no completed or cancelled; unchanged by `EX-001` |
 | Populated instance | `TASK-OOS-MVOUYS8Z`, `DRAFT`, unassigned, no seller, 188 bindings |
 | Assigned OOS instance | `TASK-0006`, 0 bindings |
 | `OosRuns` | 188, all `RECONCILED`; 188 sellers; 187 `amazon.in`, 1 `ajio` |
 | `OosTaskBindings` | 188; **0** join to `OosRuns` on `OosRunId` |
 | `OosDecisions` | 44,223, all `INSUFFICIENT_EVIDENCE`; 43,942 ASINs |
 | Imports / observations | 0 / 0 |
-| `DLY-004` | Active; 17 `ASSIGNED` open instances due `2026-10-27T06:30:00Z` |
+| `DLY-004` | Active and unchanged; 17 `ASSIGNED` open instances due `2026-10-27T06:30:00Z` |
 | Applied OOS migrations | 032, 033, 034 only; 035-039 absent |
 | OOS view definition | `OOS_RECON_V1` version 1, `PUBLISHED` |
 
-The next OOS recurrence is a containment deadline. Under a written exception,
-stop the OOS schedule before `2026-10-27T08:51:23Z`; leave the independent
-`DLY-004` schedule unchanged.
+The OOS recurrence was stopped at `2026-10-27T01:02:06.840Z`, before the
+`2026-10-27T08:51:23Z` deadline. The scheduler filters `IsActive = 1`, so the
+inactive template is excluded. A post-deadline check is still required to
+confirm that no new OOS instance was created and that `DLY-004` remains at 17
+open instances. The independent `DLY-004` schedule was not changed.
 
 The 188 bindings are consistent with `backend/scripts/setup-fresh-oos-run.js`
 using one generated value for `OosRuns.Id` and a different `runId` for
@@ -287,7 +294,7 @@ production for writes, migrations, seeds, backfills or data correction.
 | OOS child scope | Parse and import defects exist in `OosSourceUploader`, `OosExportPanel`, `OosFollowupsTab`, `OosReviewTab` and `OosOverviewTab`, not only the files named in the audit. OOS-006 already owns the child directory; its acceptance should be read literally. |
 | Backend OOS tests | `backend/__tests__/unit/oosServices.test.js` does not parse. OOS-030 must repair it before adding new cases. |
 | CI test step | The root `package.json` has no `test` script, yet `.github/workflows/ci.yml` invokes `npm run test`. Correct this under the CI task, not by adding an unrelated test runner. |
-| Production OOS state | The source audit assumed `OOS-RECON-001` was inactive. The read-only check found it active with 7 instances, 188 runs and 188 orphan bindings. `DB-01` now records this as a P0 finding; OOS-002 and OOS-017 cover inventory and repair rehearsal. |
+| Production OOS state | The source audit assumed `OOS-RECON-001` was inactive. The read-only check found it active with 7 instances, 188 runs and 188 orphan bindings; it was later deactivated under `EX-001` to stop recurrence. `DB-01` records the orphan state as a P0 finding; OOS-002 and OOS-017 cover inventory and repair rehearsal. |
 
 ## 5. G0 exit checklist
 
@@ -299,11 +306,13 @@ production for writes, migrations, seeds, backfills or data correction.
 | A restorable backup exists and has been restored once | No | No backup or isolated target available. |
 | `DLY-004` confirmed present and active | Yes | Read-only snapshot: 17 assigned open instances. |
 | `DLY-004` structurally unchanged in a restored copy | No | Blocked by restore. |
-| Production OOS containment and orphan repair approved | No | 188 orphan bindings and 44,223 decisions require an approved plan. |
+| Production OOS containment approved and recurrence stopped | Yes | `EX-001` set `IsActive = 0` at `2026-10-27T01:02:06.840Z`; post-deadline instance-count check still pending. |
+| Orphan repair approved | No | 188 orphan bindings and 44,223 decisions require an approved plan; no in-place repair is authorized. |
 | No application behavior changed | Yes | Only docs and a test script; no app, schema or seed edits. |
 
 G0 remains **not passed**: restore, migration rehearsal, structural DLY-004
-comparison and the CI log are still outstanding.
+comparison, the CI log and the post-deadline OOS containment check are still
+outstanding.
 
 ## 6. Blocking inputs needed
 
@@ -314,10 +323,12 @@ comparison and the CI log are still outstanding.
    are currently stopped.
 4. Owners for data/database and DevOps work.
 5. Decisions D1-D10 before the phases that depend on them.
-6. An approved containment and orphan-repair decision for the 188 production
-   `OosTaskBindings` and 44,223 decisions found in the read-only snapshot.
-7. Written approval to stop the OOS recurrence before
-   `2026-10-27T08:51:23Z`, without changing the `DLY-004` schedule.
+6. An approved orphan-repair decision for the 188 production `OosTaskBindings`
+   and 44,223 decisions found in the read-only snapshot. Containment is complete;
+   repair is not authorized.
+7. **Completed:** written approval to stop the OOS recurrence before
+   `2026-10-27T08:51:23Z` was recorded as `EX-001`; the template was deactivated
+   at `2026-10-27T01:02:06.840Z` without changing the `DLY-004` schedule.
 
 Until items 1-3 are supplied, Phase 0 can only be marked **partially complete**.
 Do not start production-facing cutover work from this baseline.

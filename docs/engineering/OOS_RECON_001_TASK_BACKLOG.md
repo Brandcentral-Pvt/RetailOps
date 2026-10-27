@@ -12,10 +12,12 @@
 > This backlog does not authorize further activation or rollout. A read-only
 > production check on 2026-10-27 found `OOS-RECON-001` active with 7 instances,
 > 188 runs, 188 orphan `OosTaskBindings` and 44,223 decisions. Its daily
-> recurrence is still scheduled for `2026-10-27T08:51:23Z`. Contain that state:
-> stop the OOS recurrence under a written exception before that time, do not
-> create or assign new OOS work, do not run `setup-fresh-oos-run.js` in
-> production, and do not modify DLY-004. See the
+> recurrence was scheduled for `2026-10-27T08:51:23Z`; under exception `EX-001`
+> the template was deactivated at `2026-10-27T01:02:06.840Z`, before the
+> deadline. Existing data and `DLY-004` were unchanged; a post-deadline
+> instance-count check is still pending. Do not create or assign new OOS work,
+> run `setup-fresh-oos-run.js` in production, reactivate OOS, or modify
+> DLY-004. See the
 > [production read-only snapshot](./OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md).
 
 ---
@@ -206,11 +208,11 @@ for order.
 **Depends on:** OOS-001<br>
 **Findings:** TV-01; QA-01; DB-01<br>
 **Files:** backend/migrations/032_oos_reconciliation.js; backend/migrations/033_task_view_definitions_and_oos_bindings.js; backend/migrations/034_evidence_required_and_oos_bindings.js; backend/scripts/setup-fresh-oos-run.js<br>
-**Status:** In Progress - read-only production snapshot captured; isolated restore still blocked by no backup and no disposable SQL Server.<br>
+**Status:** In Progress - read-only production snapshot and OOS containment captured; isolated restore still blocked by no backup and no disposable SQL Server.<br>
 
 **Acceptance criteria**
 
-- [x] Read-only production state is captured: `OOS-RECON-001` active, 7 instances, 188 runs, 188 orphan `OosTaskBindings`, 44,223 decisions, `DLY-004` active with 17 assigned instances.
+- [x] Read-only production state is captured: `OOS-RECON-001` was active with 7 instances, 188 runs, 188 orphan `OosTaskBindings`, 44,223 decisions, and `DLY-004` had 17 assigned instances. `EX-001` later deactivated only the OOS template; all captured counts were unchanged.
 - [ ] A recent production backup is restored to an isolated environment.
 - [ ] OOS table row counts and template/instance/assignment snapshots are reproduced on the restore.
 - [ ] The 188 orphan bindings and run-status semantics are inventoried on the restore with a deterministic repair proposal.
@@ -253,24 +255,27 @@ for order.
 **Depends on:** -<br>
 **Findings:** OPS-01<br>
 **Files:** docs/engineering/OOS_RECON_001_REMEDIATION_PLAN.md; docs/engineering/OOS_RECON_001_PHASE0_FREEZE.md; docs/engineering/OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md<br>
-**Status:** Done - branch, freeze notice, proposed flag and rollback owners recorded; recurrence deadline escalated.<br>
+**Status:** Done - branch, freeze notice, proposed flag and rollback owners recorded; recurrence contained under `EX-001`; post-deadline instance-count check remains open.<br>
 
 **Acceptance criteria**
 
 - [x] A feature branch is created from the verified main SHA.
 - [x] A written freeze covers template activation, seeds, provider calls and DLY-004.
-- [x] The freeze records that production is already active and prohibits new
+- [x] The freeze records that production was already active and prohibits new
       assignments, setup-script runs and in-place orphan repair.
 - [x] The next OOS recurrence (`2026-10-27T08:51:23Z`) is recorded as a
-      containment deadline; stopping it requires a written exception.
+      containment deadline.
+- [x] A written exception (`EX-001`) was recorded and the OOS template was
+      deactivated at `2026-10-27T01:02:06.840Z`, before the deadline, without
+      changing `DLY-004` or any OOS instance, run, binding or decision.
 - [x] The feature flag name and rollback owner are recorded.
 
 **Test and evidence**
 
 - Branch SHA
-- Freeze notice
+- Freeze notice and `EX-001` record
 - Flag and rollback note
-- [Phase 0 baseline](./OOS_RECON_001_PHASE0_BASELINE.md) and [freeze notice](./OOS_RECON_001_PHASE0_FREEZE.md)
+- [Phase 0 baseline](./OOS_RECON_001_PHASE0_BASELINE.md), [freeze notice](./OOS_RECON_001_PHASE0_FREEZE.md) and [containment evidence](./OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md#22-containment-applied-after-capture-ex-001)
 
 ### Epic 1 - Compile and registry
 

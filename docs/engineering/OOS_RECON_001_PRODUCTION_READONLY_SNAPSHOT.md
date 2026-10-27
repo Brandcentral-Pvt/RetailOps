@@ -6,7 +6,8 @@
 **Server:** `sqlserver`<br>
 **Mode:** read-only `SELECT` queries only, application name `RetailOps-OOS-Phase0-ReadOnly`<br>
 **Authorization:** production endpoint supplied by the user on 2026-10-27<br>
-**Writes:** none. No migration, seed, template update, assignment, upload, provider call or data correction was performed.
+**Writes during capture:** none. No migration, seed, template update, assignment, upload, provider call or data correction was performed as part of this snapshot.<br>
+**Containment write after capture:** exception `EX-001` set only `OOS-RECON-001.IsActive` to `0` at `2026-10-27T01:02:06.840Z`; see section 2.2.
 
 > **Access-control finding:** the SQL login configured in the local backend
 > environment holds the `sysadmin` server role. The login name and password are
@@ -14,17 +15,25 @@
 > elevated grant; that grant should be replaced with a least-privilege account
 > before any further database work.
 
+> **Containment update (post-capture):** the production template was active when
+> this snapshot was taken. Under exception `EX-001`, it was deactivated before
+> the next scheduled occurrence. Existing instances, runs, bindings and decisions
+> were not changed, and `DLY-004` was not touched. The observation tables below
+> remain the pre-containment capture; current state is recorded in section 2.2.
+
 ## 1. Summary
 
-The production database is **not** in the inactive state assumed by the source
-audit. `OOS-RECON-001` is active and has generated data. The data is internally
-inconsistent: every one of the 188 `OosTaskBindings` points at an `OosRunId` that
-does not exist.
+The production database was **not** in the inactive state assumed by the source
+audit. `OOS-RECON-001` was active at capture and has generated data. The data is
+internally inconsistent: every one of the 188 `OosTaskBindings` points at an
+`OosRunId` that does not exist. The template was deactivated after capture under
+`EX-001`; the inconsistent data remains.
 
 | Item | Observed value |
 |---|---|
-| `OOS-RECON-001` template | Active, `DAILY`, `AutoAssign` disabled |
-| Next OOS schedule | `2026-10-27T08:51:23Z`; recurrence has already created three instances |
+| `OOS-RECON-001` template | Active at capture, `DAILY`, `AutoAssign` disabled; deactivated at `2026-10-27T01:02:06.840Z` under `EX-001` |
+| Next OOS schedule | Was `2026-10-27T08:51:23Z`; recurrence had already created three instances before `EX-001` |
+| Containment | `IsActive = 0` committed after capture; `DLY-004` unchanged |
 | OOS task instances | 7 total: 6 `DRAFT`, 1 `ASSIGNED` |
 | OOS task instance holding the run data | `TASK-OOS-MVOUYS8Z`, `DRAFT`, no seller, no assignee, 188 bindings |
 | Assigned OOS task instance | 1, with 0 run bindings |
@@ -44,12 +53,12 @@ does not exist.
 
 ## 2. Template and instance state
 
-| Task code | Template Id | Frequency | Active | Instances |
+| Task code | Template Id | Frequency | Active at capture | Instances |
 |---|---|---|---|---:|
-| `OOS-RECON-001` | `cf7dc8fb89884a2383cdde38` | `DAILY` | Yes | 7 |
-| `DLY-004` | `86de4ce3372a4f3ea85f9e94` | `DAILY` | Yes | 17 |
+| `OOS-RECON-001` | `cf7dc8fb89884a2383cdde38` | `DAILY` | Yes; now **No** after `EX-001` | 7 |
+| `DLY-004` | `86de4ce3372a4f3ea85f9e94` | `DAILY` | Yes; unchanged | 17 |
 
-OOS instance status:
+OOS instance status (unchanged by `EX-001`):
 
 | Status | Count | Notes |
 |---|---:|---|
@@ -60,11 +69,11 @@ OOS instance status:
 No assigned OOS task currently points at the reconciled run data. The only
 assigned instance is empty, and the populated instance is an unassigned draft.
 
-### 2.1 Recurrence is still scheduled
+### 2.1 Recurrence was still scheduled at capture
 
-The active template has an automatic daily schedule:
+At capture, the active template had an automatic daily schedule:
 
-| Field | Value |
+| Field | Value at capture |
 |---|---|
 | `Frequency` | `DAILY` |
 | `RunDays` | `1,2,3,4,5,6` (Monday-Saturday) |
@@ -75,11 +84,70 @@ The active template has an automatic daily schedule:
 | `NextScheduledDate` | `2026-10-27T08:51:23Z` |
 
 `PemsRecurrenceLog` contains three `CREATED` rows for this template, covering
-occurrences on 24, 25 and 26 October 2026, all with `AssigneeId = null`. The
-scheduler is therefore still capable of creating another unassigned OOS
-instance. That next occurrence is a containment deadline: obtain written
-approval to stop the OOS schedule before `2026-10-27T08:51:23Z`. Do not change
-the `DLY-004` schedule, which is independent and remains active.
+occurrences on 24, 25 and 26 October 2026, all with `AssigneeId = null`. At
+capture, the scheduler was therefore capable of creating another unassigned OOS
+instance. The next occurrence was a containment deadline; it was stopped before
+the deadline under `EX-001`. The `DLY-004` schedule is independent and remains
+active.
+
+### 2.2 Containment applied after capture (EX-001)
+
+`EX-001` was approved by the user in-session on 2026-10-27, after this read-only
+snapshot was written and before the next OOS occurrence. It authorized only the
+deactivation of the `OOS-RECON-001` template. It did not authorize instance,
+run, binding, decision, migration or `DLY-004` changes.
+
+| Field | Before | After |
+|---|---|---|
+| `OOS-RECON-001.IsActive` | `true` | `false` |
+| `OOS-RECON-001.NextScheduledDate` | `2026-10-27T08:51:23.570Z` | `2026-10-27T08:51:23.570Z` (retained as evidence) |
+| `OOS-RECON-001.LastGeneratedAt` | `2026-10-26T10:30:00.005Z` | `2026-10-26T10:30:00.005Z` |
+| `OOS-RECON-001.UpdatedAt` | `2026-10-23T09:47:33.410Z` | `2026-10-27T01:02:06.840Z` |
+| `DLY-004.IsActive` | `true` | `true` |
+| `DLY-004.NextScheduledDate` | `2026-10-27T18:30:00.000Z` | `2026-10-27T18:30:00.000Z` |
+| `DLY-004.UpdatedAt` | `2026-09-30T11:24:58.300Z` | `2026-09-30T11:24:58.300Z` |
+
+The change was a single transactional `UPDATE` constrained by
+`Id = 'cf7dc8fb89884a2383cdde38'`, `TaskCode = 'OOS-RECON-001'` and
+`IsActive = 1`:
+
+```sql
+UPDATE dbo.PemsTaskTemplates
+SET IsActive = 0, UpdatedAt = GETUTCDATE()
+WHERE Id = @id
+  AND TaskCode = 'OOS-RECON-001'
+  AND IsActive = 1;
+```
+
+It reported exactly one updated row and committed. Verification on the same
+connection and a fresh connection returned `IsActive = false` for OOS and
+`IsActive = true` for `DLY-004`.
+
+An earlier attempt aborted before commit when a post-update verification query
+was malformed. Its transaction was rolled back; a fresh read confirmed that
+`IsActive` was still `true` before the successful retry. No partial change was
+left behind.
+
+Counts were unchanged by containment:
+
+| Item | Before | After |
+|---|---:|---:|
+| OOS instances | 7 | 7 |
+| OOS recurrence-log rows | 3 | 3 |
+| `DLY-004` instances | 17 | 17 |
+| `OosTaskBindings` | 188 | 188 |
+| `OosRuns` | 188 | 188 |
+| `OosDecisions` | 44,223 | 44,223 |
+
+The scheduler query in `backend/services/pems/recurrenceService.js` filters
+`IsActive = 1`, so an inactive OOS template is excluded from both automatic and
+routine generation. A post-deadline check is still required after
+`2026-10-27T08:51:23Z` to confirm that the OOS instance count remains 7 and the
+`DLY-004` count remains 17.
+
+Rollback of `EX-001` requires a new written exception. Reactivating the template
+would resume the existing schedule; do not do so merely to undo the containment
+change.
 
 ## 3. Runs
 
@@ -168,13 +236,16 @@ the active drawer. The UI wiring finding remains separate.
 
 ## 8. Required containment
 
-1. Stop the OOS recurrence under a written exception before
-   `2026-10-27T08:51:23Z`; do not touch the independent `DLY-004` schedule.
+1. **Completed under `EX-001`:** the OOS recurrence was stopped at
+   `2026-10-27T01:02:06.840Z`, before `2026-10-27T08:51:23Z`. Confirm after the
+   deadline that no new OOS instance was created and that `DLY-004` is unchanged.
+   Do not reactivate the template without a new written exception.
 2. Do not run `backend/scripts/setup-fresh-oos-run.js` against production.
 3. Do not create or assign more OOS instances, runs or bindings while the freeze
    is in force.
-4. Do not deactivate, overwrite or reseed `OOS-RECON-001` or `DLY-004` without a
-   written exception and a restore plan.
+4. Do not reactivate, overwrite or reseed `OOS-RECON-001` without a new written
+   exception and a restore plan. Do not deactivate, overwrite or reseed
+   `DLY-004` at all.
 5. Preserve the 188 orphan bindings and 44,223 decisions as evidence. Do not
    delete or "repair" them in place.
 6. Rehearse the orphan inventory, binding repair and run-status correction on a
@@ -189,7 +260,10 @@ the active drawer. The UI wiring finding remains separate.
 - No structural diff of `DLY-004` was possible without a pre-change restore.
 - No CI log or application runtime was exercised.
 - The production data may change after this capture; the counts are evidence for
-  the capture time only.
+  the capture and containment times only.
+- The first scheduled occurrence after `2026-10-27T08:51:23Z` has not yet
+  elapsed, so absence of a new instance is proven by the scheduler filter, not
+  yet by post-deadline observation.
 
 ## 10. Query method
 
@@ -204,4 +278,10 @@ Only `SELECT` statements were issued. The checks covered:
 - `PemsTemplateViewDefinitions`.
 
 No `INSERT`, `UPDATE`, `DELETE`, `MERGE`, DDL, migration, seed, template update,
-assignment change or provider request was executed.
+assignment change or provider request was executed as part of the read-only
+snapshot.
+
+The only post-capture write is `EX-001`: one `UPDATE` of
+`PemsTaskTemplates.IsActive` and `UpdatedAt` for the OOS template, executed in a
+transaction after the snapshot and recorded in section 2.2. No other write was
+issued.

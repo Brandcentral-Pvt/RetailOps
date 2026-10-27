@@ -7,7 +7,7 @@
 **Prior audit baseline:** `883d39869bd69d259ed78354d01a78fd02075fa2`<br>
 **Document status:** Active - Phase 0 execution started; G0 is open<br>
 **Template state at source audit:** `OOS-RECON-001` reported inactive, `AutoAssign` disabled<br>
-**Production verification (2026-10-27, read-only):** `OOS-RECON-001` is **active**; 7 instances, 188 runs, 188 orphan `OosTaskBindings`, 44,223 decisions. Recurrence is scheduled for `2026-10-27T08:51:23Z`. See the [production read-only snapshot](./OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md).<br>
+**Production verification (2026-10-27, read-only):** `OOS-RECON-001` was **active** with 7 instances, 188 runs, 188 orphan `OosTaskBindings` and 44,223 decisions; recurrence was scheduled for `2026-10-27T08:51:23Z`. **Containment (EX-001):** the template was deactivated at `2026-10-27T01:02:06.840Z`; existing data and `DLY-004` were unchanged. See the [production read-only snapshot](./OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md).<br>
 **Existing production task:** `DLY-004` remains active; 17 assigned open instances were observed. It must not be modified or overwritten.<br>
 **Release decision:** **NOT READY** for further activation, rollout or deployment
 
@@ -56,7 +56,8 @@ Additional verification performed while writing this plan:
 | Check | Result |
 |---|---|
 | `main` HEAD | `316729a`, working tree clean at time of plan creation |
-| Production read-only check | 2026-10-27: `OOS-RECON-001` active; 188 runs; 188 orphan `OosTaskBindings`; 44,223 decisions; recurrence next at `2026-10-27T08:51:23Z`; `DLY-004` active with 17 assigned instances. Full evidence: [production read-only snapshot](./OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md) |
+| Production read-only check | 2026-10-27: `OOS-RECON-001` was active; 188 runs; 188 orphan `OosTaskBindings`; 44,223 decisions; recurrence was next at `2026-10-27T08:51:23Z`; `DLY-004` active with 17 assigned instances. Full evidence: [production read-only snapshot](./OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md) |
+| Production containment | 2026-10-27T01:02:06.840Z: `EX-001` set only `OOS-RECON-001.IsActive = 0`; 7 instances, 188 runs, 188 bindings, 44,223 decisions and `DLY-004` unchanged; post-deadline check pending |
 | `npm run build` | Passes, but `SharedTaskShell.jsx` and `OosTaskView.jsx` are not imported by any reachable module, so their defects are not compiled |
 | Shell imports | No file imports `SharedTaskShell`; `views/oos/index.js` is only imported by itself |
 | `SharedTaskShell` exports | Two `export default` statements (lines 102 and 289) |
@@ -92,10 +93,11 @@ Evidence labels used below:
 
 ## 3. Decision and non-negotiable guardrails
 
-1. Do not create, assign or roll out further OOS-RECON-001 work. Production is
-   already active with orphaned data; contain it, do not expand it. Stop the OOS
-   recurrence under a written exception before `2026-10-27T08:51:23Z`, and do
-   not run `setup-fresh-oos-run.js` against production.
+1. Do not create, assign or roll out further OOS-RECON-001 work. Production has
+   orphaned data; contain it, do not expand it. The OOS recurrence was stopped
+   under `EX-001` at `2026-10-27T01:02:06.840Z`, before the
+   `2026-10-27T08:51:23Z` deadline. Do not run `setup-fresh-oos-run.js` against
+   production or reactivate the template without a new written exception.
 2. Do not switch `TaskInstancesPage.jsx` or `MyDayPage.jsx` from `TaskWorkspace`
    to `SharedTaskShell` until the shell compiles when imported and all generic
    task regressions pass.
@@ -129,8 +131,8 @@ references point to Section 7.
 
 | ID | Phase | Gate | Finding | Required repair | Exit evidence |
 |---|---|---|---|---|---|
-| DB-01 | 0 | G0 | Read-only production check: `OOS-RECON-001` is active (7 instances, 188 runs, 44,223 decisions) and all 188 `OosTaskBindings` point at nonexistent `OosRuns.Id` values (0 join). The populated instance is an unassigned `DRAFT`; the only assigned instance is empty. Runs are marked `RECONCILED` with zero imports/observations and only `INSUFFICIENT_EVIDENCE` decisions. | Contain production: stop setup scripts and new assignments. Capture a restore, inventory orphan keys and run-status semantics, and add deterministic repair to OOS-002/OOS-017. Do not delete or repair rows in place. | Restored copy proves the orphan count and a repair plan; no production mutation before approval; run states no longer claim reconciliation without evidence. |
-| OPS-01 | 0 | G0 | OOS recurrence is still scheduled: `IsActive = true`, `AutoAssign = false`, `NextScheduledDate = 2026-10-27T08:51:23Z`; `PemsRecurrenceLog` shows three generated instances. A new unassigned OOS instance can be created before containment is approved. | Under a written exception, stop the OOS schedule before the next occurrence without changing `DLY-004`. Record the operator, timestamp and post-stop check. | No new OOS instance is created after the next scheduled time; `DLY-004` schedule and instances are unchanged. |
+| DB-01 | 0 | G0 | Read-only production check: `OOS-RECON-001` was active at capture (7 instances, 188 runs, 44,223 decisions; deactivated under `EX-001`) and all 188 `OosTaskBindings` point at nonexistent `OosRuns.Id` values (0 join). The populated instance is an unassigned `DRAFT`; the only assigned instance is empty. Runs are marked `RECONCILED` with zero imports/observations and only `INSUFFICIENT_EVIDENCE` decisions. | Contain production: stop setup scripts and new assignments. Capture a restore, inventory orphan keys and run-status semantics, and add deterministic repair to OOS-002/OOS-017. Do not delete or repair rows in place. | Restored copy proves the orphan count and a repair plan; no orphan-row mutation before approval; containment is limited to `EX-001`; run states no longer claim reconciliation without evidence. |
+| OPS-01 | 0 | G0 | At capture, OOS recurrence was scheduled: `IsActive = true`, `AutoAssign = false`, `NextScheduledDate = 2026-10-27T08:51:23Z`; `PemsRecurrenceLog` showed three generated instances. Until containment, a new unassigned OOS instance could be created. | Under written exception `EX-001`, stop the OOS schedule before the next occurrence without changing `DLY-004`. **Applied:** `IsActive = 0` at `2026-10-27T01:02:06.840Z`; all other template fields, OOS data and `DLY-004` unchanged. Confirm the instance count after the deadline. | No new OOS instance is created after the next scheduled time; `DLY-004` schedule and instances are unchanged. Post-deadline confirmation pending. |
 | TV-01 | 8 | G7 | `TaskInstancesPage.jsx` and `MyDayPage.jsx` still import `TaskWorkspace`; the specialized shell is not user-visible. | Mount the view resolver only after the shell is stable. Preserve generic tasks and add a rollback switch. | Task list opens OOS from a real instance; DLY-004 still opens the generic drawer. |
 | TV-02 | 1 | G1 | `SharedTaskShell.jsx` imports a nonexistent API module, has duplicate default exports, undeclared symbols (`setTransModal`, `VALID_TRANSITIONS`, `calculateHealth`), and conditional hook-order risk. | Repair imports, remove duplicate exports, define or remove undefined symbols, move all hooks above conditional returns, add lint/typecheck and an import smoke test. | File parses when imported; lint has zero hook/import/export errors; shell renders in isolation. |
 | TV-03 | 1 | G1 | `OosTaskView.jsx` and child components import nonexistent contexts/API paths and use `Text` from `antd`. | Correct module paths, use `Typography.Text`, verify every child import, add a rendering test. | OOS view renders in a test harness with mocked API. |
@@ -448,7 +450,7 @@ Tasks:
 | 9.5 | Test resync success, failure, timeout, duplicate, and stale observation. | Mocked provider; then one authorized staging call if approved |
 | 9.6 | Verify export hash and four sheets against the DB result set. | Independent recomputation |
 | 9.7 | Verify reviewer approval and closure gates end to end. | Independent reviewer |
-| 9.8 | Reconcile SOP identity: seed logs must report four phases/13 activities, not six. Production is already active and must be contained; do not create or assign new instances. | Stale operator output; production state differs from the source audit |
+| 9.8 | Reconcile SOP identity: seed logs must report four phases/13 activities, not six. Production was already active and is now contained; do not create or assign new instances. | Stale operator output; production state differs from the source audit |
 | 9.9 | Run a staging soak: seven sellers, repeated uploads, concurrent users, pagination. | Performance and stability |
 | 9.10 | Produce rollout plan, rollback plan, owner list, and go/no-go checklist. | Signed |
 | 9.11 | Activate only after written go/no-go. Keep the generic fallback available. | Separate change window |
@@ -537,7 +539,7 @@ Rules:
 - A skipped test is a failed gate unless the checker records an approved,
   written exception with an expiry date.
 - G9 is not automatic after G8. Further rollout is a separate business decision;
-  production is already active and contained.
+  production is contained with the OOS template inactive.
 
 ---
 
@@ -748,8 +750,9 @@ These decisions block Phase 4 or Phase 7 and must be resolved in writing.
 | D10 | Cutover mode | Feature flag per task/template; pilot sellers; fallback duration | Product + Engineering | Before 8.1 |
 
 Default if no decision is recorded: do not create, assign or expose more OOS
-work, and do not activate the affected phase. Production is already active; the
-default is containment, not deactivation.
+work, and do not activate the affected phase. Production remains contained.
+`EX-001` already deactivated the OOS template solely to stop recurrence; that
+exception does not authorize any other OOS change.
 
 ---
 
@@ -793,8 +796,9 @@ The remediation is done only when all of the following are true:
 - [ ] G0-G9 are passed with linked evidence.
 - [ ] All P0 and P1 findings are closed or explicitly deferred with an approved,
       owned, dated exception.
-- [ ] OOS recurrence is stopped or explicitly contained before the next
-      scheduled occurrence, and `DLY-004` remains unchanged.
+- [x] OOS recurrence is stopped before the next scheduled occurrence under
+      `EX-001` (`2026-10-27T01:02:06.840Z`), and `DLY-004` remains unchanged.
+      Post-deadline instance-count confirmation is still required.
 - [ ] The 188 production orphan bindings and 44,223 decisions are inventoried on
       a restored copy and corrected under an approved change or explicitly
       deferred with containment evidence.
@@ -827,7 +831,8 @@ The remediation is done only when all of the following are true:
 ### A.1 Executive decision
 
 **NOT READY** for further activation, rollout or deployment of OOS-RECON-001.
-The production template is already active with orphaned data. The repository
+The production template was already active with orphaned data at capture; it has
+since been deactivated under `EX-001` to stop recurrence. The repository
 contains many pieces of the intended template-specific execution architecture and
 several useful commits, but the active user-facing task drawer remains generic;
 the new shell/components contain compile-time defects; OOS report ingestion, ASIN
@@ -866,10 +871,11 @@ Phase 0.1 closes this gap.
 
 - **SOP identity:** `oosReconTemplate.js` defines four phases, 13 activities,
   inactive and `AutoAssign` disabled. The seed script still logs six phases, so
-  operator output is stale. The live database does **not** match that source
-  default: `OOS-RECON-001` is active, has 188 runs and 188 orphan bindings, and
-  its recurrence is scheduled for `2026-10-27T08:51:23Z`. `DLY-004` is active
-  with 17 assigned open instances; see the
+  operator output is stale. The live database did **not** match that source
+  default: at capture, `OOS-RECON-001` was active with 188 runs and 188 orphan
+  bindings, and its recurrence was scheduled for `2026-10-27T08:51:23Z`. It was
+  deactivated under `EX-001` at `2026-10-27T01:02:06.840Z`; `DLY-004` remains
+  active with 17 assigned open instances. See the
   [production snapshot](./OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md).
 - **Template view registration:** `index.js` registers OOS with a side effect,
   but the active drawer never imports it. The registry must not accept arbitrary
@@ -921,8 +927,8 @@ Phase 0.1 closes this gap.
    and test all screens and mobile widths.
 9. Stage and validate with seven sellers, stock edge cases, GMS, New ASIN,
    resync success/failure, RBAC, exports, and review. Do not create or assign
-   more production OOS work; production is already active and contained.
-   Create an approved rollout and rollback plan only after gates pass.
+   more production OOS work; production is contained with the OOS template
+   inactive. Create an approved rollout and rollback plan only after gates pass.
 
 This plan preserves that sequence and adds gates, evidence, and ownership.
 
