@@ -188,6 +188,7 @@ for order.
 - CI log excerpt
 - Command transcript
 - Baseline report
+- [Phase 0 baseline](./OOS_RECON_001_PHASE0_BASELINE.md) (local evidence complete; CI and database evidence pending)
 
 > **Implementation note:** Do not treat a successful summary job as a successful deployment.
 
@@ -231,6 +232,7 @@ for order.
 
 - Failing output before fix
 - Passing output after OOS-005 through OOS-009
+- Harness: `scripts/oos-import-smoke.mjs`; current output in [Phase 0 baseline](./OOS_RECON_001_PHASE0_BASELINE.md)
 
 <a id="oos-004" name="oos-004"></a>
 
@@ -252,6 +254,7 @@ for order.
 - Branch SHA
 - Freeze notice
 - Flag and rollback note
+- [Phase 0 baseline](./OOS_RECON_001_PHASE0_BASELINE.md) and [freeze notice](./OOS_RECON_001_PHASE0_FREEZE.md)
 
 ### Epic 1 - Compile and registry
 
@@ -818,6 +821,7 @@ for order.
 
 **Acceptance criteria**
 
+- [ ] The existing `backend/__tests__/unit/oosServices.test.js` parses and runs; repair the malformed `jest.mock` call at line 12 before adding new cases.
 - [ ] A fresh database applies migrations 035-036 and the current OOS schema.
 - [ ] Tests cover zero, positive, null, stale and conflicting stock.
 - [ ] Tests cover GMS zero, missing, negative, 80% boundary and ties.
@@ -1132,7 +1136,7 @@ for order.
 **Owner:** Frontend | **Estimate:** 2d | **Priority:** P0 | **Type:** Frontend | **Gate:** G7 | **Wave:** 4<br>
 **Depends on:** OOS-010, OOS-016<br>
 **Findings:** TV-01<br>
-**Files:** src/pages/TaskInstancesPage.jsx; src/pages/MyDayPage.jsx; src/modules/tasks/components/SharedTaskShell.jsx<br>
+**Files:** src/modules/tasks/pages/TaskInstancesPage.jsx; src/modules/tasks/pages/MyDayPage.jsx; src/modules/tasks/components/SharedTaskShell.jsx<br>
 
 **Acceptance criteria**
 

@@ -907,7 +907,7 @@ omitted because they drift; use the named symbols.
 
 | Area | Path |
 |---|---|
-| Active task pages | `src/pages/TaskInstancesPage.jsx`, `src/pages/MyDayPage.jsx` |
+| Active task pages | `src/modules/tasks/pages/TaskInstancesPage.jsx`, `src/modules/tasks/pages/MyDayPage.jsx` |
 | Generic drawer | `src/modules/tasks/components/TaskWorkspace.jsx` |
 | New shell | `src/modules/tasks/components/SharedTaskShell.jsx` |
 | View registry | `src/modules/tasks/view-registry/taskViewRegistry.js` |
