@@ -225,6 +225,22 @@ The local SQL Server and Docker daemon are both stopped. Starting a shared local
 instance is an environment decision, not a baseline action, so no container was
 started and no credentials were changed.
 
+A read-only connection to the supplied production address was also attempted:
+
+```text
+host: 97.62.95.31
+port: 1433
+TCP result: failed
+ping result: timed out
+source address: 192.168.0.174
+```
+
+The failure was at the network layer, before authentication. No production
+query, write, migration or provider call was made. Access likely requires a
+VPN, firewall allow-list entry or SSH tunnel. Even after access is available,
+this plan permits only read-only baseline queries and backup/restore work
+against production; migrations and seeds must run on the isolated restore.
+
 No backup was restored and no read-only SQL was executed. The following G0
 evidence is therefore missing:
 
@@ -262,6 +278,8 @@ Do not connect to the configured production database to fill these gaps.
 3. Written confirmation of the restore target and permission to read production
    backup media. The local SQL Server at `127.0.0.1:1433` and the Docker daemon
    are currently stopped.
+4. Network access to the production SQL Server at `97.62.95.31:1433`; TCP and
+   ping currently time out from this workstation.
 4. Owners for data/database and DevOps work.
 5. Decisions D1-D10 before the phases that depend on them.
 
