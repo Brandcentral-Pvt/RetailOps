@@ -6,7 +6,7 @@
 **Backlog version:** 1.0<br>
 **Tasks:** 55 across 10 epics<br>
 **Estimate:** 96 engineer-days (sum of task estimates; not a delivery commitment)<br>
-**Status:** Active - Phase 0 in progress; G0 open. No GitHub issues have been created by this document.<br>
+**Status:** Active - Phase 1 repairs are implemented and pushed; G0 and G1 remain open. No GitHub issues have been created by this document.<br>
 **Import file:** [`oos-recon-001-tasks.csv`](./oos-recon-001-tasks.csv)
 
 > This backlog does not authorize further activation or rollout. A read-only
