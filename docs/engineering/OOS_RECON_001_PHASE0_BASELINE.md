@@ -354,6 +354,7 @@ this section is merged to `main`, deployed, or applied to production.
 | Production build | `10,131 modules transformed`; exit 0 |
 | Registry tests | 10 Node tests pass |
 | Browser render tests | 4 pass: shell fallback, shell OOS resolution, OOS view, grid groups |
+| CI guard | `.github/workflows/oos-regression.yml` runs `npm run test:oos`; the first run is pending |
 
 Discoveries made during Phase 1:
 

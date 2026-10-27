@@ -233,7 +233,7 @@ for order.
 **Depends on:** OOS-001<br>
 **Findings:** TV-02; TV-03; TV-04; TV-05<br>
 **Files:** src/modules/tasks/components/SharedTaskShell.jsx; src/modules/tasks/views/oos/OosTaskView.jsx; src/modules/tasks/view-registry/taskViewRegistry.js<br>
-**Status:** In Progress - harness now passes 18 modules after the Phase 1 repairs; CI wiring remains open.<br>
+**Status:** In Progress - harness now passes 18 modules and runs in the dedicated `OOS Regression` workflow; the first CI run is pending.<br>
 
 **Acceptance criteria**
 
@@ -246,7 +246,7 @@ for order.
 - Failing output before fix: 10 modules, 8 failures (recorded in [Phase 0 baseline](./OOS_RECON_001_PHASE0_BASELINE.md#34-orphan-import-smoke-test))
 - Passing output after OOS-005 through OOS-009: `Transformed 18 local module(s); 0 failure(s).`
 - Harness: `scripts/oos-import-smoke.mjs`; `npm run test:oos-imports`
-- CI wiring is tracked under OOS-010 and remains open
+- CI wiring: `.github/workflows/oos-regression.yml` runs the suite; the first run is pending
 
 <a id="oos-004" name="oos-004"></a>
 
@@ -410,8 +410,8 @@ for order.
 **Owner:** Frontend | **Estimate:** 2d | **Priority:** P0 | **Type:** Test | **Gate:** G1 | **Wave:** 1<br>
 **Depends on:** OOS-005, OOS-006, OOS-007, OOS-008, OOS-009<br>
 **Findings:** TV-02; TV-03; TV-04; TV-05; QA-01<br>
-**Files:** src/modules/tasks/; tests/; package.json<br>
-**Status:** In Progress - shell, OOS view, grid and registry tests exist and pass locally; CI wiring and pre-fix-branch proof remain open.<br>
+**Files:** src/modules/tasks/; tests/; package.json; .github/workflows/oos-regression.yml<br>
+**Status:** In Progress - shell, OOS view, grid and registry tests exist and pass locally and are wired into `OOS Regression`; the first CI run and pre-fix-branch proof remain open.<br>
 
 **Acceptance criteria**
 
@@ -424,7 +424,8 @@ for order.
 - `tests/oos-view-render.spec.js` (1 browser test)
 - `tests/oos-grid-render.spec.js` (1 browser test)
 - `src/modules/tasks/view-registry/__tests__/taskViewRegistry.test.js` (10 Node tests)
-- `package.json`: `test:oos` and `test:task-registry` added; `npm run test:oos` passes locally; CI job wiring remains open
+- `package.json`: `test:oos` and `test:task-registry` added; `npm run test:oos` passes locally
+- `.github/workflows/oos-regression.yml`: runs the suite on pushes and pull requests; the first run is pending
 
 ### Epic 2 - Authorization and tenancy
 

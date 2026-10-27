@@ -238,7 +238,7 @@ production build passes with 10,131 modules; 10 registry tests and 4 browser
 render tests pass. The render harness found two exports that the transform-only
 smoke test could not see: `SharedTaskShell` imported `calculateHealth` and
 `STATUS_COLORS` from `constants`, which does not export them. Both are repaired.
-G1 remains **Open** because CI does not yet run the smoke/registry/render tests
+A dedicated `OOS Regression` workflow now runs `npm run test:oos`; its first run is pending. G1 remains **Open** because that run has not passed
 and the repository-wide lint baseline is not clean. The active task drawer still
 uses `TaskWorkspace`; the OOS view becomes user-visible only under OOS-044 in
 Phase 8. See the [Phase 1 local record](./OOS_RECON_001_PHASE0_BASELINE.md#7-phase-1-local-implementation-record-2026-10-27).
