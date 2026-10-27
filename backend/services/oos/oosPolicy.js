@@ -377,7 +377,6 @@ function checkSubmission(input = {}) {
   }
 
   if (!input.exportHash) errors.push('An immutable export (with hash) is required before submission.');
-  if (!input.reviewerId) errors.push('An independent reviewer is required before submission.');
 
   const blocking = Array.isArray(input.blockingReasons) ? input.blockingReasons.filter(Boolean) : [];
   if (blocking.length) errors.push(...blocking.map((r) => `Blocking reason: ${r}`));

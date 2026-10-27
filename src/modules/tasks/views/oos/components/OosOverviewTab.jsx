@@ -1,30 +1,35 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Row, Col, Statistic, Space, Tag, Alert, Empty, Spin, Divider, Badge, Tooltip, Descriptions, Table, Typography } from 'antd';
-import { ReloadOutlined, PlayCircleOutlined, WarningOutlined, ExclamationCircleOutlined, CheckCircleOutlined, ClockCircleOutlined, FileExcelOutlined, SyncOutlined, EyeOutlined } from '@ant-design/icons';
-import { useAuth } from '../../../../../../contexts/AuthContext';
-import tasksApi from '../../../../../../services/tasksApi';
+import { Card, Row, Col, Statistic, Button, Space, Tag, Alert, Empty, Spin, Divider, Descriptions, Table, Typography } from 'antd';
+import { ReloadOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import tasksApi from '../../../services/tasksApi';
 import dayjs from 'dayjs';
 
 const { Text } = Typography;
 
 function OosOverviewTab({ task, activeRun, runs, loading, onCreateRun, canManage }) {
-  const { hasPermission, isAdmin, isGlobalUser } = useAuth();
   const [summary, setSummary] = useState(null);
   const [runLoading, setRunLoading] = useState(false);
 
-  const runId = activeRun;
+  const taskInstanceId = task?.Id;
 
   const loadSummary = useCallback(async () => {
-    if (!activeRun) return;
+    if (!taskInstanceId || !activeRun) return;
     setRunLoading(true);
     try {
-      const res = await tasksApi.getOosContext(task.Id, activeRun);
+      const res = await tasksApi.getOosContext(taskInstanceId, activeRun);
       if (res.success) setSummary(res.data || res.context || null);
-    } catch (err) { console.error(err); }
-    finally { setRunLoading(false); }
-  }, [activeRun, task.Id]);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setRunLoading(false);
+    }
+  }, [activeRun, taskInstanceId]);
 
-  useEffect(() => { if (activeRun) loadSummary(); }, [activeRun, loadSummary]);
+  useEffect(() => {
+    if (!activeRun) return undefined;
+    const timer = setTimeout(() => { loadSummary(); }, 0);
+    return () => clearTimeout(timer);
+  }, [activeRun, loadSummary]);
 
   const manifest = summary?.manifest;
   const counts = summary?.counts || {};

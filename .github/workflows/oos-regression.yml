@@ -1,0 +1,45 @@
+name: OOS Regression
+
+on:
+  push:
+    branches: [main, develop, feat/oos-recon-001-remediation]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  oos-regression:
+    name: OOS import, registry and render tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run OOS regression suite
+        run: npm run test:oos
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oos-playwright-results
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7

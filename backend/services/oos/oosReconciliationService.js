@@ -4,6 +4,7 @@ const {
   reconcileCase,
   isVendorApplicable,
   isFresh,
+  computePareto,
 } = require('./oosPolicy');
 const { getActivePolicy } = require('./oosPolicyService');
 const incidents = require('./oosIncidentService');
@@ -116,6 +117,92 @@ async function upsertDecision(pool, { run, asin, result }) {
 }
 
 /**
+ * Persist classification metrics (PriorityGroup, IsNewAsin, GMS, etc.) to
+ * OosDecisionMetrics for every decision in a run. New ASINs are always 20%.
+ */
+async function persistDecisionMetrics(pool, run, decisions, policy) {
+  const sellerId = run.SellerId;
+  const channel = run.Channel;
+  const now = new Date();
+
+  // Gather GMS per ASIN from the policy service (seller-wide catalog)
+  let pareto;
+  try {
+    const paretoResult = await require('./oosParetoService').getSellerPareto({
+      sellerId, channel, pct: policy.gmsParetoPct,
+    });
+    pareto = paretoResult;
+  } catch {
+    pareto = { verified: false, tier1Asins: [] };
+  }
+  const tier1Asins = new Set(pareto.tier1Asins || []);
+
+  for (const decision of decisions) {
+    const asin = decision.AsinCode;
+    const existing = await pool
+      .request()
+      .input('decisionId', sql.VarChar, decision.Id)
+      .query('SELECT TOP 1 * FROM OosDecisionMetrics WHERE DecisionId = @decisionId');
+
+    const isNewAsin = !existing.recordset[0] ? 1 : 0;
+    // New ASINs are always 20% regardless of Pareto position
+    let priorityGroup;
+    if (isNewAsin) {
+      priorityGroup = '20%';
+    } else if (!pareto.verified) {
+      priorityGroup = 'GMS_UNVERIFIED';
+    } else if (tier1Asins.has(asin)) {
+      priorityGroup = '80%';
+    } else {
+      priorityGroup = '20%';
+    }
+
+    const gms = null; // GMS populated by separate metrics backfill (OOS-024)
+    const gmsVerified = pareto.verified ? 1 : 0;
+
+    if (existing.recordset[0]) {
+      await pool
+        .request()
+        .input('id', sql.VarChar, existing.recordset[0].Id)
+        .input('priorityGroup', sql.VarChar, priorityGroup)
+        .input('isNewAsin', sql.Bit, isNewAsin)
+        .input('gmsVerified', sql.Bit, gmsVerified)
+        .input('gms', sql.Decimal(18, 2), gms)
+        .input('classificationVersion', sql.VarChar, policy.version)
+        .input('computedAt', sql.DateTime2, now)
+        .query(`
+          UPDATE OosDecisionMetrics SET
+            PriorityGroup = @priorityGroup, IsNewAsin = @isNewAsin,
+            GmsVerified = @gmsVerified, Gms = @gms,
+            ClassificationVersion = @classificationVersion,
+            ComputedAt = @computedAt
+            WHERE Id = @id
+        `);
+    } else {
+      await pool
+        .request()
+        .input('id', sql.VarChar, generateId())
+        .input('decisionId', sql.VarChar, decision.Id)
+        .input('priorityGroup', sql.VarChar, priorityGroup)
+        .input('isNewAsin', sql.Bit, isNewAsin)
+        .input('firstSeenAt', sql.DateTime2, isNewAsin ? now : null)
+        .input('gmsVerified', sql.Bit, gmsVerified)
+        .input('gms', sql.Decimal(18, 2), gms)
+        .input('classificationVersion', sql.VarChar, policy.version)
+        .input('computedAt', sql.DateTime2, now)
+        .query(`
+          INSERT INTO OosDecisionMetrics
+            (Id, DecisionId, PriorityGroup, IsNewAsin, FirstSeenAt, GmsVerified, Gms,
+             ClassificationVersion, ComputedAt)
+          VALUES
+            (@id, @decisionId, @priorityGroup, @isNewAsin, @firstSeenAt, @gmsVerified, @gms,
+             @classificationVersion, @computedAt)
+        `);
+    }
+  }
+}
+
+/**
  * Reconcile a run: candidate union => rule matrix => decisions => durable incidents.
  * Observation rows are never mutated or coerced.
  */
@@ -206,6 +293,9 @@ async function reconcileRun(runId, { actorId } = {}) {
       });
     }
   }
+
+  // Persist classification metrics (PriorityGroup, IsNewAsin, GMS, etc.)
+  await persistDecisionMetrics(pool, run, decisions, policy);
 
   await pool
     .request()

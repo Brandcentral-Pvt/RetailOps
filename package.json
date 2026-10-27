@@ -10,6 +10,9 @@
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "test:auth": "playwright test",
+    "test:oos-imports": "node scripts/oos-import-smoke.mjs",
+    "test:task-registry": "node --test src/modules/tasks/view-registry/__tests__/taskViewRegistry.test.js",
+    "test:oos": "npm run test:oos-imports && npm run test:task-registry && playwright test tests/shell-render.spec.js tests/oos-view-render.spec.js tests/oos-grid-render.spec.js",
     "test:planner": "node --test src/modules/tasks/utils/__tests__/dayPlanner.test.js"
   },
   "dependencies": {

@@ -135,6 +135,17 @@ const tasksApi = {
   getOosUploads: async (taskInstanceId, runId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/files`),
 
+  downloadOosImport: async (taskInstanceId, importId) => {
+    const res = await fetch(`${API_BASE}/pems/instances/${taskInstanceId}/oos/imports/${importId}/download`, {
+      method: 'GET',
+    });
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}));
+      throw new Error(payload?.error || `Download failed (${res.status})`);
+    }
+    return res;
+  },
+
   reconcileOosRun: async (taskInstanceId, runId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/reconcile`, { method: 'POST' }),
 
@@ -155,6 +166,12 @@ const tasksApi = {
   getResyncStatus: async (taskInstanceId, runId, caseId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/resync/${caseId}`),
 
+  verifyResync: async (taskInstanceId, runId, caseId) =>
+    call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/resync/${caseId}/verify`, { method: 'POST' }),
+
+  resolveIncident: async (taskInstanceId, caseId, data) =>
+    call(`/pems/instances/${taskInstanceId}/oos/incidents/${caseId}/resolve`, { method: 'POST', body: data }),
+
   updateIncident: async (taskInstanceId, caseId, data) =>
     call(`/pems/instances/${taskInstanceId}/oos/incidents/${caseId}`, { method: 'PATCH', body: data }),
 
@@ -174,6 +191,9 @@ const tasksApi = {
 
   submitOos: async (taskInstanceId, body) =>
     call(`/pems/instances/${taskInstanceId}/oos/submit`, { method: 'POST', body }),
+
+  reviewOos: async (taskInstanceId, body) =>
+    call(`/pems/instances/${taskInstanceId}/oos/review`, { method: 'POST', body }),
 
   // ── Reviews ──
   submitReview: async (data) =>
@@ -358,6 +378,17 @@ const tasksApi = {
   getOosUploads: async (taskInstanceId, runId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/files`),
 
+  downloadOosImport: async (taskInstanceId, importId) => {
+    const res = await fetch(`${API_BASE}/pems/instances/${taskInstanceId}/oos/imports/${importId}/download`, {
+      method: 'GET',
+    });
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}));
+      throw new Error(payload?.error || `Download failed (${res.status})`);
+    }
+    return res;
+  },
+
   reconcileOosRun: async (taskInstanceId, runId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/reconcile`, { method: 'POST' }),
 
@@ -378,6 +409,12 @@ const tasksApi = {
   getResyncStatus: async (taskInstanceId, runId, caseId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/resync/${caseId}`),
 
+  verifyResync: async (taskInstanceId, runId, caseId) =>
+    call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/resync/${caseId}/verify`, { method: 'POST' }),
+
+  resolveIncident: async (taskInstanceId, caseId, data) =>
+    call(`/pems/instances/${taskInstanceId}/oos/incidents/${caseId}/resolve`, { method: 'POST', body: data }),
+
   updateIncident: async (taskInstanceId, caseId, data) =>
     call(`/pems/instances/${taskInstanceId}/oos/incidents/${caseId}`, { method: 'PATCH', body: data }),
 
@@ -397,6 +434,9 @@ const tasksApi = {
 
   submitOos: async (taskInstanceId, body) =>
     call(`/pems/instances/${taskInstanceId}/oos/submit`, { method: 'POST', body }),
+
+  reviewOos: async (taskInstanceId, body) =>
+    call(`/pems/instances/${taskInstanceId}/oos/review`, { method: 'POST', body }),
 
   // ── Reviews ──
   submitReview: async (data) =>
@@ -579,6 +619,17 @@ const tasksApi = {
   getOosUploads: async (taskInstanceId, runId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/files`),
 
+  downloadOosImport: async (taskInstanceId, importId) => {
+    const res = await fetch(`${API_BASE}/pems/instances/${taskInstanceId}/oos/imports/${importId}/download`, {
+      method: 'GET',
+    });
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}));
+      throw new Error(payload?.error || `Download failed (${res.status})`);
+    }
+    return res;
+  },
+
   reconcileOosRun: async (taskInstanceId, runId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/reconcile`, { method: 'POST' }),
 
@@ -599,6 +650,12 @@ const tasksApi = {
   getResyncStatus: async (taskInstanceId, runId, caseId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/resync/${caseId}`),
 
+  verifyResync: async (taskInstanceId, runId, caseId) =>
+    call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/resync/${caseId}/verify`, { method: 'POST' }),
+
+  resolveIncident: async (taskInstanceId, caseId, data) =>
+    call(`/pems/instances/${taskInstanceId}/oos/incidents/${caseId}/resolve`, { method: 'POST', body: data }),
+
   updateIncident: async (taskInstanceId, caseId, data) =>
     call(`/pems/instances/${taskInstanceId}/oos/incidents/${caseId}`, { method: 'PATCH', body: data }),
 
@@ -618,6 +675,9 @@ const tasksApi = {
 
   submitOos: async (taskInstanceId, body) =>
     call(`/pems/instances/${taskInstanceId}/oos/submit`, { method: 'POST', body }),
+
+  reviewOos: async (taskInstanceId, body) =>
+    call(`/pems/instances/${taskInstanceId}/oos/review`, { method: 'POST', body }),
 
   // ── Reviews ──
   submitReview: async (data) =>
@@ -716,6 +776,17 @@ const tasksApi = {
   getOosUploads: async (taskInstanceId, runId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/files`),
 
+  downloadOosImport: async (taskInstanceId, importId) => {
+    const res = await fetch(`${API_BASE}/pems/instances/${taskInstanceId}/oos/imports/${importId}/download`, {
+      method: 'GET',
+    });
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}));
+      throw new Error(payload?.error || `Download failed (${res.status})`);
+    }
+    return res;
+  },
+
   reconcileOosRun: async (taskInstanceId, runId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/reconcile`, { method: 'POST' }),
 
@@ -736,6 +807,12 @@ const tasksApi = {
   getResyncStatus: async (taskInstanceId, runId, caseId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/resync/${caseId}`),
 
+  verifyResync: async (taskInstanceId, runId, caseId) =>
+    call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/resync/${caseId}/verify`, { method: 'POST' }),
+
+  resolveIncident: async (taskInstanceId, caseId, data) =>
+    call(`/pems/instances/${taskInstanceId}/oos/incidents/${caseId}/resolve`, { method: 'POST', body: data }),
+
   updateIncident: async (taskInstanceId, caseId, data) =>
     call(`/pems/instances/${taskInstanceId}/oos/incidents/${caseId}`, { method: 'PATCH', body: data }),
 
@@ -755,6 +832,9 @@ const tasksApi = {
 
   submitOos: async (taskInstanceId, body) =>
     call(`/pems/instances/${taskInstanceId}/oos/submit`, { method: 'POST', body }),
+
+  reviewOos: async (taskInstanceId, body) =>
+    call(`/pems/instances/${taskInstanceId}/oos/review`, { method: 'POST', body }),
 
   // ── Reviews ──
   submitReview: async (data) =>
@@ -853,6 +933,17 @@ const tasksApi = {
   getOosUploads: async (taskInstanceId, runId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/files`),
 
+  downloadOosImport: async (taskInstanceId, importId) => {
+    const res = await fetch(`${API_BASE}/pems/instances/${taskInstanceId}/oos/imports/${importId}/download`, {
+      method: 'GET',
+    });
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}));
+      throw new Error(payload?.error || `Download failed (${res.status})`);
+    }
+    return res;
+  },
+
   reconcileOosRun: async (taskInstanceId, runId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/reconcile`, { method: 'POST' }),
 
@@ -873,6 +964,12 @@ const tasksApi = {
   getResyncStatus: async (taskInstanceId, runId, caseId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/resync/${caseId}`),
 
+  verifyResync: async (taskInstanceId, runId, caseId) =>
+    call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/resync/${caseId}/verify`, { method: 'POST' }),
+
+  resolveIncident: async (taskInstanceId, caseId, data) =>
+    call(`/pems/instances/${taskInstanceId}/oos/incidents/${caseId}/resolve`, { method: 'POST', body: data }),
+
   updateIncident: async (taskInstanceId, caseId, data) =>
     call(`/pems/instances/${taskInstanceId}/oos/incidents/${caseId}`, { method: 'PATCH', body: data }),
 
@@ -892,6 +989,9 @@ const tasksApi = {
 
   submitOos: async (taskInstanceId, body) =>
     call(`/pems/instances/${taskInstanceId}/oos/submit`, { method: 'POST', body }),
+
+  reviewOos: async (taskInstanceId, body) =>
+    call(`/pems/instances/${taskInstanceId}/oos/review`, { method: 'POST', body }),
 
   // ── Reviews ──
   submitReview: async (data) =>
@@ -990,6 +1090,17 @@ const tasksApi = {
   getOosUploads: async (taskInstanceId, runId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/files`),
 
+  downloadOosImport: async (taskInstanceId, importId) => {
+    const res = await fetch(`${API_BASE}/pems/instances/${taskInstanceId}/oos/imports/${importId}/download`, {
+      method: 'GET',
+    });
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}));
+      throw new Error(payload?.error || `Download failed (${res.status})`);
+    }
+    return res;
+  },
+
   reconcileOosRun: async (taskInstanceId, runId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/reconcile`, { method: 'POST' }),
 
@@ -1010,6 +1121,12 @@ const tasksApi = {
   getResyncStatus: async (taskInstanceId, runId, caseId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/resync/${caseId}`),
 
+  verifyResync: async (taskInstanceId, runId, caseId) =>
+    call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/resync/${caseId}/verify`, { method: 'POST' }),
+
+  resolveIncident: async (taskInstanceId, caseId, data) =>
+    call(`/pems/instances/${taskInstanceId}/oos/incidents/${caseId}/resolve`, { method: 'POST', body: data }),
+
   updateIncident: async (taskInstanceId, caseId, data) =>
     call(`/pems/instances/${taskInstanceId}/oos/incidents/${caseId}`, { method: 'PATCH', body: data }),
 
@@ -1029,6 +1146,9 @@ const tasksApi = {
 
   submitOos: async (taskInstanceId, body) =>
     call(`/pems/instances/${taskInstanceId}/oos/submit`, { method: 'POST', body }),
+
+  reviewOos: async (taskInstanceId, body) =>
+    call(`/pems/instances/${taskInstanceId}/oos/review`, { method: 'POST', body }),
 
   // ── Reviews ──
   submitReview: async (data) =>
@@ -1127,6 +1247,17 @@ const tasksApi = {
   getOosUploads: async (taskInstanceId, runId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/files`),
 
+  downloadOosImport: async (taskInstanceId, importId) => {
+    const res = await fetch(`${API_BASE}/pems/instances/${taskInstanceId}/oos/imports/${importId}/download`, {
+      method: 'GET',
+    });
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}));
+      throw new Error(payload?.error || `Download failed (${res.status})`);
+    }
+    return res;
+  },
+
   reconcileOosRun: async (taskInstanceId, runId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/reconcile`, { method: 'POST' }),
 
@@ -1147,6 +1278,12 @@ const tasksApi = {
   getResyncStatus: async (taskInstanceId, runId, caseId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/resync/${caseId}`),
 
+  verifyResync: async (taskInstanceId, runId, caseId) =>
+    call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/resync/${caseId}/verify`, { method: 'POST' }),
+
+  resolveIncident: async (taskInstanceId, caseId, data) =>
+    call(`/pems/instances/${taskInstanceId}/oos/incidents/${caseId}/resolve`, { method: 'POST', body: data }),
+
   updateIncident: async (taskInstanceId, caseId, data) =>
     call(`/pems/instances/${taskInstanceId}/oos/incidents/${caseId}`, { method: 'PATCH', body: data }),
 
@@ -1166,6 +1303,9 @@ const tasksApi = {
 
   submitOos: async (taskInstanceId, body) =>
     call(`/pems/instances/${taskInstanceId}/oos/submit`, { method: 'POST', body }),
+
+  reviewOos: async (taskInstanceId, body) =>
+    call(`/pems/instances/${taskInstanceId}/oos/review`, { method: 'POST', body }),
 
   // ── Reviews ──
   submitReview: async (data) =>
@@ -1264,6 +1404,17 @@ const tasksApi = {
   getOosUploads: async (taskInstanceId, runId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/files`),
 
+  downloadOosImport: async (taskInstanceId, importId) => {
+    const res = await fetch(`${API_BASE}/pems/instances/${taskInstanceId}/oos/imports/${importId}/download`, {
+      method: 'GET',
+    });
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}));
+      throw new Error(payload?.error || `Download failed (${res.status})`);
+    }
+    return res;
+  },
+
   reconcileOosRun: async (taskInstanceId, runId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/reconcile`, { method: 'POST' }),
 
@@ -1284,6 +1435,12 @@ const tasksApi = {
   getResyncStatus: async (taskInstanceId, runId, caseId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/resync/${caseId}`),
 
+  verifyResync: async (taskInstanceId, runId, caseId) =>
+    call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/resync/${caseId}/verify`, { method: 'POST' }),
+
+  resolveIncident: async (taskInstanceId, caseId, data) =>
+    call(`/pems/instances/${taskInstanceId}/oos/incidents/${caseId}/resolve`, { method: 'POST', body: data }),
+
   updateIncident: async (taskInstanceId, caseId, data) =>
     call(`/pems/instances/${taskInstanceId}/oos/incidents/${caseId}`, { method: 'PATCH', body: data }),
 
@@ -1303,6 +1460,9 @@ const tasksApi = {
 
   submitOos: async (taskInstanceId, body) =>
     call(`/pems/instances/${taskInstanceId}/oos/submit`, { method: 'POST', body }),
+
+  reviewOos: async (taskInstanceId, body) =>
+    call(`/pems/instances/${taskInstanceId}/oos/review`, { method: 'POST', body }),
 
   // ── Reviews ──
   submitReview: async (data) =>
@@ -1401,6 +1561,17 @@ const tasksApi = {
   getOosUploads: async (taskInstanceId, runId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/files`),
 
+  downloadOosImport: async (taskInstanceId, importId) => {
+    const res = await fetch(`${API_BASE}/pems/instances/${taskInstanceId}/oos/imports/${importId}/download`, {
+      method: 'GET',
+    });
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}));
+      throw new Error(payload?.error || `Download failed (${res.status})`);
+    }
+    return res;
+  },
+
   reconcileOosRun: async (taskInstanceId, runId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/reconcile`, { method: 'POST' }),
 
@@ -1421,6 +1592,12 @@ const tasksApi = {
   getResyncStatus: async (taskInstanceId, runId, caseId) =>
     call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/resync/${caseId}`),
 
+  verifyResync: async (taskInstanceId, runId, caseId) =>
+    call(`/pems/instances/${taskInstanceId}/oos/runs/${runId}/resync/${caseId}/verify`, { method: 'POST' }),
+
+  resolveIncident: async (taskInstanceId, caseId, data) =>
+    call(`/pems/instances/${taskInstanceId}/oos/incidents/${caseId}/resolve`, { method: 'POST', body: data }),
+
   updateIncident: async (taskInstanceId, caseId, data) =>
     call(`/pems/instances/${taskInstanceId}/oos/incidents/${caseId}`, { method: 'PATCH', body: data }),
 
@@ -1440,6 +1617,9 @@ const tasksApi = {
 
   submitOos: async (taskInstanceId, body) =>
     call(`/pems/instances/${taskInstanceId}/oos/submit`, { method: 'POST', body }),
+
+  reviewOos: async (taskInstanceId, body) =>
+    call(`/pems/instances/${taskInstanceId}/oos/review`, { method: 'POST', body }),
 
   // ── Reviews ──
   submitReview: async (data) =>

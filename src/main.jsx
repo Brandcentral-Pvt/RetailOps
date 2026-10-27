@@ -7,6 +7,7 @@ import './styles/tokens.css';
 import './index.css'
 import './styles/global-overrides.css'
 import App from './App.jsx'
+import './modules/tasks/views/oos';
 import UnderMaintenance from './pages/UnderMaintenance';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -57,6 +58,7 @@ async function hydrateIfPossible(qc) {
         try {
             await qc.resumePausedMutations?.();
         } catch {
+            // Cache hydration is best-effort; a failed resume must not block paint.
         }
     }, { timeout: 60_000 });
 }

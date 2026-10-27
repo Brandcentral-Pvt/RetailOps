@@ -1,6 +1,10 @@
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const XLSX = require('xlsx');
 const { getPool, sql, generateId } = require('../../database/db');
+
+const EXPORT_STORAGE_DIR = path.join(__dirname, '../../../private/oos_exports');
 
 function httpError(status, message, code) {
   const err = new Error(message);
@@ -26,6 +30,18 @@ function sanitizeCell(value) {
     return "'" + str;
   }
   return str;
+}
+
+/**
+ * Save export bytes to private storage outside web root.
+ */
+function saveExportBuffer(buffer, runId, version) {
+  const dir = path.join(EXPORT_STORAGE_DIR, String(runId));
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  const fileName = `oos-export-v${version}.xlsx`;
+  const filePath = path.join(dir, fileName);
+  fs.writeFileSync(filePath, buffer);
+  return { fileName, filePath, fileSize: buffer.length };
 }
 
 /**
@@ -91,7 +107,7 @@ function flattenDecision(d, sourceManifest, incidentsMap, resyncMap) {
  * every build still records a new immutable version row.
  * Sheet names: '01 Active OOS', '02 Discrepancies', '03 Resync Resolved', '04 Summary & Sources'
  */
-async function buildExport(runId, { createdBy } = {}) {
+async function buildExport(runId, { createdBy, taskInstanceId } = {}) {
   const pool = await getPool();
   const runResult = await pool
     .request()
@@ -242,22 +258,38 @@ async function buildExport(runId, { createdBy } = {}) {
     rowCounts: sheets.map(s => (s.data || []).length),
   };
 
+  // Store export bytes to private storage outside web root
+  const storage = saveExportBuffer(buffer, runId, version);
+
+  const exportAuditJson = JSON.stringify({
+    generatedBy: createdBy || null,
+    generatedAt: new Date().toISOString(),
+    taskInstanceId: taskInstanceId || null,
+    rowCounts: sheets.map(s => (s.data || []).length),
+    totalRows: decisions.recordset.length,
+    fileHash,
+  });
+
   const inserted = await getPool()
     .request()
     .input('id', sql.VarChar, generateId())
     .input('runId', sql.VarChar, runId)
     .input('sellerId', sql.VarChar, run.SellerId)
-    .input('taskInstanceId', sql.VarChar, null) // TODO: get from OosTaskBindings
+    .input('taskInstanceId', sql.VarChar, taskInstanceId || null)
     .input('version', sql.Int, version)
     .input('sheetCount', sql.Int, sheets.length)
+    .input('fileName', sql.NVarChar(260, storage.fileName))
+    .input('fileSize', sql.BigInt, storage.fileSize)
+    .input('storagePath', sql.NVarChar(500, storage.filePath))
     .input('fileHash', sql.VarChar(128), fileHash)
     .input('contentJson', sql.NVarChar(sql.MAX), JSON.stringify({ manifest, sheets: sheets.map(s => ({ name: s.name, rowCount: (s.data || []).length })) }))
     .input('exportManifestJson', sql.NVarChar(sql.MAX), JSON.stringify(manifest))
+    .input('exportAuditJson', sql.NVarChar(sql.MAX), exportAuditJson)
     .input('createdBy', sql.VarChar, createdBy || null)
     .query(`
-      INSERT INTO OosExports (Id, RunId, SellerId, Version, SheetCount, FileHash, ContentJson, ExportManifestJson, CreatedBy, CreatedAt)
+      INSERT INTO OosExports (Id, RunId, SellerId, TaskInstanceId, Version, SheetCount, FileName, FileSize, StoragePath, FileHash, ContentJson, ExportManifestJson, ExportAuditJson, CreatedBy, CreatedAt)
       OUTPUT INSERTED.*
-      VALUES (@id, @runId, @sellerId, @version, @sheetCount, @fileHash, @contentJson, @exportManifestJson, @createdBy, GETUTCDATE())
+      VALUES (@id, @runId, @sellerId, @taskInstanceId, @version, @sheetCount, @fileName, @fileSize, @storagePath, @fileHash, @contentJson, @exportManifestJson, @exportAuditJson, @createdBy, GETUTCDATE())
     `);
 
   return { export: inserted.recordset[0], sheets, fileHash, version, buffer };
@@ -272,27 +304,57 @@ async function getLatestExport(runId) {
   return result.recordset[0] || null;
 }
 
-/** Render the latest immutable export to a real four-tab XLSX download. */
-async function buildWorkbook(runId) {
-  const record = await getLatestExport(runId);
-  if (!record) throw httpError(404, 'No export exists for this run', 'EXPORT_NOT_FOUND');
-  const buffer = buildWorkbookBuffer(record.ContentJson);
+async function getExportById(exportId) {
+  const pool = await getPool();
+  const result = await pool
+    .request()
+    .input('id', sql.VarChar, exportId)
+    .query('SELECT TOP 1 * FROM OosExports WHERE Id = @id');
+  return result.recordset[0] || null;
+}
+
+/** Render an immutable export by exportId to a real four-tab XLSX download. */
+async function buildWorkbook(exportId) {
+  const record = await getExportById(exportId);
+  if (!record) throw httpError(404, 'Export not found', 'EXPORT_NOT_FOUND');
+
+  // Verify stored file exists on disk
+  const fs = require('fs');
+  if (!record.StoragePath || !fs.existsSync(record.StoragePath)) {
+    throw httpError(404, 'Export file not found on disk', 'EXPORT_FILE_NOT_FOUND');
+  }
+
+  const fileBuffer = fs.readFileSync(record.StoragePath);
+
+  // Verify stored hash matches file contents
+  const actualHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+  if (actualHash !== record.FileHash) {
+    throw httpError(500, 'Export hash mismatch - file may have been tampered with', 'EXPORT_HASH_MISMATCH');
+  }
+
   return {
     record,
-    buffer,
-    fileName: `oos-${runId}-v${record.Version}.xlsx`,
+    buffer: fileBuffer,
+    fileName: record.FileName || `oos-export-${exportId}.xlsx`,
+    verifiedHash: actualHash,
   };
 }
 
 function buildWorkbookBuffer(contentJson) {
   const content = typeof contentJson === 'string' ? JSON.parse(contentJson) : contentJson;
   const workbook = XLSX.utils.book_new();
-  for (const sheet of content.sheets || []) {
-    const rows = Array.isArray(sheet.data) && sheet.data.length ? sheet.data : [{ info: 'No rows' }];
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    XLSX.utils.book_append_sheet(workbook, worksheet, String(sheet.name).slice(0, 31));
+  const sheets = content.sheets || [];
+  if (sheets.length === 0) {
+    const worksheet = XLSX.utils.json_to_sheet([{ info: 'No data' }]);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'No Data');
+  } else {
+    for (const sheet of sheets) {
+      const rows = Array.isArray(sheet.data) && sheet.data.length ? sheet.data : [{ info: 'No rows' }];
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(workbook, worksheet, String(sheet.name).slice(0, 31));
+    }
   }
   return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
 }
 
-module.exports = { buildExport, getLatestExport, buildWorkbook, buildWorkbookBuffer, sanitizeCell };
+module.exports = { buildExport, getLatestExport, getExportById, buildWorkbook, buildWorkbookBuffer, sanitizeCell };

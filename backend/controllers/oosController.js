@@ -65,6 +65,7 @@ exports.createRun = async (req, res) => {
       runDate: req.body?.runDate,
       monitoredDate: req.body?.monitoredDate,
       createdBy: req.user?.Id,
+      taskInstanceId: req.body?.taskInstanceId || req.body?.taskId,
     });
     return res.status(result.created ? 201 : 200).json({ success: true, ...result });
   } catch (err) { return fail(res, err); }
@@ -105,16 +106,29 @@ exports.getRun = async (req, res) => {
 
 exports.ingestUpload = async (req, res) => {
   try {
-    const run = await runScoped(req, res, req.params.id);
+    const run = req.oosRun || await runScoped(req, res, req.params.id);
     if (!run) return undefined;
+    let rows = req.body?.rows;
+    // If file uploaded via multer, parse it
+    if (req.file && req.file.buffer) {
+      try {
+        const XLSX = require('xlsx');
+        const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(sheet, { defval: null, raw: false });
+      } catch (e) {
+        return res.status(400).json({ success: false, code: 'PARSE_ERROR', error: 'Failed to parse uploaded file' });
+      }
+    }
     const result = await uploads.ingestUpload({
       runId: run.Id,
       sellerId: run.SellerId,
       channel: req.body?.channel || run.Channel,
-      sourceType: req.body?.sourceType,
-      fileName: req.body?.fileName,
+      sourceType: req.body?.sourceType || req.body?.type,
+      fileName: req.file?.originalname || req.body?.fileName,
+      fileBuffer: req.file?.buffer,
       fileHash: req.body?.fileHash,
-      rows: req.body?.rows,
+      rows: rows,
       mapping: req.body?.mapping,
       createdBy: req.user?.Id,
     });
@@ -160,10 +174,12 @@ exports.listRunIncidents = async (req, res) => {
 
 exports.updateIncident = async (req, res) => {
   try {
-    const incident = await incidents.getIncident(req.params.id);
+    const incident = req.oosIncident || await incidents.getIncident(req.params.id);
     if (!incident) return res.status(404).json({ success: false, code: 'INCIDENT_NOT_FOUND', error: 'Incident not found' });
-    const scope = sellerScopeOr403(req, res, incident.SellerId);
-    if (!scope) return undefined;
+    if (!req.oosBinding && !req.oosTask) {
+      const scope = sellerScopeOr403(req, res, incident.SellerId);
+      if (!scope) return undefined;
+    }
     const updated = await incidents.updateIncident(incident.Id, {
       ownerId: req.body?.ownerId,
       ownerName: req.body?.ownerName,
@@ -178,10 +194,12 @@ exports.updateIncident = async (req, res) => {
 
 exports.resolveIncident = async (req, res) => {
   try {
-    const incident = await incidents.getIncident(req.params.id);
+    const incident = req.oosIncident || await incidents.getIncident(req.params.id);
     if (!incident) return res.status(404).json({ success: false, code: 'INCIDENT_NOT_FOUND', error: 'Incident not found' });
-    const scope = sellerScopeOr403(req, res, incident.SellerId);
-    if (!scope) return undefined;
+    if (!req.oosBinding && !req.oosTask) {
+      const scope = sellerScopeOr403(req, res, incident.SellerId);
+      if (!scope) return undefined;
+    }
     const result = await incidents.resolveIncident(incident.Id, {
       actorId: req.user?.Id,
       detail: { note: req.body?.note || null, manual: true },

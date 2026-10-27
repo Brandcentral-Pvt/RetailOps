@@ -1713,6 +1713,27 @@ Known view keys: `STANDARD_V1` (generic subtask checklist) and `OOS_RECON_V1` (O
 
 OOS is the most complex workflow and the most likely source of handover questions. It reconciles three views of stock: RetailOps' own scraped signal, the Brand Central report, and (for Amazon India only) the Vendor Central report.
 
+> **Release status (27 October 2026):** `OOS-RECON-001` is **contained in
+> production** but not ready for further rollout. A read-only check found 7
+> OOS instances, 188 reconciled runs and 44,223 decisions; all 188
+> `OosTaskBindings` point at nonexistent `OosRuns.Id` values. The specialized
+> view is not wired into the active task drawer, and upload, resync, export and
+> review contracts have release-blocking defects. Under exception `EX-001`, the
+> OOS template was deactivated at `2026-10-27T01:02:06.840Z` to stop the daily
+> recurrence before `2026-10-27T08:51:23Z`; existing data and `DLY-004` were not
+> changed. Phase 1 compile/registry repairs exist only on the remediation branch;
+> they are not deployed and do not make the OOS view user-visible. The local
+> Phase 1 suite passes, but the first CI run, pre-fix failure proof and
+> post-deadline containment check are still outstanding. Do not
+> create or assign more OOS work, run OOS setup scripts, reactivate or overwrite
+> OOS, or deactivate/overwrite DLY-004. See the
+> [OOS-RECON-001 remediation plan](docs/engineering/OOS_RECON_001_REMEDIATION_PLAN.md),
+> [production read-only snapshot](docs/engineering/OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md),
+> [execution backlog](docs/engineering/OOS_RECON_001_TASK_BACKLOG.md),
+> [G0/G1 unblock kit](docs/engineering/OOS_RECON_001_G0_G1_UNBLOCK.md) and
+> [decision brief](docs/engineering/OOS_RECON_001_DECISION_BRIEF.md)
+> for the verified findings, gates, evidence steps and repair sequence.
+
 ```mermaid
 flowchart TD
     A["Create run<br/>seller + channel + date"] --> B["Upload Brand Central<br/>(and Vendor Central for amazon.in)"]

@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Upload, Button, Space, Tag, Alert, Divider, Typography, List, Badge, Tooltip, Row, Col, message } from 'antd';
-import { UploadOutlined, FileOutlined, DownloadOutlined, DeleteOutlined, ReloadOutlined, WarningOutlined, CheckCircleOutlined, ExclamationCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
-import { useAuth } from '../../../../../../contexts/AuthContext';
-import tasksApi from '../../../../../../services/tasksApi';
+import { App, Card, Upload, Button, Space, Tag, Alert, Divider, Typography, List, Badge, Tooltip, Row, Col } from 'antd';
+import { UploadOutlined, FileOutlined, DownloadOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
+import tasksApi from '../../../services/tasksApi';
 import dayjs from 'dayjs';
 
 const { Text } = Typography;
@@ -13,25 +12,33 @@ const SOURCE_TYPES = [
   { value: 'RETAILOPS', label: 'RetailOps (auto)', required: false, icon: '🤖' },
 ];
 
-function OosSourceUploader({ task, activeRun, canManage, onRunsChange }) {
-  const { hasPermission, isAdmin, isGlobalUser } = useAuth();
-  const canUpload = isAdmin || true; // TODO: check proper permission
+function OosSourceUploader({ task, activeRun, canManage }) {
+  const { message } = App.useApp();
   const [uploads, setUploads] = useState([]);
   const [loading, setLoading] = useState(false);
   const [fileError, setFileError] = useState(null);
+  const [reuploadLoading, setReuploadLoading] = useState({});
 
-  const runId = activeRun;
   const taskInstanceId = task?.Id;
 
   const loadUploads = useCallback(async () => {
-    if (!activeRun) return;
+    if (!taskInstanceId || !activeRun) return;
+    setLoading(true);
     try {
-      const res = await tasksApi.getOosUploads(task.Id, activeRun);
+      const res = await tasksApi.getOosUploads(taskInstanceId, activeRun);
       if (res.success) setUploads(res.data || res.uploads || []);
-    } catch (err) { console.error(err); }
-  }, [activeRun]);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeRun, taskInstanceId]);
 
-  useEffect(() => { if (activeRun) loadUploads(); }, [activeRun, loadUploads]);
+  useEffect(() => {
+    if (!activeRun) return undefined;
+    const timer = setTimeout(() => { loadUploads(); }, 0);
+    return () => clearTimeout(timer);
+  }, [activeRun, loadUploads]);
 
   const beforeUpload = (file) => {
     const allowedTypes = ['.csv', '.xls', '.xlsx'];
@@ -49,18 +56,49 @@ function OosSourceUploader({ task, activeRun, canManage, onRunsChange }) {
   };
 
   const handleUpload = async (file, sourceType) => {
-    if (!activeRun) return;
+    if (!taskInstanceId || !activeRun) return;
     const formData = new FormData();
     formData.append('file', file);
     formData.append('sourceType', sourceType);
     try {
-      const res = await tasksApi.uploadOosFile(task.Id, activeRun, formData);
+      const res = await tasksApi.uploadOosFile(taskInstanceId, activeRun, formData);
       if (res.success) {
         loadUploads();
         message.success(`${sourceType} uploaded successfully`);
       }
     } catch (err) {
       message.error(err.message || 'Upload failed');
+    }
+  };
+
+  const handleDownload = async (item) => {
+    if (!taskInstanceId) return;
+    try {
+      const res = await tasksApi.downloadOosImport(taskInstanceId, item.Id || item.id);
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = item.FileName || item.fileName || 'oos-upload';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      message.error(err.message || 'Download failed');
+    }
+  };
+
+  const handleReupload = async (item, sourceType) => {
+    if (!taskInstanceId || !activeRun) return;
+    setReuploadLoading(prev => ({ ...prev, [item.Id || item.id]: true }));
+    try {
+      // Re-upload triggers the upload flow again for the same source type
+      setFileError(`Re-upload for ${sourceType} - please select a new file`);
+    } catch (err) {
+      message.error(err.message || 'Re-upload failed');
+    } finally {
+      setReuploadLoading(prev => { const { [item.Id || item.id]: _, ...rest } = prev; return rest; });
     }
   };
 
@@ -117,11 +155,11 @@ function OosSourceUploader({ task, activeRun, canManage, onRunsChange }) {
               <List.Item
                 actions={
                   canManage && !item.IsValid ? [
-                    <Tooltip key="reupload" title="Re-upload"><Button size="small" icon={<ReloadOutlined />} onClick={() => setError('Re-upload not implemented')}>Re-upload</Button></Tooltip>,
-                    <Tooltip key="delete" title="Delete upload"><Button size="small" danger icon={<DeleteOutlined />} onClick={() => setError('Delete not implemented')}>Delete</Button></Tooltip>,
+                    <Tooltip key="reupload" title="Re-upload"><Button size="small" icon={<ReloadOutlined />} disabled={reuploadLoading[item.Id || item.id]} onClick={() => handleReupload(item, source.value)}>Re-upload</Button></Tooltip>,
+                    <Tooltip key="delete" title="Delete upload"><Button size="small" danger icon={<DeleteOutlined />} onClick={() => setFileError('Delete not implemented')}>Delete</Button></Tooltip>,
                   ] : [
-                    <Tooltip key="download" title="Download original"><Button size="small" icon={<DownloadOutlined />} onClick={() => setError('Download not implemented')}>Download</Button></Tooltip>,
-                    <Tooltip key="reupload" title="Re-upload new version"><Button size="small" icon={<ReloadOutlined />} onClick={() => setError('Re-upload not implemented')}>New Version</Button></Tooltip>,
+                    <Tooltip key="download" title="Download original"><Button size="small" icon={<DownloadOutlined />} onClick={() => handleDownload(item)}>Download</Button></Tooltip>,
+                    <Tooltip key="reupload" title="Re-upload new version"><Button size="small" icon={<ReloadOutlined />} disabled={reuploadLoading[item.Id || item.id]} onClick={() => handleReupload(item, source.value)}>New Version</Button></Tooltip>,
                   ]
                 }
               >
@@ -137,6 +175,7 @@ function OosSourceUploader({ task, activeRun, canManage, onRunsChange }) {
                 />
               </List.Item>
             )}
+            >
           </List>
           </>
         )}
@@ -146,7 +185,7 @@ function OosSourceUploader({ task, activeRun, canManage, onRunsChange }) {
   };
 
   return (
-    <Card size="small" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Card size="small" loading={loading} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
         <Space>
           <Text strong>Run: {activeRun ? dayjs(activeRun).format('DD MMM YYYY') : 'Select a run'}</Text>

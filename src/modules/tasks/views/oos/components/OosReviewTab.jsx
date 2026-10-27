@@ -1,37 +1,39 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Alert, Space, Button, Form, Input, Select, Checkbox, Radio, Tag, List, Badge, Typography, Divider, Descriptions } from 'antd';
-import { CheckCircleOutlined, ExclamationCircleOutlined, ClockCircleOutlined, UserOutlined, LockOutlined, FileExcelOutlined } from '@ant-design/icons';
-import { useAuth } from '../../../../../../contexts/AuthContext';
-import tasksApi from '../../../../../../services/tasksApi';
+import { App, Card, Alert, Space, Button, Form, Input, Checkbox, Tag, List, Typography, Divider, Descriptions } from 'antd';
+import tasksApi from '../../../services/tasksApi';
 import dayjs from 'dayjs';
 
 const { Text } = Typography;
 
 function OosReviewTab({ task, activeRun, canManage }) {
-  const { hasPermission, isAdmin, isGlobalUser } = useAuth();
+  const { message } = App.useApp();
   const [submission, setSubmission] = useState(null);
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
-  const [error, setError] = useState(null);
 
-  const runId = activeRun;
   const taskInstanceId = task?.Id;
 
   const loadSubmission = useCallback(async () => {
-    if (!activeRun) return;
+    if (!taskInstanceId || !activeRun) return;
     try {
-      const res = await tasksApi.getAffectedAsins(task.Id, { runId: activeRun, submission: true });
+      const res = await tasksApi.getAffectedAsins(taskInstanceId, { runId: activeRun, submission: true });
       if (res.success) setSubmission(res.data?.submission || res.data || null);
-    } catch (err) { console.error(err); }
-  }, [activeRun, task.Id]);
+    } catch (err) {
+      console.error(err);
+    }
+  }, [activeRun, taskInstanceId]);
 
-  useEffect(() => { if (activeRun) loadSubmission(); }, [activeRun, loadSubmission]);
+  useEffect(() => {
+    if (!activeRun) return undefined;
+    const timer = setTimeout(() => { loadSubmission(); }, 0);
+    return () => clearTimeout(timer);
+  }, [activeRun, loadSubmission]);
 
   const handleSubmit = async (values) => {
-    if (!canManage) return;
+    if (!taskInstanceId || !canManage) return;
     setLoading(true);
     try {
-      const res = await tasksApi.submitOos(task.Id, { runId: activeRun, ...values });
+      const res = await tasksApi.submitOos(taskInstanceId, { runId: activeRun, ...values });
       if (res.success) {
         message.success(res.ok ? 'Submitted for review' : 'Submission blocked: ' + (res.errors?.join('; ') || 'Unknown'));
         loadSubmission();

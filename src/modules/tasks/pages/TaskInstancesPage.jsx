@@ -50,7 +50,7 @@ import RightInsightsPanel from '../components/RightInsightsPanel';
 import MobileTaskCard from '../components/MobileTaskCard';
 import LiveActivityFeed from '../components/LiveActivityFeed';
 import PremiumTaskRow from '../components/PremiumTaskRow';
-import TaskWorkspace from '../components/TaskWorkspace';
+import TaskViewResolver from '../components/TaskViewResolver';
 import { exportTasksToExcel } from '../utils/exportUtils';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -306,7 +306,7 @@ export default function TaskInstancesPage() {
   const [insightsOpen, setInsightsOpen] = useState(false);
 
   // Workspace
-  const [workspaceTaskId, setWorkspaceTaskId] = useState(null);
+  const [workspaceTask, setWorkspaceTask] = useState(null);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
 
   // Wizard
@@ -521,7 +521,7 @@ export default function TaskInstancesPage() {
     return () => { cancelled = true; };
   }, [disputesOnly, quickView]);
 
-  const openWorkspace = (task) => { setWorkspaceTaskId(task.Id); setWorkspaceOpen(true); };
+  const openWorkspace = (task) => { setWorkspaceTask(task); setWorkspaceOpen(true); };
 
   /* ── Create-task wizard ── */
   const openWizard = (arg) => {
@@ -1407,7 +1407,12 @@ export default function TaskInstancesPage() {
       </Modal>
 
       {/* ═══ 11. ENTERPRISE TASK WORKSPACE ═══ */}
-      <TaskWorkspace open={workspaceOpen} onClose={() => setWorkspaceOpen(false)} taskId={workspaceTaskId} onRefresh={loadInstances} />
+      <TaskViewResolver
+        open={workspaceOpen}
+        onClose={() => setWorkspaceOpen(false)}
+        task={workspaceTask}
+        onRefresh={loadInstances}
+      />
 
       {/* ═══ 12. CREATE TASK WIZARD (premium) ═══ */}
       <Drawer
