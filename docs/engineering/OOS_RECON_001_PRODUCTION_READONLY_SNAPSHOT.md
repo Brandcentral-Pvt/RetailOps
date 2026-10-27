@@ -238,8 +238,10 @@ the active drawer. The UI wiring finding remains separate.
 
 1. **Completed under `EX-001`:** the OOS recurrence was stopped at
    `2026-10-27T01:02:06.840Z`, before `2026-10-27T08:51:23Z`. Confirm after the
-   deadline that no new OOS instance was created and that `DLY-004` is unchanged.
-   Do not reactivate the template without a new written exception.
+   deadline that no new OOS instance was created and that `DLY-004` is unchanged;
+   use the [G0/G1 unblock kit](./OOS_RECON_001_G0_G1_UNBLOCK.md) and
+   [read-only SQL](./sql/oos_readonly_checks.sql). Do not reactivate the template
+   without a new written exception.
 2. Do not run `backend/scripts/setup-fresh-oos-run.js` against production.
 3. Do not create or assign more OOS instances, runs or bindings while the freeze
    is in force.
@@ -263,7 +265,10 @@ the active drawer. The UI wiring finding remains separate.
   the capture and containment times only.
 - The first scheduled occurrence after `2026-10-27T08:51:23Z` has not yet
   elapsed, so absence of a new instance is proven by the scheduler filter, not
-  yet by post-deadline observation.
+  yet by post-deadline observation. The post-deadline check is prepared in the
+  [G0/G1 unblock kit](./OOS_RECON_001_G0_G1_UNBLOCK.md) and
+  [read-only SQL](./sql/oos_readonly_checks.sql); it must be run after the
+  deadline and recorded here or in a linked evidence file.
 
 ## 10. Query method
 

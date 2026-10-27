@@ -6,8 +6,10 @@
 **Backlog version:** 1.0<br>
 **Tasks:** 55 across 10 epics<br>
 **Estimate:** 96 engineer-days (sum of task estimates; not a delivery commitment)<br>
-**Status:** Active - Phase 1 repairs are implemented and pushed; G0 and G1 remain open. No GitHub issues have been created by this document.<br>
-**Import file:** [`oos-recon-001-tasks.csv`](./oos-recon-001-tasks.csv)
+**Status:** Active - Phase 1 repairs are implemented and pushed; the local Phase 1 suite passes, but the first CI run, pre-fix proof, post-deadline containment check and restore rehearsal remain open. G0 and G1 remain open. No GitHub issues have been created by this document.<br>
+**Import file:** [`oos-recon-001-tasks.csv`](./oos-recon-001-tasks.csv)<br>
+**Evidence runbook:** [`OOS_RECON_001_G0_G1_UNBLOCK.md`](./OOS_RECON_001_G0_G1_UNBLOCK.md)<br>
+**Decision brief:** [`OOS_RECON_001_DECISION_BRIEF.md`](./OOS_RECON_001_DECISION_BRIEF.md)
 
 > This backlog does not authorize further activation or rollout. A read-only
 > production check on 2026-10-27 found `OOS-RECON-001` active with 7 instances,
@@ -183,7 +185,7 @@ for order.
 **Depends on:** -<br>
 **Findings:** QA-01<br>
 **Files:** .github/workflows/ci.yml; .github/workflows/cd.yml; package.json; backend/package.json<br>
-**Status:** In Progress - local baseline complete; CI logs, disposable database and restore evidence pending.<br>
+**Status:** In Progress - local baseline complete; repo-wide lint/typecheck baseline measured; CI logs, post-deadline containment, disposable database and restore evidence pending.<br>
 
 **Acceptance criteria**
 
@@ -197,6 +199,8 @@ for order.
 - Command transcript
 - Baseline report
 - [Phase 0 baseline](./OOS_RECON_001_PHASE0_BASELINE.md) (local evidence complete; CI and database evidence pending)
+- [G0/G1 unblock kit](./OOS_RECON_001_G0_G1_UNBLOCK.md) (CI log capture, post-deadline SQL and restore checklist)
+- Repo-wide baseline after Phase 1: 800 lint findings (771 errors, 29 warnings; 386 duplicate keys in `tasksApi.js`) and 16 dashboard-v2 typecheck errors; Phase 1 delta is lint-clean
 
 > **Implementation note:** Do not treat a successful summary job as a successful deployment.
 
@@ -208,7 +212,7 @@ for order.
 **Depends on:** OOS-001<br>
 **Findings:** TV-01; QA-01; DB-01<br>
 **Files:** backend/migrations/032_oos_reconciliation.js; backend/migrations/033_task_view_definitions_and_oos_bindings.js; backend/migrations/034_evidence_required_and_oos_bindings.js; backend/scripts/setup-fresh-oos-run.js<br>
-**Status:** In Progress - read-only production snapshot and OOS containment captured; isolated restore still blocked by no backup and no disposable SQL Server.<br>
+**Status:** In Progress - read-only production snapshot and OOS containment captured; post-deadline check, read-only SQL, restore and migration rehearsal checklist prepared. Isolated restore is still blocked by no backup and no disposable SQL Server.<br>
 
 **Acceptance criteria**
 
@@ -224,6 +228,8 @@ for order.
 - Restore report
 - Read-only SQL output (redacted)
 - [Production read-only snapshot](./OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md)
+- [Read-only SQL checks](./sql/oos_readonly_checks.sql)
+- [G0/G1 unblock kit](./OOS_RECON_001_G0_G1_UNBLOCK.md) (post-deadline check, restore and DLY-004 comparison)
 
 <a id="oos-003" name="oos-003"></a>
 
@@ -233,7 +239,7 @@ for order.
 **Depends on:** OOS-001<br>
 **Findings:** TV-02; TV-03; TV-04; TV-05<br>
 **Files:** src/modules/tasks/components/SharedTaskShell.jsx; src/modules/tasks/views/oos/OosTaskView.jsx; src/modules/tasks/view-registry/taskViewRegistry.js<br>
-**Status:** In Progress - harness now passes 18 modules and runs in the dedicated `OOS Regression` workflow; the first CI run is pending.<br>
+**Status:** In Progress - harness now passes 18 modules and runs in the dedicated `OOS Regression` workflow; the first CI run and pre-fix failure proof are pending. The proof procedure is in the G0/G1 unblock kit.<br>
 
 **Acceptance criteria**
 
@@ -247,6 +253,7 @@ for order.
 - Passing output after OOS-005 through OOS-009: `Transformed 18 local module(s); 0 failure(s).`
 - Harness: `scripts/oos-import-smoke.mjs`; `npm run test:oos-imports`
 - CI wiring: `.github/workflows/oos-regression.yml` runs the suite; the first run is pending
+- [G0/G1 unblock kit](./OOS_RECON_001_G0_G1_UNBLOCK.md): CI log capture and pre-fix worktree proof
 
 <a id="oos-004" name="oos-004"></a>
 
@@ -256,7 +263,7 @@ for order.
 **Depends on:** -<br>
 **Findings:** OPS-01<br>
 **Files:** docs/engineering/OOS_RECON_001_REMEDIATION_PLAN.md; docs/engineering/OOS_RECON_001_PHASE0_FREEZE.md; docs/engineering/OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md<br>
-**Status:** Done - branch, freeze notice, proposed flag and rollback owners recorded; recurrence contained under `EX-001`; post-deadline instance-count check remains open.<br>
+**Status:** Done - branch, freeze notice, proposed flag and rollback owners recorded; recurrence contained under `EX-001`. The post-deadline containment check is tracked under OOS-001/OOS-002 and remains open.<br>
 
 **Acceptance criteria**
 
@@ -277,6 +284,7 @@ for order.
 - Freeze notice and `EX-001` record
 - Flag and rollback note
 - [Phase 0 baseline](./OOS_RECON_001_PHASE0_BASELINE.md), [freeze notice](./OOS_RECON_001_PHASE0_FREEZE.md) and [containment evidence](./OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md#22-containment-applied-after-capture-ex-001)
+- [G0/G1 unblock kit](./OOS_RECON_001_G0_G1_UNBLOCK.md): post-deadline containment, CI evidence and restore steps
 
 ### Epic 1 - Compile and registry
 
@@ -411,7 +419,7 @@ for order.
 **Depends on:** OOS-005, OOS-006, OOS-007, OOS-008, OOS-009<br>
 **Findings:** TV-02; TV-03; TV-04; TV-05; QA-01<br>
 **Files:** src/modules/tasks/; tests/; package.json; .github/workflows/oos-regression.yml<br>
-**Status:** In Progress - shell, OOS view, grid and registry tests exist and pass locally and are wired into `OOS Regression`; the first CI run and pre-fix-branch proof remain open.<br>
+**Status:** In Progress - shell, OOS view, grid and registry tests exist and pass locally and are wired into `OOS Regression`; the first CI run and pre-fix-branch proof remain open. The proof procedure is in the G0/G1 unblock kit.<br>
 
 **Acceptance criteria**
 
@@ -426,6 +434,7 @@ for order.
 - `src/modules/tasks/view-registry/__tests__/taskViewRegistry.test.js` (10 Node tests)
 - `package.json`: `test:oos` and `test:task-registry` added; `npm run test:oos` passes locally
 - `.github/workflows/oos-regression.yml`: runs the suite on pushes and pull requests; the first run is pending
+- [G0/G1 unblock kit](./OOS_RECON_001_G0_G1_UNBLOCK.md): pre-fix worktree proof and first-run capture
 
 ### Epic 2 - Authorization and tenancy
 
@@ -1325,10 +1334,12 @@ for order.
 **Depends on:** OOS-016, OOS-030, OOS-034, OOS-039, OOS-040, OOS-043, OOS-049<br>
 **Findings:** QA-01<br>
 **Files:** .github/workflows/ci.yml; package.json; backend/package.json<br>
+**Baseline:** Phase 1 delta lints clean; repo-wide lint is 800 findings (771 errors, 29 warnings; 386 duplicate keys in `tasksApi.js`) and typecheck has 16 dashboard-v2 errors. These are pre-existing and must be reduced or explicitly waived here.
 
 **Acceptance criteria**
 
 - [ ] Lint, typecheck, build, unit, integration, E2E and migration checks are required.
+- [ ] The 800-finding lint baseline and 16 typecheck errors are reduced to zero or explicitly waived with an owner and expiry.
 - [ ] Artifacts are retained and branch protection uses the checks.
 - [ ] A deliberately broken authorization test fails the pipeline.
 
@@ -1476,6 +1487,10 @@ edit a migration after it has been applied in staging.
 | G8 | OOS-050, OOS-051, OOS-052, OOS-053, OOS-054 | QA |
 | G9 | OOS-055 | Eng lead + Ops |
 
+G0/G1 evidence capture, the read-only containment SQL and the restore rehearsal
+are in the [G0/G1 unblock kit](./OOS_RECON_001_G0_G1_UNBLOCK.md). The gate stays
+Open until the evidence is attached.
+
 ---
 
 ## 8. Finding traceability
@@ -1507,6 +1522,8 @@ edit a migration after it has been applied in staging.
 
 Every open decision in the remediation plan is resolved inside the task that
 consumes it. A task cannot leave Ready while its decision is unsigned.
+Recommended defaults and the signature template are in the
+[decision brief](./OOS_RECON_001_DECISION_BRIEF.md).
 
 | Decision | Topic | Task | Gate | Status |
 |---|---|---|---|---|

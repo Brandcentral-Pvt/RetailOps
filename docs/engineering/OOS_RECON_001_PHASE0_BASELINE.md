@@ -112,6 +112,29 @@ These findings are broader than the audit's named examples. Phase 1 must treat
 all OOS child components as in scope, not only `SharedTaskShell.jsx`,
 `OosTaskView.jsx` and `OosAffectedAsinsGrid.jsx`.
 
+**Post-Phase 1 measurement (2026-10-27):** after the OOS source repairs, the
+same repo-wide command reports **771 errors**, **29 warnings** and **131 files
+with messages** (800 total). Phase 1 removed 47 findings. The top rules are now:
+
+| Rule | Count |
+|---|---:|
+| `no-dupe-keys` | 386 |
+| `no-unused-vars` | 166 |
+| `react-hooks/set-state-in-effect` | 91 |
+| `react-hooks/exhaustive-deps` | 29 |
+| `no-undef` | 26 |
+| `no-useless-assignment` | 21 |
+| `react-hooks/static-components` | 17 |
+| `no-empty` | 16 |
+| `react-hooks/immutability` | 16 |
+
+The remaining findings are concentrated outside the Phase 1 files. The 386
+duplicate keys are in `src/modules/tasks/services/tasksApi.js`; the 16
+typecheck errors are in `dashboard-v2` TypeScript. This repo-wide baseline is
+not evidence that the OOS view fails to compile. Whether G1 is OOS-scoped or
+repo-wide is an explicit decision in the
+[G0/G1 unblock kit](./OOS_RECON_001_G0_G1_UNBLOCK.md#25-decide-the-g1-lint-scope).
+
 ### 3.2 Frontend typecheck
 
 ```text
@@ -314,7 +337,8 @@ production for writes, migrations, seeds, backfills or data correction.
 | A restorable backup exists and has been restored once | No | No backup or isolated target available. |
 | `DLY-004` confirmed present and active | Yes | Read-only snapshot: 17 assigned open instances. |
 | `DLY-004` structurally unchanged in a restored copy | No | Blocked by restore. |
-| Production OOS containment approved and recurrence stopped | Yes | `EX-001` set `IsActive = 0` at `2026-10-27T01:02:06.840Z`; post-deadline instance-count check still pending. |
+| Production OOS containment approved and recurrence stopped | Partial | `EX-001` set `IsActive = 0` at `2026-10-27T01:02:06.840Z`; post-deadline instance-count check still pending. |
+| Post-deadline OOS instance count still 7 and no new recurrence row | No | Deadline `2026-10-27T08:51:23.570Z`; run [the read-only checks](./sql/oos_readonly_checks.sql) after it with the [G0/G1 unblock kit](./OOS_RECON_001_G0_G1_UNBLOCK.md). |
 | Orphan repair approved | No | 188 orphan bindings and 44,223 decisions require an approved plan; no in-place repair is authorized. |
 | No application behavior changed during Phase 0 | Yes | Only docs and a test script at baseline capture; the Phase 1 frontend delta is recorded in section 7. |
 
@@ -337,6 +361,11 @@ outstanding.
 7. **Completed:** written approval to stop the OOS recurrence before
    `2026-10-27T08:51:23Z` was recorded as `EX-001`; the template was deactivated
    at `2026-10-27T01:02:06.840Z` without changing the `DLY-004` schedule.
+8. Runbooks: use the
+   [G0/G1 unblock kit](./OOS_RECON_001_G0_G1_UNBLOCK.md) for the post-deadline
+   check, CI evidence capture and restore checklist, and the
+   [decision brief](./OOS_RECON_001_DECISION_BRIEF.md) for D1-D10. These are
+   preparation artifacts; they do not authorize production writes.
 
 Until items 1-3 are supplied, Phase 0 can only be marked **partially complete**.
 Do not start production-facing cutover work from this baseline.
@@ -365,6 +394,11 @@ Discoveries made during Phase 1:
 | `OosTaskView` keeps `activeRun` when the seller changes and passes that run ID to `getOosContext(..., sellerId)`; `OosOverviewTab` and `OosSourceUploader` also format the run ID as a date. | Functional/data-contract defects, not compile defects; tracked under OOS-016 (Phase 4) and the run/upload work in OOS-017 to OOS-022. |
 | The active `TaskInstancesPage` and `MyDayPage` still mount `TaskWorkspace`. `SharedTaskShell` and the boot-registered OOS view are therefore not user-visible yet. | Expected and unchanged; the cutover belongs to OOS-044 in Phase 8 behind the D10 flag decision. |
 
-G1 remains **Open**: CI does not yet run the smoke, registry or browser tests,
-and the repository-wide lint baseline still has pre-existing errors. G0 remains
-**Open** for the reasons recorded in section 5.
+G1 remains **Open**: the dedicated `OOS Regression` workflow now exists, but its
+first run has not been captured, the pre-fix failure proof is not recorded, and
+the Eng lead has not decided whether G1 is OOS-scoped or repo-wide. The
+repository-wide lint baseline still has pre-existing errors; the measured
+post-Phase 1 count is 800 (771 errors, 29 warnings). See the
+[G0/G1 unblock kit](./OOS_RECON_001_G0_G1_UNBLOCK.md) for the evidence-capture
+steps and the lint-scope options. G0 remains **Open** for the reasons recorded
+in section 5.

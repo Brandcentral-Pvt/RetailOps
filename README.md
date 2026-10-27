@@ -1722,14 +1722,17 @@ OOS is the most complex workflow and the most likely source of handover question
 > OOS template was deactivated at `2026-10-27T01:02:06.840Z` to stop the daily
 > recurrence before `2026-10-27T08:51:23Z`; existing data and `DLY-004` were not
 > changed. Phase 1 compile/registry repairs exist only on the remediation branch;
-> they are not deployed and do not make the OOS view user-visible. A post-deadline
-> instance-count check is still outstanding. Do not
+> they are not deployed and do not make the OOS view user-visible. The local
+> Phase 1 suite passes, but the first CI run, pre-fix failure proof and
+> post-deadline containment check are still outstanding. Do not
 > create or assign more OOS work, run OOS setup scripts, reactivate or overwrite
 > OOS, or deactivate/overwrite DLY-004. See the
 > [OOS-RECON-001 remediation plan](docs/engineering/OOS_RECON_001_REMEDIATION_PLAN.md),
-> [production read-only snapshot](docs/engineering/OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md)
-> and [execution backlog](docs/engineering/OOS_RECON_001_TASK_BACKLOG.md)
-> for the verified findings, gates and repair sequence.
+> [production read-only snapshot](docs/engineering/OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md),
+> [execution backlog](docs/engineering/OOS_RECON_001_TASK_BACKLOG.md),
+> [G0/G1 unblock kit](docs/engineering/OOS_RECON_001_G0_G1_UNBLOCK.md) and
+> [decision brief](docs/engineering/OOS_RECON_001_DECISION_BRIEF.md)
+> for the verified findings, gates, evidence steps and repair sequence.
 
 ```mermaid
 flowchart TD

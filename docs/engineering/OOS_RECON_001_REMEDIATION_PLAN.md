@@ -12,7 +12,9 @@
 **Release decision:** **NOT READY** for further activation, rollout or deployment
 
 **Execution backlog:** [`OOS_RECON_001_TASK_BACKLOG.md`](./OOS_RECON_001_TASK_BACKLOG.md)<br>
-**Import file:** [`oos-recon-001-tasks.csv`](./oos-recon-001-tasks.csv)
+**Import file:** [`oos-recon-001-tasks.csv`](./oos-recon-001-tasks.csv)<br>
+**G0/G1 unblock kit:** [`OOS_RECON_001_G0_G1_UNBLOCK.md`](./OOS_RECON_001_G0_G1_UNBLOCK.md)<br>
+**Decision brief:** [`OOS_RECON_001_DECISION_BRIEF.md`](./OOS_RECON_001_DECISION_BRIEF.md)
 
 ---
 
@@ -57,7 +59,7 @@ Additional verification performed while writing this plan:
 |---|---|
 | `main` HEAD | `316729a`, working tree clean at time of plan creation |
 | Production read-only check | 2026-10-27: `OOS-RECON-001` was active; 188 runs; 188 orphan `OosTaskBindings`; 44,223 decisions; recurrence was next at `2026-10-27T08:51:23Z`; `DLY-004` active with 17 assigned instances. Full evidence: [production read-only snapshot](./OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md) |
-| Production containment | 2026-10-27T01:02:06.840Z: `EX-001` set only `OOS-RECON-001.IsActive = 0`; 7 instances, 188 runs, 188 bindings, 44,223 decisions and `DLY-004` unchanged; post-deadline check pending |
+| Production containment | 2026-10-27T01:02:06.840Z: `EX-001` set only `OOS-RECON-001.IsActive = 0`; 7 instances, 188 runs, 188 bindings, 44,223 decisions and `DLY-004` unchanged; post-deadline check pending. Use the [G0/G1 unblock kit](./OOS_RECON_001_G0_G1_UNBLOCK.md) and [read-only SQL](./sql/oos_readonly_checks.sql) after `2026-10-27T08:51:23.570Z` |
 | `npm run build` | Passes, but `SharedTaskShell.jsx` and `OosTaskView.jsx` are not imported by any reachable module, so their defects are not compiled |
 | Shell imports | No file imports `SharedTaskShell`; `views/oos/index.js` is only imported by itself |
 | `SharedTaskShell` exports | Two `export default` statements (lines 102 and 289) |
@@ -238,10 +240,7 @@ production build passes with 10,131 modules; 10 registry tests and 4 browser
 render tests pass. The render harness found two exports that the transform-only
 smoke test could not see: `SharedTaskShell` imported `calculateHealth` and
 `STATUS_COLORS` from `constants`, which does not export them. Both are repaired.
-A dedicated `OOS Regression` workflow now runs `npm run test:oos`; its first run is pending. G1 remains **Open** because that run has not passed
-and the repository-wide lint baseline is not clean. The active task drawer still
-uses `TaskWorkspace`; the OOS view becomes user-visible only under OOS-044 in
-Phase 8. See the [Phase 1 local record](./OOS_RECON_001_PHASE0_BASELINE.md#7-phase-1-local-implementation-record-2026-10-27).
+A dedicated `OOS Regression` workflow now runs `npm run test:oos`; its first run is pending. G1 remains **Open** because that run has not been captured, the pre-fix failure proof is not recorded, and the repository-wide lint scope is unsigned. After Phase 1, repo-wide lint is 800 findings (771 errors, 29 warnings) and typecheck is 16 pre-existing dashboard errors; the 386 duplicate keys are in `tasksApi.js`. Those are outside the Phase 1 files but must not be hidden. Use the [G0/G1 unblock kit](./OOS_RECON_001_G0_G1_UNBLOCK.md) to capture the run, prove the pre-fix failure and record the lint-scope decision. The active task drawer still uses `TaskWorkspace`; the OOS view becomes user-visible only under OOS-044 in Phase 8. See the [Phase 1 local record](./OOS_RECON_001_PHASE0_BASELINE.md#7-phase-1-local-implementation-record-2026-10-27).
 
 ### Phase 2 - Enforce task-bound authorization
 
@@ -534,8 +533,8 @@ flowchart LR
 
 | Gate | Requirement | Evidence artifact | Status |
 |---|---|---|---|
-| G0 | Failed CI reproduced; backup restored; DLY-004 confirmed | CI log, restore report, SQL output | Open |
-| G1 | Shell/OOS/registry compile when imported; lint clean | CI job, import test, lint report | Open |
+| G0 | Failed CI reproduced; backup restored; DLY-004 confirmed | CI log, restore report, SQL output | Open - post-deadline check, CI log, restore and migration rehearsal outstanding |
+| G1 | Shell/OOS/registry compile when imported; lint clean | CI job, import test, lint report | Open - dedicated workflow pushed; first run not captured; lint scope unsigned |
 | G2 | Cross-task/seller/tenant tests pass; executor rights correct | Integration test report | Open |
 | G3 | Idempotent run; exact-byte upload; private original download | Test report, hash assertion | Open |
 | G4 | Fresh DB migration; query/paging/sort safe; 80/20 policy tests | Migration log, SQL tests, policy tests | Open |
@@ -550,6 +549,12 @@ Rules:
 - A gate is either Open or Passed. There is no "mostly passed".
 - A skipped test is a failed gate unless the checker records an approved,
   written exception with an expiry date.
+- G1's lint scope is not yet signed. The Phase 1 delta is lint-clean, but the
+  repository-wide baseline is 800 findings (771 errors, 29 warnings), including
+  386 duplicate keys in `tasksApi.js`; typecheck has 16 pre-existing dashboard
+  errors. The Eng lead must choose OOS-scoped, repo-wide or split-gate evidence
+  in the [G0/G1 unblock kit](./OOS_RECON_001_G0_G1_UNBLOCK.md#25-decide-the-g1-lint-scope).
+  Do not mark G1 Passed on local tests alone.
 - G9 is not automatic after G8. Further rollout is a separate business decision;
   production is contained with the OOS template inactive.
 
@@ -747,6 +752,8 @@ Runbooks required before G9:
 ## 12. Open decisions
 
 These decisions block Phase 4 or Phase 7 and must be resolved in writing.
+Recommended defaults, open questions and a signature template are in the
+[decision brief](./OOS_RECON_001_DECISION_BRIEF.md).
 
 | ID | Decision | Options / notes | Owner | Needed by |
 |---|---|---|---|---|
@@ -810,7 +817,9 @@ The remediation is done only when all of the following are true:
       owned, dated exception.
 - [x] OOS recurrence is stopped before the next scheduled occurrence under
       `EX-001` (`2026-10-27T01:02:06.840Z`), and `DLY-004` remains unchanged.
-      Post-deadline instance-count confirmation is still required.
+      Post-deadline instance-count confirmation is still required; run the
+      [G0/G1 unblock kit](./OOS_RECON_001_G0_G1_UNBLOCK.md) check after the
+      deadline.
 - [ ] The 188 production orphan bindings and 44,223 decisions are inventoried on
       a restored copy and corrected under an approved change or explicitly
       deferred with containment evidence.
@@ -978,6 +987,9 @@ omitted because they drift; use the named symbols.
 | Template definition | `backend/services/pems/oosReconTemplate.js` |
 | Template seed | `backend/scripts/seed-oos-recon-template.js` |
 | Existing tests | `backend/__tests__/unit/`, `tests/*.spec.js` (Playwright), including `tests/task-workspace-drawer.spec.js` |
+| Read-only evidence checks | `docs/engineering/sql/oos_readonly_checks.sql` |
+| G0/G1 runbook | `docs/engineering/OOS_RECON_001_G0_G1_UNBLOCK.md` |
+| Decision brief | `docs/engineering/OOS_RECON_001_DECISION_BRIEF.md` |
 
 ---
 
@@ -987,6 +999,7 @@ omitted because they drift; use the named symbols.
 |---|---|---|
 | 2026-10-27 | Initial remediation plan created from the OOS-RECON-001 audit; prior 23 October notes marked superseded | Engineering |
 | 2026-10-27 | Added the 55-task execution backlog, split schema work into migrations 035-039, added decision traceability, and revised the effort range to match the backlog | Engineering |
+| 2026-10-27 | Added the G0/G1 unblock kit, read-only SQL checks and D1-D10 decision brief; recorded the post-Phase 1 repo-wide lint/typecheck baseline and the unsigned G1 lint scope | Engineering |
 
 ---
 

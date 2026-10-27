@@ -141,5 +141,9 @@ Freeze status and exceptions are recorded in:
 - [`OOS_RECON_001_PHASE0_BASELINE.md`](./OOS_RECON_001_PHASE0_BASELINE.md)
 - [`OOS_RECON_001_TASK_BACKLOG.md`](./OOS_RECON_001_TASK_BACKLOG.md)
 - [`OOS_RECON_001_REMEDIATION_PLAN.md`](./OOS_RECON_001_REMEDIATION_PLAN.md)
+- [`OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md`](./OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md)
+- [`OOS_RECON_001_G0_G1_UNBLOCK.md`](./OOS_RECON_001_G0_G1_UNBLOCK.md) - evidence capture and disposable-database checklist
+- [`OOS_RECON_001_DECISION_BRIEF.md`](./OOS_RECON_001_DECISION_BRIEF.md) - D1-D10 recommendations and signature template
+- [`sql/oos_readonly_checks.sql`](./sql/oos_readonly_checks.sql) - SELECT-only containment checks
 
 The freeze remains in force until the Eng lead updates this notice.
