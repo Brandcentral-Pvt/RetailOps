@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "test:auth": "playwright test",
+    "test:oos-imports": "node scripts/oos-import-smoke.mjs",
     "test:planner": "node --test src/modules/tasks/utils/__tests__/dayPlanner.test.js"
   },
   "dependencies": {
