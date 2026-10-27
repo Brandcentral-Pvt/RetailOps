@@ -1,5 +1,14 @@
 # OOS-RECON-001 Task View Implementation Summary
 
+> **Superseded 2026-10-27:** The OOS-RECON-001 audit performed on `main` at
+> `316729a` found that the implementation is not release-ready. "Phase complete"
+> below refers to implementation activity, not an operational release. The
+> template remains inactive and the specialized view is not wired into the
+> active task drawer. See
+> [`OOS_RECON_001_REMEDIATION_PLAN.md`](./OOS_RECON_001_REMEDIATION_PLAN.md)
+> for the verified finding register, release gates, and required repairs. Treat
+> this document as a historical implementation log, not a release approval.
+
 **Date:** 2026-10-23  
 **Baseline Commit:** `9cbee6385c72c27bb83884352de2e8574b7b9754`  
 **Current Branch:** `feat/rule-sets-index-redesign`  
