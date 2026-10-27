@@ -176,6 +176,7 @@ for order.
 **Depends on:** -<br>
 **Findings:** QA-01<br>
 **Files:** .github/workflows/ci.yml; .github/workflows/cd.yml; package.json; backend/package.json<br>
+**Status:** In Progress - local baseline complete; CI logs, disposable database and restore evidence pending.<br>
 
 **Acceptance criteria**
 
@@ -200,6 +201,7 @@ for order.
 **Depends on:** OOS-001<br>
 **Findings:** TV-01; QA-01<br>
 **Files:** backend/migrations/032_oos_reconciliation.js; backend/migrations/033_task_view_definitions_and_oos_bindings.js; backend/migrations/034_evidence_required_and_oos_bindings.js<br>
+**Status:** Blocked - no running isolated SQL Server and no production backup artifact.<br>
 
 **Acceptance criteria**
 
@@ -221,6 +223,7 @@ for order.
 **Depends on:** OOS-001<br>
 **Findings:** TV-02; TV-03; TV-04; TV-05<br>
 **Files:** src/modules/tasks/components/SharedTaskShell.jsx; src/modules/tasks/views/oos/OosTaskView.jsx; src/modules/tasks/view-registry/taskViewRegistry.js<br>
+**Status:** In Progress - harness added and reproducing 8 failures; CI wiring waits for OOS-005 through OOS-009.<br>
 
 **Acceptance criteria**
 
@@ -242,12 +245,13 @@ for order.
 **Depends on:** -<br>
 **Findings:** -<br>
 **Files:** docs/engineering/OOS_RECON_001_REMEDIATION_PLAN.md<br>
+**Status:** Done - branch, freeze notice, proposed flag and rollback owners recorded.<br>
 
 **Acceptance criteria**
 
-- [ ] A feature branch is created from the verified main SHA.
-- [ ] A written freeze covers template activation, seeds, provider calls and DLY-004.
-- [ ] The feature flag name and rollback owner are recorded.
+- [x] A feature branch is created from the verified main SHA.
+- [x] A written freeze covers template activation, seeds, provider calls and DLY-004.
+- [x] The feature flag name and rollback owner are recorded.
 
 **Test and evidence**
 
