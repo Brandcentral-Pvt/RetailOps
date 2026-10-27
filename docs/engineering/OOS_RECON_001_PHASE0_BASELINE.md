@@ -9,8 +9,11 @@
 
 **Scope:** This record contains read-only diagnosis, a test-only import harness and
 process controls. No application code, schema, migration, seed, template
-activation, assignment or provider call was changed. `OOS-RECON-001` remains
-inactive and `DLY-004` is untouched.
+activation, assignment or provider call was changed. This work did **not**
+activate `OOS-RECON-001`; a later read-only production check found that it was
+already active. `DLY-004` is untouched. See the
+[production read-only snapshot](./OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md)
+for the discovered state and the orphan-binding defect.
 
 ## 1. Branch and protection
 
@@ -209,11 +212,10 @@ must be classified separately from OOS defects.
 
 No migration command was run. `backend/scripts/runMigrations.js` applies
 migrations to the database configured in `backend/.env`; it has no dry-run mode.
-That database was treated as non-disposable. The plan requires a disposable
-target, so the dry run remains blocked.
+That database is production, so the dry run remains blocked until a disposable
+restore exists.
 
-An isolated local database was attempted without touching the configured
-database:
+An isolated local database was attempted without touching production:
 
 ```text
 target database: RetailOps_OOS_Phase0_20261027
@@ -225,32 +227,57 @@ The local SQL Server and Docker daemon are both stopped. Starting a shared local
 instance is an environment decision, not a baseline action, so no container was
 started and no credentials were changed.
 
-A read-only connection to the supplied production address was also attempted:
+The corrected production endpoint was then checked read-only:
 
 ```text
-host: 97.62.95.31
+host: 31.97.62.95
 port: 1433
-TCP result: failed
-ping result: timed out
-source address: 192.168.0.174
+TCP result: succeeded
+mode: SELECT only, application name RetailOps-OOS-Phase0-ReadOnly
 ```
 
-The failure was at the network layer, before authentication. No production
-query, write, migration or provider call was made. Access likely requires a
-VPN, firewall allow-list entry or SSH tunnel. Even after access is available,
-this plan permits only read-only baseline queries and backup/restore work
-against production; migrations and seeds must run on the isolated restore.
+The configured SQL login has `sysadmin`; the login name and password are not
+recorded. No write, migration, seed, template change, assignment, upload or
+provider call was made. Full evidence is in the
+[production read-only snapshot](./OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md).
 
-No backup was restored and no read-only SQL was executed. The following G0
-evidence is therefore missing:
+Production findings that change the baseline:
 
-- OOS table row counts.
-- Template, instance and assignment snapshots.
-- `OOS-RECON-001` activation state in the restored copy.
-- `DLY-004` presence, active state and structural comparison.
-- Migration forward/rollback rehearsal against the restored copy.
+| Item | Observed |
+|---|---|
+| `OOS-RECON-001` template | **Active**, not inactive as the source audit assumed |
+| OOS schedule | `DAILY`, Monday-Saturday, `AutoAssign` disabled; next run `2026-10-27T08:51:23Z`; recurrence log has three `CREATED` rows |
+| OOS instances | 7: 6 `DRAFT`, 1 `ASSIGNED`; no completed or cancelled |
+| Populated instance | `TASK-OOS-MVOUYS8Z`, `DRAFT`, unassigned, no seller, 188 bindings |
+| Assigned OOS instance | `TASK-0006`, 0 bindings |
+| `OosRuns` | 188, all `RECONCILED`; 188 sellers; 187 `amazon.in`, 1 `ajio` |
+| `OosTaskBindings` | 188; **0** join to `OosRuns` on `OosRunId` |
+| `OosDecisions` | 44,223, all `INSUFFICIENT_EVIDENCE`; 43,942 ASINs |
+| Imports / observations | 0 / 0 |
+| `DLY-004` | Active; 17 `ASSIGNED` open instances due `2026-10-27T06:30:00Z` |
+| Applied OOS migrations | 032, 033, 034 only; 035-039 absent |
+| OOS view definition | `OOS_RECON_V1` version 1, `PUBLISHED` |
 
-Do not connect to the configured production database to fill these gaps.
+The next OOS recurrence is a containment deadline. Under a written exception,
+stop the OOS schedule before `2026-10-27T08:51:23Z`; leave the independent
+`DLY-004` schedule unchanged.
+
+The 188 bindings are consistent with `backend/scripts/setup-fresh-oos-run.js`
+using one generated value for `OosRuns.Id` and a different `runId` for
+`OosTaskBindings.OosRunId`. That script must not be run against production again.
+The orphan rows and all 44,223 decisions must be preserved until a restored copy
+and an approved repair plan exist.
+
+No backup was restored and no migration dry run was executed. The following G0
+evidence is still missing:
+
+- A restored isolated copy and restore report.
+- Migration forward/rollback rehearsal against that copy.
+- `DLY-004` structural comparison against the pre-change baseline.
+- Confirmation that a proposed orphan-binding repair is deterministic and safe.
+
+Read-only production queries are not a substitute for a restore. Do not use
+production for writes, migrations, seeds, backfills or data correction.
 
 ## 4. Plan corrections discovered during baseline
 
@@ -260,6 +287,7 @@ Do not connect to the configured production database to fill these gaps.
 | OOS child scope | Parse and import defects exist in `OosSourceUploader`, `OosExportPanel`, `OosFollowupsTab`, `OosReviewTab` and `OosOverviewTab`, not only the files named in the audit. OOS-006 already owns the child directory; its acceptance should be read literally. |
 | Backend OOS tests | `backend/__tests__/unit/oosServices.test.js` does not parse. OOS-030 must repair it before adding new cases. |
 | CI test step | The root `package.json` has no `test` script, yet `.github/workflows/ci.yml` invokes `npm run test`. Correct this under the CI task, not by adding an unrelated test runner. |
+| Production OOS state | The source audit assumed `OOS-RECON-001` was inactive. The read-only check found it active with 7 instances, 188 runs and 188 orphan bindings. `DB-01` now records this as a P0 finding; OOS-002 and OOS-017 cover inventory and repair rehearsal. |
 
 ## 5. G0 exit checklist
 
@@ -267,9 +295,15 @@ Do not connect to the configured production database to fill these gaps.
 |---|---|---|
 | CI failure explained by a specific command and error | Partial | Local reproductions exist; run `40304737266` logs are not captured. |
 | Hidden frontend defects reproduced by an import test | Yes | 8 failures across 10 modules. |
+| Production OOS state captured read-only | Yes | [Production read-only snapshot](./OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md). |
 | A restorable backup exists and has been restored once | No | No backup or isolated target available. |
-| `DLY-004` confirmed present and unchanged in the restored copy | No | Blocked by restore. |
+| `DLY-004` confirmed present and active | Yes | Read-only snapshot: 17 assigned open instances. |
+| `DLY-004` structurally unchanged in a restored copy | No | Blocked by restore. |
+| Production OOS containment and orphan repair approved | No | 188 orphan bindings and 44,223 decisions require an approved plan. |
 | No application behavior changed | Yes | Only docs and a test script; no app, schema or seed edits. |
+
+G0 remains **not passed**: restore, migration rehearsal, structural DLY-004
+comparison and the CI log are still outstanding.
 
 ## 6. Blocking inputs needed
 
@@ -278,10 +312,12 @@ Do not connect to the configured production database to fill these gaps.
 3. Written confirmation of the restore target and permission to read production
    backup media. The local SQL Server at `127.0.0.1:1433` and the Docker daemon
    are currently stopped.
-4. Network access to the production SQL Server at `97.62.95.31:1433`; TCP and
-   ping currently time out from this workstation.
 4. Owners for data/database and DevOps work.
 5. Decisions D1-D10 before the phases that depend on them.
+6. An approved containment and orphan-repair decision for the 188 production
+   `OosTaskBindings` and 44,223 decisions found in the read-only snapshot.
+7. Written approval to stop the OOS recurrence before
+   `2026-10-27T08:51:23Z`, without changing the `DLY-004` schedule.
 
 Until items 1-3 are supplied, Phase 0 can only be marked **partially complete**.
 Do not start production-facing cutover work from this baseline.

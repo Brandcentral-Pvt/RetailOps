@@ -6,12 +6,17 @@
 **Backlog version:** 1.0<br>
 **Tasks:** 55 across 10 epics<br>
 **Estimate:** 96 engineer-days (sum of task estimates; not a delivery commitment)<br>
-**Status:** Proposed. No GitHub issues have been created by this document.<br>
+**Status:** Active - Phase 0 in progress; G0 open. No GitHub issues have been created by this document.<br>
 **Import file:** [`oos-recon-001-tasks.csv`](./oos-recon-001-tasks.csv)
 
-> This backlog does not authorize activation. The template remains inactive and
-> DLY-004 must not be modified. Work starts only after the remediation plan is
-> approved and Phase 0 is explicitly opened.
+> This backlog does not authorize further activation or rollout. A read-only
+> production check on 2026-10-27 found `OOS-RECON-001` active with 7 instances,
+> 188 runs, 188 orphan `OosTaskBindings` and 44,223 decisions. Its daily
+> recurrence is still scheduled for `2026-10-27T08:51:23Z`. Contain that state:
+> stop the OOS recurrence under a written exception before that time, do not
+> create or assign new OOS work, do not run `setup-fresh-oos-run.js` in
+> production, and do not modify DLY-004. See the
+> [production read-only snapshot](./OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md).
 
 ---
 
@@ -199,21 +204,24 @@ for order.
 
 **Owner:** Data/DB | **Estimate:** 1d | **Priority:** P0 | **Type:** Data | **Gate:** G0 | **Wave:** 0<br>
 **Depends on:** OOS-001<br>
-**Findings:** TV-01; QA-01<br>
-**Files:** backend/migrations/032_oos_reconciliation.js; backend/migrations/033_task_view_definitions_and_oos_bindings.js; backend/migrations/034_evidence_required_and_oos_bindings.js<br>
-**Status:** Blocked - no running isolated SQL Server and no production backup artifact.<br>
+**Findings:** TV-01; QA-01; DB-01<br>
+**Files:** backend/migrations/032_oos_reconciliation.js; backend/migrations/033_task_view_definitions_and_oos_bindings.js; backend/migrations/034_evidence_required_and_oos_bindings.js; backend/scripts/setup-fresh-oos-run.js<br>
+**Status:** In Progress - read-only production snapshot captured; isolated restore still blocked by no backup and no disposable SQL Server.<br>
 
 **Acceptance criteria**
 
+- [x] Read-only production state is captured: `OOS-RECON-001` active, 7 instances, 188 runs, 188 orphan `OosTaskBindings`, 44,223 decisions, `DLY-004` active with 17 assigned instances.
 - [ ] A recent production backup is restored to an isolated environment.
-- [ ] OOS table row counts and template/instance/assignment snapshots are recorded.
-- [ ] DLY-004 is confirmed present, active and structurally unchanged.
+- [ ] OOS table row counts and template/instance/assignment snapshots are reproduced on the restore.
+- [ ] The 188 orphan bindings and run-status semantics are inventoried on the restore with a deterministic repair proposal.
+- [ ] DLY-004 is confirmed present, active and structurally unchanged in the restore.
 - [ ] No production writes or provider calls occur.
 
 **Test and evidence**
 
 - Restore report
 - Read-only SQL output (redacted)
+- [Production read-only snapshot](./OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md)
 
 <a id="oos-003" name="oos-003"></a>
 
@@ -243,14 +251,18 @@ for order.
 
 **Owner:** Eng lead | **Estimate:** 0.5d | **Priority:** P0 | **Type:** Ops | **Gate:** G0 | **Wave:** 0<br>
 **Depends on:** -<br>
-**Findings:** -<br>
-**Files:** docs/engineering/OOS_RECON_001_REMEDIATION_PLAN.md<br>
-**Status:** Done - branch, freeze notice, proposed flag and rollback owners recorded.<br>
+**Findings:** OPS-01<br>
+**Files:** docs/engineering/OOS_RECON_001_REMEDIATION_PLAN.md; docs/engineering/OOS_RECON_001_PHASE0_FREEZE.md; docs/engineering/OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md<br>
+**Status:** Done - branch, freeze notice, proposed flag and rollback owners recorded; recurrence deadline escalated.<br>
 
 **Acceptance criteria**
 
 - [x] A feature branch is created from the verified main SHA.
 - [x] A written freeze covers template activation, seeds, provider calls and DLY-004.
+- [x] The freeze records that production is already active and prohibits new
+      assignments, setup-script runs and in-place orphan repair.
+- [x] The next OOS recurrence (`2026-10-27T08:51:23Z`) is recorded as a
+      containment deadline; stopping it requires a written exception.
 - [x] The feature flag name and rollback owner are recorded.
 
 **Test and evidence**
@@ -533,13 +545,14 @@ for order.
 
 **Owner:** Backend | **Estimate:** 2.5d | **Priority:** P0 | **Type:** Migration | **Gate:** G3 | **Wave:** 2<br>
 **Depends on:** OOS-002, OOS-012<br>
-**Findings:** RUN-01<br>
-**Files:** backend/services/oos/oosMonitoringService.js; backend/controllers/pems/taskViewController.js; backend/migrations/035_oos_task_scoped_runs.js<br>
+**Findings:** RUN-01; DB-01<br>
+**Files:** backend/services/oos/oosMonitoringService.js; backend/controllers/pems/taskViewController.js; backend/migrations/035_oos_task_scoped_runs.js; backend/scripts/setup-fresh-oos-run.js<br>
 
 **Acceptance criteria**
 
 - [ ] createOrGetRun is exported and idempotent inside a transaction.
 - [ ] Migration 035 adds task-scoped uniqueness and handles legacy null bindings.
+- [ ] Legacy orphan `OosTaskBindings` are detected, rejected and repaired deterministically on a restored copy.
 - [ ] Two concurrent creates yield one run.
 - [ ] Seven assigned sellers yield seven correctly scoped runs.
 

@@ -1713,11 +1713,17 @@ Known view keys: `STANDARD_V1` (generic subtask checklist) and `OOS_RECON_V1` (O
 
 OOS is the most complex workflow and the most likely source of handover questions. It reconciles three views of stock: RetailOps' own scraped signal, the Brand Central report, and (for Amazon India only) the Vendor Central report.
 
-> **Release status (27 October 2026):** `OOS-RECON-001` is inactive and not ready
-> for activation. The specialized view is not wired into the active task drawer,
-> and upload, resync, export and review contracts have release-blocking defects.
-> Do not deactivate or overwrite DLY-004. See the
-> [OOS-RECON-001 remediation plan](docs/engineering/OOS_RECON_001_REMEDIATION_PLAN.md)
+> **Release status (27 October 2026):** `OOS-RECON-001` is **active in
+> production** but not ready for further rollout. A read-only check found 7
+> OOS instances, 188 reconciled runs and 44,223 decisions; all 188
+> `OosTaskBindings` point at nonexistent `OosRuns.Id` values. The specialized
+> view is not wired into the active task drawer, and upload, resync, export and
+> review contracts have release-blocking defects. The OOS recurrence is scheduled
+> for `2026-10-27T08:51:23Z`; stop it under a written exception before then. Do
+> not create or assign more OOS work, run OOS setup scripts, or
+> deactivate/overwrite DLY-004. See the
+> [OOS-RECON-001 remediation plan](docs/engineering/OOS_RECON_001_REMEDIATION_PLAN.md),
+> [production read-only snapshot](docs/engineering/OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md)
 > and [execution backlog](docs/engineering/OOS_RECON_001_TASK_BACKLOG.md)
 > for the verified findings, gates and repair sequence.
 

@@ -3,6 +3,7 @@
 **Effective:** 2026-10-27<br>
 **Owner:** Eng lead<br>
 **Applies to:** `OOS-RECON-001`, OOS task-view code, OOS seed data and OOS provider integrations<br>
+**Production state at freeze:** `OOS-RECON-001` is already active; the next recurrence is `2026-10-27T08:51:23Z`. See the [production read-only snapshot](./OOS_RECON_001_PRODUCTION_READONLY_SNAPSHOT.md).<br>
 **Lifts when:** G0 is signed off and the Eng lead records a written exception for the next phase.
 
 ## 1. Purpose
@@ -16,11 +17,24 @@ unverifiable state.
 This freeze protects the baseline. It does not block read-only diagnosis,
 documentation, test-only work or code changes on the remediation branch after G0.
 
+The production read-only check changes the starting condition: the template is
+already active and contains 188 orphan bindings and 44,223 decisions. The freeze
+is therefore a **containment** control. It does not authorize deactivation or
+in-place cleanup.
+
 ## 2. Frozen actions
 
 The following are prohibited without a written exception:
 
-- Activating, publishing or assigning `OOS-RECON-001`.
+- Creating, assigning, publishing, expanding or further activating
+  `OOS-RECON-001`.
+- Running `backend/scripts/setup-fresh-oos-run.js` or any other OOS setup,
+  backfill or bulk-run script in production.
+- Leaving the OOS recurrence enabled past `2026-10-27T08:51:23Z`. A written
+  exception is required to stop it before the next occurrence; do not change
+  the independent `DLY-004` schedule.
+- Deleting or repairing the 188 orphan `OosTaskBindings` or the 44,223 decisions
+  in place.
 - Editing OOS template definitions, view definitions, bindings or seed scripts.
 - Editing `DLY-004` or its template, instances, assignments or seed data.
 - Running live provider or scraper calls for OOS resync or verification.
@@ -33,6 +47,8 @@ The following are prohibited without a written exception:
 ## 3. Allowed actions
 
 - Read-only inspection of the repository and redacted logs.
+- Read-only production `SELECT` queries for aggregate baseline evidence, with no
+  writes and no seller personal data.
 - Documentation, task tracking and test-only harnesses.
 - Code changes on `feat/oos-recon-001-remediation` after the relevant task is
   approved.
