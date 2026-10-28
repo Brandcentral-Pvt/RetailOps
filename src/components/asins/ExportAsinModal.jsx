@@ -25,51 +25,125 @@ const CATEGORY_META = {
   BuyBox:      { icon: <Shield size={11} />,        color: '#2563eb', bg: '#dbeafe' },
   Content:     { icon: <ImageIcon size={11} />,    color: '#db2777', bg: '#fce7f3' },
   Inventory:   { icon: <Layers size={11} />,        color: '#ea580c', bg: '#ffedd5' },
-  Dates:       { icon: <Clock size={11} />,         color: '#475569', bg: '#f1f5f9' },
+  Sync:        { icon: <Clock size={11} />,         color: '#475569', bg: '#f1f5f9' },
 };
 
 const ALL_ASIN_FIELDS = [
+  // Basic
   { key: 'asinCode',           label: 'ASIN Code',            category: 'Basic' },
   { key: 'parentAsin',         label: 'Parent ASIN',          category: 'Basic' },
   { key: 'sku',                label: 'SKU',                  category: 'Basic' },
   { key: 'title',              label: 'Product Title',        category: 'Basic' },
   { key: 'brand',              label: 'Brand',                category: 'Basic' },
+  { key: 'manufacturer',       label: 'Manufacturer',         category: 'Basic' },
   { key: 'category',           label: 'Category',             category: 'Basic' },
+  { key: 'categoryPath',       label: 'Category Path',        category: 'Basic' },
+  { key: 'subBsrCategories',   label: 'Sub BSR Categories',   category: 'Basic' },
   { key: 'status',             label: 'Status',               category: 'Basic' },
+  { key: 'scrapeStatus',       label: 'Scrape Status',        category: 'Basic' },
+  { key: 'marketplace',        label: 'Marketplace',          category: 'Basic' },
+  { key: 'stapleLevel',        label: 'Staple Level',         category: 'Basic' },
+  { key: 'weight',             label: 'Weight',               category: 'Basic' },
+  { key: 'dimensions',         label: 'Dimensions',           category: 'Basic' },
+  { key: 'scrapedAsin',        label: 'Scraped ASIN',         category: 'Basic' },
+  { key: 'sellerId',           label: 'Seller ID',            category: 'Basic' },
+  { key: 'sellerExternalId',   label: 'Seller External ID',   category: 'Basic' },
   { key: 'tags',               label: 'Tags',                 category: 'Basic' },
   { key: 'releaseDate',        label: 'Release Date',         category: 'Basic' },
+  // Pricing
   { key: 'uploadedPrice',      label: 'Master Price (₹)',     category: 'Pricing' },
   { key: 'currentPrice',       label: 'Current Price (₹)',    category: 'Pricing' },
   { key: 'mrp',                label: 'MRP (₹)',              category: 'Pricing' },
   { key: 'dealBadge',          label: 'Deal Badge',           category: 'Pricing' },
-  { key: 'priceDispute',       label: 'Price Dispute',        category: 'Pricing' },
+  { key: 'dealStartTime',      label: 'Deal Start Date',      category: 'Pricing' },
+  { key: 'dealEndTime',        label: 'Deal End Date',        category: 'Pricing' },
+  { key: 'dealAccessType',     label: 'Deal Access Type',     category: 'Pricing' },
+  { key: 'hasDeal',            label: 'Has Deal',             category: 'Pricing' },
+  { key: 'dealType',           label: 'Deal Type',            category: 'Pricing' },
+  { key: 'dealPercentClaimed', label: 'Deal % Claimed',       category: 'Pricing' },
+  { key: 'dealPrice',          label: 'Deal Price (₹)',       category: 'Pricing' },
+  { key: 'savingsAmount',      label: 'Savings Amount (₹)',   category: 'Pricing' },
+  { key: 'priceType',          label: 'Price Type',           category: 'Pricing' },
   { key: 'discountPercentage', label: 'Discount %',           category: 'Pricing' },
   { key: 'secondAsp',          label: 'Second ASP (₹)',       category: 'Pricing' },
-  { key: 'bsr',                label: 'BSR',                  category: 'Performance' },
-  { key: 'totalOrders',        label: 'Total Orders',         category: 'Performance' },
+  { key: 'aspDifference',      label: 'ASP Difference (₹)',   category: 'Pricing' },
+  { key: 'priceDispute',       label: 'Price Dispute',        category: 'Pricing' },
+  // Performance
+  { key: 'bsr',                label: 'Best Seller Rank',     category: 'Performance' },
   { key: 'subBsr',             label: 'Sub BSR',              category: 'Performance' },
+  { key: 'subBSRs',            label: 'Sub BSRs (All)',       category: 'Performance' },
+  { key: 'bsrTrend',           label: 'BSR Trend',            category: 'Performance' },
   { key: 'rating',             label: 'Rating',               category: 'Performance' },
+  { key: 'ratingTrend',        label: 'Rating Trend',         category: 'Performance' },
   { key: 'reviewCount',        label: 'Review Count',         category: 'Performance' },
   { key: 'ratingBreakdown',    label: 'Rating Breakdown',     category: 'Performance' },
-  { key: 'lqs',                label: 'LQS Score',            category: 'Performance' },
+  { key: 'totalOrders',        label: 'Total Orders',         category: 'Performance' },
+  { key: 'orderedRevenue',     label: 'Ordered Revenue (₹)',  category: 'Performance' },
+  { key: 'orderedUnits',       label: 'Ordered Units',        category: 'Performance' },
+  { key: 'shippedRevenue',     label: 'Shipped Revenue (₹)',  category: 'Performance' },
+  { key: 'shippedCogs',        label: 'Shipped COGS (₹)',     category: 'Performance' },
+  { key: 'shippedUnits',       label: 'Shipped Units',        category: 'Performance' },
+  { key: 'customerReturns',    label: 'Customer Returns',     category: 'Performance' },
+  { key: 'ads',                label: 'Has Ads',              category: 'Performance' },
+  // LQS
+  { key: 'lqs',                label: 'LQS Score',            category: 'LQS' },
+  { key: 'lqsGrade',           label: 'LQS Grade',            category: 'LQS' },
+  { key: 'lqsScore',           label: 'LQS Score (Raw)',      category: 'LQS' },
   { key: 'titleScore',         label: 'Title Score',          category: 'LQS' },
+  { key: 'titleGrade',         label: 'Title Grade',          category: 'LQS' },
   { key: 'bulletScore',        label: 'Bullet Score',         category: 'LQS' },
+  { key: 'bulletGrade',        label: 'Bullet Grade',         category: 'LQS' },
   { key: 'imageScore',         label: 'Image Score',          category: 'LQS' },
-  { key: 'descriptionScore',   label: 'Desc Score',           category: 'LQS' },
+  { key: 'imageGrade',         label: 'Image Grade',          category: 'LQS' },
+  { key: 'descriptionScore',   label: 'Description Score',    category: 'LQS' },
+  { key: 'descriptionGrade',   label: 'Description Grade',    category: 'LQS' },
+  { key: 'cdq',                label: 'CDQ Score',            category: 'LQS' },
+  { key: 'cdqGrade',           label: 'CDQ Grade',            category: 'LQS' },
+  { key: 'titleIssues',        label: 'Title Issues',         category: 'LQS' },
+  { key: 'bulletIssues',       label: 'Bullet Issues',        category: 'LQS' },
+  { key: 'imageIssues',        label: 'Image Issues',         category: 'LQS' },
+  { key: 'descriptionIssues',  label: 'Description Issues',   category: 'LQS' },
+  { key: 'titleRecommendations', label: 'Title Recommendations', category: 'LQS' },
+  { key: 'bulletRecommendations', label: 'Bullet Recommendations', category: 'LQS' },
+  { key: 'imageRecommendations', label: 'Image Recommendations', category: 'LQS' },
+  { key: 'descriptionRecommendations', label: 'Description Recommendations', category: 'LQS' },
+  { key: 'titleDetails',       label: 'Title Details',        category: 'LQS' },
+  { key: 'bulletDetails',      label: 'Bullet Details',       category: 'LQS' },
+  { key: 'imageDetails',       label: 'Image Details',        category: 'LQS' },
+  { key: 'descriptionDetails', label: 'Description Details',  category: 'LQS' },
+  // BuyBox
   { key: 'buyBoxWin',          label: 'BuyBox Winner',        category: 'BuyBox' },
-  { key: 'soldBy',             label: 'BuyBox Seller',        category: 'BuyBox' },
-  { key: 'soldBySec',          label: 'Other BuyBox Seller',  category: 'BuyBox' },
-  { key: 'hasAplus',           label: 'A+ Content',           category: 'Content' },
+  { key: 'buyBoxStatus',       label: 'BuyBox Status',        category: 'BuyBox' },
+  { key: 'buyBoxSellerId',     label: 'BuyBox Seller ID',     category: 'BuyBox' },
+  { key: 'soldBy',             label: 'Sold By (Current)',    category: 'BuyBox' },
+  { key: 'soldBySec',          label: 'Sold By (Other)',      category: 'BuyBox' },
+  { key: 'buyBoxes',           label: 'BuyBox Details',       category: 'BuyBox' },
+  { key: 'allOffers',          label: 'All Offers',           category: 'BuyBox' },
+  // Content
+  { key: 'hasAplus',           label: 'Has A+ Content',       category: 'Content' },
+  { key: 'aplusContent',       label: 'A+ Content Text',      category: 'Content' },
+  { key: 'aplusModuleCount',   label: 'A+ Module Count',      category: 'Content' },
+  { key: 'aplusAbsentSince',   label: 'A+ Days Absent',       category: 'Content' },
+  { key: 'aplusPresentSince',  label: 'A+ Present Since',     category: 'Content' },
   { key: 'imagesCount',        label: 'Image Count',          category: 'Content' },
   { key: 'videoCount',         label: 'Video Count',          category: 'Content' },
   { key: 'bulletPoints',       label: 'Bullet Points Count',  category: 'Content' },
   { key: 'bulletPointsText',   label: 'Bullet Points Text',   category: 'Content' },
-  { key: 'aplusAbsentSince',   label: 'A+ Days Absent',       category: 'Content' },
-  { key: 'availabilityStatus', label: 'Availability',         category: 'Inventory' },
+  { key: 'productDescription', label: 'Product Description',  category: 'Content' },
+  { key: 'variantImages',      label: 'Variant Images',       category: 'Content' },
+  { key: 'images',             label: 'Images (JSON)',        category: 'Content' },
+  { key: 'descLength',         label: 'Description Length',   category: 'Content' },
+  // Inventory
+  { key: 'availabilityStatus', label: 'Availability Status',  category: 'Inventory' },
+  { key: 'availability',       label: 'Availability',         category: 'Inventory' },
   { key: 'stockLevel',         label: 'Stock Level',          category: 'Inventory' },
-  { key: 'lastScraped',        label: 'Last Scraped',         category: 'Dates' },
-  { key: 'createdAt',          label: 'Created At',           category: 'Dates' },
-  { key: 'updatedAt',          label: 'Updated At',           category: 'Dates' },
+  { key: 'lossPerReturn',      label: 'Loss Per Return (₹)',  category: 'Inventory' },
+  // Sync
+  { key: 'lastSyncSource',     label: 'Last Sync Source',     category: 'Sync' },
+  { key: 'lastLiveSyncAt',     label: 'Last Live Sync',       category: 'Sync' },
+  { key: 'lastOctoparseSyncAt',label: 'Last Octoparse Sync',  category: 'Sync' },
+  { key: 'lastScrapeStatus',   label: 'Last Scrape Status',   category: 'Sync' },
+  { key: 'lastScrapeError',    label: 'Last Scrape Error',    category: 'Sync' },
 ];
 
 const FIELD_CATEGORIES = [...new Set(ALL_ASIN_FIELDS.map(f => f.category))];
@@ -81,6 +155,14 @@ const FILTER_LABEL_MAP = {
   minPrice: 'Min ₹', maxPrice: 'Max ₹', minBSR: 'Min BSR', maxBSR: 'Max BSR',
   minRating: 'Min ⭐', maxRating: 'Max ⭐', priceDispute: 'Price Dispute',
   bsrTrend: 'BSR Trend', ratingTrend: 'Rating Trend', status: 'Status',
+  manufacturer: 'Manufacturer', stapleLevel: 'Staple Level', weight: 'Weight',
+  hasDeal: 'Has Deal', dealType: 'Deal Type', dealPercentClaimed: 'Deal % Claimed',
+  priceType: 'Price Type', priceDispute: 'Price Dispute', secondAsp: 'Second ASP',
+  ratingBreakdown: 'Rating Breakdown', ratingTrend: 'Rating Trend',
+  availabilityStatus: 'Availability', stockLevel: 'Stock Level',
+  lossPerReturn: 'Loss Per Return', marketplace: 'Marketplace',
+  subBsrCategories: 'Sub BSR Categories', lastSyncSource: 'Last Sync Source',
+  lastScrapeStatus: 'Last Scrape Status', lastScrapeError: 'Last Scrape Error',
 };
 
 const getProgressLabel = (pct) => {
@@ -141,18 +223,34 @@ const ExportAsinModal = ({
     ]);
     if (currentFilters) {
       if (currentFilters.priceDispute)
-        ['uploadedPrice', 'dealBadge', 'priceDispute', 'discountPercentage', 'secondAsp'].forEach(f => base.add(f));
+        ['uploadedPrice', 'dealBadge', 'priceDispute', 'discountPercentage', 'secondAsp', 'aspDifference', 'dealPrice', 'savingsAmount', 'priceType'].forEach(f => base.add(f));
       if (currentFilters.buyBoxWin)
-        ['buyBoxWin', 'soldBy', 'soldBySec'].forEach(f => base.add(f));
-      if (currentFilters.hasAplus)   base.add('hasAplus');
-      if (currentFilters.scrapeStatus) ['scrapeStatus', 'lastScraped'].forEach(f => base.add(f));
-      if (currentFilters.bsrTrend)   ['bsr', 'subBsr'].forEach(f => base.add(f));
-      if (currentFilters.ratingTrend) ['rating', 'reviewCount'].forEach(f => base.add(f));
-      if (currentFilters.hasVideo)   base.add('videoCount');
-      if (currentFilters.hasDeal)    base.add('dealBadge');
+        ['buyBoxWin', 'soldBy', 'soldBySec', 'buyBoxStatus', 'buyBoxSellerId', 'buyBoxes', 'allOffers'].forEach(f => base.add(f));
+      if (currentFilters.hasAplus)
+        ['hasAplus', 'aplusContent', 'aplusModuleCount', 'aplusAbsentSince', 'aplusPresentSince'].forEach(f => base.add(f));
+      if (currentFilters.scrapeStatus)
+        ['scrapeStatus', 'lastSyncSource', 'lastScrapeStatus', 'lastScrapeError'].forEach(f => base.add(f));
+      if (currentFilters.bsrTrend)
+        ['bsr', 'subBsr', 'subBSRs', 'bsrTrend'].forEach(f => base.add(f));
+      if (currentFilters.ratingTrend)
+        ['rating', 'reviewCount', 'ratingTrend', 'ratingBreakdown'].forEach(f => base.add(f));
+      if (currentFilters.hasVideo)
+        ['videoCount', 'imagesCount'].forEach(f => base.add(f));
+      if (currentFilters.hasDeal)
+        ['dealBadge', 'dealStartTime', 'dealEndTime', 'dealAccessType', 'dealPercentClaimed', 'dealType', 'hasDeal', 'dealPrice', 'savingsAmount', 'priceType'].forEach(f => base.add(f));
       if (currentFilters.minTitleScore || currentFilters.minBulletScore ||
           currentFilters.minImageScore  || currentFilters.minDescriptionScore)
         ['titleScore', 'bulletScore', 'imageScore', 'descriptionScore'].forEach(f => base.add(f));
+      if (currentFilters.manufacturer)
+        ['manufacturer'].forEach(f => base.add(f));
+      if (currentFilters.stapleLevel)
+        ['stapleLevel', 'weight', 'dimensions'].forEach(f => base.add(f));
+      if (currentFilters.availabilityStatus)
+        ['availabilityStatus', 'availability', 'stockLevel', 'lossPerReturn'].forEach(f => base.add(f));
+      if (currentFilters.marketplace)
+        ['marketplace', 'categoryPath', 'subBsrCategories'].forEach(f => base.add(f));
+      if (currentFilters.lastSyncSource)
+        ['lastSyncSource', 'lastScrapeStatus', 'lastScrapeError'].forEach(f => base.add(f));
     }
     setSelectedFields(Array.from(base));
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -801,7 +899,7 @@ const ExportAsinModal = ({
       <style>{`
         /* Drawer shell */
         .export-drawer-v2 .ant-drawer-header-title { flex: 1; min-width: 0; }
-        .export-drawer-v2 .ant-drawer-body { display: flex; flex-direction: column; overflow: hidden; }
+        .export-drawer-v2 .ant-drawer-body { display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
         .drawer-icon {
           width: 36px; height: 36px; border-radius: 10px;
           background: #f1f5f9; display: flex;
@@ -819,16 +917,17 @@ const ExportAsinModal = ({
         .stat-chip .stat-lbl { font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 1px; }
 
         /* Tabs */
-        .export-tabs { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .export-tabs { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
         .export-tabs .ant-tabs-nav { margin: 0; background: white; padding: 0 20px; border-bottom: 1px solid #f1f5f9; flex-shrink: 0; }
-        .export-tabs .ant-tabs-content-holder { flex: 1; overflow: hidden; }
-        .export-tabs .ant-tabs-content { height: 100%; }
-        .export-tabs .ant-tabs-tabpane { height: 100%; display: flex; flex-direction: column; }
+        .export-tabs .ant-tabs-content-holder { flex: 1; overflow: hidden; min-height: 0; }
+        .export-tabs .ant-tabs-content { height: 100%; min-height: 0; }
+        .export-tabs .ant-tabs-tabpane { height: 100%; display: flex; flex-direction: column; min-height: 0; }
 
         /* Config scroll */
         .config-scroll {
           flex: 1; overflow-y: auto; padding: 14px;
           display: flex; flex-direction: column; gap: 12px;
+          min-height: 0;
         }
         .config-scroll::-webkit-scrollbar { width: 4px; }
         .config-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
@@ -885,7 +984,7 @@ const ExportAsinModal = ({
 
         /* Field grid */
         .field-grid {
-          max-height: 340px; overflow-y: auto;
+          max-height: 480px; overflow-y: auto;
           padding: 10px; background: #f8fafc;
           border: 1px solid #e2e8f0; border-radius: 8px;
         }
