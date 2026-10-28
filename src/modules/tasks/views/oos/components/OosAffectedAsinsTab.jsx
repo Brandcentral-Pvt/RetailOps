@@ -10,6 +10,68 @@ import OosExportPanel from './OosExportPanel';
 const { Text } = Typography;
 
 function OosAffectedAsinsTab({ task, activeRun, canResync }) {
+  const [exportLoading, setExportLoading] = useState(false);
+  const [resyncLoading, setResyncLoading] = useState(false);
+
+  const handleDownloadExport = async () => {
+    if (!taskInstanceId || !activeRun) return;
+    setExportLoading(true);
+    try {
+      const res = await tasksApi.buildExport(taskInstanceId, activeRun);
+      if (res.success) {
+        const exportId = res.export?.Id || res.export?.id;
+        if (exportId) {
+          const res2 = await tasksApi.downloadExport(taskInstanceId, exportId);
+          if (!res2.ok) throw new Error(res2.statusText);
+          const blob = await res2.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `oos-export-${activeRun}.xlsx`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+        }
+      }
+    } catch (err) {
+      setError(err.message || 'Export download failed');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    if (!taskInstanceId || !activeRun) return;
+    setExportLoading(true);
+    try {
+      const res = await tasksApi.buildExport(taskInstanceId, activeRun);
+      if (res.success) {
+        message.success('Export created successfully');
+        loadData();
+      }
+    } catch (err) {
+      setError(err.message || 'Export failed');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleRequestResync = async () => {
+    if (!taskInstanceId || !activeRun) return;
+    setResyncLoading(true);
+    try {
+      const res = await tasksApi.requestResync(taskInstanceId, activeRun);
+      if (res.success) {
+        message.success('Resync requested');
+        loadData();
+      }
+    } catch (err) {
+      setError(err.message || 'Resync request failed');
+    } finally {
+      setResyncLoading(false);
+    }
+  };
   const { hasPermission, isAdmin, isGlobalUser } = useAuth();
   const canManage = isAdmin || isGlobalUser || hasPermission('tasks_manage');
   const [gridData, setGridData] = useState({ rows: [], total: 0, summary: null });
@@ -71,9 +133,11 @@ function OosAffectedAsinsTab({ task, activeRun, canResync }) {
                   </Space>
                   <Space size={8}>
                     <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading} disabled={!activeRun}>Refresh</Button>
-                    {canResync && <Button icon={<SyncOutlined />} onClick={() => setError('Resync not yet implemented')}>Queue Resync</Button>}
-                    <Button icon={<ExportOutlined />} onClick={() => setError('Export not yet implemented')}>Export CSV</Button>
-                    <Button type="primary" icon={<DownloadOutlined />} onClick={() => setError('Export not yet implemented')}>Download XLSX</Button>
+                    {canResync && (
+                    <>
+                      <Button icon={<SyncOutlined />} onClick={() => handleRequestResync()} disabled={reuploadLoading[item.Id || item.id]}>Queue Resync</Button>
+                    <Button icon={<ExportOutlined />} onClick={() => handleExport()} disabled={!activeRun}>Export CSV</Button>
+                    <Button type="primary" icon={<DownloadOutlined />} onClick={() => handleDownloadExport()} disabled={!activeRun}>Download XLSX</Button>
                   </Space>
                 </div>
 
