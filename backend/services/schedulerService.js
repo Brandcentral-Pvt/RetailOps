@@ -8,6 +8,7 @@ const WebhookService = require('./WebhookService');
 const queueService = require('./queueService');
 const creatorsApiRateGate = require('./creatorsApiRateGate');
 const { QUEUES } = require('../jobs/queueDefinitions');
+const { ScraperTracker } = require('./syncTracker');
 
 /**
  * Scheduler Service
@@ -241,6 +242,18 @@ class SchedulerService {
                         return ib - ia;
                     });
 
+                    // Initialize Scraper Tracker
+                    await ScraperTracker.startRun({
+                        triggerType: 'CRON',
+                        marketplace: 'amazon.in',
+                        totalSellers: sortedSellerIds.length,
+                        createdBy: 'system',
+                        sellers: sortedSellerIds.map(id => {
+                            const s = orderedMap.get(id);
+                            return { sellerId: id, sellerName: s?.name || '', marketplace: 'amazon.in' };
+                        })
+                    });
+
                     let totals = { sellers: 0, sellersIncomplete: 0, jobs: 0, asinsScraped: 0 };
 
                     for (const sellerId of sortedSellerIds) {
@@ -251,6 +264,9 @@ class SchedulerService {
                             const sellerInfo = orderedMap.get(sellerId) || {};
                             totals.sellers++;
 
+                            // Track seller start
+                            await ScraperTracker.startSeller(sellerId, 1, maxAttemptsPerSeller);
+
                             while (attempt < maxAttemptsPerSeller && !sellerDone) {
                                 attempt++;
                                 const canMoveOn = async (asins) => {
@@ -259,10 +275,27 @@ class SchedulerService {
                                         return true;
                                     }
                                     const result = await scraperRunner.startJob({ sellerId, asins, userId: null });
+                                    // Track job start
+                                    await ScraperTracker.startJob(sellerId, result.jobId, asins.length);
+                                    await ScraperTracker.updateJob(result.jobId, { status: 'RUNNING' });
+                                    
                                     logger.info(`Scraper sync seller ${sellerId} attempt ${attempt}: job ${result.jobId} (${asins.length} ASINs)`);
                                     totals.jobs++;
                                     const final = await scraperRunner.waitForJob(result.jobId, { timeoutMs: 60 * 60 * 1000 });
                                     logger.info(`Scraper sync seller ${sellerId} attempt ${attempt}: job ${result.jobId} ended ${final.status} (${final.completedAsins || 0} ok, ${final.failedAsins || 0} failed)`);
+                                    
+                                    // Update job and seller progress
+                                    await ScraperTracker.updateJob(result.jobId, { 
+                                        status: final.status, 
+                                        asinsCompleted: final.completedAsins || 0, 
+                                        asinsFailed: final.failedAsins || 0 
+                                    });
+                                    await ScraperTracker.updateSellerProgress(sellerId, {
+                                        scrapedAsins: final.completedAsins || 0,
+                                        failedAsins: final.failedAsins || 0,
+                                        jobsCount: totals.jobs
+                                    });
+                                    
                                     totals.asinsScraped += final.completedAsins || 0;
                                     return true;
                                 };
@@ -296,18 +329,42 @@ class SchedulerService {
                                 totals.sellersIncomplete++;
                                 const missing = await asinCompletenessService.getMissingFieldBreakdown(sellerId);
                                 logger.warn(`Scraper sync seller ${sellerId} STILL INCOMPLETE — missing ${JSON.stringify(missing)}`);
+                                
+                                // Update seller with missing fields
+                                await ScraperTracker.updateSellerProgress(sellerId, {
+                                    completeAsins: finalCompleteness.complete,
+                                    incompleteAsins: finalCompleteness.incomplete,
+                                    missingFieldsJson: missing
+                                });
+                                await ScraperTracker.completeSeller(sellerId, 'INCOMPLETE');
+                            } else {
+                                await ScraperTracker.updateSellerProgress(sellerId, {
+                                    completeAsins: finalCompleteness.complete,
+                                    incompleteAsins: 0
+                                });
+                                await ScraperTracker.completeSeller(sellerId, 'COMPLETED');
                             }
                             logger.info(`Scraper sync seller ${sellerId}: ${finalCompleteness.complete}/${finalCompleteness.total} ASINs complete (${finalCompleteness.percent}%)`);
                             if (sellerInfo.totalAsins) logger.info(`   (started day at ${sellerInfo.completeAsins}/${sellerInfo.totalAsins} ASINs complete)`);
                         } catch (err) {
-                            logger.error(`Scraper sync failed for seller ${sellerId}:`, err.message);
+                            logger.error(`Scraper sync failed for seller ${sellerId}:`, err.message, { stack: err.stack });
+                            await ScraperTracker.completeSeller(sellerId, 'FAILED', err.message);
                         }
                     }
 
+                    // Complete the run
+                    await ScraperTracker.completeRun('COMPLETED', {
+                        processedSellers: totals.sellers,
+                        completeSellers: totals.sellers - totals.sellersIncomplete,
+                        incompleteSellers: totals.sellersIncomplete,
+                        totalJobs: totals.jobs,
+                        totalAsinsScraped: totals.asinsScraped
+                    });
+
                     logger.info(`Playwright Scraper Sync complete: ${totals.sellers} sellers (${totals.sellersIncomplete} still incomplete), ${totals.jobs} jobs, ${totals.asinsScraped} ASINs scraped`);
-                } catch (err) {
-                    logger.error('Playwright Scraper Sync cron failed:', err.message);
-                }
+            } catch (err) {
+                logger.error('Playwright Scraper Sync cron failed:', err.message, { stack: err.stack });
+            }
                 });
             }, cronOptions);
             logger.info(`Playwright Scraper Sync scheduled at ${scraperTime} in ${automationTimezone}`);

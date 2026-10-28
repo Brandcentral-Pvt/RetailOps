@@ -381,6 +381,8 @@ function checkSubmission(input = {}) {
   const blocking = Array.isArray(input.blockingReasons) ? input.blockingReasons.filter(Boolean) : [];
   if (blocking.length) errors.push(...blocking.map((r) => `Blocking reason: ${r}`));
 
+  if (!input.reviewerId) errors.push('An independent reviewer is required before submission.');
+
   const checklist = [
     { key: 'sources', label: 'Sources validated or exceptions recorded', ok: sourcesOk },
     { key: 'dispositions', label: 'Every analysed case has a disposition', ok: missingDisposition === 0 },
