@@ -124,6 +124,7 @@ async function persistDecisionMetrics(pool, run, decisions, policy) {
   const sellerId = run.SellerId;
   const channel = run.Channel;
   const now = new Date();
+  const gmsWindowDays = policy.gmsWindowDays || 30;
 
   // Gather GMS per ASIN from the policy service (seller-wide catalog)
   let pareto;
@@ -133,19 +134,47 @@ async function persistDecisionMetrics(pool, run, decisions, policy) {
     });
     pareto = paretoResult;
   } catch {
-    pareto = { verified: false, tier1Asins: [] };
+    pareto = { verified: false, tier1Asins: [], asinDetails: {} };
   }
   const tier1Asins = new Set(pareto.tier1Asins || []);
+  const asinGms = new Map();
+  const asinGmsShare = new Map();
+  const asinCumulativePct = new Map();
+  if (pareto.asinDetails) {
+    for (const [asin, details] of Object.entries(pareto.asinDetails)) {
+      asinGms.set(asin, details.gms ?? null);
+      asinGmsShare.set(asin, details.gmsSharePct ?? null);
+      asinCumulativePct.set(asin, details.cumulativePct ?? null);
+    }
+  }
+
+  // Get first-seen dates from OosObservations (first RetailOps observation per ASIN)
+  const firstSeenResult = await pool
+    .request()
+    .input('sellerId', sql.VarChar, sellerId)
+    .input('channel', sql.VarChar, channel)
+    .query(`
+      SELECT AsinCode, MIN(SourceTimestamp) as FirstSeenAt
+      FROM OosObservations
+      WHERE SellerId = @sellerId AND Channel = @channel AND Source = 'RETAILOPS'
+      GROUP BY AsinCode
+    `);
+  const firstSeenMap = new Map();
+  for (const row of firstSeenResult.recordset) {
+    firstSeenMap.set(row.AsinCode, row.FirstSeenAt);
+  }
 
   for (const decision of decisions) {
     const asin = decision.AsinCode;
-    const existing = await pool
-      .request()
-      .input('decisionId', sql.VarChar, decision.Id)
-      .query('SELECT TOP 1 * FROM OosDecisionMetrics WHERE DecisionId = @decisionId');
+    const firstSeenAt = firstSeenMap.get(asin);
 
-    const isNewAsin = !existing.recordset[0] ? 1 : 0;
-    // New ASINs are always 20% regardless of Pareto position
+    // New ASINs are always 20%: first observed within the GMS window
+    const isNewAsin = firstSeenAt
+      ? (now.getTime() - new Date(firstSeenAt).getTime()) <= gmsWindowDays * 24 * 60 * 60 * 1000
+        ? 1
+        : 0
+      : 0;
+
     let priorityGroup;
     if (isNewAsin) {
       priorityGroup = '20%';
@@ -157,8 +186,15 @@ async function persistDecisionMetrics(pool, run, decisions, policy) {
       priorityGroup = '20%';
     }
 
-    const gms = null; // GMS populated by separate metrics backfill (OOS-024)
+    const gms = asinGms.get(asin) ?? null;
     const gmsVerified = pareto.verified ? 1 : 0;
+    const gmsSharePct = asinGmsShare.get(asin) ?? null;
+    const cumulativePct = asinCumulativePct.get(asin) ?? null;
+
+    const existing = await pool
+      .request()
+      .input('decisionId', sql.VarChar, decision.Id)
+      .query('SELECT TOP 1 * FROM OosDecisionMetrics WHERE DecisionId = @decisionId');
 
     if (existing.recordset[0]) {
       await pool
@@ -166,14 +202,18 @@ async function persistDecisionMetrics(pool, run, decisions, policy) {
         .input('id', sql.VarChar, existing.recordset[0].Id)
         .input('priorityGroup', sql.VarChar, priorityGroup)
         .input('isNewAsin', sql.Bit, isNewAsin)
+        .input('firstSeenAt', sql.DateTime2, firstSeenAt ?? null)
         .input('gmsVerified', sql.Bit, gmsVerified)
         .input('gms', sql.Decimal(18, 2), gms)
+        .input('gmsSharePct', sql.Decimal(9, 4), gmsSharePct)
+        .input('cumulativePct', sql.Decimal(9, 4), cumulativePct)
         .input('classificationVersion', sql.VarChar, policy.version)
         .input('computedAt', sql.DateTime2, now)
         .query(`
           UPDATE OosDecisionMetrics SET
             PriorityGroup = @priorityGroup, IsNewAsin = @isNewAsin,
-            GmsVerified = @gmsVerified, Gms = @gms,
+            FirstSeenAt = @firstSeenAt, GmsVerified = @gmsVerified,
+            Gms = @gms, GmsSharePct = @gmsSharePct, CumulativePct = @cumulativePct,
             ClassificationVersion = @classificationVersion,
             ComputedAt = @computedAt
             WHERE Id = @id
@@ -185,18 +225,20 @@ async function persistDecisionMetrics(pool, run, decisions, policy) {
         .input('decisionId', sql.VarChar, decision.Id)
         .input('priorityGroup', sql.VarChar, priorityGroup)
         .input('isNewAsin', sql.Bit, isNewAsin)
-        .input('firstSeenAt', sql.DateTime2, isNewAsin ? now : null)
+        .input('firstSeenAt', sql.DateTime2, firstSeenAt ?? null)
         .input('gmsVerified', sql.Bit, gmsVerified)
         .input('gms', sql.Decimal(18, 2), gms)
+        .input('gmsSharePct', sql.Decimal(9, 4), gmsSharePct)
+        .input('cumulativePct', sql.Decimal(9, 4), cumulativePct)
         .input('classificationVersion', sql.VarChar, policy.version)
         .input('computedAt', sql.DateTime2, now)
         .query(`
           INSERT INTO OosDecisionMetrics
             (Id, DecisionId, PriorityGroup, IsNewAsin, FirstSeenAt, GmsVerified, Gms,
-             ClassificationVersion, ComputedAt)
+             GmsSharePct, CumulativePct, ClassificationVersion, ComputedAt)
           VALUES
-            (@id, @decisionId, @priorityGroup, @isNewAsin, @firstSeenAt, @gmsVerified, @gms,
-             @classificationVersion, @computedAt)
+            (@id, @decisionId, @priorityGroup, @isNewAsin, @firstSeenAt, @gmsVerified,
+             @gms, @gmsSharePct, @cumulativePct, @classificationVersion, @computedAt)
         `);
     }
   }

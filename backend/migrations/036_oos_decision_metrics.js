@@ -6,15 +6,11 @@
  * Exposed by vw_OosAffectedAsins for the affected-ASIN grid.
  */
 module.exports = {
-  up: async (queryInterface, Sequelize) => {
-    const { sequelize } = queryInterface;
-    const query = async (sql) => {
-      const [results] = await sequelize.query(sql);
-      return results;
-    };
+  up: async (pool) => {
+    const q = (s) => pool.request().query(s);
 
-    // OosDecisionMetrics — recomputable classification metrics (1:1 with OosDecisions)
-    await query(`
+    // ── OosDecisionMetrics ─────────────────────────────────────────────
+    await q(`
       IF OBJECT_ID(N'dbo.OosDecisionMetrics', N'U') IS NULL
       BEGIN
         CREATE TABLE dbo.OosDecisionMetrics (
@@ -31,9 +27,8 @@ module.exports = {
           RetailOpsState VARCHAR(40) NULL,
           BrandCentralState VARCHAR(40) NULL,
           VendorCentralState VARCHAR(40) NULL,
-          ClassificationVersion VARCHAR(20) NOT NULL,
-          ComputedAt DATETIME2 NOT NULL DEFAULT dbo.GetEnvDate(),
-          CONSTRAINT FK_OosDecisionMetrics_Decision FOREIGN KEY (DecisionId) REFERENCES dbo.OosDecisions(Id)
+          ClassificationVersion VARCHAR(20) NOT NULL DEFAULT 'v1',
+          ComputedAt DATETIME2 NOT NULL DEFAULT dbo.GetEnvDate()
         );
         CREATE UNIQUE INDEX UX_OosDecisionMetrics_Decision ON dbo.OosDecisionMetrics(DecisionId);
         CREATE INDEX IX_OosDecisionMetrics_PriorityGroup ON dbo.OosDecisionMetrics(PriorityGroup);
@@ -42,8 +37,8 @@ module.exports = {
       END
     `);
 
-    // View: vw_OosAffectedAsins — joins decisions + metrics + incidents + resync
-    await query(`
+    // ── View: vw_OosAffectedAsins ──────────────────────────────────────
+    await q(`
       IF OBJECT_ID(N'dbo.vw_OosAffectedAsins', N'V') IS NOT NULL
         DROP VIEW dbo.vw_OosAffectedAsins;
       CREATE VIEW dbo.vw_OosAffectedAsins AS
@@ -83,18 +78,6 @@ module.exports = {
         ON rj.RunId = d.RunId AND rj.SellerId = d.SellerId AND rj.Channel = d.Channel AND rj.AsinCode = d.AsinCode
     `);
 
-    console.log('[Migration 036] OOS decision metrics table and vw_OosAffectedAsins view created');
+    console.log('[Migration 036] ✅ OOS decision metrics table + vw_OosAffectedAsins view');
   },
-
-  down: async (queryInterface, Sequelize) => {
-    const { sequelize } = queryInterface;
-    const query = async (sql) => {
-      const [results] = await sequelize.query(sql);
-      return results;
-    };
-
-    await query(`IF OBJECT_ID(N'dbo.vw_OosAffectedAsins', N'V') IS NOT NULL DROP VIEW dbo.vw_OosAffectedAsins;`);
-    await query(`IF OBJECT_ID(N'dbo.OosDecisionMetrics', N'U') IS NOT NULL DROP TABLE dbo.OosDecisionMetrics;`);
-    console.log('[Migration 036] Rolled back OOS decision metrics');
-  }
 };
