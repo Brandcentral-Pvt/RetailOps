@@ -253,13 +253,16 @@ exports.getAffectedAsins = async (req, res) => {
     const offset = (page - 1) * pageSize;
     const limit = pageSize;
 
+    request.input('offset', sql.Int, offset);
+    request.input('limit', sql.Int, limit);
+
     const dataResult = await request.query(`
       SELECT v.*
       FROM vw_OosAffectedAsins v
       ${where}
       ORDER BY v.${sortBy} ${sortOrder}
       OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
-    `, { offset, limit });
+    `);
 
     const rows = dataResult.recordset.map(r => ({
       id: r.DecisionId,

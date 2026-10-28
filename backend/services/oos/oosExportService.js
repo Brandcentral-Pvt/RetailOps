@@ -118,7 +118,7 @@ async function buildExport(runId, { createdBy, taskInstanceId } = {}) {
 
   const [decisions, imports, incidentRows, resyncRows] = await Promise.all([
     pool.request().input('runId', sql.VarChar, runId)
-      .query('SELECT * FROM OosDecisions WHERE RunId = @runId ORDER BY Category, AsinCode'),
+      .query(`SELECT v.* FROM vw_OosAffectedAsins v WHERE v.RunId = @runId ORDER BY v.AsinCode`),
     pool.request().input('runId', sql.VarChar, runId)
       .query('SELECT * FROM OosImports WHERE RunId = @runId ORDER BY CreatedAt'),
     pool.request().input('sellerId', sql.VarChar, run.SellerId).input('channel', sql.VarChar, run.Channel)
@@ -157,7 +157,7 @@ async function buildExport(runId, { createdBy, taskInstanceId } = {}) {
 
   // Build rows for each sheet with sanitized values
   const sheet1Rows = activeOos.map(d => {
-    const row = flattenDecision(d, sourceManifest, new Map(), new Map());
+    const row = flattenDecision(d, sourceManifest, incidentsMap, resyncMap);
     // Sanitize all string values
     for (const k of Object.keys(row)) {
       if (typeof row[k] === 'string') row[k] = sanitizeCell(row[k]);
@@ -166,7 +166,7 @@ async function buildExport(runId, { createdBy, taskInstanceId } = {}) {
   });
 
   const sheet2Rows = discrepancies.map(d => {
-    const row = flattenDecision(d, sourceManifest, new Map(), new Map());
+    const row = flattenDecision(d, sourceManifest, incidentsMap, resyncMap);
     for (const k of Object.keys(row)) {
       if (typeof row[k] === 'string') row[k] = sanitizeCell(row[k]);
     }

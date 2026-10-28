@@ -73,13 +73,14 @@ async function enforceTaskAccess(req, res, mode, task, sellerId) {
 
 /**
  * Require task-bound access for a run. Attaches req.oosBinding and req.oosTask.
+ * Resolves runId from req.params.id, req.params.runId, req.query.runId, or req.body.runId.
  */
 function requireOosRunAccess(options = {}) {
   const mode = options.mode === 'view' ? 'view' : 'act';
   return async function (req, res, next) {
     try {
       const pool = await getPool();
-      const runId = req.params.id || req.params.runId;
+      const runId = req.params.runId || req.params.id || req.query.runId || req.body?.runId;
       if (!runId) return deny(res, 400, 'RUN_ID_REQUIRED', 'Run id required');
 
       // Load run
@@ -176,7 +177,7 @@ function requireOosExportAccess(options = {}) {
     try {
       const pool = await getPool();
       const exportId = req.params.exportId || req.query.exportId;
-      const runId = req.params.id || req.params.runId;
+      const runId = req.params.runId || req.params.id || req.query.runId || req.body?.runId;
       let exportRow = null;
       if (exportId) {
         const er = await pool.request().input('id', sql.VarChar, exportId)

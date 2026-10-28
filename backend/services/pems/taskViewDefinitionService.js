@@ -205,7 +205,7 @@ async function getViewDefinitionForTaskInstance(taskInstanceId) {
       .input('id', sql.VarChar, task.ViewDefinitionId)
       .query('SELECT * FROM PemsTemplateViewDefinitions WHERE Id = @id');
     if (def.recordset[0]) {
-      return { definition: def.recordset[0].DefinitionJson, fromSnapshot: false, definitionId: task.ViewDefinitionId };
+      return { definition: JSON.parse(def.recordset[0].DefinitionJson), fromSnapshot: false, definitionId: task.ViewDefinitionId };
     }
   }
   const templateResult = await pool
@@ -213,7 +213,7 @@ async function getViewDefinitionForTaskInstance(taskInstanceId) {
     .input('templateId', sql.VarChar, task.TemplateId)
     .query('SELECT TOP 1 * FROM PemsTemplateViewDefinitions WHERE TemplateId = @templateId AND Status = \'PUBLISHED\' ORDER BY DefinitionVersion DESC');
   if (templateResult.recordset[0]) {
-    return { definition: templateResult.recordset[0].DefinitionJson, fromSnapshot: false };
+    return { definition: JSON.parse(templateResult.recordset[0].DefinitionJson), fromSnapshot: false };
   }
   return { definition: null, fromSnapshot: false };
 }

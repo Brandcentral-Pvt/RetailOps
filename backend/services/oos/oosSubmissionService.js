@@ -130,6 +130,12 @@ async function reviewSubmission(runId, { reviewerId, actorId, decision, feedback
     throw httpError(400, 'decision must be APPROVED, REJECTED, or WAIVED', 'INVALID_DECISION');
   }
 
+  // Waiver requires reason and expiry
+  if (decision === 'WAIVED') {
+    if (!waiverReason) throw httpError(400, 'waiverReason is required for waived decisions', 'WAIVER_REASON_REQUIRED');
+    if (!waiverExpiry) throw httpError(400, 'waiverExpiry is required for waived decisions', 'WAIVER_EXPIRY_REQUIRED');
+  }
+
   const pool = await getPool();
   const runResult = await pool
     .request()
