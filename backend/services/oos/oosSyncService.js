@@ -159,8 +159,11 @@ async function dispatchResync(sellerId, asinCode, channel, jobId) {
 
     if (postSyncObs) {
       const retailOps = { state: classifyPostSync(postSyncObs) };
+      // Use the job's persisted RequestedAt (not current time) for freshness comparison
+      const job = await getResyncJob(jobId);
+      const requestedAt = job.RequestedAt ? new Date(job.RequestedAt) : new Date();
       outcome = applyResyncVerification(
-        { sellerId, channel, asin: asinCode, requestedAt: new Date() },
+        { sellerId, channel, asin: asinCode, requestedAt },
         { state: retailOps.state, observationTime: postSyncObs.LastScrapedAt }
       );
     }
