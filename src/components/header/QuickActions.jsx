@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 /**
- * QuickActions — truthful connection status.
+ * QuickActions — truthful connection status with combined status indicator.
  *
  * Replaces the fake "Syncing..." spinner (a 2.2 s setTimeout in HeaderContext)
  * with the real Socket.IO connection state. "Reconnect" force-reconnects the
@@ -35,7 +35,12 @@ export default function QuickActions() {
           disabled={connected}
           aria-label={connected ? 'Connection live' : 'Reconnect'}
           title={connected ? 'Connection live' : 'Reconnect'}
+          className="gap-1.5"
         >
+          <span
+            className={`connection-dot h-2 w-2 rounded-full ${connected ? 'bg-[#1565c0] animate-pulse' : 'bg-slate-400'}`}
+            aria-hidden="true"
+          />
           {connected ? (
             <Wifi size={14} className="text-[#1565c0]" />
           ) : (

@@ -132,6 +132,7 @@ type CommandDialogItem = {
   section?: string
   keywords?: string[]
   permission?: string
+  globalIndex?: number
 }
 
 interface CommandDialogProps {
@@ -160,17 +161,23 @@ const CommandDialog = React.forwardRef<HTMLDivElement, CommandDialogProps>(
     const [query, setQuery] = React.useState("")
     const [highlightedIndex, setHighlightedIndex] = React.useState(-1)
 
+    // Assign global index to each item for consistent keyboard navigation
+    const itemsWithGlobalIndex = React.useMemo(() => {
+      return items.map((item, index) => ({ ...item, globalIndex: index }))
+    }, [items])
+
     const filtered = React.useMemo(
       () =>
-        items.filter((item) => {
+        itemsWithGlobalIndex.filter((item) => {
           if (!query.trim()) return true
           const q = query.toLowerCase()
           return (
             item.title.toLowerCase().includes(q) ||
-            (item.hint?.toLowerCase().includes(q) ?? false)
+            (item.hint?.toLowerCase().includes(q) ?? false) ||
+            (item.keywords?.some((k) => k.toLowerCase().includes(q)) ?? false)
           )
         }),
-      [items, query]
+      [itemsWithGlobalIndex, query]
     )
 
     React.useEffect(() => {
@@ -199,6 +206,15 @@ const CommandDialog = React.forwardRef<HTMLDivElement, CommandDialogProps>(
       }))
     }, [visibleItems])
 
+    // Create a flat array of items with their global indices for keyboard navigation
+    const flatVisibleItems = React.useMemo(() => {
+      const flat: CommandDialogItem[] = []
+      groupedItems.forEach((group) => {
+        group.items.forEach((item) => flat.push(item))
+      })
+      return flat
+    }, [groupedItems])
+
     const handleKeyDown = (e: React.KeyboardEvent) => {
       if (e.key === "Escape") {
         onOpenChange(false)
@@ -207,7 +223,7 @@ const CommandDialog = React.forwardRef<HTMLDivElement, CommandDialogProps>(
       if (e.key === "ArrowDown") {
         e.preventDefault()
         setHighlightedIndex((i) =>
-          i >= visibleItems.length - 1 ? i : i + 1
+          i >= flatVisibleItems.length - 1 ? i : i + 1
         )
         return
       }
@@ -218,7 +234,7 @@ const CommandDialog = React.forwardRef<HTMLDivElement, CommandDialogProps>(
       }
       if (e.key === "Enter") {
         e.preventDefault()
-        const active = visibleItems[highlightedIndex]
+        const active = flatVisibleItems[highlightedIndex]
         if (active && !active.disabled) {
           active.onSelect()
           onOpenChange(false)
@@ -247,9 +263,9 @@ const CommandDialog = React.forwardRef<HTMLDivElement, CommandDialogProps>(
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
               className="text-muted-foreground shrink-0"
             >
               <circle cx="11" cy="11" r="8" />
@@ -272,64 +288,64 @@ const CommandDialog = React.forwardRef<HTMLDivElement, CommandDialogProps>(
                 </CommandEmpty>
               ) : (
                 <>
-                  {groupedItems.map((group, gi) => (
-                    <React.Fragment key={group.section ?? `ungrouped-${gi}`}>
-                      {group.section && (
-                        <CommandGroup title={group.section} />
-                      )}
-                      {group.items.map((item, index) => {
-                        const highlighted = index === highlightedIndex
-                        return (
-                          <CommandItem
-                            key={item.id}
-                            onSelect={() => handleItemSelect(item)}
-                            disabled={item.disabled}
-                            role="option"
-                            aria-selected={highlighted}
-                            aria-disabled={item.disabled}
-                            className={
-                              highlighted
-                                ? "bg-accent text-accent-foreground"
-                                : undefined
-                            }
-                          >
-                            <div className="flex h-7 w-7 items-center justify-center rounded-sm bg-accent text-accent-foreground shrink-0">
-                              {item.icon ?? (
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  width="14"
-                                  height="14"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  stroke-width="2"
-                                  stroke-linecap="round"
-                                  stroke-linejoin="round"
-                                >
-                                  <circle cx="12" cy="12" r="10" />
-                                </svg>
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="truncate">{item.title}</div>
-                              {item.hint && (
-                                <div className="truncate text-xs text-muted-foreground">
-                                  {item.hint}
-                                </div>
-                              )}
-                            </div>
-                            {item.shortcut && (
-                              <CommandShortcut>{item.shortcut}</CommandShortcut>
-                            )}
-                          </CommandItem>
-                        );
-                      })}
-                      {group.section &&
-                        gi < groupedItems.length - 1 && (
-                          <CommandSeparator />
+{groupedItems.map((group, gi) => (
+                      <React.Fragment key={group.section ?? `ungrouped-${gi}`}>
+                        {group.section && (
+                          <CommandGroup title={group.section} />
                         )}
-                    </React.Fragment>
-                  ))}
+                        {group.items.map((item) => {
+                          const highlighted = item.globalIndex === highlightedIndex
+                          return (
+                            <CommandItem
+                              key={item.id}
+                              onSelect={() => handleItemSelect(item)}
+                              disabled={item.disabled}
+                              role="option"
+                              aria-selected={highlighted}
+                              aria-disabled={item.disabled}
+                              className={
+                                highlighted
+                                  ? "bg-accent text-accent-foreground"
+                                  : undefined
+                              }
+                            >
+                              <div className="flex h-7 w-7 items-center justify-center rounded-sm bg-accent text-accent-foreground shrink-0">
+                                {item.icon ?? (
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  >
+                                    <circle cx="12" cy="12" r="10" />
+                                  </svg>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="truncate">{item.title}</div>
+                                {item.hint && (
+                                  <div className="truncate text-xs text-muted-foreground">
+                                    {item.hint}
+                                  </div>
+                                )}
+                              </div>
+                              {item.shortcut && (
+                                <CommandShortcut>{item.shortcut}</CommandShortcut>
+                              )}
+                            </CommandItem>
+                          );
+                        })}
+                        {group.section &&
+                          gi < groupedItems.length - 1 && (
+                            <CommandSeparator />
+                          )}
+                      </React.Fragment>
+                    ))}
                 </>
               )}
             </CommandList>

@@ -649,8 +649,7 @@
 }
 
 /* Ensure header never causes horizontal overflow (Rule 19) */
-.shadcn-header,
-.shadcn-header * {
+.shadcn-header {
   overflow-x: hidden;
 }
 

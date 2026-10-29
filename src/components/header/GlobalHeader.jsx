@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { Menu } from 'lucide-react';
+import React from 'react';
+import { Menu, Search } from 'lucide-react';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useHeader } from '../../contexts/HeaderContext';
-import { isConnected } from '../../services/realtimeService';
 import HeaderBrand from './HeaderBrand';
 import SearchTrigger from './SearchTrigger';
 import DateRangeSelector from './DateRangeSelector';
@@ -26,14 +25,8 @@ import '../../styles/header.css';
  * phases) but are now hosted inside the shadcn shell.
  */
 export default function GlobalHeader() {
-  const { toggleMobile, isMobile, isOpen } = useSidebar();
+  const { toggleMobile, isOpen } = useSidebar();
   const { setCmdOpen } = useHeader();
-  const [connected, setConnected] = useState(isConnected());
-
-  useEffect(() => {
-    const iv = setInterval(() => setConnected(isConnected()), 2000);
-    return () => clearInterval(iv);
-  }, []);
 
   return (
     <>
@@ -69,18 +62,6 @@ export default function GlobalHeader() {
           <UserMenu />
         </div>
 
-        {/* Real-time connection indicator (never faked — Rule 12) */}
-        <div className="shadcn-connection flex items-center gap-1.5 px-2 hidden sm:flex">
-          <span
-            className={`connection-dot h-2 w-2 rounded-full ${connected ? 'bg-[#1565c0] animate-pulse' : 'bg-slate-400'}`}
-            aria-label={connected ? 'Connection live' : 'Disconnected'}
-            aria-hidden="true"
-          />
-          <span className="text-[10px] font-medium {connected ? 'text-[#1565c0]' : 'text-slate-500'}">
-            {connected ? 'Live' : 'Disconnected'}
-          </span>
-        </div>
-
         {/* Mobile overflow: open command palette (functional search on mobile) */}
         <div className="md:hidden flex items-center gap-2 ml-auto pr-1">
           <Button
@@ -90,7 +71,7 @@ export default function GlobalHeader() {
             onClick={() => setCmdOpen(true)}
             aria-label="Open command palette"
           >
-            <Menu size={18} aria-hidden="true" />
+            <Search size={18} aria-hidden="true" />
           </Button>
         </div>
       </header>

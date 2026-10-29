@@ -2,11 +2,10 @@ import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useHeader } from '../../contexts/HeaderContext';
-import { exportApi } from '../../services/api';
 import {
   CommandDialog,
 } from '@/components/ui/command';
-import { Layout, Users, Settings, FileText, DollarSign, Activity } from 'lucide-react';
+import { Layout, Users, Settings, DollarSign, Activity } from 'lucide-react';
 
 type CommandDialogItem = {
   id: string
@@ -96,22 +95,6 @@ export default function CommandPalette() {
       permission: 'settings_manage',
       onSelect: () => navigate('/settings'),
     },
-    {
-      id: 'action-export',
-      title: 'Export report',
-      hint: 'Download current view as CSV/PDF',
-      icon: <FileText size={16} />,
-      section: 'Actions',
-      keywords: ['export', 'download', 'csv', 'pdf'],
-      permission: 'asinmanager_import',
-      onSelect: () => {
-        exportApi
-          .export({ kind: 'single', dataset: 'report', label: 'command-palette' })
-          .then(() => {})
-          .catch((err) => console.error('Export failed:', err.message));
-        setCmdOpen(false);
-      },
-    },
   ], [hasPermission, navigate, setCmdOpen]);
 
   const permitted = items.filter(
@@ -123,7 +106,7 @@ export default function CommandPalette() {
       open={cmdOpen}
       onOpenChange={setCmdOpen}
       items={permitted}
-      placeholder="Type a command, search ASIN, or navigate..."
+      placeholder="Search pages and commands..."
       noResultsMessage="No matching commands or pages."
     />
   );
