@@ -1,62 +1,101 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Menu } from 'lucide-react';
 import { useSidebar } from '../../contexts/SidebarContext';
+import { useHeader } from '../../contexts/HeaderContext';
+import { isConnected } from '../../services/realtimeService';
 import HeaderBrand from './HeaderBrand';
 import SearchTrigger from './SearchTrigger';
-import DownloadDrawer from './DownloadDrawer';
-import CommandPalette from './CommandPalette';
 import DateRangeSelector from './DateRangeSelector';
+import CommandPalette from './CommandPalette';
 import NotificationCenter from './NotificationCenter';
+import DownloadDrawer from './DownloadDrawer';
 import QuickActions from './QuickActions';
 import UserMenu from './UserMenu';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 import '../../styles/header.css';
 
-const GlobalHeader = () => {
+/**
+ * GlobalHeader — shared responsive application toolbar (shadcn).
+ *
+ * H1: shell + navigation. 64 px desktop / ~56 px mobile, white background with
+ * a subtle bottom border, BrandCentral blue (#1976D2) brand accents.
+ *
+ * Backward compatible: DateRangeSelector / NotificationCenter / DownloadDrawer
+ * still render their existing overlays (H3/H4 migrations are subsequent
+ * phases) but are now hosted inside the shadcn shell.
+ */
+export default function GlobalHeader() {
   const { toggleMobile, isMobile, isOpen } = useSidebar();
+  const { setCmdOpen } = useHeader();
+  const [connected, setConnected] = useState(isConnected());
+
+  useEffect(() => {
+    const iv = setInterval(() => setConnected(isConnected()), 2000);
+    return () => clearInterval(iv);
+  }, []);
 
   return (
     <>
-      <header className="global-header">
-        <button
+      <header className="global-header shadcn-header">
+        {/* Mobile nav toggle — preserved SidebarContext integration */}
+        <Button
           type="button"
-          className="header-mobile-toggle"
+          variant="ghost"
+          size="sm"
+          className="shadcn-mobile-toggle md:hidden"
           onClick={toggleMobile}
           aria-label={isOpen ? 'Close navigation menu' : 'Open navigation menu'}
           aria-expanded={isOpen}
           aria-controls="sidebar"
         >
           <Menu size={20} aria-hidden="true" />
-        </button>
+        </Button>
 
         <HeaderBrand />
 
-        <SearchTrigger />
+        {/* Center: search / command palette entry */}
+        <div className="hidden sm:flex items-center">
+          <SearchTrigger />
+        </div>
 
-        <div className="header-actions">
-          <div className="live-status">
-            <span className="live-dot" />
-            <span>Live</span>
-          </div>
-
-          <div className="header-divider" />
-
+        <div className="shadcn-actions flex items-center gap-2 shrink-0">
           <DateRangeSelector />
-
-          <div className="header-divider" />
-
-          <DownloadDrawer />
+          <Separator orientation="vertical" className="h-5 w-[1px] mx-1" />
           <QuickActions />
           <NotificationCenter />
-
-          <div className="header-divider" />
-
+          <DownloadDrawer />
+          <Separator orientation="vertical" className="h-5 w-[1px] mx-1" />
           <UserMenu />
+        </div>
+
+        {/* Real-time connection indicator (never faked — Rule 12) */}
+        <div className="shadcn-connection flex items-center gap-1.5 px-2 hidden sm:flex">
+          <span
+            className={`connection-dot h-2 w-2 rounded-full ${connected ? 'bg-[#1565c0] animate-pulse' : 'bg-slate-400'}`}
+            aria-label={connected ? 'Connection live' : 'Disconnected'}
+            aria-hidden="true"
+          />
+          <span className="text-[10px] font-medium {connected ? 'text-[#1565c0]' : 'text-slate-500'}">
+            {connected ? 'Live' : 'Disconnected'}
+          </span>
+        </div>
+
+        {/* Mobile overflow: open command palette (functional search on mobile) */}
+        <div className="md:hidden flex items-center gap-2 ml-auto pr-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setCmdOpen(true)}
+            aria-label="Open command palette"
+          >
+            <Menu size={18} aria-hidden="true" />
+          </Button>
         </div>
       </header>
 
       <CommandPalette />
     </>
   );
-};
-
-export default GlobalHeader;
+}

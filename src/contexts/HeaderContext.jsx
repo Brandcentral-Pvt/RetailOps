@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import dayjs from 'dayjs';
 
 const HeaderContext = createContext(null);
@@ -18,15 +18,6 @@ export const HeaderProvider = ({ children }) => {
   const [cmdOpen, setCmdOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [downloadOpen, setDownloadOpen] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSyncedAt, setLastSyncedAt] = useState(dayjs());
-
-  const triggerSync = useCallback(async () => {
-    setIsSyncing(true);
-    await new Promise((resolve) => setTimeout(resolve, 2200));
-    setIsSyncing(false);
-    setLastSyncedAt(dayjs());
-  }, []);
 
   return (
     <HeaderContext.Provider
@@ -37,8 +28,6 @@ export const HeaderProvider = ({ children }) => {
         cmdOpen, setCmdOpen,
         notifOpen, setNotifOpen,
         downloadOpen, setDownloadOpen,
-        isSyncing, triggerSync,
-        lastSyncedAt,
       }}
     >
       {children}
