@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom';
-import TooltipProvider from 'antd/es/tooltip/UniqueProvider';
+import { TooltipProvider } from './components/ui/tooltip';
 import 'rsuite/dist/rsuite-no-reset.min.css';
 import './styles/rsuite-overrides.css';
 import './styles/tokens.css';
