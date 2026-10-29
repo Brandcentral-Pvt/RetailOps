@@ -1,4 +1,9 @@
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+// In production the app and API share an origin, so cookies stay first-party
+// and response headers such as Retry-After are readable. Local development
+// points VITE_API_URL at a remote host, which makes auth cross-origin and hides
+// those headers. Route auth through the Vite proxy in dev so it behaves like
+// production instead of silently falling back to a default cooldown.
+const API_BASE = import.meta.env.DEV ? '/api' : import.meta.env.VITE_API_URL || '/api';
 export const AUTH_REQUEST_TIMEOUT_MS = 30_000;
 
 // Only these messages reach the authentication UI. API response text is used
@@ -39,6 +44,9 @@ function responseError(response, data, operation) {
   const retryHeader = response.headers.get('Retry-After');
   let retryAfter = Number(retryHeader) || 0;
   if (retryHeader && !retryAfter) retryAfter = Math.ceil((Date.parse(retryHeader) - Date.now()) / 1000);
+  // Some deployments keep Retry-After out of the CORS-exposed header list, so
+  // accept the same value from the JSON body before falling back to a default.
+  if (!retryAfter) retryAfter = Number(data?.retryAfter ?? data?.data?.retryAfter) || 0;
   if (!retryAfter) retryAfter = Number(message.match(/wait (\d+) seconds/)?.[1]) || 0;
   retryAfter = Number.isFinite(retryAfter) ? Math.min(86400, Math.max(0, retryAfter)) : 0;
 

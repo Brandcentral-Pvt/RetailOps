@@ -1,26 +1,45 @@
-import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Form, Input, Button, Typography, Alert, Progress, Spin } from 'antd';
-import { LockOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { CheckCircle2, CircleAlert } from 'lucide-react';
 import AuthLayout from '../components/auth/AuthLayout';
+import AuthButton from '../components/auth/AuthButton';
+import AuthError from '../components/auth/AuthError';
+import PasswordField from '../components/auth/PasswordField';
+import { cn } from '@/lib/utils';
 import { authApi } from '../services/api';
-import styles from '../components/auth/Auth.module.css';
 
-const { Title, Text } = Typography;
-
-function getPasswordStrength(pw) {
-  if (!pw) return { score: 0, label: '', color: 'var(--border-light)', percent: 0 };
+function getPasswordStrength(password) {
+  if (!password) return { label: '', percent: 0, bar: 'bg-slate-200', text: 'text-slate-500' };
   let score = 0;
-  if (pw.length >= 12) score++;
-  if (pw.length >= 16) score++;
-  if (/[A-Z]/.test(pw)) score++;
-  if (/[a-z]/.test(pw)) score++;
-  if (/[0-9]/.test(pw)) score++;
-  if (/[!@#$%^&*(),.?":{}|<>]/.test(pw)) score++;
-  if (score <= 2) return { score, label: 'Weak', color: 'var(--text-danger)', percent: 25 };
-  if (score <= 3) return { score, label: 'Fair', color: 'var(--text-warning)', percent: 50 };
-  if (score <= 4) return { score, label: 'Good', color: 'var(--text-brand)', percent: 75 };
-  return { score, label: 'Strong', color: 'var(--text-success)', percent: 100 };
+  if (password.length >= 12) score++;
+  if (password.length >= 16) score++;
+  if (/[A-Z]/.test(password)) score++;
+  if (/[a-z]/.test(password)) score++;
+  if (/[0-9]/.test(password)) score++;
+  if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) score++;
+  if (score <= 2) return { label: 'Weak', percent: 25, bar: 'bg-red-600', text: 'text-red-700' };
+  if (score <= 3) return { label: 'Fair', percent: 50, bar: 'bg-amber-500', text: 'text-amber-800' };
+  if (score <= 4) return { label: 'Good', percent: 75, bar: 'bg-blue-600', text: 'text-blue-700' };
+  return { label: 'Strong', percent: 100, bar: 'bg-emerald-700', text: 'text-emerald-700' };
+}
+
+const tones = {
+  success: 'bg-emerald-50 text-emerald-700',
+  error: 'bg-red-50 text-red-700',
+  info: 'bg-blue-50 text-blue-700',
+};
+
+function StatusPanel({ tone = 'info', icon: Icon, title, children, action }) {
+  return (
+    <div className="w-full text-center">
+      <div className={cn('mx-auto mb-4 flex size-12 items-center justify-center rounded-xl', tones[tone])}>
+        <Icon className="size-6" strokeWidth={1.8} aria-hidden="true" />
+      </div>
+      <h1 className="m-0 text-2xl font-semibold tracking-[-0.01em] text-slate-900">{title}</h1>
+      <div className="mt-2 text-sm leading-6 text-slate-600">{children}</div>
+      {action ? <div className="mx-auto mt-6 max-w-[280px]">{action}</div> : null}
+    </div>
+  );
 }
 
 const ResetPasswordPage = () => {
@@ -37,14 +56,15 @@ const ResetPasswordPage = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const pwStrength = getPasswordStrength(password);
-
-  const pwRequirements = [
+  const strength = getPasswordStrength(password);
+  const requirements = [
     { met: password.length >= 8, text: 'At least 8 characters' },
     { met: /[A-Z]/.test(password), text: 'One uppercase letter' },
     { met: /[a-z]/.test(password), text: 'One lowercase letter' },
     { met: /[0-9]/.test(password), text: 'One number' },
   ];
+  const mismatch = Boolean(confirmPassword) && password !== confirmPassword;
+  const canSubmit = password.length >= 8 && password === confirmPassword;
 
   useEffect(() => {
     const validateToken = async () => {
@@ -70,15 +90,16 @@ const ResetPasswordPage = () => {
     validateToken();
   }, [token]);
 
-  const handleSubmit = async (values) => {
-    if (values.newPassword !== values.confirmPassword) {
+  const handleSubmit = async event => {
+    event.preventDefault();
+    if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
     setSubmitting(true);
     setError('');
     try {
-      await authApi.resetPassword(token, values.newPassword);
+      await authApi.resetPassword(token, password);
       setResetSuccess(true);
     } catch (e) {
       setError(e.message || 'Failed to reset password');
@@ -90,9 +111,13 @@ const ResetPasswordPage = () => {
   if (loading) {
     return (
       <AuthLayout>
-        <div className={styles.textCenter} style={{ padding: '40px 0' }}>
-          <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 28 }} aria-hidden="true" />
-          <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>Validating reset link...</Text>
+        <div
+          className="flex min-h-56 w-full flex-col items-center justify-center gap-3 text-center"
+          role="status"
+          aria-live="polite"
+        >
+          <span className="icon-[svg-spinners--eclipse] text-2xl text-[#1976d2]" aria-hidden="true" />
+          <p className="m-0 text-sm text-slate-600">Validating reset link…</p>
         </div>
       </AuthLayout>
     );
@@ -101,18 +126,19 @@ const ResetPasswordPage = () => {
   if (resetSuccess) {
     return (
       <AuthLayout>
-        <div className={styles.textCenter} style={{ padding: '20px 0' }}>
-          <div className={styles.statusIconSuccess}>
-            <CheckCircleOutlined style={{ fontSize: 28, color: 'var(--text-success)' }} />
-          </div>
-          <Title level={4} className={styles.statusTitle}>Password Reset!</Title>
-          <Text className={styles.statusBody}>
-            Your password has been updated successfully. You can now sign in with your new password.
-          </Text>
-          <Button type="primary" onClick={() => navigate('/login')} className={styles.authBtn} style={{ marginTop: 20 }}>
-            Sign In
-          </Button>
-        </div>
+        <StatusPanel
+          tone="success"
+          icon={CheckCircle2}
+          title="Password Reset!"
+          action={
+            <AuthButton onClick={() => navigate('/login')}>Sign In</AuthButton>
+          }
+        >
+          <p className="m-0">
+            Your password has been updated successfully. You can now sign in with your new
+            password.
+          </p>
+        </StatusPanel>
       </AuthLayout>
     );
   }
@@ -120,81 +146,110 @@ const ResetPasswordPage = () => {
   if (!valid) {
     return (
       <AuthLayout>
-        <div className={styles.textCenter} style={{ padding: '20px 0' }}>
-          <div className={styles.statusIconError}>
-            <ExclamationCircleOutlined style={{ fontSize: 28, color: 'var(--text-danger)' }} />
-          </div>
-          <Title level={4} className={styles.statusTitle}>Invalid Link</Title>
-          <Text className={styles.statusBody}>
-            {error || 'This reset link is invalid or has expired.'}
-          </Text>
-          <Button type="primary" onClick={() => navigate('/forgot-password')} className={styles.authBtn} style={{ marginTop: 20 }}>
-            Request New Link
-          </Button>
-        </div>
+        <StatusPanel
+          tone="error"
+          icon={CircleAlert}
+          title="Invalid Link"
+          action={
+            <AuthButton onClick={() => navigate('/forgot-password')}>Request New Link</AuthButton>
+          }
+        >
+          <p className="m-0">{error || 'This reset link is invalid or has expired.'}</p>
+        </StatusPanel>
       </AuthLayout>
     );
   }
 
   return (
     <AuthLayout>
-      <div className={styles.header}>
-        <Title level={3} className={styles.headerTitle}>Reset Password</Title>
-        <Text className={styles.headerSubtitle}>
-          {userName ? `Hi ${userName}, ` : ''}Create a new strong password for your account
-        </Text>
-      </div>
-
-      {error && (
-        <Alert message={error} type="error" showIcon closable onClose={() => setError('')} style={{ marginBottom: 16, borderRadius: 'var(--radius-md)' }} />
-      )}
-
-      <Form layout="vertical" onFinish={handleSubmit} requiredMark={false} size="large"
-        onValuesChange={(changed) => {
-          if (changed.newPassword) setPassword(changed.newPassword);
-          if (changed.confirmPassword) setConfirmPassword(changed.confirmPassword);
-        }}>
-        <Form.Item name="newPassword" rules={[{ required: true, message: 'Password required' }, { min: 8, message: 'Minimum 8 characters' }]}>
-          <Input.Password prefix={<LockOutlined style={{ color: 'var(--text-secondary)' }} />} placeholder="New password" autoComplete="new-password" />
-        </Form.Item>
-
-        {password && (
-          <div className={styles.strengthBar}>
-            <div className={styles.strengthHeader}>
-              <Text className={styles.strengthLabel}>Strength:</Text>
-              <Text className={styles.strengthValue} style={{ color: pwStrength.color }}>{pwStrength.label}</Text>
-            </div>
-            <Progress percent={pwStrength.percent} strokeColor={pwStrength.color} showInfo={false} size="small" strokeWidth={4} />
-          </div>
-        )}
-
-        <Form.Item name="confirmPassword" rules={[
-          { required: true, message: 'Please confirm password' },
-          ({ getFieldValue }) => ({ validator(_, value) { return !value || getFieldValue('newPassword') === value ? Promise.resolve() : Promise.reject(new Error('Passwords do not match')); } }),
-        ]}>
-          <Input.Password prefix={<LockOutlined style={{ color: 'var(--text-secondary)' }} />} placeholder="Confirm new password" autoComplete="new-password" />
-        </Form.Item>
-
-        <div className={styles.requirements}>
-          <Text className={styles.requirementsTitle}>Password Requirements</Text>
-          <div className={styles.requirementsGrid}>
-            {pwRequirements.map((req, i) => (
-              <div key={i} className={req.met ? styles.requirementMet : styles.requirementUnmet}>
-                <div className={req.met ? styles.requirementDotMet : styles.requirementDotUnmet} />
-                <span>{req.text}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <Form.Item style={{ marginBottom: 0 }}>
-          <Button type="primary" htmlType="submit" loading={submitting} block
-            disabled={!password || !confirmPassword || password !== confirmPassword || password.length < 8}
-            className={styles.authBtn}>
+      <div className="w-full">
+        <header className="mb-7">
+          <h1 className="m-0 text-[26px] leading-tight font-semibold tracking-[-0.02em] text-slate-900 sm:text-[30px]">
             Reset Password
-          </Button>
-        </Form.Item>
-      </Form>
+          </h1>
+          <p className="m-0 mt-2 text-sm leading-6 text-slate-600">
+            {userName ? `Hi ${userName}, ` : ''}Create a new strong password for your account
+          </p>
+        </header>
+
+        <form onSubmit={handleSubmit} noValidate className="grid gap-[20px]">
+          <AuthError message={error} className="mb-0" />
+
+          <div className="grid gap-2">
+            <PasswordField
+              id="new-password"
+              label="New password"
+              autoComplete="new-password"
+              placeholder="New password"
+              value={password}
+              onChange={event => setPassword(event.target.value)}
+            />
+            {password ? (
+              <div className="grid gap-1.5">
+                <div className="flex items-center justify-between text-[11px] leading-4 text-slate-600">
+                  <span>
+                    Strength:{' '}
+                    <span className={cn('font-semibold', strength.text)}>{strength.label}</span>
+                  </span>
+                </div>
+                <div
+                  className="h-1 w-full overflow-hidden rounded-full bg-slate-200"
+                  role="progressbar"
+                  aria-label="Password strength"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={strength.percent}
+                >
+                  <div
+                    className={cn('h-full rounded-full transition-[width]', strength.bar)}
+                    style={{ width: `${strength.percent}%` }}
+                  />
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <PasswordField
+            id="confirm-password"
+            label="Confirm new password"
+            autoComplete="new-password"
+            placeholder="Confirm new password"
+            value={confirmPassword}
+            onChange={event => setConfirmPassword(event.target.value)}
+            error={mismatch ? 'Passwords do not match.' : ''}
+          />
+
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <p className="m-0 mb-1.5 text-[11px] font-semibold tracking-wide text-slate-600 uppercase">
+              Password Requirements
+            </p>
+            <ul className="m-0 grid list-none grid-cols-1 gap-1 p-0 sm:grid-cols-2">
+              {requirements.map(requirement => (
+                <li
+                  key={requirement.text}
+                  className={cn(
+                    'flex items-center gap-1.5 text-[11px] leading-5',
+                    requirement.met ? 'text-emerald-700' : 'text-slate-600'
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'size-1.5 shrink-0 rounded-full',
+                      requirement.met ? 'bg-emerald-600' : 'bg-slate-400'
+                    )}
+                    aria-hidden="true"
+                  />
+                  {requirement.text}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <AuthButton loading={submitting} loadingText="Resetting password…" disabled={!canSubmit}>
+            Reset Password
+          </AuthButton>
+        </form>
+      </div>
     </AuthLayout>
   );
 };

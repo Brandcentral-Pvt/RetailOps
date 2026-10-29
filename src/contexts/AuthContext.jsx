@@ -49,7 +49,11 @@ export const AuthProvider = ({ children }) => {
                         setUser(normalized);
                         localStorage.setItem('user', JSON.stringify(normalized));
                     } else throw new Error('Invalid user data');
-                } else throw new Error('Session expired');
+                } else if (response.status === 401) {
+                    // Anonymous visitor (e.g. sign-in page): no session to restore.
+                    localStorage.removeItem('user');
+                    setUser(null);
+                } else throw new Error(`Session check failed (${response.status})`);
             } catch (err) {
                 console.warn('Auth initialization warning:', err.message);
                 localStorage.removeItem('user');

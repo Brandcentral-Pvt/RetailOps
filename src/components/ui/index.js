@@ -1,5 +1,5 @@
-export { Button } from './Button';
-export { Card } from './Card';
-export { Input } from './Input';
+export { Button } from './button';
+export { Card } from './card';
+export { Input } from './input';
 export { Badge } from './Badge';
 export { StatCard } from './StatCard';

@@ -44,10 +44,11 @@ const ReturnPercentageModal = ({ item, isOpen, onClose, onSave }) => {
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-700">Return Percentage (%)</label>
+            <label htmlFor="return-percent" className="block text-sm font-medium text-slate-700">Return Percentage (%)</label>
             <Input
+              id="return-percent"
               type="number"
-              inputClassName="w-full"
+              className="w-full"
               placeholder="0-100"
               value={returnPercent}
               onChange={(e) => setReturnPercent(e.target.value)}
@@ -75,10 +76,11 @@ const ReturnPercentageModal = ({ item, isOpen, onClose, onSave }) => {
         </Card>
 
         <div className="flex justify-end gap-2 mt-6">
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="primary" icon={Save} onClick={handleSave}>
+          <Button onClick={handleSave}>
+            <Save className="size-4" />
             Save
           </Button>
         </div>
