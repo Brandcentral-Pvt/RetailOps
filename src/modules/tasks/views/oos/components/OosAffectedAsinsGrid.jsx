@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
-import { Table, Tag, Space, Button, Tooltip, Typography } from 'antd';
+import { Table, Tag, Space, Button, Typography } from 'antd';
 import { PlayCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 const { Text } = Typography;
 
@@ -230,8 +231,13 @@ const COLUMN_DEFINITIONS = [
             Rev: {r.revision || 1}
           </Text>
           {r.exceptionReason && (
-            <Tooltip title={r.exceptionReason}>
-              <Tag color="orange">Exception</Tag>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Tag color="orange">Exception</Tag>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{r.exceptionReason}</p>
+              </TooltipContent>
             </Tooltip>
           )}
         </Space>
@@ -342,8 +348,13 @@ export function PriorityTag({ group, isNew, firstSeen }) {
       <Tag color="purple">New ASIN</Tag>
       {priority}
       {firstSeen && (
-        <Tooltip title={`First seen: ${dayjs(firstSeen).format('DD MMM YYYY')}`}>
-          <Tag color="purple">NEW_ASIN_TO_20</Tag>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Tag color="purple">NEW_ASIN_TO_20</Tag>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>First seen: {dayjs(firstSeen).format('DD MMM YYYY')}</p>
+          </TooltipContent>
         </Tooltip>
       )}
     </Space>
@@ -353,8 +364,13 @@ export function PriorityTag({ group, isNew, firstSeen }) {
 function ClassificationTag({ classification, ruleId, confidence }) {
   const color = CLASSIFICATION_COLORS[classification] || 'default';
   return (
-    <Tooltip title={`Rule: ${ruleId || '—'} · Confidence: ${confidence != null ? confidence + '%' : '—'}`}>
-      <Tag color={color}>{classification}</Tag>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Tag color={color}>{classification}</Tag>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>Rule: {ruleId || '—'} · Confidence: {confidence != null ? confidence + '%' : '—'}</p>
+      </TooltipContent>
     </Tooltip>
   );
 }
@@ -362,12 +378,15 @@ function ClassificationTag({ classification, ruleId, confidence }) {
 function ResyncStatusTag({ status, jobId, requestedAt, observationTime }) {
   const color = RESYNC_STATUS_COLORS[status] || 'default';
   return (
-    <Tooltip title={[
-      <div key="1">Job ID: {jobId || '—'}</div>,
-      <div key="2">Requested: {requestedAt ? dayjs(requestedAt).format('DD MMM HH:mm') : '—'}</div>,
-      <div key="3">Observed: {observationTime ? dayjs(observationTime).format('DD MMM HH:mm') : '—'}</div>,
-    ]}>
-      <Tag color={color}>{status}</Tag>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Tag color={color}>{status}</Tag>
+      </TooltipTrigger>
+      <TooltipContent>
+        <div>Job ID: {jobId || '—'}</div>
+        <div>Requested: {requestedAt ? dayjs(requestedAt).format('DD MMM HH:mm') : '—'}</div>
+        <div>Observed: {observationTime ? dayjs(observationTime).format('DD MMM HH:mm') : '—'}</div>
+      </TooltipContent>
     </Tooltip>
   );
 }
@@ -375,12 +394,15 @@ function ResyncStatusTag({ status, jobId, requestedAt, observationTime }) {
 function IncidentTag({ status, owner, communicationStatus, followUpDate }) {
   const color = INCIDENT_STATUS_COLORS[status] || 'default';
   return (
-    <Tooltip title={[
-      <div key="1">Owner: {owner || '—'}</div>,
-      <div key="2">Communication: {communicationStatus || '—'}</div>,
-      <div key="3">Follow-up: {followUpDate ? dayjs(followUpDate).format('DD MMM YYYY') : '—'}</div>,
-    ]}>
-      <Tag color={color}>{status}</Tag>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Tag color={color}>{status}</Tag>
+      </TooltipTrigger>
+      <TooltipContent>
+        <div>Owner: {owner || '—'}</div>
+        <div>Communication: {communicationStatus || '—'}</div>
+        <div>Follow-up: {followUpDate ? dayjs(followUpDate).format('DD MMM YYYY') : '—'}</div>
+      </TooltipContent>
     </Tooltip>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Drawer, Badge, Tabs, Tooltip, Button, Empty, Spin } from 'antd';
+import { Drawer, Badge, Tabs, Button, Empty, Spin } from 'antd';
 import {
   BellOutlined,
   CheckOutlined,
@@ -16,6 +16,7 @@ import { useSocket } from '../../contexts/SocketContext';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
 import { formatRelativeTime } from './headerHooks';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 const typeIcons = {
   success: <CheckCircleFilled />,
@@ -208,16 +209,21 @@ const NotificationCenter = () => {
 
   return (
     <>
-      <Tooltip title="Notifications" placement="bottom">
-        <button
-          className="header-icon-btn"
-          onClick={() => setNotifOpen(true)}
-          aria-label="Notifications"
-        >
-          <Badge count={unreadCount} size="small" offset={[-2, 2]}>
-            <BellOutlined style={{ fontSize: 'var(--font-size-lg)' }} />
-          </Badge>
-        </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            className="header-icon-btn"
+            onClick={() => setNotifOpen(true)}
+            aria-label="Notifications"
+          >
+            <Badge count={unreadCount} size="small" offset={[-2, 2]}>
+              <BellOutlined style={{ fontSize: 'var(--font-size-lg)' }} />
+            </Badge>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          <p>Notifications</p>
+        </TooltipContent>
       </Tooltip>
 
       <Drawer
@@ -239,14 +245,24 @@ const NotificationCenter = () => {
               )}
             </div>
             <div style={{ display: 'flex', gap: '4px' }}>
-              <Tooltip title="Mark all as read">
-                <Button type="text" size="small" icon={<CheckOutlined />}
-                  onClick={markAllRead} disabled={unreadCount === 0} style={{ color: '#94A3B8' }} />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="text" size="small" icon={<CheckOutlined />}
+                    onClick={markAllRead} disabled={unreadCount === 0} style={{ color: '#94A3B8' }} />
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Mark all as read</p>
+                </TooltipContent>
               </Tooltip>
-              <Tooltip title="Clear read notifications">
-                <Button type="text" size="small" icon={<DeleteOutlined />}
-                  onClick={clearAllRead} disabled={!notifications.some(n => n.read)}
-                  style={{ color: '#94A3B8' }} />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="text" size="small" icon={<DeleteOutlined />}
+                    onClick={clearAllRead} disabled={!notifications.some(n => n.read)}
+                    style={{ color: '#94A3B8' }} />
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Clear read notifications</p>
+                </TooltipContent>
               </Tooltip>
             </div>
           </div>

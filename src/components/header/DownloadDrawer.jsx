@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Tooltip } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import { useHeader } from '../../contexts/HeaderContext';
 import { exportApi } from '../../services/api';
 import DownloadsDrawer from '../common/DownloadsDrawer';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 const DownloadDrawer = () => {
   const { downloadOpen, setDownloadOpen } = useHeader();
@@ -60,28 +60,33 @@ const DownloadDrawer = () => {
 
   return (
     <>
-      <Tooltip title="Downloads" placement="bottom">
-        <button
-          className="header-icon-btn"
-          onClick={handleOpen}
-          aria-label="Downloads"
-          style={{ position: 'relative' }}
-        >
-          <DownloadOutlined style={{ fontSize: 'var(--font-size-lg)' }} />
-          {hasNew && (
-            <span
-              style={{
-                position: 'absolute',
-                top: 4,
-                right: 4,
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background: '#1976D2',
-              }}
-            />
-          )}
-        </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            className="header-icon-btn"
+            onClick={handleOpen}
+            aria-label="Downloads"
+            style={{ position: 'relative' }}
+          >
+            <DownloadOutlined style={{ fontSize: 'var(--font-size-lg)' }} />
+            {hasNew && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: 4,
+                  right: 4,
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: '#1976D2',
+                }}
+              />
+            )}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          <p>Downloads</p>
+        </TooltipContent>
       </Tooltip>
 
       <DownloadsDrawer

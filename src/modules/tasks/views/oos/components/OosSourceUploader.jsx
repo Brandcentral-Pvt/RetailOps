@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { App, Card, Upload, Button, Space, Tag, Alert, Divider, Typography, List, Badge, Tooltip, Row, Col } from 'antd';
+import { App, Card, Upload, Button, Space, Tag, Alert, Divider, Typography, List, Badge, Row, Col } from 'antd';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { UploadOutlined, FileOutlined, DownloadOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import tasksApi from '../../../services/tasksApi';
 import dayjs from 'dayjs';
@@ -155,11 +156,31 @@ function OosSourceUploader({ task, activeRun, canManage }) {
               <List.Item
                 actions={
                   canManage && !item.IsValid ? [
-                    <Tooltip key="reupload" title="Re-upload"><Button size="small" icon={<ReloadOutlined />} disabled={reuploadLoading[item.Id || item.id]} onClick={() => handleReupload(item, source.value)}>Re-upload</Button></Tooltip>,
-                    <Tooltip key="delete" title="Delete upload"><Button size="small" danger icon={<DeleteOutlined />} onClick={() => setFileError('Delete not implemented')}>Delete</Button></Tooltip>,
+                    <Tooltip key="reupload">
+                      <TooltipTrigger asChild>
+                        <Button size="small" icon={<ReloadOutlined />} disabled={reuploadLoading[item.Id || item.id]} onClick={() => handleReupload(item, source.value)}>Re-upload</Button>
+                      </TooltipTrigger>
+                      <TooltipContent><p>Re-upload</p></TooltipContent>
+                    </Tooltip>,
+                    <Tooltip key="delete">
+                      <TooltipTrigger asChild>
+                        <Button size="small" danger icon={<DeleteOutlined />} onClick={() => setFileError('Delete not implemented')}>Delete</Button>
+                      </TooltipTrigger>
+                      <TooltipContent><p>Delete upload</p></TooltipContent>
+                    </Tooltip>,
                   ] : [
-                    <Tooltip key="download" title="Download original"><Button size="small" icon={<DownloadOutlined />} onClick={() => handleDownload(item)}>Download</Button></Tooltip>,
-                    <Tooltip key="reupload" title="Re-upload new version"><Button size="small" icon={<ReloadOutlined />} disabled={reuploadLoading[item.Id || item.id]} onClick={() => handleReupload(item, source.value)}>New Version</Button></Tooltip>,
+                    <Tooltip key="download">
+                      <TooltipTrigger asChild>
+                        <Button size="small" icon={<DownloadOutlined />} onClick={() => handleDownload(item)}>Download</Button>
+                      </TooltipTrigger>
+                      <TooltipContent><p>Download original</p></TooltipContent>
+                    </Tooltip>,
+                    <Tooltip key="reupload">
+                      <TooltipTrigger asChild>
+                        <Button size="small" icon={<ReloadOutlined />} disabled={reuploadLoading[item.Id || item.id]} onClick={() => handleReupload(item, source.value)}>New Version</Button>
+                      </TooltipTrigger>
+                      <TooltipContent><p>Re-upload new version</p></TooltipContent>
+                    </Tooltip>,
                   ]
                 }
               >

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { App, Card, Button, Space, Tag, Alert, Divider, List, Tooltip, Typography } from 'antd';
+import { App, Card, Button, Space, Tag, Alert, Divider, List, Typography } from 'antd';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { DownloadOutlined, FileExcelOutlined } from '@ant-design/icons';
 import tasksApi from '../../../services/tasksApi';
 import dayjs from 'dayjs';
@@ -88,11 +89,21 @@ function OosExportPanel({ taskId, runId, canManage }) {
           renderItem={item => (
             <List.Item
               actions={[
-                <Tooltip key="download" title="Download">
-                  <Button size="small" icon={<DownloadOutlined />} onClick={() => handleDownload(item.Id, item.FileName || `oos-${item.RunId}-v${item.Version}.xlsx`)}>Download</Button>
+                <Tooltip key="download">
+                  <TooltipTrigger asChild>
+                    <Button size="small" icon={<DownloadOutlined />} onClick={() => handleDownload(item.Id, item.FileName || `oos-${item.RunId}-v${item.Version}.xlsx`)}>Download</Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Download</p>
+                  </TooltipContent>
                 </Tooltip>,
-                <Tooltip key="details" title="View details">
-                  <Button size="small" onClick={() => message.info('Export details are not implemented yet.')}>Details</Button>
+                <Tooltip key="details">
+                  <TooltipTrigger asChild>
+                    <Button size="small" onClick={() => message.info('Export details are not implemented yet.')}>Details</Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>View details</p>
+                  </TooltipContent>
                 </Tooltip>,
               ]}
             >
