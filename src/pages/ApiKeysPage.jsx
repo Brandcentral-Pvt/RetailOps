@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import { Copy, Check, ChevronRight, Eye, EyeOff, RefreshCw, Plus, Trash2, Edit, AlertCircle, X } from 'lucide-react';
 import api from '../services/api';
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button, Form, FormGroup, Label, Input, Alert } from 'reactstrap';
-import 'bootstrap/dist/css/bootstrap.min.css';
 import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
 import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 

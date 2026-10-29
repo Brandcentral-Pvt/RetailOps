@@ -1,42 +1,46 @@
 import { useState } from 'react';
-import { Eye, EyeOff, LockKeyhole } from 'lucide-react';
-import styles from './Auth.module.css';
+import { Eye, EyeOff } from 'lucide-react';
+import AuthField from './AuthField';
 
-export default function PasswordField({ inputRef, error, disabled, ...props }) {
+export default function PasswordField({
+  inputRef,
+  error,
+  disabled,
+  id = 'login-password',
+  label = 'Password',
+  autoComplete = 'current-password',
+  placeholder = 'Enter your password',
+  hint,
+  ...props
+}) {
   const [visible, setVisible] = useState(false);
   const VisibilityIcon = visible ? EyeOff : Eye;
 
   return (
-    <div className={styles.field}>
-      <label className={styles.label} htmlFor="login-password">Password</label>
-      <div className={`${styles.inputWrap} ${error ? styles.inputWrapInvalid : ''}`}>
-        <LockKeyhole className={styles.inputIcon} size={18} strokeWidth={1.6} aria-hidden="true" />
-        <input
-          {...props}
-          ref={inputRef}
-          className={styles.textInput}
-          id="login-password"
-          name="password"
-          type={visible ? 'text' : 'password'}
-          autoComplete="current-password"
-          placeholder="Enter your password"
-          required
-          readOnly={disabled}
-          aria-invalid={Boolean(error)}
-          aria-describedby={error ? 'password-error' : undefined}
-        />
+    <AuthField
+      {...props}
+      inputRef={inputRef}
+      id={id}
+      label={label}
+      error={error}
+      hint={hint}
+      type={visible ? 'text' : 'password'}
+      autoComplete={autoComplete}
+      placeholder={placeholder}
+      disabled={disabled}
+      required
+      trailing={
         <button
-          className={styles.visibilityToggle}
+          className="flex size-10 items-center justify-center rounded-md text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-[#1d4ed8] focus-visible:ring-offset-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
           type="button"
           onClick={() => setVisible(value => !value)}
           aria-label={visible ? 'Hide password' : 'Show password'}
           aria-pressed={visible}
           disabled={disabled}
         >
-          <VisibilityIcon size={18} strokeWidth={1.6} aria-hidden="true" />
+          <VisibilityIcon size={18} strokeWidth={1.7} aria-hidden="true" />
         </button>
-      </div>
-      {error && <p className={styles.fieldError} id="password-error">{error}</p>}
-    </div>
+      }
+    />
   );
 }

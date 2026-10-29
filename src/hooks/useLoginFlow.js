@@ -15,6 +15,22 @@ function lifetime(value, fallback) {
   return Number.isFinite(Number(value)) && Number(value) >= 0 ? Number(value) : fallback;
 }
 
+/**
+ * Credential inputs must always be primitives. React change handlers, masked
+ * inputs and future call sites can hand over an event or an object; storing it
+ * verbatim would render "[object Object]" inside the controlled input.
+ */
+function normalizeCredential(value) {
+  if (typeof value === 'string') return value;
+  if (value == null) return '';
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (typeof value === 'object') {
+    const candidate = value.target?.value ?? value.currentTarget?.value ?? value.value;
+    return typeof candidate === 'string' ? candidate : '';
+  }
+  return '';
+}
+
 function successPause(signal) {
   return new Promise((resolve, reject) => {
     const abort = () => {
@@ -80,7 +96,7 @@ export default function useLoginFlow() {
     requestRef.current = controller;
     setState(previous => ({ ...previous, status: 'authenticating', error: null }));
     try {
-      const result = await login(state.email.trim(), state.password, { deferSession: true, signal: controller.signal });
+      const result = await login(normalizeCredential(state.email).trim(), normalizeCredential(state.password), { deferSession: true, signal: controller.signal });
       if (!isCurrent(controller)) return;
       if (!result.success) throw result;
       if (result.requiresOtp) {
@@ -166,7 +182,8 @@ export default function useLoginFlow() {
   }
 
   function updateCredentials(field, value) {
-    setState(previous => ({ ...previous, [field]: value, error: null }));
+    if (field !== 'email' && field !== 'password') return;
+    setState(previous => ({ ...previous, [field]: normalizeCredential(value), error: null }));
   }
 
   return {

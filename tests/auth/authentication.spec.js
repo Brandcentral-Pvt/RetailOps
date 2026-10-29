@@ -310,8 +310,9 @@ test('verification is single-flight and stores the genuine response before setup
   expect(body).toEqual({ tempToken: challenge.tempToken, otp: '123456', trustDevice: true });
   release();
   await expect(page).toHaveURL(/\/setup-wizard$/);
-  expect(await page.evaluate(() => localStorage.getItem('refreshToken'))).toBe(session.data.refreshToken);
-  expect(await page.evaluate(() => localStorage.getItem('authToken'))).toBe(session.data.accessToken);
+  expect(await page.evaluate(() => localStorage.getItem('refreshToken'))).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem('authToken'))).toBeNull();
+  expect(JSON.parse(await page.evaluate(() => localStorage.getItem('user'))).email).toBe(email);
 });
 
 test('Back cancels pending verification so a late success cannot sign in', async ({ page }) => {
@@ -330,12 +331,13 @@ test('Back cancels pending verification so a late success cannot sign in', async
   await expect(page).toHaveURL(/\/login$/);
 });
 
-test('trusted-device login skips OTP and preserves setup routing and refresh tokens', async ({ page }) => {
+test('trusted-device login skips OTP and preserves setup routing and the session user', async ({ page }) => {
   await page.route('**/api/auth/login', route => json(route, { ...session, trustedDevice: true, requiresSetup: true }));
   await page.goto('/login');
   await credentials(page);
   await expect(page).toHaveURL(/\/setup-wizard$/);
-  expect(await page.evaluate(() => localStorage.getItem('refreshToken'))).toBe(session.data.refreshToken);
+  expect(await page.evaluate(() => localStorage.getItem('refreshToken'))).toBeNull();
+  expect(JSON.parse(await page.evaluate(() => localStorage.getItem('user'))).email).toBe(email);
 });
 
 test('a malformed success response cannot authenticate the user', async ({ page }) => {

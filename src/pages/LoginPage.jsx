@@ -5,7 +5,6 @@ import useLoginFlow from '../hooks/useLoginFlow';
 import AuthLayout from '../components/auth/AuthLayout';
 import LoginForm from '../components/auth/LoginForm';
 import OtpVerification from '../components/auth/OtpVerification';
-import styles from '../components/auth/Auth.module.css';
 
 export default function LoginPage() {
   const { isAuthenticated, user } = useAuth();
@@ -27,35 +26,33 @@ export default function LoginPage() {
 
   return (
     <AuthLayout>
-      <div className={styles.journey}>
-        {flow.stage === 'otp' && flow.challenge ? (
-          <OtpVerification
-            challenge={flow.challenge}
-            otp={flow.otp}
-            trustDevice={flow.trustDevice}
-            status={flow.status}
-            error={flow.error}
-            notice={flow.notice}
-            retryAt={flow.retryAt}
-            onOtpChange={flow.setOtp}
-            onTrustChange={flow.setTrustDevice}
-            onVerify={flow.verifyOtp}
-            onResend={flow.resendOtp}
-            onBack={flow.backToLogin}
-          />
-        ) : (
-          <LoginForm
-            email={flow.email}
-            password={flow.password}
-            onEmailChange={flow.setEmail}
-            onPasswordChange={flow.setPassword}
-            onSubmit={flow.submitLogin}
-            status={flow.status}
-            error={flow.error}
-            retryAt={flow.retryAt}
-          />
-        )}
-      </div>
+      {flow.stage === 'otp' && flow.challenge ? (
+        <OtpVerification
+          challenge={flow.challenge}
+          otp={flow.otp}
+          trustDevice={flow.trustDevice}
+          status={flow.status}
+          error={flow.error}
+          notice={flow.notice}
+          retryAt={flow.retryAt}
+          onOtpChange={flow.setOtp}
+          onTrustChange={flow.setTrustDevice}
+          onVerify={flow.verifyOtp}
+          onResend={flow.resendOtp}
+          onBack={flow.backToLogin}
+        />
+      ) : (
+        <LoginForm
+          email={flow.email}
+          password={flow.password}
+          onEmailChange={flow.setEmail}
+          onPasswordChange={flow.setPassword}
+          onSubmit={flow.submitLogin}
+          status={flow.status}
+          error={flow.error}
+          retryAt={flow.retryAt}
+        />
+      )}
     </AuthLayout>
   );
 }

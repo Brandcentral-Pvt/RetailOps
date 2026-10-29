@@ -79,11 +79,10 @@ const UserSettings = () => {
           </div>
 
           <div>
-            <Input
-              label="Email Address"
-              value={email}
-              disabled
-            />
+            <label htmlFor="settings-email" className="mb-1.5 block text-sm font-medium text-slate-700">
+              Email Address
+            </label>
+            <Input id="settings-email" value={email} disabled />
             <p className="mt-1 text-xs text-slate-500">
               Contact support to update your email address.
             </p>
@@ -98,8 +97,11 @@ const UserSettings = () => {
           </div>
 
           <div>
+            <label htmlFor="settings-keepa-key" className="mb-1.5 block text-sm font-medium text-slate-700">
+              Keepa API Key
+            </label>
             <Input
-              label="Keepa API Key"
+              id="settings-keepa-key"
               type="password"
               value={keepaKey}
               onChange={(e) => setKeepaKey(e.target.value)}
