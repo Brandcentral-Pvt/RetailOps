@@ -463,8 +463,11 @@ export const marketSyncApi = {
     return handleResponse(res, 'Failed to trigger live sync');
   },
 
-  getLiveSyncAllStatus: async () => {
-    const res = await fetch(`${API_BASE}/market-sync/sync-all-live/status`, {
+  getLiveSyncAllStatus: async (runId) => {
+    const url = runId
+      ? `${API_BASE}/market-sync/sync-all-live/status?runId=${runId}`
+      : `${API_BASE}/market-sync/sync-all-live/status`;
+    const res = await fetch(url, {
       headers: { ...getAuthHeader() },
     });
     return handleResponse(res, 'Failed to fetch global sync status');

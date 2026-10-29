@@ -28,7 +28,6 @@ export default function LiveSyncPage() {
   const [lastRefresh, setLastRefresh] = useState(null);
   const [syncRunning, setSyncRunning] = useState(false);
   const [syncProgress, setSyncProgress] = useState(null);
-  const [syncResults, setSyncResults] = useState(null);
 
   // ── Inspector State ──
   const [metrics, setMetrics] = useState([]);
@@ -36,7 +35,6 @@ export default function LiveSyncPage() {
   const [asinInput, setAsinInput] = useState('');
   const [inspectorResults, setInspectorResults] = useState([]);
   const [inspectorLoading, setInspectorLoading] = useState(false);
-  const [lastFetch, setLastFetch] = useState(null);
   const [aiEnabled, setAiEnabled] = useState(true);
 
   // ── Active Tab ──
@@ -49,7 +47,7 @@ export default function LiveSyncPage() {
       const res = await fetch(`${API_BASE}/live-sync-tracker/sellers`, { headers: authHeaders() }).then(r => r.json());
       if (res.success) setSellers(res.data || []);
       setLastRefresh(new Date());
-    } catch (err) { console.error(err); }
+    } catch { console.error; }
     finally { setLoadingSellers(false); }
   }, []);
 
@@ -57,10 +55,10 @@ export default function LiveSyncPage() {
     try {
       const res = await fetch(`${API_BASE}/live-data/metrics`, { headers: authHeaders() }).then(r => r.json());
       if (res.success) { setMetrics(res.data); setSelectedMetrics(res.data.map(m => m.key)); }
-    } catch (e) { /* metrics endpoint may not exist */ }
+    } catch { /* metrics endpoint may not exist */ }
   }, []);
 
-  useEffect(() => { loadSellers(); loadMetrics(); }, []);
+  useEffect(() => { loadSellers(); loadMetrics(); }, [loadSellers, loadMetrics]);
 
   // ── Stats ──
   const stats = useMemo(() => {
@@ -83,7 +81,7 @@ export default function LiveSyncPage() {
       }).then(r => r.json());
       if (res.success) {
         message.success('Global sync started! Progress updates will appear below.');
-        pollSyncStatus();
+        pollSyncStatus(res.runId);
       } else {
         message.error(res.error || 'Failed to start sync');
         setSyncRunning(false);
@@ -91,22 +89,32 @@ export default function LiveSyncPage() {
     } catch (err) { message.error('Failed to start sync'); setSyncRunning(false); }
   };
 
-  const pollSyncStatus = useCallback(async () => {
+  const pollSyncStatus = useCallback(async (runId) => {
     const poll = setInterval(async () => {
       try {
-        const res = await fetch(`${API_BASE}/market-sync/sync-all-live/status`, { headers: authHeaders() }).then(r => r.json());
+        const url = runId
+          ? `${API_BASE}/market-sync/sync-all-live/status?runId=${runId}`
+          : `${API_BASE}/market-sync/sync-all-live/status`;
+        const res = await fetch(url, { headers: authHeaders() }).then(r => r.json());
         if (res.success) {
           setSyncProgress({
-            status: res.isRunning ? 'RUNNING' : 'COMPLETE',
+            status: res.isRunning ? 'RUNNING' : (res.summary?.aborted ? 'ABORTED' : 'COMPLETE'),
             activeSyncs: res.activeSyncs || 0,
             syncs: res.syncs || [],
             globalProgress: res.globalProgress || null,
           });
-          if (!res.isRunning) {
+          // Check durable run status
+          if (!res.isRunning && res.summary) {
             clearInterval(poll);
             setSyncRunning(false);
             loadSellers(); // Refresh data
-            message.success('Global live sync completed!');
+            if (res.summary.aborted) {
+              message.warning(`Global live sync aborted: ${res.summary.abortReason || 'Unknown reason'}`);
+            } else if (res.summary.failed > 0) {
+              message.warning(`Global live sync completed with ${res.summary.failed} failed sellers`);
+            } else {
+              message.success('Global live sync completed!');
+            }
           }
         } else {
           console.error('Sync status error:', res.error);

@@ -1357,6 +1357,7 @@ exports.syncAllLiveSync = async (req, res) => {
             success: true,
             message: 'Global live sync started. All sellers with Amazon ASINs will be synced.',
             estimatedTime: 'Usually completes in 5-15 minutes depending on seller count',
+            runId: started.runId
         });
     } catch (error) {
         console.error('Global Live Sync Error:', error.message);
@@ -1391,10 +1392,24 @@ exports.abortGlobalLiveSync = async (req, res) => {
 
 /**
  * Get Global Live Sync Status
+ * Accepts optional runId query parameter to fetch status from durable tracker.
+ * Falls back to in-process/Redis status if no runId provided.
  */
 exports.getGlobalLiveSyncStatus = async (req, res) => {
     try {
-        const status = await liveDataSyncService.getGlobalSyncStatus();
+        const { runId } = req.query;
+        let status;
+
+        if (runId) {
+            // Use durable tracker for specific run
+            status = await liveDataSyncService.getGlobalSyncStatusByRunId(runId);
+            if (!status) {
+                return res.status(404).json({ success: false, error: 'Run not found' });
+            }
+        } else {
+            // Fall back to in-process/Redis status
+            status = await liveDataSyncService.getGlobalSyncStatus();
+        }
         res.json({ success: true, ...status });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
