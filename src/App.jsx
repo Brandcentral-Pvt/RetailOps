@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { ConfigProvider, App as AntdApp } from 'antd';
+import TooltipUniqueProvider from 'antd/es/tooltip/UniqueProvider';
 import retailOpsTheme from './theme/antdTheme';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SidebarProvider } from './contexts/SidebarContext';
@@ -244,9 +245,11 @@ function App() {
                           theme={retailOpsTheme}
                           spin={{ indicator: <span className="icon-[svg-spinners--eclipse]" aria-hidden="true" /> }}
                         >
-                        <AntdApp>
-                          <AppRoutes />
-                        </AntdApp>
+                          <TooltipUniqueProvider>
+                            <AntdApp>
+                              <AppRoutes />
+                            </AntdApp>
+                          </TooltipUniqueProvider>
                         </ConfigProvider>
                       </ToastProvider>
                     </PageTitleProvider>
