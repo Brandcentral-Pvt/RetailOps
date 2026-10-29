@@ -39,7 +39,7 @@ const getInitials = (user) => {
 };
 
 export default function UserMenu() {
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission } = useAuth();
   const { setCmdOpen } = useHeader();
   const navigate = useNavigate();
 
