@@ -319,6 +319,226 @@ async function ingestUpload({
   };
 }
 
+/**
+ * Ingest BrandCentral inventory file by extracting ASIN from Model No column.
+ * BrandCentral files have Model No column (E) with data like `B0D2LK39FD` (with backticks).
+ * This function:
+ * 1. Parses the file
+ * 2. Extracts ASIN from Model No column (stripping backticks)
+ * 3. Validates it's a valid Amazon ASIN (^B0[A-Z0-9]{8}$)
+ * 4. Falls back to SKU→ASIN lookup from Asins table if needed
+ * 5. Stores observations with both ASIN and SKU
+ */
+async function ingestBrandCentralUpload({
+  runId,
+  sellerId,
+  channel,
+  fileName,
+  fileBuffer,
+  mapping,
+  createdBy,
+} = {}) {
+  if (!runId) throw httpError(400, 'runId is required', 'RUN_REQUIRED');
+  if (!fileBuffer || fileBuffer.length === 0) {
+    throw httpError(400, 'Empty file', 'EMPTY_FILE');
+  }
+
+  validateMagicBytes(fileBuffer, fileName);
+
+  const pool = await getPool();
+  const runResult = await pool
+    .request()
+    .input('id', sql.VarChar, runId)
+    .query('SELECT TOP 1 * FROM OosRuns WHERE Id = @id');
+  const run = runResult.recordset[0];
+  if (!run) throw httpError(404, 'OOS run not found', 'RUN_NOT_FOUND');
+
+  const effectiveSeller = sellerId || run.SellerId;
+  const effectiveChannel = channel || run.Channel;
+  const fileHash = hashBuffer(fileBuffer);
+
+  // Parse workbook with custom mapping
+  const normalized = parseWorkbook(fileBuffer, mapping);
+
+  // Step 1: Extract ASIN from Model No column (strip backticks, validate Amazon ASIN)
+  const ASIN_REGEX = /^B0[A-Z0-9]{8}$/;
+  const rowsWithModelNoAsin = [];
+  const rowsNeedingSkuLookup = [];
+
+  for (const row of normalized.rows) {
+    const modelNo = row.raw?.['Model No'] || row.raw?.['model no'] || row.raw?.['modelno'] || row.raw?.['model_no'];
+    if (modelNo) {
+      // Strip backticks and whitespace
+      const cleaned = String(modelNo).replace(/^`+|`+$/g, '').trim();
+      // Validate Amazon ASIN format
+      if (ASIN_REGEX.test(cleaned)) {
+        row.asin = cleaned;
+        row._asinSource = 'model_no';
+        rowsWithModelNoAsin.push(row);
+        continue;
+      }
+    }
+    rowsNeedingSkuLookup.push(row);
+  }
+
+  // Step 2: For rows without valid Model No ASIN, try SKU lookup from Asins table
+  const skuToAsin = new Map();
+  const skus = [...new Set(rowsNeedingSkuLookup.map((r) => r.sku).filter(Boolean))];
+  
+  if (skus.length > 0) {
+    const batchSize = 500;
+    for (let i = 0; i < skus.length; i += batchSize) {
+      const batch = skus.slice(i, i + batchSize);
+      const request = pool.request();
+      const placeholders = batch.map((sku, idx) => {
+        const key = `sku${idx}`;
+        request.input(key, sql.NVarChar, sku);
+        return `@${key}`;
+      });
+      const rows = await request.query(`
+        SELECT Sku, AsinCode FROM Asins
+        WHERE SellerId = @sellerId AND Marketplace = @channel AND Sku IN (${placeholders.join(',')})
+      `, { sellerId: effectiveSeller, channel: effectiveChannel });
+      for (const row of rows.recordset) {
+        skuToAsin.set(row.Sku, row.AsinCode);
+      }
+    }
+  }
+
+  // Step 3: Enrich remaining rows with ASINs from SKU lookup
+  for (const row of rowsNeedingSkuLookup) {
+    if (row.sku && skuToAsin.has(row.sku)) {
+      row.asin = skuToAsin.get(row.sku);
+      row._asinSource = 'sku_lookup';
+    }
+  }
+
+  // Combine all rows that now have valid ASINs
+  const rowsWithAsin = [
+    ...rowsWithModelNoAsin,
+    ...rowsNeedingSkuLookup.filter((r) => r.asin && isUsableAsinCode(r.asin))
+  ];
+  const rowsWithoutAsin = rowsNeedingSkuLookup.filter((r) => !r.asin || !isUsableAsinCode(r.asin));
+
+  const stored = await withTransaction(async (tx) => {
+    const existing = await tx
+      .request()
+      .input('runId', sql.VarChar, runId)
+      .input('channel', sql.NVarChar, effectiveChannel)
+      .input('sourceType', sql.VarChar, 'BRAND_CENTRAL')
+      .query('SELECT TOP 1 * FROM OosImports WHERE RunId = @runId AND Channel = @channel AND SourceType = @sourceType ORDER BY UploadRevision DESC');
+
+    let uploadRevision = 1;
+    let parentImportId = null;
+    if (existing.recordset[0]) {
+      const prior = existing.recordset[0];
+      if (prior.FileHash === fileHash) {
+        return { import: prior, idempotent: true, accepted: 0, rejected: 0, invalid: [] };
+      }
+      uploadRevision = prior.UploadRevision + 1;
+      parentImportId = prior.Id;
+    }
+
+    const storagePath = saveOriginalFile(fileBuffer, fileName, runId, 'BRAND_CENTRAL');
+
+    const accepted = rowsWithAsin.length;
+    const rejected = normalized.invalid.length + rowsWithoutAsin.length;
+    const importId = generateId();
+
+    const imp = await tx
+      .request()
+      .input('id', sql.VarChar, importId)
+      .input('runId', sql.VarChar, runId)
+      .input('sellerId', sql.VarChar, effectiveSeller)
+      .input('channel', sql.NVarChar, effectiveChannel)
+      .input('sourceType', sql.VarChar, 'BRAND_CENTRAL')
+      .input('fileName', sql.NVarChar, fileName || null)
+      .input('fileHash', sql.VarChar(128), fileHash)
+      .input('totalRows', sql.Int, normalized.rows.length)
+      .input('acceptedCount', sql.Int, accepted)
+      .input('rejectedCount', sql.Int, rejected)
+      .input('status', sql.VarChar, 'VALIDATED')
+      .input('mappingJson', sql.NVarChar(sql.MAX), JSON.stringify({ ...DEFAULT_MAPPING, ...(mapping || {}) }))
+      .input('validationJson', sql.NVarChar(sql.MAX), JSON.stringify({
+        rejected: [
+          ...normalized.invalid.map((r) => ({ line: r.index + 1, asin: r.asin || null, sku: r.sku, reason: r.invalidReason })),
+          ...rowsWithoutAsin.map((r) => ({ line: r.index + 1, asin: null, sku: r.sku, reason: 'NO_VALID_ASIN_FOUND' })),
+        ],
+        asinSources: {
+          modelNoDirect: rowsWithModelNoAsin.length,
+          skuLookup: rowsWithAsin.length - rowsWithModelNoAsin.length,
+        },
+      }))
+      .input('createdBy', sql.VarChar, createdBy || null)
+      .input('originalFileHash', sql.VarChar(128), fileHash)
+      .input('originalFileName', sql.NVarChar, fileName || null)
+      .input('originalFileSize', sql.BigInt, fileBuffer.length)
+      .input('originalFileContentType', sql.NVarChar, 'application/octet-stream')
+      .input('originalFileStoragePath', sql.NVarChar, storagePath)
+      .input('parserVersion', sql.VarChar, PARSER_VERSION)
+      .input('uploadRevision', sql.Int, uploadRevision)
+      .input('parentImportId', sql.VarChar, parentImportId)
+      .input('createdBy', sql.VarChar, createdBy || null)
+      .query(`
+        INSERT INTO OosImports
+          (Id, RunId, SellerId, Channel, SourceType, FileName, FileHash, TotalRows, AcceptedCount, RejectedCount,
+           Status, MappingJson, ValidationJson, CreatedBy, CreatedAt,
+           OriginalFileHash, OriginalFileName, OriginalFileSize, OriginalFileContentType, OriginalFileStoragePath,
+           ParserVersion, UploadRevision, ParentImportId)
+        OUTPUT INSERTED.*
+        VALUES
+          (@id, @runId, @sellerId, @channel, @sourceType, @fileName, @fileHash, @totalRows, @acceptedCount, @rejectedCount,
+           @status, @mappingJson, @validationJson, @createdBy, GETUTCDATE(),
+           @originalFileHash, @originalFileName, @originalFileSize, @originalFileContentType, @originalFileStoragePath,
+           @parserVersion, @uploadRevision, @parentImportId)
+      `);
+
+    for (const r of rowsWithAsin) {
+      await tx
+        .request()
+        .input('id', sql.VarChar, generateId())
+        .input('runId', sql.VarChar, runId)
+        .input('sellerId', sql.VarChar, effectiveSeller)
+        .input('channel', sql.VarChar, effectiveChannel)
+        .input('asinCode', sql.VarChar, r.asin)
+        .input('sku', sql.NVarChar, r.sku)
+        .input('rawQuantity', sql.Decimal(18, 4), r.quantity)
+        .input('rawAvailability', sql.NVarChar, r.availability)
+        .input('rawStatus', sql.NVarChar, r.status)
+        .input('source', sql.VarChar, 'BRAND_CENTRAL')
+        .input('sourceTimestamp', sql.DateTime2, r.sourceTimestamp)
+        .input('importId', sql.VarChar, importId)
+        .input('lineNumber', sql.Int, r.index + 1)
+        .input('isValid', sql.Bit, 1)
+        .query(`
+          INSERT INTO OosObservations
+            (Id, RunId, SellerId, Channel, AsinCode, Sku, RawQuantity, RawAvailability,
+             RawStatus, Source, SourceTimestamp, ImportId, LineNumber, IsValid, CreatedAt)
+          VALUES
+            (@id, @runId, @sellerId, @channel, @asinCode, @sku, @rawQuantity, @rawAvailability,
+             @rawStatus, @source, @sourceTimestamp, @importId, @lineNumber, @isValid, GETUTCDATE())
+        `);
+    }
+
+    return imp.recordset[0];
+  });
+
+  return {
+    import: stored,
+    idempotent: false,
+    accepted,
+    rejected,
+    invalid: [
+      ...normalized.invalid.map((r) => ({ line: r.index + 1, asin: r.asin || null, sku: r.sku, reason: r.invalidReason })),
+      ...rowsWithoutAsin.map((r) => ({ line: r.index + 1, asin: null, sku: r.sku, reason: 'NO_VALID_ASIN_FOUND' })),
+    ],
+    asinSources: {
+      modelNoDirect: rowsWithModelNoAsin.length,
+      skuLookup: rowsWithAsin.length - rowsWithModelNoAsin.length,
+    },
+  };
+}
+
 async function listImports(runId) {
   const pool = await getPool();
   const result = await pool
@@ -328,4 +548,4 @@ async function listImports(runId) {
   return result.recordset;
 }
 
-module.exports = { ingestUpload, normalizeRows, parseWorkbook, listImports, hashBuffer, SOURCES };
+module.exports = { ingestUpload, normalizeRows, parseWorkbook, listImports, hashBuffer, SOURCES, ingestBrandCentralUpload };

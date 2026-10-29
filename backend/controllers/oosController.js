@@ -310,3 +310,207 @@ exports.submit = async (req, res) => {
     return res.status(result.ok ? 200 : 422).json({ success: result.ok, ...result });
   } catch (err) { return fail(res, err); }
 };
+
+/**
+ * Ingest dual inventory upload (Vendor Central + BrandCentral) for a run.
+ * Accepts multipart/form-data with two files:
+ *   - vendorCentralFile: CSV/Excel with ASIN, Available units, Status, Warehouse
+ *   - brandCentralFile: CSV/Excel with SKU/Model No, old_quantity, new_quantity, mrp
+ * Stores each as separate import with sourceType VENDOR_CENTRAL / BRAND_CENTRAL.
+ */
+exports.ingestInventoryUpload = async (req, res) => {
+  try {
+    const run = req.oosRun || await runScoped(req, res, req.params.id);
+    if (!run) return undefined;
+
+    const files = req.files || {};
+    const vendorFile = files.vendorCentralFile?.[0];
+    const brandFile = files.brandCentralFile?.[0];
+
+    if (!vendorFile && !brandFile) {
+      return res.status(400).json({ success: false, code: 'NO_FILES', error: 'At least one file (vendorCentralFile or brandCentralFile) is required' });
+    }
+
+    // Custom column mappings for each source type
+    const vendorMapping = {
+      asin: 'ASIN',
+      sku: 'SKU',
+      quantity: 'Available units',
+      availability: 'Status',
+      status: 'Status',
+      timestamp: null, // Not in Vendor Central file
+    };
+
+    const brandMapping = {
+      asin: null, // BrandCentral doesn't have ASIN directly, uses Model No column
+      sku: 'Model No', // or 'sku' column
+      quantity: 'old_quantity', // Store ONLY old_quantity from BrandCentral
+      availability: null,
+      status: null,
+      timestamp: null,
+    };
+
+    const results = {};
+
+    if (vendorFile) {
+      const vendorResult = await uploads.ingestUpload({
+        runId: run.Id,
+        sellerId: run.SellerId,
+        channel: run.Channel,
+        sourceType: 'VENDOR_CENTRAL',
+        fileName: vendorFile.originalname,
+        fileBuffer: vendorFile.buffer,
+        mapping: vendorMapping,
+        createdBy: req.user?.Id,
+      });
+      results.vendorCentral = vendorResult;
+    }
+
+    if (brandFile) {
+      const brandResult = await uploads.ingestBrandCentralUpload({
+        runId: run.Id,
+        sellerId: run.SellerId,
+        channel: run.Channel,
+        fileName: brandFile.originalname,
+        fileBuffer: brandFile.buffer,
+        mapping: brandMapping,
+        createdBy: req.user?.Id,
+      });
+      results.brandCentral = brandResult;
+    }
+
+    // Auto-trigger reconciliation so the grid updates immediately
+    let reconcileResult = null;
+    if (vendorFile || brandFile) {
+      try {
+        reconcileResult = await reconciliation.reconcileRun(run.Id, { actorId: req.user?.Id });
+      } catch (reconcileErr) {
+        // Don't fail the upload if reconciliation fails - log and continue
+        console.warn('[OOS] Reconciliation after inventory upload failed:', reconcileErr.message);
+      }
+    }
+
+    return res.json({
+      success: true,
+      uploads: results,
+      reconciliation: reconcileResult,
+    });
+  } catch (err) { return fail(res, err); }
+};
+
+/**
+ * Trigger RetailOps availability sync for all ASINs in a run.
+ * This queues scrape jobs for each ASIN to refresh availability status.
+ */
+exports.syncRetailOpsAvailability = async (req, res) => {
+  try {
+    const run = req.oosRun || await runScoped(req, res, req.params.id);
+    if (!run) return undefined;
+
+    const pool = await getPool();
+
+    // Get all unique ASINs from this run (from observations + decisions)
+    const asinResult = await pool.request()
+      .input('runId', sql.VarChar, run.Id)
+      .query(`
+        SELECT DISTINCT AsinCode FROM OosObservations WHERE RunId = @runId AND IsValid = 1
+        UNION
+        SELECT DISTINCT AsinCode FROM OosDecisions WHERE RunId = @runId
+      `);
+
+    const asins = asinResult.recordset.map((r) => r.AsinCode);
+    if (!asins.length) {
+      return res.json({ success: true, message: 'No ASINs to sync', synced: 0 });
+    }
+
+    // Get seller info for marketplace
+    const sellerResult = await pool.request()
+      .input('sellerId', sql.VarChar, run.SellerId)
+      .query('SELECT Id, Name, Marketplace, OctoparseId FROM Sellers WHERE Id = @sellerId');
+    const seller = sellerResult.recordset[0];
+    if (!seller) {
+      throw httpError(404, 'Seller not found', 'SELLER_NOT_FOUND');
+    }
+
+    // Trigger scrape for each ASIN via market-sync service
+    const marketSyncService = require('../services/marketDataSyncService');
+    let synced = 0;
+    let failed = 0;
+
+    for (const asinCode of asins) {
+      try {
+        // Check if ASIN exists in Asins table
+        const asinCheck = await pool.request()
+          .input('asinCode', sql.VarChar, asinCode)
+          .input('sellerId', sql.VarChar, run.SellerId)
+          .input('channel', sql.VarChar, run.Channel)
+          .query('SELECT TOP 1 Id FROM Asins WHERE AsinCode = @asinCode AND SellerId = @sellerId AND Marketplace = @channel');
+
+        if (!asinCheck.recordset[0]) {
+          // ASIN not tracked yet, skip
+          continue;
+        }
+
+        // Trigger sync via market-sync service (similar to syncAsin endpoint)
+        const syncStarted = await marketSyncService.syncSellerAsinsToOctoparse(run.SellerId, { 
+          triggerScrape: true,
+          asinFilter: [asinCode]
+        });
+
+        if (syncStarted) synced++;
+        else failed++;
+      } catch (err) {
+        console.error(`[OOS] Sync failed for ASIN ${asinCode}:`, err.message);
+        failed++;
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `RetailOps sync initiated for ${synced} ASIN${synced !== 1 ? 's' : ''}`,
+      synced,
+      failed,
+      total: asins.length,
+    });
+  } catch (err) { return fail(res, err); }
+};
+
+/**
+ * Get dynamic column configuration for the Affected ASINs grid.
+ * Returns which columns are enabled, their order, widths, and visibility.
+ */
+exports.getColumnConfig = async (req, res) => {
+  try {
+    const run = await runScoped(req, res, req.params.id);
+    if (!run) return undefined;
+
+    // Default column configuration
+    const defaultColumns = [
+      { key: 'seller', title: 'Seller', enabled: true, width: 150, fixed: 'left', order: 1 },
+      { key: 'channel', title: 'Channel', enabled: true, width: 110, fixed: 'left', order: 2 },
+      { key: 'asin', title: 'ASIN', enabled: true, width: 140, fixed: 'left', order: 3 },
+      { key: 'title', title: 'Title', enabled: true, width: 200, order: 4 },
+      { key: 'retailOps', title: 'RetailOps', enabled: true, width: 180, order: 5 },
+      { key: 'brandCentral', title: 'BrandCentral', enabled: true, width: 150, order: 6 },
+      { key: 'vendorCentral', title: 'Vendor Central', enabled: true, width: 150, order: 7 },
+      { key: 'gms', title: 'GMS / Pareto', enabled: true, width: 200, order: 8 },
+      { key: 'classification', title: 'Classification', enabled: true, width: 180, order: 9 },
+      { key: 'resync', title: 'Resync', enabled: true, width: 180, order: 10 },
+      { key: 'incident', title: 'Incident', enabled: true, width: 200, order: 11 },
+    ];
+
+    // Check if vendor is applicable for this channel
+    const policy = await getActivePolicy();
+    const vendorApplicable = require('../services/oos/oosPolicy').isVendorApplicable(run.Channel, policy);
+
+    // Disable vendor central column if not applicable
+    const columns = defaultColumns.map((c) => {
+      if (c.key === 'vendorCentral' && !vendorApplicable) {
+        return { ...c, enabled: false };
+      }
+      return c;
+    });
+
+    return res.json({ success: true, columns });
+  } catch (err) { return fail(res, err); }
+};
