@@ -241,7 +241,7 @@ const COLUMN_DEFINITIONS = [
   {
     key: 'resync',
     defaultConfig: { title: 'Resync', width: 180, order: 10 },
-    build: () => ({
+    build: (canResync) => ({
       title: 'Resync',
       key: 'resync',
       width: 180,
@@ -253,7 +253,7 @@ const COLUMN_DEFINITIONS = [
             requestedAt={r.resyncRequestedAt}
             observationTime={r.resyncObservedAt}
           />
-          {r.resyncEligible && r.resyncStatus === 'NONE' && (
+          {canResync && r.resyncEligible && r.resyncStatus === 'NONE' && (
             <Button size="small" type="primary" icon={<PlayCircleOutlined />} style={{ width: '100%' }}>
               Queue Resync
             </Button>
@@ -293,7 +293,7 @@ const COLUMN_DEFINITIONS = [
   },
 ];
 
-function buildColumns(columnConfig) {
+function buildColumns(columnConfig, canResync) {
   // Start with default definitions
   const defs = COLUMN_DEFINITIONS.map((d) => ({
     ...d,
@@ -314,12 +314,15 @@ function buildColumns(columnConfig) {
   return defs
     .filter((d) => d.config.enabled !== false)
     .sort((a, b) => (a.config.order || 99) - (b.config.order || 99))
-    .map((d) => ({
-      ...d.build(),
-      ...d.config,
-      // Don't let config override the render function
-      render: d.build().render,
-    }));
+    .map((d) => {
+      const built = d.build(canResync);
+      return {
+        ...built,
+        ...d.config,
+        // Don't let config override the render function
+        render: built.render,
+      };
+    });
 }
 
 export function PriorityTag({ group, isNew, firstSeen }) {
@@ -392,7 +395,7 @@ export default function OosAffectedAsinsGrid({
   canResync,
   columnConfig = null,
 }) {
-  const columns = useMemo(() => buildColumns(columnConfig), [columnConfig]);
+  const columns = useMemo(() => buildColumns(columnConfig, canResync), [columnConfig, canResync]);
 
   return (
     <Table
