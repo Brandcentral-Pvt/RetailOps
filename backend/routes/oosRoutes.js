@@ -47,4 +47,7 @@ router.get('/runs/:id/export/download', canView, require('./../middleware/oosTas
 
 router.post('/runs/:id/submit', requireOosRunAccess({ mode: 'act' }), controller.submit);
 
+router.post('/runs/:id/sync-retailops', requireOosRunAccess({ mode: 'act' }), canResync, controller.syncRetailOpsAvailability);
+router.get('/runs/:id/columns', canView, requireOosRunAccess({ mode: 'view' }), controller.getColumnConfig);
+
 module.exports = router;

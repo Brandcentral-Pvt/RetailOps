@@ -1,45 +1,54 @@
-import React from 'react';
-import { Tooltip } from 'antd';
-import { SyncOutlined } from '@ant-design/icons';
-import { useHeader } from '../../contexts/HeaderContext';
-import { formatRelativeTime } from './headerHooks';
+import React, { useState, useEffect } from 'react';
+import { RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { isConnected, reconnect } from '../../services/realtimeService';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
-const QuickActions = () => {
-  const { isSyncing, triggerSync, lastSyncedAt } = useHeader();
+/**
+ * QuickActions — truthful connection status.
+ *
+ * Replaces the fake "Syncing..." spinner (a 2.2 s setTimeout in HeaderContext)
+ * with the real Socket.IO connection state. "Reconnect" force-reconnects the
+ * shared singleton; no synchronization is simulated or faked (Rule 12).
+ */
+export default function QuickActions() {
+  const [connected, setConnected] = useState(isConnected());
+
+  useEffect(() => {
+    const iv = setInterval(() => setConnected(isConnected()), 2000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const handleReconnect = () => {
+    reconnect();
+    setConnected(isConnected());
+  };
 
   return (
-    <Tooltip
-      title={
-        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 'var(--font-size-xs)' }}>
-          <div style={{ fontWeight: 600, marginBottom: '2px' }}>
-            {isSyncing ? 'Syncing...' : 'Sync data'}
-          </div>
-          <div style={{ opacity: 0.7 }}>
-            Last synced{' '}
-            {lastSyncedAt
-              ? formatRelativeTime(lastSyncedAt.toDate())
-              : 'never'}
-          </div>
-        </div>
-      }
-      placement="bottom"
-    >
-      <button
-        className="header-icon-btn"
-        onClick={triggerSync}
-        disabled={isSyncing}
-        aria-label="Sync data"
-      >
-        <SyncOutlined
-          spin={isSyncing}
-          style={{
-            fontSize: '15px',
-            color: isSyncing ? '#D32F2F' : undefined,
-          }}
-        />
-      </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleReconnect}
+          disabled={connected}
+          aria-label={connected ? 'Connection live' : 'Reconnect'}
+          title={connected ? 'Connection live' : 'Reconnect'}
+        >
+          {connected ? (
+            <Wifi size={14} className="text-[#1565c0]" />
+          ) : (
+            <WifiOff size={14} className="text-slate-500" />
+          )}
+          <span className="ml-1.5 text-xs font-medium">
+            {connected ? 'Live' : 'Reconnect'}
+          </span>
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">
+        {connected ? 'Connection live' : 'Disconnected — click to reconnect'}
+      </TooltipContent>
     </Tooltip>
   );
-};
-
-export default QuickActions;
+}

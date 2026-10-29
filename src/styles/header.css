@@ -593,3 +593,73 @@
   .header-page-title { max-width: 140px; }
   .date-range-preset-label { display: none; }
 }
+
+/* ─── shadcn Header Shell (H1/H2 migration) ─────────────────────────────── */
+.shadcn-header {
+  height: 64px;
+  min-height: 64px;
+  background: var(--color-white);
+  border-bottom: 1px solid var(--bc-border-default);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  gap: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  font-family: var(--font-family);
+  color: var(--text-primary);
+  overflow-x: hidden;
+}
+
+@media (max-width: 991px) {
+  .shadcn-header {
+    height: 56px;
+    min-height: 56px;
+    padding: 0 12px;
+  }
+}
+
+.shadcn-header .shadcn-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.shadcn-header .shadcn-connection {
+  display: flex;
+  align-items: center;
+  gap: 1.5px;
+  padding: 0 6px;
+}
+
+.connection-dot {
+  display: inline-block;
+}
+
+.connection-dot.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .5; }
+}
+
+/* Ensure header never causes horizontal overflow (Rule 19) */
+.shadcn-header,
+.shadcn-header * {
+  overflow-x: hidden;
+}
+
+.shadcn-header .shadcn-actions > * {
+  flex-shrink: 0;
+}
+
+/* Mobile: brand title truncation, search hidden (command palette is the search) */
+@media (max-width: 991px) {
+  .shadcn-header .header-page-title { max-width: 160px; }
+}
+

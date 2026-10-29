@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, Tag, Space, Button, Alert, Tabs, Typography, message } from 'antd';
 //                                                          ^^^^^^^ FIX #1
-import { ReloadOutlined, SyncOutlined, ExportOutlined, DownloadOutlined } from '@ant-design/icons';
+import { ReloadOutlined, SyncOutlined, ExportOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import { useAuth } from '../../../../../contexts/AuthContext';
 import tasksApi from '../../../services/tasksApi';
 import dayjs from 'dayjs';
 import OosAffectedAsinsGrid from './OosAffectedAsinsGrid';
 import OosExportPanel from './OosExportPanel';
+import OosInventoryUpload from './OosInventoryUpload';
 
 const { Text } = Typography;
 
@@ -20,6 +21,7 @@ function OosAffectedAsinsTab({ task, activeRun, canResync }) {
 
   const [exportLoading, setExportLoading] = useState(false);
   const [resyncLoading, setResyncLoading] = useState(false);
+  const [syncLoading, setSyncLoading] = useState(false);
   const [gridData, setGridData] = useState({ rows: [], total: 0, summary: null });
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
@@ -31,6 +33,7 @@ function OosAffectedAsinsTab({ task, activeRun, canResync }) {
   const [error, setError] = useState(null);
   const [selectedRows, setSelectedRows] = useState([]);
   const [activeTab, setActiveTab] = useState('asins');
+  const [columnConfig, setColumnConfig] = useState(null);
 
   const loadData = useCallback(async () => {
     if (!taskInstanceId || !activeRun) return;
@@ -112,11 +115,38 @@ function OosAffectedAsinsTab({ task, activeRun, canResync }) {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (activeRun) loadData();
-      else setGridData({ rows: [], total: 0, summary: null });
+      if (activeRun) {
+        loadData();
+        // Load column config
+        tasksApi.getColumnConfig(taskInstanceId, activeRun).then((res) => {
+          if (res.success) setColumnConfig(res.columns);
+        }).catch(() => {}); // Silently fail, use defaults
+      } else {
+        setGridData({ rows: [], total: 0, summary: null });
+      }
     }, 0);
     return () => clearTimeout(timer);
-  }, [activeRun, loadData]);
+  }, [activeRun, loadData, taskInstanceId]);
+
+  const handleSyncRetailOps = async () => {
+    if (!taskInstanceId || !activeRun) return;
+    setSyncLoading(true);
+    try {
+      const res = await tasksApi.syncRetailOpsAvailability(taskInstanceId, activeRun);
+      if (res.success) {
+        message.success(res.message || `RetailOps sync initiated for ${res.synced} ASINs`);
+        // Refresh data after a short delay to allow scrape to start
+        setTimeout(loadData, 3000);
+      } else {
+        message.error(res.error || 'Sync failed');
+      }
+    } catch (err) {
+      setError(err.message || 'Sync failed');
+      message.error(err.message || 'Sync failed');
+    } finally {
+      setSyncLoading(false);
+    }
+  };
 
   const summary = useMemo(() => gridData.summary, [gridData.summary]);
 
@@ -185,6 +215,17 @@ function OosAffectedAsinsTab({ task, activeRun, canResync }) {
                         >
                           Download XLSX
                         </Button>
+                        {canResync && (
+                          <Button
+                            icon={<SyncOutlined />}
+                            onClick={handleSyncRetailOps}
+                            loading={syncLoading}
+                            disabled={!activeRun}
+                            tooltip="Sync RetailOps Availability"
+                          >
+                            Sync RetailOps
+                          </Button>
+                        )}
                       </>
                     )}
                   </Space>
@@ -220,6 +261,7 @@ function OosAffectedAsinsTab({ task, activeRun, canResync }) {
                   selectedRowKeys={selectedRows}
                   onSelectionChange={setSelectedRows}
                   canResync={canResync}
+                  columnConfig={columnConfig}
                 />
 
                 <div
@@ -246,6 +288,17 @@ function OosAffectedAsinsTab({ task, activeRun, canResync }) {
                 taskId={taskInstanceId}
                 runId={activeRun}
                 canManage={canManage}
+              />
+            ),
+          },
+          {
+            key: 'inventory-upload',
+            label: 'Inventory Upload',
+            children: (
+              <OosInventoryUpload
+                taskId={taskInstanceId}
+                runId={activeRun}
+                onUploadComplete={loadData}
               />
             ),
           },

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Table, Tag, Space, Button, Tooltip, Typography } from 'antd';
 import { PlayCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -35,6 +35,292 @@ const INCIDENT_STATUS_COLORS = {
   RESOLVED: 'green',
   WAIVED: 'gold',
 };
+
+function SourceQuantityCell({ quantity, rawStatus, sourceTimestamp }) {
+  if (quantity === null && !rawStatus) {
+    return <Text type="secondary">Unknown</Text>;
+  }
+  return (
+    <Space size={4} direction="vertical" style={{ width: '100%' }}>
+      <Text strong>{quantity !== null ? quantity : '—'}</Text>
+      <Text type="secondary" style={{ fontSize: 10 }}>{rawStatus || (sourceTimestamp ? `at ${dayjs(sourceTimestamp).format('DD MMM HH:mm')}` : '—')}</Text>
+    </Space>
+  );
+}
+
+// Column definitions - each has a key, builder function, and default config
+const COLUMN_DEFINITIONS = [
+  {
+    key: 'seller',
+    defaultConfig: { title: 'Seller', width: 150, fixed: 'left', order: 1 },
+    build: () => ({
+      title: 'Seller',
+      dataIndex: 'sellerName',
+      key: 'sellerName',
+      width: 150,
+      fixed: 'left',
+      render: (v, r) => (
+        <Space size={4} direction="vertical">
+          <Text strong>{r.sellerName}</Text>
+          <Text code style={{ fontSize: 10, color: 'var(--bc-text-muted)' }}>{r.sellerId}</Text>
+        </Space>
+      ),
+    }),
+  },
+  {
+    key: 'channel',
+    defaultConfig: { title: 'Channel', width: 110, fixed: 'left', order: 2 },
+    build: () => ({
+      title: 'Channel',
+      dataIndex: 'channel',
+      key: 'channel',
+      width: 110,
+      fixed: 'left',
+      render: (v) => <Tag>{v}</Tag>,
+    }),
+  },
+  {
+    key: 'asin',
+    defaultConfig: { title: 'ASIN', width: 140, fixed: 'left', order: 3 },
+    build: () => ({
+      title: 'ASIN',
+      dataIndex: 'asinCode',
+      key: 'asinCode',
+      width: 140,
+      fixed: 'left',
+      render: (v, r) => (
+        <Space size={4} direction="vertical">
+          <Text code style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--bc-font-mono)' }}>{v}</Text>
+          <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)' }}>{r.sku || '—'}</Text>
+        </Space>
+      ),
+    }),
+  },
+  {
+    key: 'title',
+    defaultConfig: { title: 'Title', width: 200, order: 4 },
+    build: () => ({
+      title: 'Title',
+      dataIndex: 'productTitle',
+      key: 'productTitle',
+      width: 200,
+      ellipsis: true,
+    }),
+  },
+  {
+    key: 'retailOps',
+    defaultConfig: { title: 'RetailOps', width: 180, order: 5 },
+    build: () => ({
+      title: 'RetailOps',
+      key: 'retailOps',
+      width: 180,
+      render: (_, r) => (
+        <Space size={4} direction="vertical" style={{ width: '100%' }}>
+          <Tag color={r.retailOpsState === 'OOS' || r.retailOpsState === 'OOS_ZERO' ? 'red' : r.retailOpsState === 'IN_STOCK' ? 'green' : r.retailOpsState === 'LOW_STOCK' ? 'gold' : 'default'}>
+            {r.retailOpsState}
+          </Tag>
+          <SourceQuantityCell
+            quantity={r.retailOpsQuantity}
+            rawStatus={r.retailOpsRawStatus}
+            sourceTimestamp={r.retailOpsObservedAt}
+          />
+          <Text type="secondary" style={{ fontSize: 10 }}>
+            {r.retailOpsObservedAt ? dayjs(r.retailOpsObservedAt).format('DD MMM HH:mm') : '—'}
+            {r.retailOpsFreshness != null && <Text> · {r.retailOpsFreshness}h old</Text>}
+          </Text>
+        </Space>
+      ),
+    }),
+  },
+  {
+    key: 'brandCentral',
+    defaultConfig: { title: 'BrandCentral', width: 150, order: 6 },
+    build: () => ({
+      title: 'BrandCentral',
+      key: 'brandCentral',
+      width: 150,
+      render: (_, r) => (
+        <Space size={4} direction="vertical" style={{ width: '100%' }}>
+          <Tag color={r.brandCentralState === 'OOS_ZERO' ? 'red' : r.brandCentralState === 'IN_STOCK' ? 'green' : r.brandCentralState === 'LOW_STOCK' ? 'gold' : r.brandCentralState === 'N/A' ? 'default' : 'default'}>
+            {r.brandCentralState}
+          </Tag>
+          <SourceQuantityCell
+            quantity={r.brandCentralQuantity}
+            rawStatus={r.brandCentralRawStatus}
+            sourceTimestamp={r.brandCentralObservedAt}
+          />
+        </Space>
+      ),
+    }),
+  },
+  {
+    key: 'vendorCentral',
+    defaultConfig: { title: 'Vendor Central', width: 150, order: 7 },
+    build: () => ({
+      title: 'Vendor Central',
+      key: 'vendorCentral',
+      width: 150,
+      render: (_, r) => {
+        if (r.vendorApplicable === false) {
+          return <Tag color="default">N/A</Tag>;
+        }
+        return (
+          <Space size={4} direction="vertical" style={{ width: '100%' }}>
+            <Tag color={r.vendorCentralState === 'OOS_ZERO' ? 'red' : r.vendorCentralState === 'IN_STOCK' ? 'green' : r.vendorCentralState === 'LOW_STOCK' ? 'gold' : 'default'}>
+              {r.vendorCentralState}
+            </Tag>
+            <SourceQuantityCell
+              quantity={r.vendorCentralQuantity}
+              rawStatus={r.vendorCentralRawStatus}
+              sourceTimestamp={r.vendorCentralObservedAt}
+            />
+          </Space>
+        );
+      },
+    }),
+  },
+  {
+    key: 'gms',
+    defaultConfig: { title: 'GMS / Pareto', width: 200, order: 8 },
+    build: () => ({
+      title: 'GMS / Pareto',
+      key: 'gms',
+      width: 200,
+      render: (_, r) => (
+        <Space size={4} direction="vertical" style={{ width: '100%' }}>
+          <Space>
+            <Text strong>{r.gms != null ? r.gms.toLocaleString() : 'Unverified'}</Text>
+            <Tag color={r.gmsVerified ? 'green' : 'orange'}>
+              {r.gmsVerified ? 'Verified' : 'Unverified'}
+            </Tag>
+          </Space>
+          <Space>
+            <Text type="secondary" style={{ fontSize: 10 }}>
+              Share: {r.gmsSharePct != null ? r.gmsSharePct.toFixed(2) + '%' : '—'}
+            </Text>
+            <Text type="secondary" style={{ fontSize: 10 }}>
+              Cumul: {r.cumulativePct != null ? r.cumulativePct.toFixed(2) + '%' : '—'}
+            </Text>
+          </Space>
+          <PriorityTag
+            group={r.priorityGroup}
+            isNew={r.isNewAsin}
+            firstSeen={r.firstSeenAt}
+            gmsVerified={r.gmsVerified}
+          />
+        </Space>
+      ),
+    }),
+  },
+  {
+    key: 'classification',
+    defaultConfig: { title: 'Classification', width: 180, order: 9 },
+    build: () => ({
+      title: 'Classification',
+      key: 'classification',
+      width: 180,
+      render: (_, r) => (
+        <Space size={4} direction="vertical" style={{ width: '100%' }}>
+          <ClassificationTag
+            classification={r.classification}
+            ruleId={r.ruleId}
+            confidence={r.confidence}
+          />
+          <Text type="secondary" style={{ fontSize: 10 }}>
+            Rev: {r.revision || 1}
+          </Text>
+          {r.exceptionReason && (
+            <Tooltip title={r.exceptionReason}>
+              <Tag color="orange">Exception</Tag>
+            </Tooltip>
+          )}
+        </Space>
+      ),
+    }),
+  },
+  {
+    key: 'resync',
+    defaultConfig: { title: 'Resync', width: 180, order: 10 },
+    build: () => ({
+      title: 'Resync',
+      key: 'resync',
+      width: 180,
+      render: (_, r) => (
+        <Space size={4} direction="vertical" style={{ width: '100%' }}>
+          <ResyncStatusTag
+            status={r.resyncStatus}
+            jobId={r.resyncJobId}
+            requestedAt={r.resyncRequestedAt}
+            observationTime={r.resyncObservedAt}
+          />
+          {r.resyncEligible && r.resyncStatus === 'NONE' && (
+            <Button size="small" type="primary" icon={<PlayCircleOutlined />} style={{ width: '100%' }}>
+              Queue Resync
+            </Button>
+          )}
+          {r.resyncStatus === 'QUEUED' && <Tag color="blue">Queued</Tag>}
+          {r.resyncStatus === 'RUNNING' && <Tag color="blue">Running</Tag>}
+        </Space>
+      ),
+    }),
+  },
+  {
+    key: 'incident',
+    defaultConfig: { title: 'Incident', width: 200, order: 11 },
+    build: () => ({
+      title: 'Incident',
+      key: 'incident',
+      width: 200,
+      render: (_, r) => (
+        <Space size={4} direction="vertical" style={{ width: '100%' }}>
+          <IncidentTag
+            status={r.incidentStatus}
+            owner={r.incidentOwner}
+            communicationStatus={r.communicationStatus}
+            followUpDate={r.followUpDate}
+          />
+          <Space size={4}>
+            <Text type="secondary" style={{ fontSize: 10 }}>
+              Owner: {r.incidentOwner || '—'}
+            </Text>
+            <Text type="secondary" style={{ fontSize: 10 }}>
+              {r.followUpDate ? dayjs(r.followUpDate).format('DD MMM') : '—'}
+            </Text>
+          </Space>
+        </Space>
+      ),
+    }),
+  },
+];
+
+function buildColumns(columnConfig) {
+  // Start with default definitions
+  const defs = COLUMN_DEFINITIONS.map((d) => ({
+    ...d,
+    config: { ...d.defaultConfig },
+  }));
+
+  // Apply server config overrides
+  if (columnConfig && Array.isArray(columnConfig)) {
+    for (const serverCol of columnConfig) {
+      const def = defs.find((d) => d.key === serverCol.key);
+      if (def) {
+        def.config = { ...def.config, ...serverCol };
+      }
+    }
+  }
+
+  // Sort by order, filter enabled, build column objects
+  return defs
+    .filter((d) => d.config.enabled !== false)
+    .sort((a, b) => (a.config.order || 99) - (b.config.order || 99))
+    .map((d) => ({
+      ...d.build(),
+      ...d.config,
+      // Don't let config override the render function
+      render: d.build().render,
+    }));
+}
 
 export function PriorityTag({ group, isNew, firstSeen }) {
   const priorityGroup = ['80%', '20%', 'GMS_UNVERIFIED'].includes(group)
@@ -96,218 +382,6 @@ function IncidentTag({ status, owner, communicationStatus, followUpDate }) {
   );
 }
 
-function SourceQuantityCell({ quantity, rawStatus, sourceTimestamp }) {
-  if (quantity === null && !rawStatus) {
-    return <Text type="secondary">Unknown</Text>;
-  }
-  return (
-    <Space size={4} direction="vertical" style={{ width: '100%' }}>
-      <Text strong>{quantity !== null ? quantity : '—'}</Text>
-      <Text type="secondary" style={{ fontSize: 10 }}>{rawStatus || (sourceTimestamp ? `at ${dayjs(sourceTimestamp).format('DD MMM HH:mm')}` : '—')}</Text>
-    </Space>
-  );
-}
-
-const columns = [
-  {
-    title: 'Seller',
-    dataIndex: 'sellerName',
-    key: 'sellerName',
-    width: 150,
-    fixed: 'left',
-    render: (v, r) => (
-      <Space size={4} direction="vertical">
-        <Text strong>{r.sellerName}</Text>
-        <Text code style={{ fontSize: 10, color: 'var(--bc-text-muted)' }}>{r.sellerId}</Text>
-      </Space>
-    ),
-  },
-  {
-    title: 'Channel',
-    dataIndex: 'channel',
-    key: 'channel',
-    width: 110,
-    fixed: 'left',
-    render: (v) => <Tag>{v}</Tag>,
-  },
-  {
-    title: 'ASIN',
-    dataIndex: 'asinCode',
-    key: 'asinCode',
-    width: 140,
-    fixed: 'left',
-    render: (v, r) => (
-      <Space size={4} direction="vertical">
-        <Text code style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--bc-font-mono)' }}>{v}</Text>
-        <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)' }}>{r.sku || '—'}</Text>
-      </Space>
-    ),
-  },
-  {
-    title: 'Title',
-    dataIndex: 'productTitle',
-    key: 'productTitle',
-    width: 200,
-    ellipsis: true,
-  },
-  {
-    title: 'RetailOps',
-    key: 'retailOps',
-    width: 180,
-    render: (_, r) => (
-      <Space size={4} direction="vertical" style={{ width: '100%' }}>
-        <Tag color={r.retailOpsState === 'OOS' || r.retailOpsState === 'OOS_ZERO' ? 'red' : r.retailOpsState === 'IN_STOCK' ? 'green' : r.retailOpsState === 'LOW_STOCK' ? 'gold' : 'default'}>
-          {r.retailOpsState}
-        </Tag>
-        <SourceQuantityCell
-          quantity={r.retailOpsQuantity}
-          rawStatus={r.retailOpsRawStatus}
-          sourceTimestamp={r.retailOpsObservedAt}
-        />
-        <Text type="secondary" style={{ fontSize: 10 }}>
-          {r.retailOpsObservedAt ? dayjs(r.retailOpsObservedAt).format('DD MMM HH:mm') : '—'}
-          {r.retailOpsFreshness != null && <Text> · {r.retailOpsFreshness}h old</Text>}
-        </Text>
-      </Space>
-    ),
-  },
-  {
-    title: 'BrandCentral',
-    key: 'brandCentral',
-    width: 150,
-    render: (_, r) => (
-      <Space size={4} direction="vertical" style={{ width: '100%' }}>
-        <Tag color={r.brandCentralState === 'OOS_ZERO' ? 'red' : r.brandCentralState === 'IN_STOCK' ? 'green' : r.brandCentralState === 'LOW_STOCK' ? 'gold' : r.brandCentralState === 'N/A' ? 'default' : 'default'}>
-          {r.brandCentralState}
-        </Tag>
-        <SourceQuantityCell
-          quantity={r.brandCentralQuantity}
-          rawStatus={r.brandCentralRawStatus}
-          sourceTimestamp={r.brandCentralObservedAt}
-        />
-      </Space>
-    ),
-  },
-  {
-    title: 'Vendor Central',
-    key: 'vendorCentral',
-    width: 150,
-    render: (_, r) => {
-      if (r.vendorApplicable === false) {
-        return <Tag color="default">N/A</Tag>;
-      }
-      return (
-        <Space size={4} direction="vertical" style={{ width: '100%' }}>
-          <Tag color={r.vendorCentralState === 'OOS_ZERO' ? 'red' : r.vendorCentralState === 'IN_STOCK' ? 'green' : r.vendorCentralState === 'LOW_STOCK' ? 'gold' : 'default'}>
-            {r.vendorCentralState}
-          </Tag>
-          <SourceQuantityCell
-            quantity={r.vendorCentralQuantity}
-            rawStatus={r.vendorCentralRawStatus}
-            sourceTimestamp={r.vendorCentralObservedAt}
-          />
-        </Space>
-      );
-    },
-  },
-  {
-    title: 'GMS / Pareto',
-    key: 'gms',
-    width: 200,
-    render: (_, r) => (
-      <Space size={4} direction="vertical" style={{ width: '100%' }}>
-        <Space>
-          <Text strong>{r.gms != null ? r.gms.toLocaleString() : 'Unverified'}</Text>
-          <Tag color={r.gmsVerified ? 'green' : 'orange'}>
-            {r.gmsVerified ? 'Verified' : 'Unverified'}
-          </Tag>
-        </Space>
-        <Space>
-          <Text type="secondary" style={{ fontSize: 10 }}>
-            Share: {r.gmsSharePct != null ? r.gmsSharePct.toFixed(2) + '%' : '—'}
-          </Text>
-          <Text type="secondary" style={{ fontSize: 10 }}>
-            Cumul: {r.cumulativePct != null ? r.cumulativePct.toFixed(2) + '%' : '—'}
-          </Text>
-        </Space>
-        <PriorityTag
-          group={r.priorityGroup}
-          isNew={r.isNewAsin}
-          firstSeen={r.firstSeenAt}
-          gmsVerified={r.gmsVerified}
-        />
-      </Space>
-    ),
-  },
-  {
-    title: 'Classification',
-    key: 'classification',
-    width: 180,
-    render: (_, r) => (
-      <Space size={4} direction="vertical" style={{ width: '100%' }}>
-        <ClassificationTag
-          classification={r.classification}
-          ruleId={r.ruleId}
-          confidence={r.confidence}
-        />
-        <Text type="secondary" style={{ fontSize: 10 }}>
-          Rev: {r.revision || 1}
-        </Text>
-        {r.exceptionReason && (
-          <Tooltip title={r.exceptionReason}>
-            <Tag color="orange">Exception</Tag>
-          </Tooltip>
-        )}
-      </Space>
-    ),
-  },
-  {
-    title: 'Resync',
-    key: 'resync',
-    width: 180,
-    render: (_, r) => (
-      <Space size={4} direction="vertical" style={{ width: '100%' }}>
-        <ResyncStatusTag
-          status={r.resyncStatus}
-          jobId={r.resyncJobId}
-          requestedAt={r.resyncRequestedAt}
-          observationTime={r.resyncObservedAt}
-        />
-        {r.resyncEligible && r.resyncStatus === 'NONE' && (
-          <Button size="small" type="primary" icon={<PlayCircleOutlined />} style={{ width: '100%' }}>
-            Queue Resync
-          </Button>
-        )}
-        {r.resyncStatus === 'QUEUED' && <Tag color="blue">Queued</Tag>}
-        {r.resyncStatus === 'RUNNING' && <Tag color="blue">Running</Tag>}
-      </Space>
-    ),
-  },
-  {
-    title: 'Incident',
-    key: 'incident',
-    width: 200,
-    render: (_, r) => (
-      <Space size={4} direction="vertical" style={{ width: '100%' }}>
-        <IncidentTag
-          status={r.incidentStatus}
-          owner={r.incidentOwner}
-          communicationStatus={r.communicationStatus}
-          followUpDate={r.followUpDate}
-        />
-        <Space size={4}>
-          <Text type="secondary" style={{ fontSize: 10 }}>
-            Owner: {r.incidentOwner || '—'}
-          </Text>
-          <Text type="secondary" style={{ fontSize: 10 }}>
-            {r.followUpDate ? dayjs(r.followUpDate).format('DD MMM') : '—'}
-          </Text>
-        </Space>
-      </Space>
-    ),
-  },
-];
-
 export default function OosAffectedAsinsGrid({
   data = [],
   loading = false,
@@ -315,7 +389,11 @@ export default function OosAffectedAsinsGrid({
   onTableChange,
   selectedRowKeys = [],
   onSelectionChange,
+  canResync,
+  columnConfig = null,
 }) {
+  const columns = useMemo(() => buildColumns(columnConfig), [columnConfig]);
+
   return (
     <Table
       columns={columns}

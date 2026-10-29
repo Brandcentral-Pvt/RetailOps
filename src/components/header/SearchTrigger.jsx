@@ -1,9 +1,17 @@
 import React from 'react';
-import { SearchOutlined } from '@ant-design/icons';
+import { Search } from 'lucide-react';
 import { useHeader } from '../../contexts/HeaderContext';
-import { useKeyboardShortcut, usePlatform } from './headerHooks';
+import { usePlatform, useKeyboardShortcut } from './headerHooks';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
-const SearchTrigger = () => {
+/**
+ * SearchTrigger — shadcn button that opens the command palette (Cmd/K).
+ *
+ * Replaces the wide antd search bar: the actual search input now lives inside
+ * the command palette. Kept as a global entry point for search/navigation.
+ */
+export default function SearchTrigger() {
   const { setCmdOpen } = useHeader();
   const { modKey } = usePlatform();
 
@@ -14,21 +22,23 @@ const SearchTrigger = () => {
   );
 
   return (
-    <button
-      type="button"
-      className="search-trigger"
-      onClick={() => setCmdOpen(true)}
-      aria-label="Open command palette"
-    >
-      <SearchOutlined className="search-trigger-icon" />
-      <span className="search-trigger-label">
-        Search ASINs, sellers, reports, commands...
-      </span>
-      <span className="kbd-pill">
-        {modKey} K
-      </span>
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setCmdOpen(true)}
+          aria-label="Open command palette"
+        >
+          <Search size={15} className="mr-2" aria-hidden="true" />
+          Search
+          <span className="ml-auto text-xs text-slate-500 font-mono">
+            {modKey} K
+          </span>
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">Command palette ({modKey} + K)</TooltipContent>
+    </Tooltip>
   );
-};
-
-export default SearchTrigger;
+}
