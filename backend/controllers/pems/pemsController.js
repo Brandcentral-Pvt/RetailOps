@@ -3,6 +3,7 @@ const { WORKFLOW_STATUSES, FREQUENCIES, CATEGORIES, PRIORITIES } = require('../.
 const { canCreateTaskForSeller } = require('../../services/pems/pemsPolicy');
 const { isGlobalUserRole } = require('../../utils/roleUtils');
 const { validateWorkflowDefinition, buildExecutionPlan, materializeWorkflowSop } = require('../../services/pems/templateWorkflow');
+const taskWorkflowV2Execution = require('../../services/pems/taskWorkflowV2Execution');
 
 function getUserId(req) { return req.user?.Id || req.user?._id; }
 function getUserName(req) { return (`${req.user?.FirstName || ''} ${req.user?.LastName || ''}`).trim() || req.user?.Email; }
@@ -263,6 +264,46 @@ exports.updateAchievement = async (req, res) => {
   } catch (err) {
     console.error('updateAchievement error:', err);
     res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * Phase 2.2 execution state is returned from the immutable pinned view and
+ * persisted PemsActivities. The route enforces task-level read permission.
+ */
+exports.getWorkflowExecution = async (req, res) => {
+  try {
+    const data = await taskWorkflowV2Execution.getWorkflowExecution(req.params.id);
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(err.status || 500).json({
+      success: false, code: err.code || 'WORKFLOW_STATE_FAILED',
+      error: err.message, validation: err.validation || undefined,
+    });
+  }
+};
+
+/**
+ * Typed step outputs are checked against the frozen task-instance schema and
+ * written transactionally with an optimistic revision check. Authorization is
+ * handled by requireTaskExecutor BEFORE this controller is called.
+ */
+exports.saveWorkflowActivityOutput = async (req, res) => {
+  try {
+    const { output, expectedRevision } = req.body || {};
+    const data = await taskWorkflowV2Execution.saveActivityOutput({
+      taskId: req.params.id,
+      activityId: req.params.activityId,
+      output, expectedRevision,
+      actorId: getUserId(req),
+      actorName: getUserName(req),
+    });
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(err.status || 500).json({
+      success: false, code: err.code || 'WORKFLOW_OUTPUT_SAVE_FAILED',
+      error: err.message, validation: err.validation || undefined,
+    });
   }
 };
 
