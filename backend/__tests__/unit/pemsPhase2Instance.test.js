@@ -26,7 +26,7 @@ const inventory = {
   },
 };
 
-function connection() {
+function mockConnection() {
   return {
     request() {
       const inputs = {};
@@ -53,9 +53,9 @@ function connection() {
 
 jest.mock('../../database/db', () => ({
   sql: require('../../testUtils/fakePool').FAKE_SQL,
-  getPool: async () => connection(),
+  getPool: async () => mockConnection(),
   generateId: () => 'id-' + (++mockNextId),
-  withTransaction: async fn => fn(connection()),
+  withTransaction: async fn => fn(mockConnection()),
 }));
 jest.mock('../../utils/logger', () => ({ info() {}, warn() {}, error() {}, debug() {} }));
 jest.mock('../../services/eventBus', () => ({ emit() {}, on() {}, EVENTS: {} }));
