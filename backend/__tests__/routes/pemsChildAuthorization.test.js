@@ -11,7 +11,7 @@ const request = require('supertest');
 
 let mockUser;
 let mockExecutions = [];
-const taskRows = {
+const mockTaskRows = {
   'task-owned': {
     Id: 'task-owned', AssignedTo: 'worker', ReviewerId: 'reviewer',
     SellerId: 'seller-owned', SellerName: 'Owned', Status: 'IN_PROGRESS',
@@ -21,8 +21,8 @@ const taskRows = {
     SellerId: 'seller-foreign', SellerName: 'Foreign', Status: 'IN_PROGRESS',
   },
 };
-const activities = { 'activity-owned': 'task-owned', 'activity-foreign': 'task-foreign' };
-const phases = { 'phase-owned': 'task-owned', 'phase-foreign': 'task-foreign' };
+const mockActivityParents = { 'activity-owned': 'task-owned', 'activity-foreign': 'task-foreign' };
+const mockPhaseParents = { 'phase-owned': 'task-owned', 'phase-foreign': 'task-foreign' };
 let mockQueries = [];
 
 jest.mock('../../database/db', () => ({
@@ -38,13 +38,13 @@ jest.mock('../../database/db', () => ({
         async query(query) {
           mockQueries.push({ query, inputs: { ...inputs } });
           if (/SELECT TaskInstanceId FROM PemsActivities WHERE Id = @id/.test(query)) {
-            return { recordset: activities[inputs.id] ? [{ TaskInstanceId: activities[inputs.id] }] : [] };
+            return { recordset: mockActivityParents[inputs.id] ? [{ TaskInstanceId: mockActivityParents[inputs.id] }] : [] };
           }
           if (/SELECT TaskInstanceId FROM PemsSubTasks WHERE Id = @id/.test(query)) {
-            return { recordset: phases[inputs.id] ? [{ TaskInstanceId: phases[inputs.id] }] : [] };
+            return { recordset: mockPhaseParents[inputs.id] ? [{ TaskInstanceId: mockPhaseParents[inputs.id] }] : [] };
           }
           if (/SELECT Id, AssignedTo, ReviewerId, SellerId, SellerName, Status FROM PemsTaskInstances/.test(query)) {
-            return { recordset: taskRows[inputs.id] ? [taskRows[inputs.id]] : [] };
+            return { recordset: mockTaskRows[inputs.id] ? [mockTaskRows[inputs.id]] : [] };
           }
           return { recordset: [] };
         },
@@ -96,7 +96,7 @@ describe.each(['false', 'true'])('Child authorization independent of strict gate
   beforeEach(() => { process.env.PEMS_STRICT_ACTIVITY_GATES = flag; });
 
   test.each([
-    ['/api/pems/activities/activity-foreign/complete', 'activity'],
+    ['/api/pems/mockActivityParents/activity-foreign/complete', 'activity'],
     ['/api/pems/subtasks/phase-foreign/complete', 'phase'],
   ])('rejects cross-seller %s even with a forged own task ID', async (url, childType) => {
     const forged = await request(app).post(url).send({ taskInstanceId: 'task-owned' });
@@ -109,7 +109,7 @@ describe.each(['false', 'true'])('Child authorization independent of strict gate
   });
 
   test.each([
-    ['/api/pems/activities/activity-foreign/complete'],
+    ['/api/pems/mockActivityParents/activity-foreign/complete'],
     ['/api/pems/subtasks/phase-foreign/complete'],
   ])('rejects foreign child even when no task ID is supplied in the body', async url => {
     const response = await request(app).post(url).send({});
@@ -118,7 +118,7 @@ describe.each(['false', 'true'])('Child authorization independent of strict gate
   });
 
   test.each([
-    ['/api/pems/activities/activity-foreign/complete'],
+    ['/api/pems/mockActivityParents/activity-foreign/complete'],
     ['/api/pems/subtasks/phase-foreign/complete'],
   ])('does not accept body.id as an alternate authorization target', async url => {
     const response = await request(app).post(url).send({ id: 'task-owned' });
@@ -128,7 +128,7 @@ describe.each(['false', 'true'])('Child authorization independent of strict gate
   });
 
   test.each([
-    ['/api/pems/activities/activity-owned/complete', 'completeActivity'],
+    ['/api/pems/mockActivityParents/activity-owned/complete', 'completeActivity'],
     ['/api/pems/subtasks/phase-owned/complete', 'completeSubTask'],
   ])('preserves authorized execution for an owned child', async (url, action) => {
     const response = await request(app).post(url).send({ taskInstanceId: 'task-owned' });
@@ -138,7 +138,7 @@ describe.each(['false', 'true'])('Child authorization independent of strict gate
   });
 
   test('returns 404 for a nonexistent activity, not permission for a claimed parent', async () => {
-    const response = await request(app).post('/api/pems/activities/missing/complete')
+    const response = await request(app).post('/api/pems/mockActivityParents/missing/complete')
       .send({ taskInstanceId: 'task-owned' });
     expect(response.status).toBe(404);
     expect(mockExecutions).toHaveLength(0);
