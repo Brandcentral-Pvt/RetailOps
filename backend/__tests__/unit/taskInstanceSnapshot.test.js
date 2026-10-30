@@ -5,13 +5,7 @@ const mockQueries = [];
 jest.mock('../../database/db', () => ({
   sql: require('../../testUtils/fakePool').FAKE_SQL,
 }));
-jest.mock('../../services/pems/taskViewDefinitionService', () => ({
-  validateDefinitionJson: (definition) => ({
-    ok: Boolean(definition && definition.viewKey &&
-      typeof definition.definitionVersion === 'number' &&
-      Array.isArray(definition.tabs)),
-  }),
-}));
+// Use the actual shared view-identity validator, not a permissive test stub.
 
 const snapshots = require('../../services/pems/taskInstanceSnapshot');
 const mockTx = () => ({
@@ -77,4 +71,27 @@ test('mismatched published definition identity is rejected', async () => {
     viewKey:'OOS_RECON_V1', schemaVersion:'1.0', definitionVersion:1, tabs:[],
   }) }];
   await expect(snapshots.resolveViewPin(mockTx(), 'tpl1')).rejects.toMatchObject({ code:'TASK_VIEW_INVALID' });
+});
+
+
+test('pinning rejects a published row whose schemaVersion conflicts with JSON', async () => {
+  process.env.PEMS_PIN_VIEW_SNAPSHOTS = 'true';
+  const definition = { viewKey: 'STANDARD_V1', schemaVersion: '1.0', definitionVersion: 3, tabs: [] };
+  mockPublished = [{
+    Id: 'schema-mismatch', ViewKey: 'STANDARD_V1', SchemaVersion: '2.0',
+    DefinitionVersion: 3, DefinitionJson: JSON.stringify(definition),
+  }];
+  await expect(snapshots.resolveViewPin(mockTx(), 'tpl1'))
+    .rejects.toMatchObject({ code: 'TASK_VIEW_INVALID', status: 409 });
+});
+
+test('pinning rejects a published row whose definitionVersion conflicts with JSON', async () => {
+  process.env.PEMS_PIN_VIEW_SNAPSHOTS = 'true';
+  const definition = { viewKey: 'STANDARD_V1', schemaVersion: '1.0', definitionVersion: 1, tabs: [] };
+  mockPublished = [{
+    Id: 'version-mismatch', ViewKey: 'STANDARD_V1', SchemaVersion: '1.0',
+    DefinitionVersion: 2, DefinitionJson: JSON.stringify(definition),
+  }];
+  await expect(snapshots.resolveViewPin(mockTx(), 'tpl1'))
+    .rejects.toMatchObject({ code: 'TASK_VIEW_INVALID', status: 409 });
 });
