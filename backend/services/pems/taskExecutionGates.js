@@ -180,16 +180,49 @@ async function autoCompleteReadyPhase(tx, subTaskId, taskId) {
   return Number(update.rowsAffected?.[0] || 0) > 0;
 }
 
+/**
+ * Reconcile progress from persisted work, not UI-local checkboxes.
+ * When steps or brands exist, each mandatory activity and brand is one unit.
+ * Configured phase weights are honored when there is no brand checklist.
+ * Brand/phase weighting needs an explicit template policy in Phase 2; until
+ * then, do not fabricate brand weights.
+ */
 async function reconcileTaskProgress(tx, taskId) {
-  const result = await tx.request().input('taskId', sql.VarChar, taskId)
+  const phasesResult = await tx.request().input('taskId', sql.VarChar, taskId)
     .query('SELECT Id, IsCompleted, WeightagePct FROM PemsSubTasks WHERE TaskInstanceId = @taskId');
-  const phases = result.recordset;
+  const activitiesResult = await tx.request().input('taskId', sql.VarChar, taskId)
+    .query('SELECT SubTaskId, IsMandatory, IsCompleted FROM PemsActivities WHERE TaskInstanceId = @taskId');
+  const brandsResult = await tx.request().input('taskId', sql.VarChar, taskId)
+    .query('SELECT IsCompleted FROM PemsTaskBrands WHERE TaskInstanceId = @taskId');
+
+  const phases = phasesResult.recordset;
+  const requiredActivities = activitiesResult.recordset.filter(a => Boolean(a.IsMandatory));
+  const brands = brandsResult.recordset;
   const total = phases.length;
   const completed = phases.filter(p => Boolean(p.IsCompleted)).length;
-  const progress = total ? Math.round(completed * 100 / total) : 0;
-  const weight = phases.reduce((sum, p) => sum + Number(p.WeightagePct || 0), 0);
-  const completedWeight = phases.filter(p => p.IsCompleted).reduce((sum, p) => sum + Number(p.WeightagePct || 0), 0);
-  const weighted = weight > 0 ? Math.round(completedWeight * 100 / weight) : progress;
+  const completedActivities = requiredActivities.filter(a => Boolean(a.IsCompleted)).length;
+  const completedBrands = brands.filter(b => Boolean(b.IsCompleted)).length;
+  const totalUnits = requiredActivities.length + brands.length;
+
+  const countProgress = total > 0 ? Math.round(completed * 100 / total) : 0;
+  const progress = totalUnits > 0
+    ? Math.round((completedActivities + completedBrands) * 100 / totalUnits)
+    : countProgress;
+
+  const totalWeight = phases.reduce((sum, p) => sum + Number(p.WeightagePct || 0), 0);
+  let weighted = progress;
+  if (totalWeight > 0 && brands.length === 0) {
+    let completedWeight = 0;
+    for (const phase of phases) {
+      const work = requiredActivities.filter(a => a.SubTaskId === phase.Id);
+      const fraction = work.length > 0
+        ? work.filter(a => Boolean(a.IsCompleted)).length / work.length
+        : (phase.IsCompleted ? 1 : 0);
+      completedWeight += fraction * Number(phase.WeightagePct || 0);
+    }
+    weighted = Math.round(completedWeight * 100 / totalWeight);
+  }
+
   await tx.request()
     .input('taskId', sql.VarChar, taskId)
     .input('done', sql.Int, completed)
@@ -201,7 +234,7 @@ async function reconcileTaskProgress(tx, taskId) {
           UpdatedAt = dbo.GetEnvDate()
       WHERE Id = @taskId
     `);
-  return { total, completed, progress, weighted };
+  return { total, completed, progress, weighted, completedActivities, totalActivities: requiredActivities.length, completedBrands, totalBrands: brands.length };
 }
 
 module.exports = {
