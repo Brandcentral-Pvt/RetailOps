@@ -1,55 +1,20 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   Task Execution Center — v2 (UI/UX redesign)
-   Expected location: src/modules/tasks/pages/TaskInstancesPage.jsx
-
-   What changed vs v1 (see CHANGES.md for full notes):
-   • Sticky, blurred command header with brand tile, subtitle, kbd hint (Alt+N)
-   • Redesigned KPI strip (CommandCenterKpis v2) with responsive grid
-   • Quick-view pills with icons, filter chips + filter Drawer (adds Frequency filter)
-   • Redesigned task list container (hover/selection rows, skeleton loading,
-     page-size selector, nicer empty states)
-   • Floating bulk-action bar with working Approve / Reject / Export
-   • Create-task wizard rebuilt with antd Steps + inline validation
-   • Right Insights panel becomes sticky; collapses to a drawer < 1360px
-   • Full design-token adoption (--bc-*), responsive at 1700/1360/1200/768px
-
-   v2.1:
-   • Removed Board & Calendar views (List / Seller / Objectives remain)
-   • Fixed quick-view pill styling (uniform height, gradient active state,
-     keyboard access)
-
-   All data flow / API logic is preserved from v1.
-   ═══════════════════════════════════════════════════════════════════════════ */
 import { Spinner } from "@/components/Spinner";
+import { Search, SlidersHorizontal, MoreHorizontal, RefreshCw, Plus, X, Sparkles } from 'lucide-react';
+import TaskWorklist from '../components/TaskWorklist';
+import { TASK_LIST_VIEWS, buildWorklistParams } from '../utils/taskListPresentation';
+import { getUserId } from '../utils/rbac';
+import '../task-instances.css';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import {
-  Card, Table, Button, Input, Select, Tag, Space, Typography, Tooltip, Progress,
-  Modal, Segmented, Checkbox, Empty, App, Drawer, Row, Col, Collapse, Avatar,
-  Badge, Steps, Skeleton, DatePicker, InputNumber
-} from 'antd';
-import {
-  PlusOutlined, SearchOutlined, ReloadOutlined, EyeOutlined, CheckCircleOutlined,
-  ClockCircleOutlined, CloseCircleOutlined, CalendarOutlined,
-  ExclamationCircleOutlined, LockOutlined, LeftOutlined, RightOutlined,
-  PlayCircleOutlined, ArrowRightOutlined, MinusOutlined, ArrowUpOutlined,
-  ArrowDownOutlined, UnorderedListOutlined, AppstoreOutlined, ShopOutlined,
-  FlagOutlined, FilterOutlined, ClearOutlined, CloseOutlined, ThunderboltOutlined,
-  InfoCircleOutlined, TeamOutlined, LineChartOutlined, FileTextOutlined,
-  DownloadOutlined, UserOutlined, RocketOutlined
-} from '@ant-design/icons';
+import { Card, Table, Button, Input, Select, Tag, Space, Typography, Tooltip, Progress, Modal, Empty, App, Drawer, Row, Col, Collapse, Avatar, Divider, Badge, DatePicker, InputNumber } from 'antd';
+import { PlusOutlined, SearchOutlined, ReloadOutlined, EyeOutlined, CheckCircleOutlined, ClockCircleOutlined, CloseCircleOutlined, CalendarOutlined, ExclamationCircleOutlined, LockOutlined, PlayCircleOutlined, ArrowRightOutlined, MinusOutlined, ArrowUpOutlined, ArrowDownOutlined, UnorderedListOutlined, ShopOutlined, FlagOutlined, FilterOutlined, ClearOutlined, DownloadOutlined, RocketOutlined } from '@ant-design/icons';
 import tasksApi from '../services/tasksApi';
 import { useSearchParams } from 'react-router-dom';
-import { WORKFLOW_STATUSES, FREQUENCIES, PRIORITIES, DEPARTMENTS, TASK_LIST_GRID, TASK_LIST_MIN_WIDTH } from '../constants';
-import { isOverdue } from '../utils/taskHealth';
+import { WORKFLOW_STATUSES, FREQUENCIES, PRIORITIES, DEPARTMENTS } from '../constants';
 import '../tasks.css';
 import { useAuth } from '../../../contexts/AuthContext';
 import { db } from '../../../services/db';
 import ObjectiveManager from '../../../components/actions/ObjectiveManager';
-import { CommandCenterKpis } from '../components/CommandCenterKpis';
 import RightInsightsPanel from '../components/RightInsightsPanel';
-import MobileTaskCard from '../components/MobileTaskCard';
-import LiveActivityFeed from '../components/LiveActivityFeed';
-import PremiumTaskRow from '../components/PremiumTaskRow';
 import TaskViewResolver from '../components/TaskViewResolver';
 import { exportTasksToExcel } from '../utils/exportUtils';
 import dayjs from 'dayjs';
@@ -227,63 +192,22 @@ const OkrProgressCell = ({ pct }) => {
 
 // Mirrors the server's DEFAULT_PAGE_SIZE; the API clamps anything above 100.
 const DEFAULT_PAGE_SIZE = 25;
-const MAX_PAGE_SIZE = 100;
-
-/* Two-tier filtering, one piece of state.
-   WORKFLOW_VIEWS are the primary navigation (status tabs); SCOPE_VIEWS narrow
-   the same list further. Both write quickView, so nothing downstream changes. */
-const WORKFLOW_VIEWS = [
-  { key: 'ALL', label: 'All Tasks', icon: <AppstoreOutlined /> },
-  { key: 'TODO', label: 'To Do', icon: <UnorderedListOutlined /> },
-  { key: 'IN_PROGRESS', label: 'In Progress', icon: <PlayCircleOutlined /> },
-  { key: 'PENDING_REVIEW', label: 'In Review', icon: <EyeOutlined /> },
-  { key: 'OVERDUE', label: 'Overdue', icon: <ClockCircleOutlined /> },
-  { key: 'COMPLETED', label: 'Completed', icon: <CheckCircleOutlined /> },
-];
-
-const SCOPE_VIEWS = [
-  { key: 'TOMORROW', label: 'Tomorrow', icon: <CalendarOutlined /> },
-  { key: 'UPCOMING', label: 'Upcoming', icon: <CalendarOutlined /> },
-  { key: 'AUTOMATION', label: 'Automation', icon: <ThunderboltOutlined /> },
-];
-
-const QUICK_VIEWS = [...WORKFLOW_VIEWS, ...SCOPE_VIEWS];
-
-const VIEW_OPTIONS = [
-  { label: (<span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><UnorderedListOutlined />List</span>), value: 'list', icon: <UnorderedListOutlined />, text: 'List' },
-  { label: (<span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><ShopOutlined />Seller</span>), value: 'seller', icon: <ShopOutlined />, text: 'Seller' },
-  { label: (<span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><FlagOutlined />Objectives</span>), value: 'objectives', icon: <FlagOutlined />, text: 'Objectives' },
-];
 
 /* Small presentational helpers for the new UI */
 const fieldLabel = { fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 5, color: 'var(--bc-text-heading, #0f172a)' };
 const fieldError = { fontSize: 11, color: 'var(--bc-red-600, #dc2626)', marginTop: 4, display: 'block' };
 
-const ReviewRow = ({ label, value }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '10px 0', borderBottom: '1px solid var(--bc-border-subtle, #f1f5f9)' }}>
-    <Text style={{ fontSize: 12, color: 'var(--bc-text-secondary, #64748b)' }}>{label}</Text>
-    <Text strong style={{ fontSize: 12, color: 'var(--bc-text-heading, #0f172a)', textAlign: 'right' }}>{value || '—'}</Text>
-  </div>
-);
-
-/* Skeleton rows mirror the real row geometry so the list does not jump when
-   data lands. Widths follow TASK_LIST_GRID, not the old two-line cell. */
-const SKELETON_W = ['16px', '34%', '132px', '26%', '158px', '96px', '92px', '92px', '40px'];
-const ListSkeleton = () => (
-  <div className="tasks-list-desktop">
-    {Array.from({ length: 8 }).map((_, i) => (
-      <div key={i} className="tasks-skeleton-row" style={{ minWidth: TASK_LIST_MIN_WIDTH }}>
-        {SKELETON_W.map((w, j) => (
-          <span key={j} className="tasks-skeleton-bar" style={{ width: w, flex: j === 1 || j === 3 ? '1 1 auto' : '0 0 auto' }} />
-        ))}
-      </div>
-    ))}
-  </div>
-);
-
 export default function TaskInstancesPage() {
-  const { message, modal } = App.useApp();
-  const { user: currentUser } = useAuth();
+  const { message } = App.useApp();
+  const { user: currentUser, hasPermission: authHasPermission } = useAuth();
+  const currentUserId = getUserId(currentUser);
+  const canCreate = Boolean(authHasPermission?.('tasks_manage'));
+  const [workScope, setWorkScope] = useState('mine');
+  const [dateFilter, setDateFilter] = useState('all');
+  const [sortOrder, setSortOrder] = useState('due');
+  const [loadError, setLoadError] = useState(null);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const requestSequence = useRef(0);
   const [searchParams, setSearchParams] = useSearchParams();
   const [instances, setInstances] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -291,18 +215,13 @@ export default function TaskInstancesPage() {
   // Guards the "step back one page when the result set shrinks" retry so it
   // can't loop if the server keeps reporting a page beyond the last one.
   const clampedRef = useRef(false);
-  const [summary, setSummary] = useState(null);
-  const [quickView, setQuickView] = useState('ALL');
+  const [quickView, setQuickView] = useState('TODO');
   const [viewMode, setViewMode] = useState('list');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [disputesOnly, setDisputesOnly] = useState(false);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [filters, setFilters] = useState({ department: null, seller: null, manager: null, reviewer: null, priority: null, status: null, health: null, frequency: null, source: null });
-  const [automationStats, setAutomationStats] = useState({ total: 0, open: 0, overdue: 0, byRuleset: [] });
-  const [selectedIds, setSelectedIds] = useState(new Set());
   const [lastSync, setLastSync] = useState(null);
-  const [headerScrolled, setHeaderScrolled] = useState(false);
   const [insightsOpen, setInsightsOpen] = useState(false);
 
   // Workspace
@@ -358,9 +277,8 @@ export default function TaskInstancesPage() {
 
   useEffect(() => {
     tasksApi.getSellers().then(r => { if (r.success) setSellers(r.data); }).catch(() => { });
-    tasksApi.getTemplates({ limit: 100, isActive: true }).then(r => { if (r.success) setTemplates(r.templates || []); }).catch(() => { });
-    tasksApi.getAutomationStats().then(setAutomationStats).catch(() => { });
-  }, []);
+    if (canCreate) tasksApi.getTemplates({ limit: 100, isActive: true }).then(r => { if (r.success) setTemplates(r.templates || []); }).catch(() => { });
+  }, [canCreate]);
 
   /**
    * Assignee and reviewer lists follow the seller picked in the wizard.
@@ -399,17 +317,10 @@ export default function TaskInstancesPage() {
   /* The lists above are only meaningful inside the wizard; the list filters keep
      the caller's full (seller-scoped) set. */
   useEffect(() => {
-    if (wizardOpen) return;
+    if (wizardOpen || !canCreate) return;
     tasksApi.getBrandManagers().then(r => { if (r.success) setManagers(r.data); }).catch(() => { });
     tasksApi.getReviewers().then(r => { if (r.success) setReviewers(r.data); }).catch(() => { });
-  }, [wizardOpen]);
-
-  /* Sticky-header elevation on scroll */
-  useEffect(() => {
-    const onScroll = () => setHeaderScrolled(window.scrollY > 4);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+  }, [wizardOpen, canCreate]);
 
   /* Debounce the search box and drop back to page 1, so typing doesn't fire a
      request per keystroke and page 7 of a 1-page result set doesn't render empty. */
@@ -433,52 +344,23 @@ export default function TaskInstancesPage() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [canCreate]);
 
-  const buildParams = useCallback(() => {
-    const p = { page: pagination.page, limit: pagination.limit };
-    if (debouncedSearch) p.search = debouncedSearch;
-    if (quickView === 'MY_TASKS') p.assignedTo = currentUser?.id;
-    else if (quickView === 'PENDING_REVIEW') p.status = 'UNDER_REVIEW';
-    else if (quickView === 'IN_PROGRESS') p.status = 'IN_PROGRESS';
-    else if (quickView === 'COMPLETED') p.status = 'APPROVED';
-    else if (quickView === 'CRITICAL') p.priority = 'CRITICAL';
-    else if (quickView === 'APPROVED') p.status = 'APPROVED';
-    else if (quickView === 'OVERDUE') { p.overdue = 'true'; p.excludeStatuses = 'APPROVED,CANCELLED'; }
-    else if (quickView === 'TODO') p.excludeStatuses = 'APPROVED,CANCELLED';
-    else if (quickView === 'TOMORROW') {
-      const start = dayjs().add(1, 'day').startOf('day');
-      p.dueAfter = start.toISOString();
-      p.dueBefore = start.endOf('day').toISOString();
-      p.excludeStatuses = 'APPROVED,CANCELLED';
-    } else if (quickView === 'UPCOMING') {
-      const start = dayjs().add(1, 'day').startOf('day');
-      p.dueAfter = start.toISOString();
-      p.excludeStatuses = 'APPROVED,CANCELLED';
-    } else if (quickView === 'AUTOMATION') p.isAutomated = true;
-    else if (quickView === 'Operations') p.department = 'Operations';
-    else if (quickView === 'Brand Managers') p.department = 'Brand Managers';
-    else if (quickView === 'Catalog Team') p.department = 'Catalog Team';
-    if (filters.department) p.department = filters.department;
-    if (filters.seller) p.sellerId = filters.seller;
-    if (filters.manager) p.assignedTo = filters.manager;
-    if (filters.reviewer) p.reviewerId = filters.reviewer;
-    if (filters.priority) p.priority = filters.priority;
-    if (filters.status) p.status = filters.status;
-    if (filters.frequency) p.frequency = filters.frequency;
-    if (filters.health) p.health = filters.health;
-    if (disputesOnly) p.categories = 'PRICING,LISTING';
-    if (filters.source === 'automation') p.isAutomated = true;
-    else if (filters.source) p.source = filters.source;
-    if (viewMode === 'seller') p.includeSubtasks = 'true';
-    p.includeRuleTasks = 'true';
-    return p;
-  }, [quickView, filters, disputesOnly, debouncedSearch, pagination.page, pagination.limit, currentUser, viewMode]);
+  const buildParams = useCallback(() => buildWorklistParams({
+    userId: currentUserId, scope: workScope, quickView, dateFilter, filters,
+    search: debouncedSearch, page: pagination.page, limit: pagination.limit,
+    sort: sortOrder, viewMode,
+  }), [currentUserId, workScope, quickView, dateFilter, filters, debouncedSearch,
+    pagination.page, pagination.limit, sortOrder, viewMode]);
 
   const loadInstances = useCallback(async () => {
+    const requestId = ++requestSequence.current;
     setLoading(true);
+    setLoadError(null);
     try {
       const instRes = await tasksApi.getInstances(buildParams());
+      if (requestId !== requestSequence.current) return;
+      if (!instRes.success) throw new Error(instRes.error || 'Please try again.');
       if (instRes.success) {
         const server = instRes.pagination || {};
         const respPage = Number(server.page) || 1;
@@ -504,27 +386,18 @@ export default function TaskInstancesPage() {
         setPagination({ page: respPage, limit: respLimit, total, totalPages });
       }
       setLastSync(dayjs().format('h:mm A'));
-    } catch { message.error('Failed to load tasks'); }
-    finally { setLoading(false); }
+    } catch (error) {
+      if (requestId === requestSequence.current) { setLoadError(error.message || 'Please try again.'); setInstances([]); }
+    } finally { if (requestId === requestSequence.current) setLoading(false); }
   }, [buildParams, message]);
 
   useEffect(() => { loadInstances(); }, [loadInstances]);
-
-  // The summary aggregates every task, so it is independent of the table's
-  // page/filter state. Fetching it alongside getInstances() re-ran a heavy
-  // query on every page click and every search keystroke.
-  useEffect(() => {
-    let cancelled = false;
-    tasksApi.getDashboardSummary()
-      .then(res => { if (!cancelled && res.success) setSummary(res.data); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [disputesOnly, quickView]);
 
   const openWorkspace = (task) => { setWorkspaceTask(task); setWorkspaceOpen(true); };
 
   /* ── Create-task wizard ── */
   const openWizard = (arg) => {
+    if (!canCreate) return;
     const prefill = (arg && typeof arg === 'object' && arg.templateId) ? { templateId: arg.templateId } : {};
     const t = prefill.templateId ? templates.find(x => x.Id === prefill.templateId) : null;
     setWizardStep(0);
@@ -566,6 +439,7 @@ export default function TaskInstancesPage() {
     setWizardStep(Math.min(wizardStep + 1, 4));
   };
   const handleCreateTask = async () => {
+    if (!canCreate) return;
     setCreating(true);
     try {
       await tasksApi.createInstance({
@@ -590,51 +464,8 @@ export default function TaskInstancesPage() {
     finally { setCreating(false); }
   };
 
-  /* ── Selection + bulk actions ── */
-  const toggleSelectAll = () => selectedIds.size === instances.length ? setSelectedIds(new Set()) : setSelectedIds(new Set(instances.map(i => i.Id)));
-  const toggleSelect = (id) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-
-  const bulkTransition = (toStatus, verb, color) => {
-    const ids = [...selectedIds];
-    const reviewDecision = toStatus === 'APPROVED' ? 'APPROVE'
-      : toStatus === 'REJECTED' ? 'REJECT' : null;
-    let reviewFeedback = '';
-    modal.confirm({
-      title: `${verb} ${ids.length} task${ids.length !== 1 ? 's' : ''}?`,
-      icon: <CheckCircleOutlined style={{ color }} />,
-      content: reviewDecision === 'REJECT'
-        ? <Input.TextArea rows={3} placeholder="Reason for rework (required)" onChange={e => { reviewFeedback = e.target.value; }} />
-        : reviewDecision === 'APPROVE'
-          ? 'Only submitted tasks that you are authorized to review will be approved. All others are skipped.'
-          : `This will move eligible tasks to ${WORKFLOW_STATUSES[toStatus]?.label || toStatus}.`,
-      okText: `${verb} selected`,
-      okButtonProps: { style: { background: color, borderColor: color } },
-      onOk: async () => {
-        if (reviewDecision === 'REJECT' && !reviewFeedback.trim()) {
-          message.error('Add feedback explaining what needs to be corrected');
-          throw new Error('Review feedback is required');
-        }
-        try {
-          const res = reviewDecision
-            ? await tasksApi.bulkReview({ ids, decision: reviewDecision, feedback: reviewFeedback.trim() })
-            : await tasksApi.bulkTransition(ids, toStatus, { submissionRemarks: `Bulk ${verb.toLowerCase()} via list` });
-          const outcome = res?.data || {};
-          const updatedCount = reviewDecision ? (outcome.reviewed || []).length : (outcome.updatedCount || 0);
-          const skippedCount = reviewDecision ? (outcome.skipped || []).length : (outcome.skippedCount || 0);
-          if (skippedCount) message.warning(`${updatedCount} updated, ${skippedCount} skipped; check review eligibility`);
-          else message.success(`${updatedCount} of ${ids.length} tasks updated`);
-          setSelectedIds(new Set());
-          loadInstances();
-        } catch (error) {
-          message.error(error.message || 'Bulk action failed');
-          throw error;
-        }
-      },
-    });
-  };
-
   const handleExport = () => {
-    const data = selectedIds.size > 0 ? instances.filter(t => selectedIds.has(t.Id)) : instances;
+    const data = instances;
     exportTasksToExcel(data);
     message.success(`Exported ${data.length} task${data.length !== 1 ? 's' : ''} to Excel`);
   };
@@ -643,59 +474,6 @@ export default function TaskInstancesPage() {
   const activeFilterCount = useMemo(() => Object.values(filters).filter(v => v).length, [filters]);
   // Prefer the server's total so the pager matches the rows the API counted.
   const totalPages = Math.max(1, pagination.totalPages || Math.ceil(pagination.total / pagination.limit));
-
-  const computedKpi = useMemo(() => {
-    const total = instances.length;
-    const ruleTasks = instances.filter(t => t.IsRuleTask || t.source === 'ACTION_RULE' || t.InstanceCode?.startsWith('R'));
-    const pricing = instances.filter(t => (t.Category || t.Department) === 'PRICING');
-    const pricingMismatches = pricing.filter(t => {
-      const asp = t.SellingPrice || t.ASP;
-      const sp = t.StandardPrice || t.SP;
-      return asp && sp && Math.abs(((asp - sp) / sp) * 100) > 2;
-    }).length;
-    const listing = instances.filter(t => (t.Category || t.Department) === 'LISTING');
-    const scores = listing.map(t => t.AIHealthScore ?? t.CatalogScore).filter(s => s != null);
-    const avgHealth = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
-    const approved = instances.filter(t => t.Status === 'APPROVED').length;
-    const inProg = instances.filter(t => t.Status === 'IN_PROGRESS').length;
-    const overdue = instances.filter(t => isOverdue(t)).length;
-    const pendingReview = instances.filter(t => t.Status === 'UNDER_REVIEW').length;
-    const slaOk = instances.filter(t => t.SLAStatus === 'WITHIN_SLA' || !t.SLAStatus).length;
-    const slaCompliance = total > 0 ? Math.round((slaOk / total) * 100) : 100;
-    const buyBoxTasks = instances.filter(t => t.InstanceCode?.includes('DLY-002'));
-    const buyBoxWin = buyBoxTasks.filter(t => t.IsBuyBoxWon || t.BuyBoxStatus === 'WON').length;
-    const buyBoxPct = buyBoxTasks.length > 0 ? Math.round((buyBoxWin / buyBoxTasks.length) * 100) : null;
-
-    return {
-      // Headline counts come from the server-wide summary so they describe the
-      // whole task set, not whichever page is on screen — otherwise every number
-      // in the strip changed as the user paged. The page-scoped analytics below
-      // (pricing/listing/buy-box) have no server equivalent and stay page-local.
-      total: summary?.kpi?.total ?? total,
-      active: summary?.kpi?.active ?? inProg,
-      approved: summary?.kpi?.approved ?? approved,
-      overdue: summary?.kpi?.overdue ?? overdue,
-      pendingReview: summary?.kpi?.pendingReview ?? pendingReview,
-      slaCompliance: summary?.kpi?.slaCompliance ?? slaCompliance,
-      completionRate: summary?.kpi?.completionRate ?? (total > 0 ? Math.round((approved / total) * 100) : 0),
-      slaCompliancePage: slaCompliance,
-      pricingMismatches, avgHealth: avgHealth ?? summary?.kpi?.avgHealth,
-      autoTasks: ruleTasks.length + (automationStats?.total || 0),
-      autoOpen: ruleTasks.filter(t => !['COMPLETED','APPROVED','CANCELLED','REJECTED'].includes(t.Status)).length + (automationStats?.open || 0),
-      autoOverdue: automationStats?.overdue || ruleTasks.filter(t => isOverdue(t)).length,
-      activeDisputes: ruleTasks.filter(t => ['IN_PROGRESS', 'SUBMITTED'].includes(t.Status)).length,
-      buyBoxPct: buyBoxPct ?? summary?.kpi?.buyBoxPct,
-      disputeTrend: summary?.kpi?.disputeTrend,
-      pricingTrend: summary?.kpi?.pricingTrend,
-      qualityTrend: summary?.kpi?.qualityTrend,
-      buyBoxTrend: summary?.kpi?.buyBoxTrend,
-      successTrend: summary?.kpi?.successTrend,
-      overdueTrend: summary?.kpi?.overdueTrend,
-      pricingHealth: pricingMismatches,
-    };
-  }, [instances, summary]);
-
-  const kpi = { ...summary?.kpi, ...computedKpi };
 
   /* ── Filter definitions (labels for chips + drawer) ── */
   const FILTER_DEFS = [
@@ -712,7 +490,7 @@ export default function TaskInstancesPage() {
       { value: 'MANUAL', label: '👤 Manually created' },
       { value: 'TEMPLATE', label: '📋 From template' },
     ]},
-  ];
+  ].filter(filter => (!['health', 'source', 'department'].includes(filter.key) || canCreate) && (!['manager', 'reviewer'].includes(filter.key) || (canCreate && workScope === 'all')));
   const getFilterLabel = (key, value) => {
     const def = FILTER_DEFS.find(f => f.key === key);
     return def?.options.find(o => o.value === value)?.label || value;
@@ -720,90 +498,6 @@ export default function TaskInstancesPage() {
   const clearAllFilters = () => {
     setFilters({ department: null, seller: null, manager: null, reviewer: null, priority: null, status: null, health: null, frequency: null, source: null });
     setPagination(p => ({ ...p, page: 1 }));
-  };
-
-  /* ── SELLER TASKS VIEW ── */
-  const renderSellerTasksView = () => {
-    if (instances.length === 0) return <Empty description="No tasks found" className="tasks-empty-wrap" />;
-
-    const grouped = {};
-    instances.forEach(task => {
-      const key = task.SellerName || 'Unassigned';
-      if (!grouped[key]) grouped[key] = { sellerName: key, sellerId: task.SellerId, tasks: [] };
-      grouped[key].tasks.push(task);
-    });
-
-    const groups = Object.values(grouped).sort((a, b) => a.sellerName.localeCompare(b.sellerName));
-
-    return (
-      <Space direction="vertical" size={16} style={{ width: '100%' }}>
-        {groups.map(group => {
-          const total = group.tasks.length;
-          const done = group.tasks.filter(t => t.Status === 'APPROVED').length;
-          const inProg = group.tasks.filter(t => t.Status === 'IN_PROGRESS' || t.Status === 'ESCALATED').length;
-          const color = getSellerColor(group.sellerName);
-          return (
-            <Card key={group.sellerId || group.sellerName} style={{ borderRadius: 'var(--bc-radius-xl, 12px)', border: '1px solid var(--bc-border-subtle, #e2e8f0)', overflow: 'hidden', boxShadow: 'var(--bc-shadow-card, 0 1px 3px rgba(0,0,0,0.04))' }} styles={{ body: { padding: 0 } }}>
-              <div style={{ padding: '12px 20px', background: `linear-gradient(135deg, ${color}10, var(--bc-surface-card, #fff))`, borderBottom: '1px solid var(--bc-border-subtle, #f1f5f9)', borderLeft: `4px solid ${color}` }}>
-                <Row align="middle" gutter={16}>
-                  <Col><Avatar size={36} style={{ background: color, fontSize: 15, fontWeight: 600 }}>{getSellerInitial(group.sellerName)}</Avatar></Col>
-                  <Col flex={1}>
-                    <Space size={8} wrap>
-                      <Text strong style={{ fontSize: 'var(--bc-text-base, 14px)', color: 'var(--bc-text-heading, #0f172a)' }}>{group.sellerName}</Text>
-                      <Tag style={{ borderRadius: 'var(--bc-radius-full, 9999px)', background: 'var(--bc-surface-subtle, #f1f5f9)', color: 'var(--bc-text-secondary, #64748b)', border: '1px solid var(--bc-border-default, #e2e8f0)' }}>{total} tasks</Tag>
-                      {inProg > 0 && <Tag style={{ borderRadius: 'var(--bc-radius-full, 9999px)', background: 'var(--bc-ro-50, #E3F2FD)', color: 'var(--bc-ro-600, #1565C0)', border: '1px solid var(--bc-ro-200, #90CAF9)' }}>{inProg} in progress</Tag>}
-                    </Space>
-                  </Col>
-                  <Col>
-                    <Space size={16} align="center">
-                      <Space size={8}>
-                        <Badge color="var(--bc-green-600, #16a34a)" text={<Text style={{ fontSize: 'var(--bc-text-sm, 13px)' }}>{done}</Text>} />
-                        <Badge color="var(--bc-ro-500, #1976D2)" text={<Text style={{ fontSize: 'var(--bc-text-sm, 13px)' }}>{inProg}</Text>} />
-                      </Space>
-                      <Progress percent={total === 0 ? 0 : Math.round((done / total) * 100)} size="small" style={{ width: 100, margin: 0 }} strokeColor={color} railColor="var(--bc-slate-100, #f1f5f9)" format={p => <Text style={{ fontSize: 'var(--bc-text-xs, 11px)', color: 'var(--bc-text-secondary, #64748b)' }}>{p}%</Text>} />
-                    </Space>
-                  </Col>
-                </Row>
-              </div>
-              <div style={{ padding: '4px 12px' }}>
-                <Collapse ghost items={group.tasks.map(task => ({
-                  key: task.Id,
-                  label: (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', cursor: 'pointer' }}>
-                      <div style={{ flex: 1 }}>
-                        <Space size={6}>
-                          <Tag style={{ fontSize: 10, borderRadius: 'var(--bc-radius-sm, 4px)', margin: 0, background: WORKFLOW_STATUSES[task.Status]?.bg || 'var(--bc-surface-subtle, #f1f5f9)', color: WORKFLOW_STATUSES[task.Status]?.color || 'var(--bc-text-secondary, #64748b)', border: 'none' }}>{WORKFLOW_STATUSES[task.Status]?.label || task.Status}</Tag>
-                          <Text style={{ fontSize: 'var(--bc-text-sm, 13px)', fontWeight: 500, color: 'var(--bc-text-heading, #0f172a)' }}>{task.Title}</Text>
-                          <Text style={{ fontSize: 10, color: 'var(--bc-text-muted, #94a3b8)' }}>{task.InstanceCode}</Text>
-                        </Space>
-                      </div>
-                      <Tag style={{ fontSize: 10, borderRadius: 'var(--bc-radius-full, 9999px)' }} color={PRIORITIES[task.Priority]?.antColor || 'default'}>{task.Priority}</Tag>
-                      <Text style={{ fontSize: 10, color: 'var(--bc-text-muted, #94a3b8)', whiteSpace: 'nowrap' }}>{task.DueDate ? dayjs(task.DueDate).format('DD MMM') : '-'}</Text>
-                      <Button type="text" size="small" icon={<EyeOutlined />} onClick={e => { e.stopPropagation(); openWorkspace(task); }} style={{ color: 'var(--bc-text-muted, #94a3b8)' }} />
-                    </div>
-                  ),
-                  children: (() => {
-                    const items = task.subTasks || [];
-                    if (items.length === 0) return <div style={{ padding: '8px 12px 8px 16px' }}><Text style={{ fontSize: 11, color: 'var(--bc-text-muted, #94a3b8)' }}>No sub-tasks</Text></div>;
-                    return (
-                      <div style={{ padding: '4px 12px 8px 16px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        {items.map(st => (
-                          <div key={st.Id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 'var(--bc-radius-sm, 4px)', background: 'var(--bc-surface-subtle, #f1f5f9)', border: '1px solid var(--bc-border-subtle, #f1f5f9)' }}>
-                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: st.IsCompleted ? 'var(--bc-green-600, #16a34a)' : 'var(--bc-text-muted, #94a3b8)' }} />
-                            <Text style={{ fontSize: 'var(--bc-text-xs, 11px)', color: 'var(--bc-text-body, #334155)', flex: 1 }}>{st.Title}</Text>
-                            <Tag style={{ fontSize: 9, borderRadius: 'var(--bc-radius-full, 9999px)', background: st.IsCompleted ? 'var(--bc-green-50, #f0fdf4)' : 'var(--bc-surface-subtle, #f1f5f9)', color: st.IsCompleted ? 'var(--bc-green-600, #16a34a)' : 'var(--bc-text-secondary, #64748b)', border: 'none' }}>{st.IsCompleted ? 'Done' : 'Pending'}</Tag>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })()
-                }))} />
-              </div>
-            </Card>
-          );
-        })}
-      </Space>
-    );
   };
 
   /* ── OKR SELLER VIEW ── */
@@ -1007,289 +701,50 @@ export default function TaskInstancesPage() {
     );
   };
 
-  /* ── Empty state for the list view ── */
-  const renderListEmpty = () => (
-    <div className="tasks-empty-wrap">
-      <div className="tasks-empty-wrap__icon"><SearchOutlined /></div>
-      <div className="tasks-empty-wrap__title">No tasks found</div>
-      <div className="tasks-empty-wrap__hint">
-        {activeFilterCount > 0 || quickView !== 'ALL'
-          ? 'No tasks match the current status, scope, and filters. Clear them to widen the search.'
-          : 'No tasks exist for your sellers yet. Create the first one to start tracking execution.'}
-      </div>
-      <div style={{ marginTop: 14 }}>
-        {(activeFilterCount > 0 || quickView !== 'ALL') ? (
-          <Button size="small" icon={<ClearOutlined />} onClick={() => { clearAllFilters(); setQuickView('ALL'); }}>
-            Clear filters
-          </Button>
-        ) : (
-          <Button type="primary" icon={<PlusOutlined />} onClick={openWizard}>
-            Create task
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-
-  /* ── LIST VIEW ── */
+  const resetView = () => {
+    clearAllFilters(); setSearch(''); setDateFilter('all'); setQuickView('TODO');
+    setViewMode('list');
+  };
   const renderListView = () => (
-    <Card className="tasks-list-card" styles={{ body: { padding: 0 } }}>
-      {/* Column header — grid must mirror PremiumTaskRow's TASK_LIST_GRID.
-          It lives inside the same scroller as the rows so both share one
-          min-width and stay aligned when the list scrolls sideways. */}
-      <div className="tasks-list-desktop tasks-list-scroll">
-        <div className="tasks-list-header" style={{ gridTemplateColumns: TASK_LIST_GRID, minWidth: TASK_LIST_MIN_WIDTH }}>
-          <div><Checkbox checked={selectedIds.size === instances.length && instances.length > 0} onChange={toggleSelectAll} /></div>
-          <Text className="tasks-section-label">Task</Text>
-          <Text className="tasks-section-label">Seller</Text>
-          <Text className="tasks-section-label">Details</Text>
-          <Text className="tasks-section-label">Assignee</Text>
-          <Text className="tasks-section-label">Progress</Text>
-          <Text className="tasks-section-label">Status</Text>
-          <Text className="tasks-section-label">Due / SLA</Text>
-          <Text className="tasks-section-label" style={{ textAlign: 'right' }}>Actions</Text>
-        </div>
-
-        {loading ? <ListSkeleton /> : instances.length === 0 ? renderListEmpty() : (
-          <div>
-            {instances.map(task => (
-              <div key={task.Id} className={`tasks-row${selectedIds.has(task.Id) ? ' selected' : ''}`}>
-                <PremiumTaskRow
-                  task={task}
-                  selected={selectedIds.has(task.Id)}
-                  onSelect={toggleSelect}
-                  onView={openWorkspace}
-                  onRefresh={loadInstances}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Mobile cards */}
-      <div className="tasks-mobile-only">
-        {loading ? <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div> :
-          instances.length === 0 ? <Empty description="No tasks found" style={{ padding: 40 }} /> :
-            instances.map(t => <MobileTaskCard key={t.Id} task={t} onView={openWorkspace} />)}
-      </div>
-
-      {/* Footer: result count, page size, pagination — all on one quiet rule. */}
-      {instances.length > 0 && (
-        <div className="tasks-list-footer">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <span className="tasks-list-footer__count">
-              {pagination.total} task{pagination.total === 1 ? '' : 's'}
-            </span>
-            <label className="tasks-list-footer__count" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              Rows
-              <Select
-                size="small"
-                variant="borderless"
-                value={pagination.limit}
-                onChange={v => setPagination(p => ({ ...p, limit: v, page: 1 }))}
-                style={{ width: 62 }}
-                options={[25, 50, 100].filter(n => n <= MAX_PAGE_SIZE).map(n => ({ value: n, label: n }))}
-              />
-            </label>
-          </div>
-          <div className="tasks-list-footer__pager">
-            <button
-              type="button"
-              className="tasks-pager-btn"
-              disabled={pagination.page <= 1}
-              onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))}
-              aria-label="Previous page"
-            >
-              <LeftOutlined />
-            </button>
-            <span className="tasks-list-footer__count" style={{ padding: '0 4px' }}>
-              Page {pagination.page} of {Math.max(totalPages, 1)}
-            </span>
-            <button
-              type="button"
-              className="tasks-pager-btn"
-              disabled={pagination.page >= totalPages}
-              onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))}
-              aria-label="Next page"
-            >
-              <RightOutlined />
-            </button>
-          </div>
-        </div>
-      )}
-    </Card>
+    <TaskWorklist tasks={instances} loading={loading} error={loadError}
+      onRetry={loadInstances} onOpen={openWorkspace} showOwner={workScope === 'all'}
+      grouped={viewMode === 'seller'} pagination={pagination}
+      emptyTitle={search || activeFilterCount || dateFilter !== 'all' ? 'No matching tasks' : quickView === 'TODO' ? 'You’re all caught up' : 'No tasks in this view'}
+      emptyDescription={quickView === 'TODO' && !search && !activeFilterCount && dateFilter === 'all' ? 'There is no active work in your current scope. Submitted tasks are available in In review.' : 'Try another status, brand, or due-date filter.'}
+      onReset={resetView}
+      onPageChange={page => setPagination(p => ({ ...p, page }))}
+      onPageSizeChange={limit => setPagination(p => ({ ...p, page: 1, limit }))} />
   );
 
   /* ════════════════════════════════════════════════ RENDER ════════════════════════════════════════════════ */
   return (
-    <div className="tasks-page">
-      {/* ═══ 1. APPLICATION HEADER ═══
-          Identity left, one quiet activity line in the middle, actions right.
-          Solid surface + 1px rule; New Task is the only filled control. */}
-      <div className={`tasks-sticky-header${headerScrolled ? ' scrolled' : ''}`}>
-        <div className="tasks-page-inner" style={{ paddingTop: 10, paddingBottom: 10 }}>
-          <div className="tasks-header">
-            <div className="tasks-header__identity">
-              <div style={{ minWidth: 0 }}>
-                <h1 className="tasks-header__title">Task Execution Center</h1>
-                <nav className="tasks-header__nav" aria-label="Task sections">
-                  <button type="button" className="tasks-header__nav-item" onClick={() => { setViewMode('list'); setQuickView('ALL'); setPagination(p => ({ ...p, page: 1 })); }}>Execution</button>
-                  <span className="tasks-header__nav-sep" aria-hidden="true">/</span>
-                  <button type="button" className="tasks-header__nav-item" onClick={() => window.open('/rule-sets', '_blank')}>Automation</button>
-                  <span className="tasks-header__nav-sep" aria-hidden="true">/</span>
-                  <button type="button" className="tasks-header__nav-item" onClick={() => { setViewMode('objectives'); loadOkrData(); }}>Objectives</button>
-                </nav>
-              </div>
-            </div>
-
-            <div className="tasks-header__activity" aria-live="polite">
-              <LiveActivityFeed compact />
-            </div>
-
-            <div className="tasks-header__actions">
-              <button type="button" className="tasks-header__btn tasks-header__btn--refresh" onClick={loadInstances} title="Refresh" aria-label="Refresh tasks">
-                <ReloadOutlined /> <span style={{ display: 'inline-flex' }}>Refresh</span>
-              </button>
-              <button type="button" className="tasks-header__btn" onClick={handleExport}>
-                <DownloadOutlined /> Export
-              </button>
-              <button type="button" className="tasks-header__btn tasks-header__btn--primary" onClick={openWizard}>
-                <PlusOutlined /> New Task <span className="kbd-hint">N</span>
-              </button>
-            </div>
+    <div className="worklist-page">
+      <div className="worklist-container">
+        <header className="worklist-header">
+          <div><span className="worklist-eyebrow">WORKSPACE / TASKS</span><h1>{workScope === 'mine' ? 'My tasks' : 'Tasks'}</h1><p>A clear view of your work. Pick a task and take the next step.</p></div>
+          <div className="worklist-header-actions">
+            <button type="button" className="worklist-button" onClick={loadInstances} disabled={loading} aria-label="Refresh tasks"><RefreshCw size={14} />Refresh</button>
+            <button type="button" className="worklist-button" onClick={() => setMoreOpen(true)} aria-label="More task options"><MoreHorizontal size={17} />More</button>
+            {canCreate && <button type="button" className="worklist-button worklist-button--primary" onClick={openWizard}><Plus size={15} />New task</button>}
           </div>
+        </header>
+        <div className="worklist-context"><div className="worklist-context-copy"><Sparkles size={17} /><span><strong>Start with your to-do list.</strong> Open each task for its instructions, activities, and required proof.</span></div><label><span className="sr-only">Task scope</span><select className="worklist-scope" aria-label="Task scope" value={workScope} onChange={e => { setWorkScope(e.target.value); setFilters(f => ({ ...f, manager: null, reviewer: null })); setPagination(p => ({ ...p, page: 1 })); }}><option value="mine">Assigned to me</option><option value="all">All accessible tasks</option></select></label></div>
+        <nav className="worklist-tabs" aria-label="Task status">
+          {TASK_LIST_VIEWS.map(view => <button type="button" key={view.key} className="worklist-tab" aria-pressed={quickView === view.key} onClick={() => { setQuickView(view.key); setFilters(f => ({ ...f, status: null })); setPagination(p => ({ ...p, page: 1 })); }}>{view.label}</button>)}
+        </nav>
+        <div className="worklist-toolbar">
+          <div className="worklist-search"><Search size={16} aria-hidden="true" /><input type="search" placeholder="Search tasks, brands, or ASINs" value={search} onChange={e => setSearch(e.target.value)} aria-label="Search tasks" />{search && <button type="button" className="worklist-search-clear" aria-label="Clear search" onClick={() => setSearch('')}><X size={14} /></button>}</div>
+          <select className="worklist-select" aria-label="Filter by brand" value={filters.seller || ''} onChange={e => { setFilters(f => ({ ...f, seller: e.target.value || null })); setPagination(p => ({ ...p, page: 1 })); }}><option value="">All brands</option>{sellers.map(seller => <option key={seller.Id} value={seller.Id}>{seller.Name}</option>)}</select>
+          <select className="worklist-select" aria-label="Filter by due date" value={dateFilter} onChange={e => { setDateFilter(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}><option value="all">Any due date</option><option value="today">Due today</option><option value="overdue">Overdue</option><option value="upcoming">Upcoming</option></select>
+          <button type="button" className="worklist-button" onClick={() => setShowFilterPanel(true)}><SlidersHorizontal size={14} />Filters{activeFilterCount > 0 && ` (${activeFilterCount})`}</button>
+          <label className="worklist-sort">Sort by<select aria-label="Sort tasks" value={sortOrder} onChange={e => { setSortOrder(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}><option value="due">Due date</option><option value="newest">Newest first</option></select></label>
         </div>
-      </div>
-
-      <div className="tasks-page-inner">
-        {/* ═══ 2. KPI STRIP ═══ */}
-        <CommandCenterKpis
-          kpi={kpi}
-          risk={summary?.risk}
-          disputesOnly={disputesOnly}
-          onDisputesToggle={() => { setDisputesOnly(d => !d); setPagination(p => ({ ...p, page: 1 })); }}
-          lastUpdated={lastSync}
-        />
-
-        {/* ═══ 3. TWO-TIER NAVIGATION ═══
-            Layer 1: workflow status as a restrained tab strip.
-            Layer 2: scope filters as quiet outlined chips, visually separate. */}
-        <div className="tasks-nav" style={{ marginTop: 18 }}>
-          <div className="tasks-status-tabs" role="tablist" aria-label="Workflow status">
-            {WORKFLOW_VIEWS.map(qv => (
-              <button
-                key={qv.key}
-                type="button"
-                role="tab"
-                aria-selected={quickView === qv.key}
-                data-key={qv.key}
-                className={`tasks-status-tab${quickView === qv.key ? ' active' : ''}`}
-                onClick={() => { setQuickView(qv.key); setPagination(p => ({ ...p, page: 1 })); }}
-              >
-                <span className="tasks-status-tab__icon">{qv.icon}</span>
-                {qv.label}
-              </button>
-            ))}
-          </div>
-
-          <span className="tasks-nav__divider" aria-hidden="true" />
-
-          <div className="tasks-scope-filters" aria-label="Scope filters">
-            {SCOPE_VIEWS.map(qv => (
-              <button
-                key={qv.key}
-                type="button"
-                data-key={qv.key}
-                aria-pressed={quickView === qv.key}
-                className={`tasks-scope-chip${quickView === qv.key ? ' active' : ''}`}
-                onClick={() => { setQuickView(quickView === qv.key ? 'ALL' : qv.key); setPagination(p => ({ ...p, page: 1 })); }}
-              >
-                {qv.icon}
-                {qv.label}
-              </button>
-            ))}
-          </div>
-
-          <div style={{ flex: 1 }} />
-
-          <div className="tasks-view-switch" role="group" aria-label="Layout">
-            {VIEW_OPTIONS.map(o => (
-              <button
-                key={o.value}
-                type="button"
-                aria-pressed={viewMode === o.value}
-                className={`tasks-view-switch__btn${viewMode === o.value ? ' active' : ''}`}
-                onClick={() => { setViewMode(o.value); setPagination(p => ({ ...p, page: 1 })); if (o.value === 'objectives') loadOkrData(); }}
-              >
-                {o.icon}{o.text}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* ═══ 4. TOOLBAR: SEARCH + FILTERS + PANEL ACCESS ═══ */}
-        <div className="tasks-toolbar" style={{ marginTop: 12 }}>
-          <div className="tasks-toolbar__search">
-            <Input
-              prefix={<SearchOutlined style={{ fontSize: 'var(--bc-text-sm, 13px)', color: 'var(--tec-text-4, #94a3b8)' }} />}
-              placeholder="Search by task, seller, or ASIN…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              onPressEnter={() => loadInstances()}
-              allowClear
-              style={{ borderRadius: 'var(--tec-radius-ctl, 6px)' }}
-              size="middle"
-              aria-label="Search tasks"
-            />
-          </div>
-          <div className="tasks-toolbar__right">
-            <Button
-              className={`tasks-toolbar__btn${activeFilterCount > 0 ? ' tasks-toolbar__btn--active' : ''}`}
-              icon={<FilterOutlined />}
-              onClick={() => setShowFilterPanel(true)}
-              aria-label={`Filters${activeFilterCount > 0 ? `, ${activeFilterCount} active` : ''}`}
-            >
-              Filters
-            </Button>
-            <button
-              type="button"
-              className="tasks-toolbar__btn tasks-insights-trigger"
-              onClick={() => setInsightsOpen(true)}
-            >
-              <EyeOutlined /> Insights
-            </button>
-          </div>
-        </div>
-
-        {/* ═══ 5. ACTIVE FILTER CHIPS ═══ */}
-        {activeFilterCount > 0 && (
-          <div className="tasks-filterbar">
-            <span className="tasks-section-label">Active</span>
-            {Object.entries(filters).filter(([, v]) => v).map(([k, v]) => (
-              <span key={k} className="tasks-chip">
-                {FILTER_DEFS.find(f => f.key === k)?.label}: <b>{getFilterLabel(k, v)}</b>
-                <button
-                  type="button"
-                  className="tasks-chip__remove"
-                  onClick={() => setFilters(p => ({ ...p, [k]: null }))}
-                  aria-label={`Remove ${FILTER_DEFS.find(f => f.key === k)?.label || k} filter`}
-                >
-                  <CloseOutlined />
-                </button>
-              </span>
-            ))}
-            <button type="button" className="tasks-clearall" onClick={clearAllFilters}>
-              <ClearOutlined /> Clear all
-            </button>
-            <div style={{ flex: 1 }} />
-            <span className="tasks-resultcount">{instances.length} of {pagination.total} tasks</span>
-          </div>
-        )}
-
-        {/* ═══ 5. MAIN AREA ═══ */}
-        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
+        {(activeFilterCount > 0 || dateFilter !== 'all' || search) && <div className="worklist-filter-chips">
+          {Object.entries(filters).filter(([, value]) => value).map(([key, value]) => <span className="worklist-filter-chip" key={key}>{FILTER_DEFS.find(filter => filter.key === key)?.label}: {getFilterLabel(key, value)}<button type="button" aria-label={`Remove ${key} filter`} onClick={() => { setFilters(f => ({ ...f, [key]: null })); setPagination(p => ({ ...p, page: 1 })); }}><X size={11} /></button></span>)}
+          {dateFilter !== 'all' && <span className="worklist-filter-chip">{dateFilter === 'today' ? 'Due today' : dateFilter === 'overdue' ? 'Overdue' : 'Upcoming'}<button type="button" aria-label="Remove due date filter" onClick={() => { setDateFilter('all'); setPagination(p => ({ ...p, page: 1 })); }}><X size={11} /></button></span>}
+          <button type="button" className="worklist-reset" onClick={resetView}>Reset view</button>
+        </div>}
+        <div>
             {viewMode === 'objectives' ? (
               <div>
                 <Card size="small" style={{ borderRadius: 'var(--bc-radius-xl, 12px)', marginBottom: 12, border: '1px solid var(--bc-border-subtle, #e2e8f0)' }} styles={{ body: { padding: '10px 16px' } }}>
@@ -1313,55 +768,28 @@ export default function TaskInstancesPage() {
                 </Card>
                 {okrLoading ? <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div> : renderSellerView()}
               </div>
-            ) : viewMode === 'seller' ? (
-              renderSellerTasksView()
             ) : (
               renderListView()
             )}
           </div>
 
-          {/* ═══ 6. RIGHT INSIGHTS PANEL (sticky; drawer below 1360px) ═══ */}
-          <div className="tasks-insights-panel">
-            <div className="tasks-insights-sticky">
-              <RightInsightsPanel onTaskClick={openWorkspace} refreshKey={`${quickView}-${disputesOnly}-${filters.status}-${pagination.page}`} />
-            </div>
-          </div>
-        </div>
+        <p className="worklist-footer-note">{lastSync ? `Updated at ${lastSync} · ` : ''}Showing {workScope === 'mine' ? 'tasks assigned to you' : 'tasks you have access to'}.</p>
       </div>
-
-      {/* ═══ 7. FLOATING BULK ACTION BAR ═══ */}
-      {selectedIds.size > 0 && (
-        <div className="tasks-bulk-bar">
-          <Checkbox checked={selectedIds.size === instances.length} onChange={toggleSelectAll} />
-          <Text style={{ color: '#fff', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
-            {selectedIds.size} selected
-          </Text>
-          <span className="tasks-bulk-divider" />
-          <Button size="small" icon={<UserOutlined />} onClick={() => message.info('Bulk assignment is coming soon')} style={bulkBtnStyle}>
-            Assign
-          </Button>
-          <Button size="small" icon={<CheckCircleOutlined />} onClick={() => bulkTransition('APPROVED', 'Approve', 'var(--bc-green-600, #16a34a)')} style={{ ...bulkBtnStyle, background: 'var(--bc-green-600, #16a34a)', borderColor: 'var(--bc-green-600, #16a34a)', color: '#fff' }}>
-            Approve
-          </Button>
-          <Button size="small" icon={<CloseCircleOutlined />} onClick={() => bulkTransition('REJECTED', 'Reject', 'var(--bc-red-600, #dc2626)')} style={{ ...bulkBtnStyle, background: 'var(--bc-red-600, #dc2626)', borderColor: 'var(--bc-red-600, #dc2626)', color: '#fff' }}>
-            Reject
-          </Button>
-          <Button size="small" icon={<DownloadOutlined />} onClick={handleExport} style={bulkBtnStyle}>
-            Export
-          </Button>
-          <span className="tasks-bulk-divider" />
-          <Button size="small" type="text" icon={<CloseOutlined />} onClick={() => setSelectedIds(new Set())} style={{ color: 'rgba(255,255,255,0.75)' }}>
-            Clear
-          </Button>
-        </div>
-      )}
+      <Drawer title="Task options" open={moreOpen} onClose={() => setMoreOpen(false)} width="min(380px, 100vw)">
+        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          <Button block icon={<UnorderedListOutlined />} onClick={() => { setViewMode('list'); setMoreOpen(false); }}>List view</Button>
+          <Button block icon={<ShopOutlined />} onClick={() => { setViewMode('seller'); setMoreOpen(false); setPagination(p => ({ ...p, page: 1 })); }}>Group by brand</Button>
+          <Button block icon={<DownloadOutlined />} disabled={loading || !instances.length} onClick={() => { handleExport(); setMoreOpen(false); }}>Export current page ({instances.length} tasks)</Button>
+          {canCreate && <><Divider /><Button block icon={<FlagOutlined />} onClick={() => { setViewMode('objectives'); loadOkrData(); setMoreOpen(false); }}>Objectives</Button><Button block icon={<EyeOutlined />} onClick={() => { setInsightsOpen(true); setMoreOpen(false); }}>Insights</Button></>}
+        </Space>
+      </Drawer>
 
       {/* ═══ 8. FILTER DRAWER ═══ */}
       <Drawer
         title={<Space size={8}><FilterOutlined style={{ color: 'var(--bc-ro-500, #1976D2)' }} /><span>Filters</span></Space>}
         open={showFilterPanel}
         onClose={() => setShowFilterPanel(false)}
-        width={400}
+        width="min(400px, 100vw)"
         destroyOnHidden
         footer={
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -1382,7 +810,7 @@ export default function TaskInstancesPage() {
                 allowClear
                 placeholder={`All ${f.label.toLowerCase()}s`}
                 value={filters[f.key]}
-                onChange={v => { setFilters(p => ({ ...p, [f.key]: v })); setPagination(p => ({ ...p, page: 1 })); }}
+                onChange={v => { setFilters(p => ({ ...p, [f.key]: v })); if (f.key === 'status') setQuickView('ALL'); setPagination(p => ({ ...p, page: 1 })); }}
                 size="middle"
                 style={{ width: '100%' }}
                 showSearch
@@ -1399,7 +827,7 @@ export default function TaskInstancesPage() {
 
       {/* ═══ 9. INSIGHTS DRAWER (small screens) ═══ */}
       <Drawer title="Insights" open={insightsOpen} onClose={() => setInsightsOpen(false)} width={340} destroyOnHidden>
-        <RightInsightsPanel onTaskClick={openWorkspace} refreshKey={`${quickView}-${disputesOnly}-${filters.status}-${pagination.page}`} />
+        <RightInsightsPanel onTaskClick={openWorkspace} refreshKey={`${quickView}-${filters.status}-${pagination.page}`} />
       </Drawer>
 
       {/* ═══ 10. OBJECTIVE MANAGER MODAL ═══ */}
@@ -1662,13 +1090,3 @@ export default function TaskInstancesPage() {
   );
 }
 
-/* Dark bar buttons for the floating bulk-action bar */
-const bulkBtnStyle = {
-  background: 'rgba(255, 255, 255, 0.09)',
-  border: '1px solid rgba(255, 255, 255, 0.16)',
-  color: '#fff',
-  borderRadius: 'var(--bc-radius-md, 6px)',
-  fontWeight: 600,
-  fontSize: 11,
-  height: 26,
-};

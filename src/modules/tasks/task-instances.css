@@ -1,0 +1,130 @@
+.worklist-page { --worklist-accent: var(--bc-ro-500, #2563eb); color: var(--bc-text-heading, #17253c); background: var(--bc-surface-muted, #f6f8fb); min-height: 100%; padding: 32px clamp(16px, 3vw, 44px) 48px; }
+.worklist-page * { box-sizing: border-box; }
+.worklist-page button, .worklist-page select, .worklist-page input { font: inherit; }
+.worklist-page button { cursor: pointer; }
+.worklist-page button:disabled { opacity: .45; cursor: not-allowed; }
+.worklist-page button:focus-visible, .worklist-page select:focus-visible, .worklist-page input:focus-visible { outline: 3px solid var(--worklist-accent); outline-offset: 3px; }
+.worklist-container { max-width: 1540px; margin: 0 auto; }
+.worklist-header { display: flex; justify-content: space-between; gap: 24px; align-items: flex-end; margin-bottom: 28px; }
+.worklist-eyebrow, .worklist-section-label { display: block; font-size: 11px; font-weight: 700; letter-spacing: .13em; color: var(--bc-text-muted, #718097); }
+.worklist-eyebrow { margin-bottom: 12px; }
+.worklist-header h1 { font-size: clamp(25px, 2.5vw, 32px); line-height: 1.2; font-weight: 650; letter-spacing: -.035em; margin: 0 0 8px; }
+.worklist-header p { font-size: 13px; color: var(--bc-text-secondary, #66768c); margin: 0; line-height: 1.6; }
+.worklist-header-actions { display: flex; gap: 8px; align-items: center; }
+.worklist-button { display: inline-flex; justify-content: center; align-items: center; gap: 7px; min-height: 38px; border-radius: 7px; border: 1px solid var(--bc-border-default, #dce3ec); background: var(--bc-surface-card, #fff); padding: 8px 12px; font-size: 12px !important; font-weight: 550 !important; color: var(--bc-text-body, #42526a); text-decoration: none; }
+.worklist-button:hover { background: var(--bc-surface-subtle, #edf2f8); }
+.worklist-button--primary { background: var(--worklist-accent); color: white; border-color: transparent; }
+.worklist-button--primary:hover { background: var(--worklist-accent); filter: brightness(.95); }
+.worklist-context { display: flex; justify-content: space-between; align-items: center; gap: 12px; border: 1px solid var(--bc-border-default, #e1e7ef); border-radius: 9px; padding: 14px 18px; margin-bottom: 23px; background: var(--bc-surface-card, #fff); }
+.worklist-context-copy { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--bc-text-secondary, #62728a); }
+.worklist-context-copy > svg { color: var(--worklist-accent); flex-shrink: 0; }
+.worklist-scope { border: 0; background: transparent; font-weight: 600 !important; color: var(--bc-text-heading, #26364d); max-width: 150px; padding: 4px; font-size: 12px !important; }
+.worklist-tabs { display: flex; gap: 26px; border-bottom: 1px solid var(--bc-border-default, #e1e7ef); margin-bottom: 20px; overflow-x: auto; scrollbar-width: thin; }
+.worklist-tab { flex-shrink: 0; border: 0; border-bottom: 2px solid transparent; background: transparent; font-size: 13px !important; padding: 0 1px 14px; color: var(--bc-text-secondary, #68768a); }
+.worklist-tab[aria-pressed="true"] { color: var(--worklist-accent); font-weight: 650 !important; border-bottom-color: var(--worklist-accent); }
+.worklist-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.worklist-search { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 200px; max-width: 420px; min-height: 39px; background: var(--bc-surface-card, #fff); border: 1px solid var(--bc-border-default, #dce3ec); border-radius: 7px; padding: 0 12px; color: var(--bc-text-muted, #8692a5); }
+.worklist-search input { background: transparent; border: 0; width: 100%; min-width: 0; font-size: 12px !important; color: var(--bc-text-heading, #26364d); padding: 10px 0; }
+.worklist-search input:focus { outline: none; }
+.worklist-search:focus-within { outline: 2px solid var(--worklist-accent); outline-offset: 1px; }
+.worklist-search-clear { padding: 2px; display: flex; border: 0; background: transparent; color: inherit; }
+.worklist-select { min-height: 39px; padding: 8px 28px 8px 11px; background: var(--bc-surface-card, #fff); border: 1px solid var(--bc-border-default, #dce3ec); border-radius: 7px; color: var(--bc-text-body, #42526a); font-size: 12px !important; max-width: 210px; }
+.worklist-sort { margin-left: auto; display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--bc-text-muted, #718097); }
+.worklist-sort select { max-width: 130px; border: 0; background: transparent; color: var(--bc-text-body, #42526a); font-size: 12px !important; padding: 8px 0; }
+.worklist-filter-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 11px; }
+.worklist-filter-chip { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--bc-border-default, #dce3ec); border-radius: 5px; padding: 5px 7px; background: var(--bc-surface-card, #fff); color: var(--bc-text-secondary, #62728a); }
+.worklist-filter-chip button, .worklist-reset { border: 0; background: transparent; color: inherit; display: inline-flex; align-items: center; }
+.worklist-reset { color: var(--worklist-accent); font-size: 11px !important; }
+.worklist-panel { border: 1px solid var(--bc-border-default, #e0e6ee); border-radius: 10px; background: var(--bc-surface-card, #fff); overflow: hidden; box-shadow: 0 2px 5px #0f172a03; }
+.worklist-panel-heading { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 20px 22px; }
+.worklist-panel-heading h2 { font-size: 15px; letter-spacing: -.015em; font-weight: 650; display: flex; align-items: center; gap: 9px; margin: 5px 0 0; }
+.worklist-panel-heading h2 span { font-size: 11px; font-weight: 550; color: var(--bc-text-secondary, #66768c); border: 1px solid var(--bc-border-default, #e1e7ef); border-radius: 5px; padding: 2px 6px; }
+.worklist-panel-note { font-size: 11px; color: var(--bc-text-muted, #718097); }
+.worklist-column-headings, .worklist-row { display: grid; grid-template-columns: 32px minmax(200px, 1fr) 140px 106px 115px 140px; align-items: center; gap: 16px; padding: 0 22px; }
+.worklist-column-headings { background: var(--bc-surface-muted, #fafbfd); color: var(--bc-text-muted, #718097); border-block: 1px solid var(--bc-border-subtle, #edf0f5); padding-block: 10px; font-size: 11px; font-weight: 600; }
+.worklist-rows { list-style: none; padding: 0; margin: 0; }
+.worklist-row { min-height: 105px; padding-block: 19px; border-bottom: 1px solid var(--bc-border-subtle, #edf0f5); transition: background .15s; }
+.worklist-row:last-child { border-bottom: 0; }
+.worklist-row:hover { background: var(--bc-surface-muted, #fafbfd); }
+.worklist-task-icon { width: 32px; height: 35px; border-radius: 7px; display: grid; place-items: center; color: #77869b; background: var(--bc-surface-muted, #f2f5f9); align-self: start; margin-top: 1px; }
+.worklist-task-icon--progress { color: #477de5; background: #edf3ff; }
+.worklist-task-icon--done { color: #288967; background: #eef8f3; }
+.worklist-task-icon--review { color: #9c7a35; background: #faf6ea; }
+.worklist-task { min-width: 0; }
+.worklist-task-title { display: block; padding: 0; text-align: left; border: 0; background: transparent; color: var(--bc-text-heading, #24364d); line-height: 1.5; font-size: 14px !important; font-weight: 600 !important; overflow-wrap: anywhere; }
+.worklist-task-title:hover { color: var(--worklist-accent); }
+.worklist-task-meta { display: flex; flex-wrap: wrap; gap: 5px; font-size: 11px; color: var(--bc-text-muted, #7a8799); margin-top: 3px; line-height: 1.6; }
+.worklist-next-step { margin: 4px 0 0; color: var(--bc-text-secondary, #69788d); font-size: 11px; line-height: 1.5; }
+.worklist-status-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.worklist-status { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; padding: 4px 7px; border-radius: 5px; background: var(--bc-surface-subtle, #f1f4f8); color: var(--bc-text-secondary, #62738b); white-space: nowrap; }
+.worklist-status > span { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.worklist-status--progress { color: #3f6cbe; background: #edf3ff; }
+.worklist-status--review { color: #96742e; background: #faf6ea; }
+.worklist-status--done { color: #287d5a; background: #edf8f1; }
+.worklist-status--attention { color: #bd633e; background: #fcf2ed; }
+.worklist-priority { font-size: 10px; color: #a6653a; padding-left: 2px; }
+.worklist-priority--critical { color: #b94d4b; }
+.worklist-progress-label { display: flex; justify-content: space-between; gap: 6px; font-size: 11px; color: var(--bc-text-muted, #7a8799); }
+.worklist-progress-label strong { font-weight: 550; color: var(--bc-text-secondary, #62738b); }
+.worklist-progress-track { height: 4px; background: var(--bc-surface-subtle, #edf1f6); border-radius: 4px; margin-top: 8px; overflow: hidden; }
+.worklist-progress-track > span { display: block; height: 100%; background: #6f95e8; border-radius: inherit; }
+.worklist-due { display: flex; flex-direction: column; gap: 5px; font-size: 11px; color: var(--bc-text-secondary, #69788d); }
+.worklist-due > span { display: flex; gap: 5px; align-items: center; }
+.worklist-due small { padding-left: 18px; font-size: 10px; color: var(--bc-text-muted, #8c97a7); }
+.worklist-due--danger { color: #c15a50; }
+.worklist-due--today { color: var(--worklist-accent); }
+.worklist-open { display: flex; justify-content: center; align-items: center; gap: 8px; min-height: 33px; padding: 7px 10px; background: var(--bc-surface-card, #fff); border: 1px solid var(--bc-border-default, #dfe6f0); border-radius: 6px; color: var(--bc-text-body, #3e506b); font-size: 11px !important; white-space: nowrap; }
+.worklist-open:hover { border-color: var(--worklist-accent); color: var(--worklist-accent); }
+.worklist-pagination { padding: 15px 22px; display: flex; justify-content: space-between; align-items: center; gap: 10px; border-top: 1px solid var(--bc-border-subtle, #edf0f5); font-size: 11px; color: var(--bc-text-secondary, #69788d); }
+.worklist-pagination > div, .worklist-pagination label { display: flex; gap: 10px; align-items: center; }
+.worklist-pagination select, .worklist-pagination button { background: var(--bc-surface-card, #fff); border: 1px solid var(--bc-border-default, #dfe6f0); border-radius: 5px; padding: 5px 7px; color: inherit; font-size: 11px !important; }
+.worklist-group-heading { margin: 0; display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; padding: 12px 22px; background: var(--bc-surface-muted, #f7f9fc); border-top: 1px solid var(--bc-border-subtle, #edf0f5); }
+.worklist-group-heading span { font-size: 11px; font-weight: 400; color: var(--bc-text-muted, #718097); }
+.worklist-state { min-height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 36px 24px; text-align: center; color: var(--bc-text-muted, #718097); }
+.worklist-state h3 { margin: 14px 0 8px; font-size: 16px; color: var(--bc-text-heading, #26364d); }
+.worklist-state p { margin: 0 0 18px; max-width: 380px; line-height: 1.7; font-size: 12px; }
+.worklist-skeleton { padding: 0 22px; }
+.worklist-skeleton > div { height: 95px; display: flex; align-items: center; gap: 18px; border-top: 1px solid var(--bc-border-subtle, #edf0f5); }
+.worklist-skeleton span { display: block; background: var(--bc-surface-subtle, #edf1f6); border-radius: 5px; height: 12px; width: 90px; }
+.worklist-skeleton > div > span:first-child { width: 32px; height: 34px; }
+.worklist-skeleton > div > div { flex: 1; display: grid; gap: 10px; }
+.worklist-skeleton > div > div span:first-child { width: min(300px, 80%); }
+.worklist-footer-note { text-align: center; color: var(--bc-text-muted, #7a8799); font-size: 11px; margin-top: 16px; }
+@media (max-width: 1150px) { .worklist-column-headings, .worklist-row { grid-template-columns: 30px minmax(160px, 1fr) 125px 100px 126px; gap: 12px; } .worklist-column-headings > :nth-child(4), .worklist-progress-cell { display: none; } .worklist-panel-note { display: none; } }
+@media (max-width: 820px) { .worklist-page { padding: 22px 16px 36px; } .worklist-header { align-items: flex-start; } .worklist-header-actions { flex-wrap: wrap; justify-content: flex-end; } .worklist-context { align-items: flex-start; } .worklist-context-copy { align-items: flex-start; line-height: 1.6; } .worklist-column-headings { display: none; } .worklist-row { grid-template-columns: 30px minmax(0, 1fr) auto; padding: 18px 16px; gap: 10px 12px; } .worklist-task-icon { grid-column: 1; grid-row: 1; } .worklist-task { grid-column: 2; grid-row: 1; } .worklist-status-cell { grid-column: 2; grid-row: 2; } .worklist-due { grid-column: 3; grid-row: 1; align-self: start; padding-top: 4px; } .worklist-open { grid-column: 3; grid-row: 2; align-self: end; } .worklist-progress-cell { display: block; grid-column: 2 / 4; grid-row: 3; max-width: 200px; margin-top: 5px; } .worklist-status-cell { flex-direction: row; align-items: center; flex-wrap: wrap; } .worklist-search { max-width: none; flex-basis: 100%; } .worklist-sort { margin-left: auto; } .worklist-tabs { gap: 22px; } .worklist-pagination { padding: 15px 16px; align-items: flex-start; flex-direction: column; } .worklist-pagination > div { width: 100%; justify-content: space-between; } }
+@media (max-width: 480px) { .worklist-header { flex-direction: column; gap: 16px; margin-bottom: 20px; } .worklist-header-actions { width: 100%; justify-content: flex-start; } .worklist-header-actions .worklist-button--primary { margin-left: auto; } .worklist-context { flex-direction: column; padding: 12px; } .worklist-select { flex: 1; max-width: 100%; min-width: 0; } .worklist-sort { width: 100%; justify-content: flex-end; } .worklist-panel-heading { padding: 17px 16px; } .worklist-row { grid-template-columns: 26px minmax(0, 1fr); } .worklist-task-icon { width: 26px; height: 30px; } .worklist-due { grid-column: 2; grid-row: 3; flex-direction: row; align-items: center; padding: 0; } .worklist-due small { padding-left: 0; } .worklist-open { grid-column: 2; grid-row: 5; justify-content: space-between; margin-top: 4px; } .worklist-progress-cell { grid-column: 2; grid-row: 4; max-width: 100%; } }
+@media (prefers-reduced-motion: reduce) { .worklist-row { transition: none; } }
+
+.worklist-page .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+.worklist-container { container: task-workspace / inline-size; }
+/* Respond to the available content width, including the application sidebar. */
+@container task-workspace (max-width: 1100px) {
+  .worklist-column-headings, .worklist-row { grid-template-columns: 30px minmax(0, 1fr) 125px 100px 126px; gap: 12px; }
+  .worklist-column-headings > :nth-child(4), .worklist-progress-cell, .worklist-panel-note { display: none; }
+}
+@container task-workspace (max-width: 760px) {
+  .worklist-column-headings { display: none; }
+  .worklist-row { grid-template-columns: 30px minmax(0, 1fr) auto; padding: 18px 16px; gap: 10px 12px; }
+  .worklist-task-icon { grid-column: 1; grid-row: 1; }
+  .worklist-task { grid-column: 2; grid-row: 1; }
+  .worklist-status-cell { grid-column: 2; grid-row: 2; flex-direction: row; align-items: center; flex-wrap: wrap; }
+  .worklist-due { grid-column: 3; grid-row: 1; align-self: start; }
+  .worklist-open { grid-column: 3; grid-row: 2; }
+  .worklist-progress-cell { display: block; grid-column: 2 / 4; grid-row: 3; max-width: 200px; margin-top: 5px; }
+  .worklist-header { flex-wrap: wrap; }
+  .worklist-header-actions { flex-wrap: wrap; }
+  .worklist-context { flex-wrap: wrap; }
+  .worklist-panel-heading { padding: 17px 16px; }
+  .worklist-pagination { flex-direction: column; align-items: flex-start; }
+  .worklist-pagination > div { width: 100%; justify-content: space-between; }
+}
+@container task-workspace (max-width: 480px) {
+  .worklist-row { grid-template-columns: 26px minmax(0, 1fr); }
+  .worklist-due { grid-column: 2; grid-row: 3; flex-direction: row; padding: 0; }
+  .worklist-open { grid-column: 2; grid-row: 5; justify-content: space-between; }
+  .worklist-progress-cell { grid-column: 2; grid-row: 4; max-width: 100%; }
+  .worklist-search { flex-basis: 100%; max-width: none; }
+  .worklist-toolbar > .worklist-select { flex: 1 1 calc(50% - 5px); max-width: calc(50% - 5px); }
+}
+
+@media (max-width: 480px) { .worklist-toolbar > .worklist-select { flex: 1 1 calc(50% - 5px); max-width: calc(50% - 5px); } .worklist-sort { width: auto; } }
