@@ -37,8 +37,8 @@ function validateDefinitionJson(definition) {
   if (!definition.schemaVersion || typeof definition.schemaVersion !== 'string') {
     errors.push('schemaVersion is required and must be a string');
   }
-  if (!definition.definitionVersion || typeof definition.definitionVersion !== 'number') {
-    errors.push('definitionVersion is required and must be a number');
+  if (!Number.isSafeInteger(definition.definitionVersion) || definition.definitionVersion < 1) {
+    errors.push('definitionVersion must be a positive integer');
   }
   if (!Array.isArray(definition.tabs)) {
     errors.push('tabs must be an array');
@@ -83,7 +83,9 @@ async function createViewDefinition({
     throw httpError(400, `viewKey must be one of ${[...ALLOWED_VIEW_KEYS].join(', ')}`, 'INVALID_VIEW_KEY');
   }
   if (!schemaVersion) throw httpError(400, 'schemaVersion is required', 'SCHEMA_VERSION_REQUIRED');
-  if (typeof definitionVersion !== 'number') throw httpError(400, 'definitionVersion must be a number', 'VERSION_REQUIRED');
+  if (!Number.isSafeInteger(definitionVersion) || definitionVersion < 1) {
+    throw httpError(400, 'definitionVersion must be a positive integer', 'VERSION_REQUIRED');
+  }
 
   const validation = validateDefinitionJson(definitionJson);
   if (!validation.ok) {
@@ -187,6 +189,24 @@ async function listViewDefinitions(templateId) {
   return result.recordset;
 }
 
+/**
+ * Compatibility with the original Phase 1 generated fallback snapshot, which
+ * used definitionVersion=0 even though the canonical validator requires a
+ * positive version. Only this exact, non-published STANDARD_V1 shape is allowed.
+ * Never use this exception for an actual published definition or arbitrary v0.
+ */
+function isLegacyGeneratedDefaultSnapshot(definition, definitionId) {
+  if (definitionId || !definition || typeof definition !== 'object' || Array.isArray(definition)) return false;
+  const allowedKeys = ['viewKey', 'schemaVersion', 'definitionVersion', 'tabs', 'widgets'];
+  return Object.keys(definition).length === allowedKeys.length
+    && Object.keys(definition).every(key => allowedKeys.includes(key))
+    && definition.viewKey === 'STANDARD_V1'
+    && definition.schemaVersion === '1.0'
+    && definition.definitionVersion === 0
+    && Array.isArray(definition.tabs) && definition.tabs.length === 0
+    && Array.isArray(definition.widgets) && definition.widgets.length === 0;
+}
+
 async function getViewDefinitionForTaskInstance(taskInstanceId) {
   const pool = await getPool();
   const taskResult = await pool
@@ -201,10 +221,15 @@ async function getViewDefinitionForTaskInstance(taskInstanceId) {
     try { definition = JSON.parse(task.ViewDefinitionSnapshot); }
     catch (error) { throw httpError(409, 'Pinned task view snapshot is malformed', 'INVALID_VIEW_SNAPSHOT'); }
     const validation = validateDefinitionJson(definition);
-    if (!validation.ok) {
+    const legacyGeneratedDefault = isLegacyGeneratedDefaultSnapshot(definition, task.ViewDefinitionId);
+    if (!validation.ok && !legacyGeneratedDefault) {
       throw httpError(409, 'Pinned task view snapshot does not match the registered schema', 'INVALID_VIEW_SNAPSHOT');
     }
-    return { definition, fromSnapshot: true, definitionId: task.ViewDefinitionId || null };
+    return {
+      definition, fromSnapshot: true,
+      definitionId: task.ViewDefinitionId || null,
+      ...(legacyGeneratedDefault ? { legacyGeneratedDefault: true } : {}),
+    };
   }
   if (task.ViewDefinitionId) {
     const def = await pool
