@@ -2138,6 +2138,11 @@ async function verifyFix(taskInstanceId, actorId, actorName) {
     }
   } else if (total > 0 && done < total) {
     result = { status: 'mismatch', message: `${total - done} of ${total} sub-task(s) still open`, asins: [] };
+  } else if (taskExecutionGates.strictGatesEnabled()) {
+    // A checked SOP is not evidence of a repaired listing or recovered stock.
+    // Preserve the manual-confirmation pathway without manufacturing a
+    // FIX_VERIFIED audit event for a task with no real business verifier.
+    result = { status: 'unavailable', message: 'SOP completion recorded. No automated business-outcome verification is configured; attach evidence and confirm the outcome manually.', asins: [] };
   } else {
     result = { status: 'success', message: total > 0 ? 'All sub-tasks completed' : 'No automated check for this task — nothing outstanding', asins: [] };
   }
