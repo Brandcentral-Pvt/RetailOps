@@ -174,7 +174,7 @@ describe('View definition metadata identity lifecycle', () => {
     const created = await viewService.createViewDefinition(createArgs(definition));
     expect(created).toMatchObject({ id: 'view-1', viewKey: 'STANDARD_V1', definitionVersion: 2 });
     const published = await viewService.publishViewDefinition(created.id, 'publisher');
-    expect(published).toMatchObject({ status: 'PUBLISHED' });
+    expect(published).toMatchObject({ Status: 'PUBLISHED', status: 'PUBLISHED' });
     const pinned = await snapshots.resolveViewPin(mockPool(), 'tpl-1');
     expect(pinned).toMatchObject({ pinned: true, viewDefinitionId: created.id });
     expect(JSON.parse(pinned.snapshotJson)).toEqual(definition);
