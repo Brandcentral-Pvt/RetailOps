@@ -154,3 +154,13 @@ describe('Phase 2 workflow template contract', () => {
     });
   });
 });
+
+
+test('inventory example fixture stays compatible with the canonical V2 schema', () => {
+  const fixture = require('../fixtures/taskWorkflowV2.inventory.sample.json');
+  expect(validateWorkflowDefinition(fixture)).toMatchObject({ ok: true, errors: [] });
+  const plan = buildExecutionPlan(fixture, { source_selection: { source: 'VENDOR_CENTRAL' } });
+  expect(plan.ok).toBe(true);
+  expect(plan.phases[0].activities.map(a => a.visibility))
+    .toEqual(['VISIBLE', 'HIDDEN', 'VISIBLE']);
+});
