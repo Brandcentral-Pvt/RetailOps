@@ -80,7 +80,7 @@ describe('Historical PEMS view definition resolution', () => {
 
   test('existing explicit pin without a snapshot is returned only if valid', async () => {
     mockTaskRow = { TemplateId: 'tpl-1', ViewDefinitionId: 'view-v2', ViewDefinitionSnapshot: null };
-    mockPinnedDefinition = { Id: 'view-v2', DefinitionJson: JSON.stringify(validView) };
+    mockPinnedDefinition = { Id: 'view-v2', ViewKey: 'STANDARD_V1', SchemaVersion: '1.0', DefinitionVersion: 2, DefinitionJson: JSON.stringify(validView) };
     const result = await service.getViewDefinitionForTaskInstance('task-1');
     expect(result).toMatchObject({ fromSnapshot: false, definitionId: 'view-v2', definition: validView });
   });
