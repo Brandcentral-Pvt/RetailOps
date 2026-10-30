@@ -78,6 +78,45 @@ describe('Phase 1 task execution gate invariants', () => {
     expect(update.inputs).toMatchObject({ done:1, progress:50, weighted:30 });
   });
 
+  test('partial mandatory activity progress is visible before the phase is completed', async () => {
+    const pool = makeFakePool([
+      { match: /SELECT Id, IsCompleted, WeightagePct FROM PemsSubTasks/, rows: [
+        { Id:'p1', IsCompleted:0, WeightagePct:100 },
+      ] },
+      { match: /SELECT SubTaskId, IsMandatory, IsCompleted FROM PemsActivities/, rows: [
+        { SubTaskId:'p1', IsMandatory:1, IsCompleted:1 },
+        { SubTaskId:'p1', IsMandatory:1, IsCompleted:0 },
+        { SubTaskId:'p1', IsMandatory:1, IsCompleted:0 },
+      ] },
+    ]);
+    const progress = await gates.reconcileTaskProgress(pool, 't1');
+    expect(progress).toMatchObject({ progress:33, weighted:33, completedActivities:1, totalActivities:3 });
+  });
+
+  test('brand checklist progress combines with mandatory activity progress', async () => {
+    const pool = makeFakePool([
+      { match: /SELECT Id, IsCompleted, WeightagePct FROM PemsSubTasks/, rows: [{ Id:'p1', IsCompleted:0, WeightagePct:100 }] },
+      { match: /SELECT SubTaskId, IsMandatory, IsCompleted FROM PemsActivities/, rows: [
+        { SubTaskId:'p1', IsMandatory:1, IsCompleted:1 },
+      ] },
+      { match: /SELECT IsCompleted FROM PemsTaskBrands/, rows: [
+        { IsCompleted:1 }, { IsCompleted:0 }, { IsCompleted:0 },
+      ] },
+    ]);
+    const progress = await gates.reconcileTaskProgress(pool, 't1');
+    expect(progress).toMatchObject({ progress:50, weighted:50, completedBrands:1, totalBrands:3 });
+  });
+
+  test('parent lock precedes activity changes', async () => {
+    const pool = makeFakePool([
+      { match: /FROM PemsActivities WHERE Id = @id/, rows: [{ TaskInstanceId:'t1' }] },
+      { match: /FROM PemsTaskInstances WITH \(UPDLOCK, HOLDLOCK\)/, rows: [{ Id:'t1', Status:'IN_PROGRESS' }] },
+    ]);
+    const id = await gates.lockChildParent(pool, 'activity', 'a1');
+    expect(id).toBe('t1');
+    expect(pool.calls[1].sql).toContain('UPDLOCK, HOLDLOCK');
+  });
+
   test('idempotent ready phase update is scoped by both phase and task', async () => {
     const pool = makeFakePool([
       { match: /FROM PemsActivities WHERE SubTaskId/, rows:[{Total:1, Required:1, PendingRequired:0, PendingAll:0}] },
