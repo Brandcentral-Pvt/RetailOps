@@ -219,10 +219,13 @@ async function publishViewDefinition(id, createdBy) {
     // historical invalid data as a successful publication.
     validatePersistedDefinition(def);
     if (def.Status === 'PUBLISHED') return { ...def, alreadyPublished: true };
+    if (def.Status !== 'DRAFT') {
+      throw httpError(409, 'Only a draft view can be published', 'INVALID_VIEW_STATUS');
+    }
 
     const publishedAt = new Date();
     const publishedBy = createdBy || null;
-    await tx
+    const updated = await tx
       .request()
       .input('id', sql.VarChar, id)
       .input('status', sql.VarChar, 'PUBLISHED')
@@ -233,6 +236,9 @@ async function publishViewDefinition(id, createdBy) {
         SET Status = @status, PublishedAt = @publishedAt, PublishedBy = @publishedBy
         WHERE Id = @id AND Status = 'DRAFT'
       `);
+    if (Number(updated.rowsAffected?.[0] || 0) !== 1) {
+      throw httpError(409, 'View changed while publishing; reload and retry', 'VIEW_PUBLISH_CONFLICT');
+    }
 
     return { ...def, status: 'PUBLISHED', publishedAt, publishedBy };
   });
