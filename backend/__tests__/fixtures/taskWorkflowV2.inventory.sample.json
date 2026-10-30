@@ -1,0 +1,109 @@
+{
+  "schemaVersion": "2.0",
+  "phases": [
+    {
+      "key": "source_check",
+      "title": "Inventory source verification",
+      "description": "Select a trusted inventory report source",
+      "activities": [
+        {
+          "key": "source_selection",
+          "title": "Select inventory source",
+          "instructions": "Choose one of the approved inventory report sources.",
+          "type": "SELECT_SOURCE",
+          "required": true,
+          "evidenceRequired": false,
+          "validatorKey": "SOURCE_SELECTED",
+          "fields": [
+            {
+              "key": "source",
+              "type": "select",
+              "label": "Inventory source",
+              "required": true,
+              "options": [
+                "RETAILOPS",
+                "BRANDCENTRAL",
+                "VENDOR_CENTRAL"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "availability_check",
+          "title": "Review reported stock",
+          "instructions": "Review the report and confirm whether inventory was checked.",
+          "type": "CHECKLIST",
+          "required": true,
+          "evidenceRequired": true,
+          "validatorKey": "BOOLEAN_CONFIRMED",
+          "visibleWhen": {
+            "field": "source_selection.source",
+            "operator": "in",
+            "value": [
+              "RETAILOPS",
+              "BRANDCENTRAL"
+            ]
+          },
+          "fields": [
+            {
+              "key": "checked",
+              "type": "boolean",
+              "label": "Inventory reviewed",
+              "required": true
+            }
+          ]
+        },
+        {
+          "key": "backup_explanation",
+          "title": "Document backup data",
+          "instructions": "Explain why backup report data was required.",
+          "type": "FORM_INPUT",
+          "required": true,
+          "evidenceRequired": false,
+          "validatorKey": "NONEMPTY_TEXT",
+          "visibleWhen": {
+            "field": "source_selection.source",
+            "operator": "equals",
+            "value": "VENDOR_CENTRAL"
+          },
+          "fields": [
+            {
+              "key": "note",
+              "type": "text",
+              "label": "Backup report notes",
+              "required": true,
+              "minLength": 5,
+              "maxLength": 250
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "resolution_summary",
+      "title": "Document monitoring outcome",
+      "description": "Record the observed stock status and next owner",
+      "activities": [
+        {
+          "key": "record_outcome",
+          "title": "Record monitoring outcome",
+          "instructions": "Document the observed result without claiming a physical stock recovery.",
+          "type": "FORM_INPUT",
+          "required": true,
+          "evidenceRequired": false,
+          "validatorKey": "NONEMPTY_TEXT",
+          "fields": [
+            {
+              "key": "observations",
+              "type": "text",
+              "label": "Inventory observations",
+              "required": true,
+              "minLength": 10,
+              "maxLength": 1000
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
