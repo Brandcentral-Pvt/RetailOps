@@ -132,3 +132,51 @@ describe('Phase 1 task execution gate invariants', () => {
     expect(update.sql).toContain('IsCompleted = 0');
   });
 });
+
+
+describe('SQL Server phase evidence predicate', () => {
+  const phase = { Id: 'phase1', TaskInstanceId: 'task1', Status: 'IN_PROGRESS', IsCompleted: 0 };
+
+  function runPhaseReadiness(row) {
+    return makeFakePool([
+      {
+        match: /FROM PemsSubTasks st WITH \(UPDLOCK, ROWLOCK\)/,
+        rows: [phase],
+      },
+      {
+        match: /OUTER APPLY \(/,
+        rows: [row],
+      },
+    ]);
+  }
+
+  test('uses a T-SQL safe precomputed proof row, never a subquery inside SUM', async () => {
+    const pool = runPhaseReadiness({ PendingRequired: 0, MissingEvidence: 0 });
+    await expect(gates.assertPhaseReady(pool, 'phase1')).resolves.toMatchObject(phase);
+    const query = pool.calls.find(call => /AS MissingEvidence/.test(call.sql)).sql;
+    expect(query).toContain('OUTER APPLY');
+    expect(query).toMatch(/SELECT TOP \(1\) e\.Id AS EvidenceId/);
+    expect(query).toMatch(/e\.TaskInstanceId = a\.TaskInstanceId AND e\.ActivityId = a\.Id/);
+    expect(query).toMatch(/proof\.EvidenceId IS NULL/);
+    expect(query).toMatch(/COALESCE\(SUM\(/);
+    expect(query).not.toMatch(/SUM\([\s\S]*NOT EXISTS/);
+  });
+
+  test('missing required activity evidence blocks phase completion', async () => {
+    const pool = runPhaseReadiness({ PendingRequired: 0, MissingEvidence: 1 });
+    await expect(gates.assertPhaseReady(pool, 'phase1'))
+      .rejects.toMatchObject({
+        code: 'PHASE_INCOMPLETE',
+        gate: { pendingRequired: 0, missingEvidence: 1 },
+      });
+  });
+
+  test('pending mandatory steps block completion even when proof exists', async () => {
+    const pool = runPhaseReadiness({ PendingRequired: 2, MissingEvidence: 0 });
+    await expect(gates.assertPhaseReady(pool, 'phase1'))
+      .rejects.toMatchObject({
+        code: 'PHASE_INCOMPLETE',
+        gate: { pendingRequired: 2, missingEvidence: 0 },
+      });
+  });
+});
