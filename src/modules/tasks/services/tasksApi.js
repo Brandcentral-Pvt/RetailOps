@@ -67,7 +67,13 @@ const tasksApi = {
   transitionStatus: async (id, toStatus, remarks) =>
     call(`/pems/instances/${id}/transition`, { method: 'POST', body: { toStatus, details: typeof remarks === 'string' ? { submissionRemarks: remarks } : (remarks || {}) } }),
 
-  bulkTransition: async (data) => call(`/pems/instances/bulk/transition`, { method: 'POST', body: data }),
+  bulkTransition: async (idsOrData, toStatus, details) =>
+    call('/pems/instances/bulk/transition', {
+      method: 'POST',
+      body: Array.isArray(idsOrData)
+        ? { ids: idsOrData, toStatus, details }
+        : idsOrData,
+    }),
 
   addComment: async (id, text) =>
     call(`/pems/instances/${id}/comments`, { method: 'POST', body: { text } }),
