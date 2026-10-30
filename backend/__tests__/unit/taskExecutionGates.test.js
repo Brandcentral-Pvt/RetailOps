@@ -68,10 +68,14 @@ describe('Phase 1 task execution gate invariants', () => {
   });
 
   test('reconciles count and weighted progress from the same transaction', async () => {
-    const pool = makeFakePool([{ match: /SELECT Id, IsCompleted, WeightagePct FROM PemsSubTasks/, rows: [
-      { Id:'a', IsCompleted:1, WeightagePct:30 },
-      { Id:'b', IsCompleted:0, WeightagePct:70 },
-    ] }]);
+    const pool = makeFakePool([
+      { match: /SELECT Id, IsCompleted, WeightagePct FROM PemsSubTasks/, rows: [
+        { Id:'a', IsCompleted:1, WeightagePct:30 },
+        { Id:'b', IsCompleted:0, WeightagePct:70 },
+      ] },
+      { match: /SELECT SubTaskId, IsMandatory, IsCompleted FROM PemsActivities/, rows: [] },
+      { match: /SELECT IsCompleted FROM PemsTaskBrands/, rows: [] },
+    ]);
     const result = await gates.reconcileTaskProgress(pool,'t1');
     expect(result).toMatchObject({ total:2, completed:1, progress:50, weighted:30 });
     const update = pool.callWhere(/UPDATE PemsTaskInstances/);
