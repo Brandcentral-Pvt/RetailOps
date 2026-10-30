@@ -1,13 +1,29 @@
 # RetailOps Tasks 2.0: Phase 1 Development Completion
 
 **Milestone:** Phase 1 backend correctness  
-**Development status:** COMPLETE (subject to ordinary PR review)  
+**Development status:** Re-audit blockers corrected and CI verified; independent review pending  
 **Repository:** `Brandcentral-Pvt/RetailOps`  
 **Branch:** `fix/tasks-phase1-correctness`  
 **PR:** #210  
 **Base:** `26ffa0c5423501e5ddaf96f9b45c363b4cdcd472`
 
-This record defines development scope only. It makes no claim that production has been deployed, historical task data backfilled, a live SQL Server tested, or experimental OOS reconciliation activated.
+This record defines development scope only. It makes no claim that production has been deployed, historical task data backfilled, a production database tested, or experimental OOS reconciliation activated. The phase-readiness query was executed against an ephemeral SQL Server 2022 container.
+
+## 0. Response to independent re-audit of commit 826699ab
+
+The earlier Phase 1 completion claim was withdrawn. Three P1 defects were confirmed and fixed on the same PR:
+
+| Finding | Source fix | Regression evidence |
+| --- | --- | --- |
+| Cross-seller activity and phase completion using a forged taskInstanceId | `pemsAccess.resolveTaskId` resolves the real PemsActivities / PemsSubTasks parent first, rejects mismatched body claims, then checks the actual task's seller and executor scope | `pemsChildAuthorization.test.js` covers forged body IDs, missing child, legitimate calls, and strict gates both on and off |
+| SQL Server aggregate of a correlated subquery inside SUM(CASE ...) | `taskExecutionGates.assertPhaseReady` uses OUTER APPLY TOP(1) evidence lookup and aggregates ordinary scalar columns | `taskExecutionGates.test.js` plus `pemsPhaseGateSqlServer.test.js` against disposable SQL Server 2022 with missing, duplicate and valid evidence |
+| Generated fallback view has invalid definitionVersion: 0 | `taskInstanceSnapshot.DEFAULT_VIEW` now uses 1, and `taskViewDefinitionService` permits only the exact old generated v0 shape without a published ViewDefinitionId | `taskViewDefinitionLegacy.test.js` checks round trip, old fallback compatibility and invalid/malicious v0 rejection |
+
+All three corrections are independent of production activation flags. No production data modifications or OOS template activation were made.
+
+**Verification:** GitHub Actions run `41023867794`, commit `62c51ce6d787133ef09283e1409f860f34cbae6c`: 13 backend suites, 156 tests passed, frontend Vite build passed, task registry 10 tests passed, and the isolated SQL Server integration job passed.
+
+**Important separate repository problem:** Both `main` and this PR contain an inconsistent backend `package-lock.json` graph for `jsonwebtoken` that omits `jws`. SQL Server integration uses an isolated `mssql` installation to test the actual query despite that pre-existing packaging defect. This does not validate the full production database stack; track the lockfile issue separately and do not confuse the green scoped checks with a full deployment qualification.
 
 ## 1. Existing implementation rebuilt, not duplicated
 
@@ -46,10 +62,11 @@ Migrations `033` and `034` must already exist for the snapshot and EvidenceRequi
 
 ## 2. Verified development CI
 
-**GitHub Actions:** Tasks Phase 1 Correctness, run `41020445693`, commit `30e2bee12ece5d5ccdae59e5b27e1a159bba1c44`.
+**GitHub Actions:** Tasks Phase 1 Correctness, run `41023867794`, commit `62c51ce6d787133ef09283e1409f860f34cbae6c`.
 
 - Backend syntax checks: PASSED.
-- Backend Jest: **12 suites passed, 131 assertions passed**.
+- Backend Jest: **13 suites passed, 156 tests passed**.
+- Real ephemeral SQL Server 2022 phase-gate query and evidence scenarios: PASSED.
 - Frontend `npm run build`: PASSED (Vite 8.3.5).
 - Task registry `npm run test:task-registry`: **10 tests passed**.
 - Main Phase 1 check: **SUCCESS**.
