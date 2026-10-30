@@ -8,7 +8,13 @@
  * This executes the actual assertPhaseReady query, rather than trusting a
  * regex or fake pool to validate SQL Server's aggregate/subquery rules.
  */
-const mssql = require('mssql');
+// Keep the SQL dialect test independent of unrelated application imports.
+ // The isolated driver in CI has its full dependency tree, even when the
+ // repository's pre-existing backend lockfile has incomplete JWT metadata.
+jest.mock('../../database/db', () => ({
+  sql: require(process.env.PEMS_TEST_MSSQL_MODULE || 'mssql'),
+}));
+const mssql = require(process.env.PEMS_TEST_MSSQL_MODULE || 'mssql');
 const gates = require('../../services/pems/taskExecutionGates');
 
 let pool = null;
