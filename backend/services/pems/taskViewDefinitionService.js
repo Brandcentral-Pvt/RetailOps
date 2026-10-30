@@ -200,6 +200,10 @@ async function getViewDefinitionForTaskInstance(taskInstanceId) {
     let definition;
     try { definition = JSON.parse(task.ViewDefinitionSnapshot); }
     catch (error) { throw httpError(409, 'Pinned task view snapshot is malformed', 'INVALID_VIEW_SNAPSHOT'); }
+    const validation = validateDefinitionJson(definition);
+    if (!validation.ok) {
+      throw httpError(409, 'Pinned task view snapshot does not match the registered schema', 'INVALID_VIEW_SNAPSHOT');
+    }
     return { definition, fromSnapshot: true, definitionId: task.ViewDefinitionId || null };
   }
   if (task.ViewDefinitionId) {
@@ -211,6 +215,10 @@ async function getViewDefinitionForTaskInstance(taskInstanceId) {
       let definition;
       try { definition = JSON.parse(def.recordset[0].DefinitionJson); }
       catch (error) { throw httpError(409, 'Pinned task view definition is malformed', 'INVALID_VIEW_DEFINITION'); }
+      const validation = validateDefinitionJson(definition);
+      if (!validation.ok) {
+        throw httpError(409, 'Pinned task view definition is invalid', 'INVALID_VIEW_DEFINITION');
+      }
       return { definition, fromSnapshot: false, definitionId: task.ViewDefinitionId };
     }
     throw httpError(409, 'Pinned task view definition no longer exists', 'MISSING_PINNED_VIEW');
