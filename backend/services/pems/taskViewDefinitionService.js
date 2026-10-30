@@ -197,7 +197,10 @@ async function getViewDefinitionForTaskInstance(taskInstanceId) {
   if (!task) throw httpError(404, 'Task instance not found', 'TASK_NOT_FOUND');
 
   if (task.ViewDefinitionSnapshot) {
-    return { definition: JSON.parse(task.ViewDefinitionSnapshot), fromSnapshot: true };
+    let definition;
+    try { definition = JSON.parse(task.ViewDefinitionSnapshot); }
+    catch (error) { throw httpError(409, 'Pinned task view snapshot is malformed', 'INVALID_VIEW_SNAPSHOT'); }
+    return { definition, fromSnapshot: true, definitionId: task.ViewDefinitionId || null };
   }
   if (task.ViewDefinitionId) {
     const def = await pool
@@ -205,17 +208,17 @@ async function getViewDefinitionForTaskInstance(taskInstanceId) {
       .input('id', sql.VarChar, task.ViewDefinitionId)
       .query('SELECT * FROM PemsTemplateViewDefinitions WHERE Id = @id');
     if (def.recordset[0]) {
-      return { definition: JSON.parse(def.recordset[0].DefinitionJson), fromSnapshot: false, definitionId: task.ViewDefinitionId };
+      let definition;
+      try { definition = JSON.parse(def.recordset[0].DefinitionJson); }
+      catch (error) { throw httpError(409, 'Pinned task view definition is malformed', 'INVALID_VIEW_DEFINITION'); }
+      return { definition, fromSnapshot: false, definitionId: task.ViewDefinitionId };
     }
+    throw httpError(409, 'Pinned task view definition no longer exists', 'MISSING_PINNED_VIEW');
   }
-  const templateResult = await pool
-    .request()
-    .input('templateId', sql.VarChar, task.TemplateId)
-    .query('SELECT TOP 1 * FROM PemsTemplateViewDefinitions WHERE TemplateId = @templateId AND Status = \'PUBLISHED\' ORDER BY DefinitionVersion DESC');
-  if (templateResult.recordset[0]) {
-    return { definition: JSON.parse(templateResult.recordset[0].DefinitionJson), fromSnapshot: false };
-  }
-  return { definition: null, fromSnapshot: false };
+  // A pre-Phase-1 instance with no explicit pin must not silently inherit
+  // whatever template view was most recently published. Legacy task execution
+  // remains in the historical standard renderer until an approved migration.
+  return { definition: null, fromSnapshot: false, legacyUnpinned: true };
 }
 
 module.exports = {
