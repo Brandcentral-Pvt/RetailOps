@@ -2,7 +2,7 @@
  * PEMS entity-access middleware — assignee / reviewer / global roles only.
  */
 const { sql, getPool } = require('../database/db');
-const { canActOnTask, canViewTask } = require('../services/pems/pemsPolicy');
+const { canActOnTask, canViewTask, canExecuteTask, canReviewTask, canTransitionTask } = require('../services/pems/pemsPolicy');
 const { isGlobalUserRole } = require('../utils/roleUtils');
 
 /**
@@ -55,7 +55,7 @@ async function resolveTaskId(req, pool) {
  * owns it.
  */
 async function requireTaskAccess(req, res, next, options = {}) {
-  const mode = options.mode === 'view' ? 'view' : 'act';
+  const mode = options.mode || 'act';
   try {
     const pool = await getPool();
     const taskId = await resolveTaskId(req, pool);
@@ -70,11 +70,15 @@ async function requireTaskAccess(req, res, next, options = {}) {
     }
 
     const r = await pool.request().input('id', sql.VarChar, taskId)
-      .query('SELECT Id, AssignedTo, ReviewerId, SellerId, SellerName FROM PemsTaskInstances WHERE Id = @id');
+      .query('SELECT Id, AssignedTo, ReviewerId, SellerId, SellerName, Status FROM PemsTaskInstances WHERE Id = @id');
     const task = r.recordset[0];
     if (!task) return res.status(404).json({ success: false, error: 'Task not found' });
 
-    const allowed = mode === 'view' ? canViewTask(req.user, task) : canActOnTask(req.user, task);
+    const allowed = mode === 'view' ? canViewTask(req.user, task)
+      : mode === 'execute' ? canExecuteTask(req.user, task)
+      : mode === 'review' ? canReviewTask(req.user, task)
+      : mode === 'transition' ? canTransitionTask(req.user, task, req.body?.toStatus)
+      : canActOnTask(req.user, task);
     if (!allowed) {
       return res.status(403).json({ success: false, error: 'You do not have access to this task' });
     }
@@ -88,5 +92,11 @@ async function requireTaskAccess(req, res, next, options = {}) {
 
 /** View-level variant: seller scope only, no assignment requirement. */
 const requireTaskView = (req, res, next) => requireTaskAccess(req, res, next, { mode: 'view' });
+const requireTaskExecutor = (req, res, next) => requireTaskAccess(req, res, next, { mode: 'execute' });
+const requireTaskReviewer = (req, res, next) => requireTaskAccess(req, res, next, { mode: 'review' });
+const requireTaskTransition = (req, res, next) => requireTaskAccess(req, res, next, { mode: 'transition' });
 
-module.exports = { requireTaskAccess, requireTaskView, requireGlobalPemsRole };
+module.exports = {
+  requireTaskAccess, requireTaskView, requireTaskExecutor,
+  requireTaskReviewer, requireTaskTransition, requireGlobalPemsRole,
+};
