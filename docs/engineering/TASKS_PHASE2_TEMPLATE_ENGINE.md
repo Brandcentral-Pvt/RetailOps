@@ -2,7 +2,7 @@
 
 **Branch:** `feat/tasks-phase2-template-engine`  
 **PR:** stacked on `fix/tasks-phase1-correctness` (Phase 1 PR #210)  
-**Current development stage:** Phase 2.2, typed activity persistence in the existing PEMS engine. Conditional branches and the guided runner remain Phase 2.3/2.4.
+**Current development stage:** Phase 2.2 implemented and development-tested; Phase 2.3 conditional execution and Phase 2.4 trusted guided rendering remain.
 
 ## Purpose
 
@@ -194,6 +194,18 @@ The CI configuration runs a separate disposable SQL Server 2022 integration
 test to verify the migration and output persistence SQL, rather than trusting
 fake database responses alone.
 
-Until that CI run succeeds, **Phase 2.2 is an in-review implementation**, not
-a fully accepted development milestone. No production data or OOS workflow
-has been changed, and PR #212 remains Draft and stacked on Phase 1 PR #210.
+**Phase 2.2 developer verification passed.** GitHub Actions
+[run 41036232130](https://github.com/Brandcentral-Pvt/RetailOps/actions/runs/41036232130)
+on implementation commit `a2f79a6a1485d5bf618ce9364e2900ed8ab6aba7` reports:
+
+- **11 backend Jest suites, 94 tests passed** including output revisions,
+  validation failures, identity scoping, and Phase 1 regression coverage.
+- **One real disposable SQL Server 2022 integration test passed** validating
+  migration 042 run twice, typed output writes, stale edit rejection,
+  cross-task resource isolation and linked evidence.
+- **11 task view registry tests passed** and the frontend Vite build passed.
+
+**Phase 2.2 is complete as a scoped development increment, subject to PR
+review.** Conditional skip/reopen, a guided task UI, and production rollout
+are not complete. No production data or OOS workflow has been changed.
+PR #212 remains Draft and stacked on Phase 1 PR #210.
