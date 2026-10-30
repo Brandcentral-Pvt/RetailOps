@@ -66,6 +66,16 @@ const tasksApi = {
 
   getInstanceById: async (id) => call(`/pems/instances/${id}`),
 
+  // Phase 2.2: execution state comes from the pinned task template and saved
+  // activity rows, never an editable client-side workflow configuration.
+  getWorkflowExecution: async (id) =>
+    call(`/pems/instances/${id}/workflow`),
+
+  saveWorkflowActivityOutput: async (taskId, activityId, output, expectedRevision) =>
+    call(`/pems/instances/${taskId}/activities/${activityId}/output`, {
+      method: 'PUT', body: { output, expectedRevision },
+    }),
+
   createInstance: async (data) => call(`/pems/instances`, { method: 'POST', body: data }),
 
   transitionStatus: async (id, toStatus, remarks) =>
