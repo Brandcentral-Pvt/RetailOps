@@ -1,7 +1,7 @@
 # RetailOps Tasks 2.0: Phase 1 Development Completion
 
 **Milestone:** Phase 1 backend correctness  
-**Development status:** Re-audit blockers corrected and CI verified; independent review pending  
+**Development status:** P1 and P2 re-audit fixes implemented; final CI and independent review pending  
 **Repository:** `Brandcentral-Pvt/RetailOps`  
 **Branch:** `fix/tasks-phase1-correctness`  
 **PR:** #210  
@@ -24,6 +24,41 @@ All three corrections are independent of production activation flags. No product
 **Verification:** GitHub Actions run `41023867794`, commit `62c51ce6d787133ef09283e1409f860f34cbae6c`: 13 backend suites, 156 tests passed, frontend Vite build passed, task registry 10 tests passed, and the isolated SQL Server integration job passed.
 
 **Important separate repository problem:** Both `main` and this PR contain an inconsistent backend `package-lock.json` graph for `jsonwebtoken` that omits `jws`. SQL Server integration uses an isolated `mssql` installation to test the actual query despite that pre-existing packaging defect. This does not validate the full production database stack; track the lockfile issue separately and do not confuse the green scoped checks with a full deployment qualification.
+
+## P2. Publication metadata identity audit (October 30)
+
+An independent re-audit at `d72e07e` confirmed that the three previous P1 blockers
+were fixed but reproduced a P2 issue: view creation accepted outer metadata
+`definitionVersion=2` with JSON `definitionVersion=1`; publication accepted the
+draft; subsequent instance pinning returned `409 TASK_VIEW_INVALID`.
+
+**Correction in this PR:**
+- One pure `validateDefinitionIdentity` helper combines JSON schema checks and
+  exact equality of `viewKey`, `schemaVersion`, and `definitionVersion`.
+- `createViewDefinition()` rejects mismatched metadata with HTTP 400
+  `INVALID_DEFINITION_IDENTITY` *before any SQL write*.
+- `publishViewDefinition()` locks the stored row with `UPDLOCK, HOLDLOCK` in
+  the same transaction as publication, validates persisted JSON against the SQL
+  metadata, and rejects mismatched drafts with HTTP 409
+  `INVALID_DEFINITION_IDENTITY` without updating status.
+- Even an already-published but inconsistent historical definition does not pass
+  through the idempotent publication path; corrupted rows must be reviewed
+  separately rather than silently rewritten.
+- Task pinning and reading a pinned definition without a snapshot reuse this
+  identity validation, including `schemaVersion`.
+- Publication checks the state is `DRAFT` and checks its affected row count.
+  Its response now agrees on `Status` and `status`.
+
+**Regression:** `backend/__tests__/unit/taskViewPublicationIdentity.test.js`
+executes the concrete create → publish → pin sequence and checks each mismatch
+independently, malformed JSON, corrupted already-published definitions, an
+idempotent valid publish, invalid status, and a lost-update conflict. The
+existing snapshot and creation fixtures use the real shared validator and
+complete SQL row metadata.
+
+No migration, task rescheduling, OOS activation, or production data change was
+performed. Existing inconsistent published definitions, if any, are deliberately
+not mutated by this PR and remain subject to a later read-only data audit.
 
 ## 1. Existing implementation rebuilt, not duplicated
 
