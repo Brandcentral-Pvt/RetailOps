@@ -28,22 +28,36 @@ function requireGlobalPemsRole(req, res, next) {
  * following subtask/activity references when needed.
  */
 async function resolveTaskId(req, pool) {
-  const direct = req.params.id || req.body?.taskInstanceId || req.body?.id;
-  if (direct) return direct;
+  // Child-resource identity MUST come from the database, never from a
+  // client-supplied taskInstanceId/id. Otherwise an attacker can authorize
+  // against their own task while completing another seller's activity.
+  const isActivity = Boolean(req.params.activityId);
+  const isPhase = Boolean(req.params.subTaskId);
+  if (isActivity || isPhase) {
+    const table = isActivity ? 'PemsActivities' : 'PemsSubTasks';
+    const childId = isActivity ? req.params.activityId : req.params.subTaskId;
+    // Table is selected exclusively from the fixed allow-list above.
+    const r = await pool.request().input('id', sql.VarChar, childId)
+      .query(`SELECT TaskInstanceId FROM ${table} WHERE Id = @id`);
+    const actualTaskId = r.recordset[0]?.TaskInstanceId;
+    if (!actualTaskId) return null;
 
-  if (req.params.subTaskId) {
-    const r = await pool.request().input('id', sql.VarChar, req.params.subTaskId)
-      .query('SELECT TaskInstanceId FROM PemsSubTasks WHERE Id = @id');
-    return r.recordset[0]?.TaskInstanceId || null;
+    // Reject mismatched claims instead of ignoring them, so malicious clients
+    // and stale UI payloads fail predictably.
+    const claimedTaskIds = [req.params.id, req.body?.taskInstanceId, req.body?.id]
+      .filter(value => value !== undefined && value !== null && value !== '');
+    if (claimedTaskIds.some(value => String(value) !== String(actualTaskId))) {
+      const error = new Error('Task identity does not match the requested activity or phase');
+      error.status = 403;
+      error.code = 'TASK_PARENT_MISMATCH';
+      throw error;
+    }
+    return actualTaskId;
   }
 
-  if (req.params.activityId) {
-    const r = await pool.request().input('id', sql.VarChar, req.params.activityId)
-      .query('SELECT TaskInstanceId FROM PemsActivities WHERE Id = @id');
-    return r.recordset[0]?.TaskInstanceId || null;
-  }
-
-  return null;
+  // Only direct task routes and task-level evidence/review routes may use
+  // their path or body task identifier as the resource being authorized.
+  return req.params.id || req.body?.taskInstanceId || req.body?.id || null;
 }
 
 /**
@@ -59,7 +73,13 @@ async function requireTaskAccess(req, res, next, options = {}) {
   try {
     const pool = await getPool();
     const taskId = await resolveTaskId(req, pool);
-    if (!taskId) return res.status(400).json({ success: false, error: 'Task id required' });
+    if (!taskId) {
+      const childReference = req.params.activityId || req.params.subTaskId;
+      return res.status(childReference ? 404 : 400).json({
+        success: false,
+        error: childReference ? 'Activity or phase not found' : 'Task id required',
+      });
+    }
 
     // Synthetic ids minted for ruleset tasks live in `Actions`, not
     // PemsTaskInstances, so there is no row to load here. getInstanceById
@@ -86,7 +106,10 @@ async function requireTaskAccess(req, res, next, options = {}) {
     req.pemsTask = task;
     next();
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(err.status || 500).json({
+      success: false, code: err.code || undefined,
+      error: err.status ? err.message : 'Unable to authorize task',
+    });
   }
 }
 
