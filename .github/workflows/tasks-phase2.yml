@@ -16,6 +16,7 @@ on:
       - 'backend/__tests__/unit/templateWorkflowV2.test.js'
       - 'backend/__tests__/unit/taskViewWorkflowV2.test.js'
       - 'backend/__tests__/unit/taskWorkflowV2Execution.test.js'
+      - 'backend/__tests__/integration/pemsWorkflowV2SqlServer.test.js'
       - 'backend/__tests__/unit/pemsPhase2Instance.test.js'
       - 'backend/__tests__/unit/taskViewPublicationIdentity.test.js'
       - 'backend/__tests__/routes/pemsWorkflowPreview.test.js'
@@ -79,3 +80,41 @@ jobs:
         run: npm run test:task-registry
       - name: Check frontend build
         run: npm run build
+
+  sql-persistence:
+    name: Phase 2.2 migration and output CAS on SQL Server
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_PID: Developer
+          MSSQL_SA_PASSWORD: 'Phase2Disposable#2026!'
+        ports:
+          - 1433:1433
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Install isolated SQL driver with complete dependency tree
+        run: npm install --prefix /tmp/pems-phase2-sql --ignore-scripts --no-audit --no-fund mssql@12.7.11
+      - name: Execute migration and revision tests in disposable tempdb
+        working-directory: backend
+        env:
+          PEMS_SQLSERVER_SMOKE: '1'
+          PEMS_TEST_SQLSERVER_HOST: '127.0.0.1'
+          PEMS_TEST_SQLSERVER_PORT: '1433'
+          PEMS_TEST_SQLSERVER_USER: 'sa'
+          PEMS_TEST_SQLSERVER_PASSWORD: 'Phase2Disposable#2026!'
+          PEMS_TEST_MSSQL_MODULE: '/tmp/pems-phase2-sql/node_modules/mssql'
+        run: |
+          npm test -- --runInBand __tests__/integration/pemsWorkflowV2SqlServer.test.js
