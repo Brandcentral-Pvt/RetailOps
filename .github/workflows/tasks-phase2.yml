@@ -6,10 +6,18 @@ on:
     paths:
       - 'backend/services/pems/templateWorkflow.js'
       - 'backend/services/pems/taskViewDefinitionService.js'
+      - 'backend/services/pems/taskWorkflowV2Execution.js'
+      - 'backend/services/pems/taskExecutionGates.js'
+      - 'backend/services/pems/taskInstanceSnapshot.js'
+      - 'backend/services/pems/pemsService.js'
+      - 'backend/migrations/042_pems_workflow_v2_activity_outputs.js'
       - 'backend/controllers/pems/pemsController.js'
       - 'backend/routes/pems/pemsRoutes.js'
       - 'backend/__tests__/unit/templateWorkflowV2.test.js'
       - 'backend/__tests__/unit/taskViewWorkflowV2.test.js'
+      - 'backend/__tests__/unit/taskWorkflowV2Execution.test.js'
+      - 'backend/__tests__/unit/pemsPhase2Instance.test.js'
+      - 'backend/__tests__/unit/taskViewPublicationIdentity.test.js'
       - 'backend/__tests__/routes/pemsWorkflowPreview.test.js'
       - 'backend/__tests__/fixtures/taskWorkflowV2.inventory.sample.json'
       - 'src/modules/tasks/view-registry/**'
@@ -43,6 +51,11 @@ jobs:
         working-directory: backend
         run: |
           node --check services/pems/templateWorkflow.js
+          node --check services/pems/taskWorkflowV2Execution.js
+          node --check services/pems/pemsService.js
+          node --check services/pems/taskExecutionGates.js
+          node --check services/pems/taskInstanceSnapshot.js
+          node --check migrations/042_pems_workflow_v2_activity_outputs.js
           node --check services/pems/taskViewDefinitionService.js
           node --check controllers/pems/pemsController.js
           node --check routes/pems/pemsRoutes.js
@@ -51,6 +64,9 @@ jobs:
         run: |
           npm test -- --runInBand \
             __tests__/unit/templateWorkflowV2.test.js \
+            __tests__/unit/taskWorkflowV2Execution.test.js \
+            __tests__/unit/pemsPhase2Instance.test.js \
+            __tests__/unit/pemsPhase1ReviewGate.test.js \
             __tests__/unit/taskViewWorkflowV2.test.js \
             __tests__/routes/pemsWorkflowPreview.test.js \
             __tests__/unit/taskViewPublicationIdentity.test.js \
