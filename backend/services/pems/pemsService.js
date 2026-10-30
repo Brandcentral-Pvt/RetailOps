@@ -2,6 +2,7 @@ const { sql, getPool, generateId, withTransaction } = require('../../database/db
 const { canTransition, calculateSLAStatus, calculateAchievement, calculateVariance, getNextDueDate, getTransitionTimestamps, resolveReviewTransition, WORKFLOW_STATUSES } = require('./workflowEngine');
 const { canActOnTask } = require('./pemsPolicy');
 const taskExecutionGates = require('./taskExecutionGates');
+const taskInstanceSnapshot = require('./taskInstanceSnapshot');
 const { isGlobalUserRole } = require('../../utils/roleUtils');
 const { resolveSellerScope, buildScopeClause, canViewTaskByScope, applyScopeInputs } = require('./sellerScope');
 
@@ -244,10 +245,11 @@ async function createInstance(data) {
   let tplRow = null;
   if (data.templateId) {
     const tplResult = await pool.request().input('tplId', sql.VarChar, data.templateId)
-      .query('SELECT Department, SubTaskDefinitions FROM PemsTaskTemplates WHERE Id = @tplId');
+      .query(`SELECT Department, SubTaskDefinitions FROM PemsTaskTemplates${taskInstanceSnapshot.viewPinningEnabled() ? ' WITH (UPDLOCK, HOLDLOCK)' : ''} WHERE Id = @tplId`);
     tplRow = tplResult.recordset[0];
   }
   const department = data.department || tplRow?.Department || 'Operations';
+  const viewPin = await taskInstanceSnapshot.resolveViewPin(pool, data.templateId);
 
   // Resolve sellerName if not provided
   let sellerName = data.sellerName || '';
@@ -289,22 +291,28 @@ async function createInstance(data) {
     .input('sourceRef', sql.NVarChar, data.sourceRef || null)
     .input('asins', sql.NVarChar(sql.MAX), JSON.stringify(data.asins || data.ASINs || []))
     .input('category', sql.NVarChar, data.category || department)
+    .input('viewDefinitionId', sql.VarChar, viewPin.viewDefinitionId)
+    .input('viewDefinitionSnapshot', sql.NVarChar(sql.MAX), viewPin.snapshotJson)
     .query(`
       INSERT INTO PemsTaskInstances
         (Id, InstanceCode, TemplateId, SellerId, SellerName, AssignedTo, AssigneeName,
          ReviewerId, ReviewerName, Department, Status, ReviewStatus, Frequency, Title, Description,
          Priority, Target, Achievement, SLAStatus, SLAHours, DueDate, AssignedAt,
-         Attachments, Tags, Source, SourceId, SourceRef, Asins, Category)
+         Attachments, Tags, Source, SourceId, SourceRef, Asins, Category${viewPin.pinned ? ', ViewDefinitionId, ViewDefinitionSnapshot' : ''})
       VALUES
         (@id, @instanceCode, @templateId, @sellerId, @sellerName, @assignedTo, @assigneeName,
          @reviewerId, @reviewerName, @department, @status, @reviewStatus, @frequency, @title, @description,
          @priority, @target, @achievement, @slaStatus, @slaHours, @dueDate, @assignedAt,
-         @attachments, @tags, @source, @sourceId, @sourceRef, @asins, @category)
+         @attachments, @tags, @source, @sourceId, @sourceRef, @asins, @category${viewPin.pinned ? ', @viewDefinitionId, @viewDefinitionSnapshot' : ''})
     `);
 
   // Create subtasks from template definitions
   // Fetch template's SOP if subTaskDefinitions not provided in request
-  let subTaskDefs = data.subTaskDefinitions;
+  // Snapshot mode uses the template SOP from the locked database row,
+  // preventing caller-supplied step overrides for published task instances.
+  let subTaskDefs = viewPin.pinned && data.templateId && tplRow
+    ? safeParse(tplRow.SubTaskDefinitions, [])
+    : data.subTaskDefinitions;
   if ((!subTaskDefs || subTaskDefs.length === 0) && data.templateId && tplRow?.SubTaskDefinitions) {
     subTaskDefs = safeParse(tplRow.SubTaskDefinitions, []);
   } else if ((!subTaskDefs || subTaskDefs.length === 0) && data.templateId) {
