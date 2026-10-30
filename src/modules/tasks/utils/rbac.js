@@ -59,7 +59,7 @@ export function hasPermission(user, permission) {
   if (perms.some(p => p === 'pems.*')) return true;
 
   // Check for exact permission or category wildcard
-  return perms.some(p => p === permission || permission.startsWith(p.split('.')[0] + '.'));
+  return perms.some(p => p === permission || (p.endsWith('.*') && permission.startsWith(p.slice(0, -1))));
 }
 
 /**
