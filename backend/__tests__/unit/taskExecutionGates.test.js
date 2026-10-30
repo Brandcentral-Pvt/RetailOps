@@ -46,7 +46,7 @@ describe('Phase 1 task execution gate invariants', () => {
   test('rejects closing a phase with required work still pending', async () => {
     const pool = makeFakePool([
       { match: /FROM PemsSubTasks st WITH \(UPDLOCK, ROWLOCK\)/, rows: [{ Id:'p1', TaskInstanceId:'t1', Status:'IN_PROGRESS', IsCompleted:0 }] },
-      { match: /FROM PemsActivities a WHERE a.SubTaskId/, rows: [{ PendingRequired:1, MissingEvidence:0 }] },
+      { match: /OUTER APPLY \(/, rows: [{ PendingRequired:1, MissingEvidence:0 }] },
     ]);
     await expect(gates.assertPhaseReady(pool, 'p1'))
       .rejects.toMatchObject({ code:'PHASE_INCOMPLETE', gate:{ pendingRequired:1 } });
