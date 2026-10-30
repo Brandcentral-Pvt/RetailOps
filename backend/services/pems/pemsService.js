@@ -982,10 +982,17 @@ async function transitionStatus(taskInstanceId, toStatus, actorId, actorName, ac
   const pool = tx || (await getPool());
   const instanceResult = await pool.request()
     .input('id', sql.VarChar, taskInstanceId)
-    .query(`SELECT Status, AssignedTo, AssigneeName, ReviewerId, ReviewerName, DueDate, SLAHours, Title
+    .query(`SELECT Status, AssignedTo, AssigneeName, ReviewerId, ReviewerName, DueDate, SLAHours, Title, ViewDefinitionSnapshot
              FROM PemsTaskInstances ${tx && taskExecutionGates.strictGatesEnabled() ? 'WITH (UPDLOCK, HOLDLOCK)' : ''} WHERE Id = @id`);
   const instance = instanceResult.recordset[0];
   if (!instance) throw new Error('Task instance not found');
+  if (taskWorkflowV2Execution.isV2Snapshot(instance.ViewDefinitionSnapshot) &&
+      !taskWorkflowV2Execution.v2Enabled()) {
+    const err = new Error('V2 execution gates are disabled for this task');
+    err.status = 409;
+    err.code = 'WORKFLOW_V2_NOT_ACTIVATED';
+    throw err;
+  }
 
   if (!canTransition(instance.Status, toStatus)) {
     throw new Error(`Invalid transition: ${instance.Status} → ${toStatus}`);
@@ -1166,6 +1173,8 @@ async function completeSubTask(subTaskId, actorId, actorName) {
       await taskExecutionGates.lockChildParent(tx, 'phase', subTaskId);
       const phase = await taskExecutionGates.assertPhaseReady(tx, subTaskId);
       if (phase.alreadyCompleted) return { success: true, alreadyCompleted: true };
+      // Strict phase checks already require every mandatory activity to be
+      // completed. Its V2 completion path validates typed output first.
       const result = await tx.request().input('id', sql.VarChar, subTaskId)
         .query("UPDATE PemsSubTasks SET IsCompleted = 1, Status = 'COMPLETED', CompletedAt = dbo.GetEnvDate() WHERE Id = @id AND IsCompleted = 0");
       if (Number(result.rowsAffected?.[0] || 0) === 0) return { success: true, alreadyCompleted: true };
@@ -1176,6 +1185,14 @@ async function completeSubTask(subTaskId, actorId, actorName) {
   }
   return withTransaction(async (tx) => {
   const pool = tx;
+  const guard = await pool.request().input('id', sql.VarChar, subTaskId)
+    .query('SELECT i.ViewDefinitionSnapshot FROM PemsSubTasks st JOIN PemsTaskInstances i ON i.Id = st.TaskInstanceId WHERE st.Id = @id');
+  if (taskWorkflowV2Execution.isV2Snapshot(guard.recordset[0]?.ViewDefinitionSnapshot)) {
+    const err = new Error('V2 phase completion requires strict workflow gates');
+    err.status = 409;
+    err.code = 'WORKFLOW_V2_NOT_ACTIVATED';
+    throw err;
+  }
   await pool.request()
     .input('id', sql.VarChar, subTaskId)
     .query("UPDATE PemsSubTasks SET IsCompleted = 1, Status = 'COMPLETED', CompletedAt = dbo.GetEnvDate() WHERE Id = @id");
@@ -1215,7 +1232,14 @@ async function setBrandCheck(taskId, brandRowId, completed, actorId, note, tx = 
     await taskExecutionGates.lockTaskForExecution(tx, taskId);
   }
   const task = (await pool.request().input('id', sql.VarChar, taskId)
-    .query('SELECT Id, Status FROM PemsTaskInstances WHERE Id = @id')).recordset[0];
+    .query('SELECT Id, Status, ViewDefinitionSnapshot FROM PemsTaskInstances WHERE Id = @id')).recordset[0];
+  if (taskWorkflowV2Execution.isV2Snapshot(task?.ViewDefinitionSnapshot) &&
+      !taskWorkflowV2Execution.v2Enabled()) {
+    const err = new Error('V2 brand updates require strict workflow gates');
+    err.status = 409;
+    err.code = 'WORKFLOW_V2_NOT_ACTIVATED';
+    throw err;
+  }
   if (!task) { const e = new Error('Task not found'); e.status = 404; throw e; }
   if (!['IN_PROGRESS', 'REWORK', 'ACCEPTED'].includes(task.Status)) {
     const e = new Error('Start the task before ticking brands'); e.status = 409; throw e;
@@ -1249,6 +1273,9 @@ async function completeActivity(activityId, actorId, actorName) {
       await taskExecutionGates.lockChildParent(tx, 'activity', activityId);
       const activity = await taskExecutionGates.assertActivityReady(tx, activityId);
       if (activity.alreadyCompleted) return { success: true, alreadyCompleted: true };
+      if (taskWorkflowV2Execution.isV2Snapshot(activity.ViewDefinitionSnapshot)) {
+        await taskWorkflowV2Execution.assertStepReady(tx, activity.TaskInstanceId, activityId);
+      }
       const change = await tx.request()
         .input('id', sql.VarChar, activityId)
         .input('actorId', sql.VarChar, actorId)
@@ -1261,6 +1288,14 @@ async function completeActivity(activityId, actorId, actorName) {
     });
   }
   const pool = await getPool();
+  const guard = await pool.request().input('id', sql.VarChar, activityId)
+    .query('SELECT i.ViewDefinitionSnapshot FROM PemsActivities a JOIN PemsTaskInstances i ON i.Id = a.TaskInstanceId WHERE a.Id = @id');
+  if (taskWorkflowV2Execution.isV2Snapshot(guard.recordset[0]?.ViewDefinitionSnapshot)) {
+    const err = new Error('V2 activity completion requires strict workflow validation');
+    err.status = 409;
+    err.code = 'WORKFLOW_V2_NOT_ACTIVATED';
+    throw err;
+  }
   await pool.request()
     .input('id', sql.VarChar, activityId)
     .input('actorId', sql.VarChar, actorId)
@@ -1705,7 +1740,7 @@ async function submitReviewAndTransition(rawData, actor) {
   return withTransaction(async (tx) => {
     const cur = await tx.request()
       .input('id', sql.VarChar, data.taskInstanceId)
-      .query('SELECT Status, AssignedTo, ReviewerId, SellerId FROM PemsTaskInstances WITH (UPDLOCK, ROWLOCK) WHERE Id = @id');
+      .query('SELECT Status, AssignedTo, ReviewerId, SellerId, ViewDefinitionSnapshot FROM PemsTaskInstances WITH (UPDLOCK, ROWLOCK) WHERE Id = @id');
     const task = cur.recordset[0];
     if (!task) throw new Error('Task instance not found');
 
@@ -1722,6 +1757,13 @@ async function submitReviewAndTransition(rawData, actor) {
 
     // Approval must validate the same immutable execution requirements as
     // submission. Rejections remain possible so incomplete work can be returned.
+    if (taskWorkflowV2Execution.isV2Snapshot(task.ViewDefinitionSnapshot) &&
+        !taskWorkflowV2Execution.v2Enabled()) {
+      const err = new Error('V2 review requires strict workflow gates');
+      err.status = 409;
+      err.code = 'WORKFLOW_V2_NOT_ACTIVATED';
+      throw err;
+    }
     if (data.decision === 'APPROVE' && taskExecutionGates.strictGatesEnabled()) {
       await taskExecutionGates.assertSubmissionReady(tx, data.taskInstanceId);
     }
