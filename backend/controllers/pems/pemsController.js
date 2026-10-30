@@ -204,7 +204,7 @@ exports.transitionStatus = async (req, res) => {
     res.json({ success: true, data: result });
   } catch (err) {
     console.error('transitionStatus error:', err);
-    res.status(400).json({ success: false, error: err.message });
+    res.status(err.status || 400).json({ success: false, code: err.code || undefined, error: err.message, gate: err.gate || undefined });
   }
 };
 
@@ -245,7 +245,7 @@ exports.completeSubTask = async (req, res) => {
     await pemsService.completeSubTask(req.params.subTaskId, getUserId(req), getUserName(req) || req.user?.email);
     res.json({ success: true });
   } catch (err) {
-    res.status(400).json({ success: false, error: err.message });
+    res.status(err.status || 400).json({ success: false, code: err.code || undefined, error: err.message, gate: err.gate || undefined });
   }
 };
 
@@ -254,7 +254,7 @@ exports.completeActivity = async (req, res) => {
     await pemsService.completeActivity(req.params.activityId, getUserId(req), getUserName(req) || req.user?.email);
     res.json({ success: true });
   } catch (err) {
-    res.status(400).json({ success: false, error: err.message });
+    res.status(err.status || 400).json({ success: false, code: err.code || undefined, error: err.message, gate: err.gate || undefined });
   }
 };
 
@@ -336,6 +336,7 @@ const reviewActor = (req) => ({
   id: getUserId(req),
   name: getUserName(req) || req.user?.email,
   role: req.user?.role,
+  user: req.user,
 });
 
 // Review + workflow transition (claim → record → decide) in ONE transaction.
@@ -345,7 +346,7 @@ exports.submitReview = async (req, res) => {
     res.json({ success: true, data: result });
   } catch (err) {
     console.error('submitReview error:', err.message);
-    res.status(400).json({ success: false, error: err.message });
+    res.status(err.status || 400).json({ success: false, code: err.code || undefined, error: err.message, gate: err.gate || undefined });
   }
 };
 

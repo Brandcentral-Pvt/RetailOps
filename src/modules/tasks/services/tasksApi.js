@@ -65,9 +65,15 @@ const tasksApi = {
   createInstance: async (data) => call(`/pems/instances`, { method: 'POST', body: data }),
 
   transitionStatus: async (id, toStatus, remarks) =>
-    call(`/pems/instances/${id}/status`, { method: 'POST', body: { toStatus, remarks } }),
+    call(`/pems/instances/${id}/transition`, { method: 'POST', body: { toStatus, details: typeof remarks === 'string' ? { submissionRemarks: remarks } : (remarks || {}) } }),
 
-  bulkTransition: async (data) => call(`/pems/instances/bulk/transition`, { method: 'POST', body: data }),
+  bulkTransition: async (idsOrData, toStatus, details) =>
+    call('/pems/instances/bulk/transition', {
+      method: 'POST',
+      body: Array.isArray(idsOrData)
+        ? { ids: idsOrData, toStatus, details }
+        : idsOrData,
+    }),
 
   addComment: async (id, text) =>
     call(`/pems/instances/${id}/comments`, { method: 'POST', body: { text } }),
@@ -78,18 +84,18 @@ const tasksApi = {
     call(`/pems/instances/${id}/achievement`, { method: 'PUT', body: data }),
 
   setBrandCheck: async (taskId, brandId, completed) =>
-    call(`/pems/instances/${taskId}/brands/${brandId || 'all'}`, {
+    call(`/pems/instances/${taskId}/brands${brandId ? `/${brandId}` : ''}`, {
       method: 'PUT',
       body: { completed },
     }),
 
   getInstanceAsins: async (id) => call(`/pems/instances/${id}/asins`),
 
-  updateAsinRemarks: async (id, asinId, data) =>
-    call(`/pems/instances/${id}/asins/${asinId}/remarks`, { method: 'POST', body: data }),
+  updateAsinRemarks: async (id, asinCode, sellerId, signalCode, remarks, resolution, waiveReason) =>
+    call(`/pems/instances/${id}/asins/remarks`, { method: 'PUT', body: { asinCode, sellerId, signalCode, remarks, resolution, waiveReason } }),
 
-  resolveAsin: async (id, asinId, data) =>
-    call(`/pems/instances/${id}/asins/${asinId}/resolve`, { method: 'POST', body: data }),
+  resolveAsin: async (id, asinId, action, waiveReason) =>
+    call(`/pems/instances/${id}/asins/${asinId}/resolve`, { method: 'POST', body: { action, waiveReason } }),
 
   // ── Sub Tasks & Activities ──
   completeSubTask: async (stId) =>

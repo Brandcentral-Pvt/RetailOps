@@ -224,7 +224,7 @@ const getStatusTag = (status) => {
                             />
                             <div style={{ display: 'flex', gap: 4 }}>
                               <Input size="small" placeholder="Resolution" value={editing.resolution || ''} onChange={e => setEditingRemarks(prev => ({ ...prev, [record.id]: { ...prev[record.id], resolution: e.target.value } }))} style={{ flex: 1 }} />
-                              <Button size="small" type="primary" onClick={() => handleSaveRemarks(record.id, record.sellerId || seller.sellerId, record.signalCode, editing.remarks, editing.resolution, null)} style={{ fontSize: 'var(--font-size-xs)' }}>Save</Button>
+                              <Button size="small" type="primary" onClick={() => handleSaveRemarks(record.asinCode, record.sellerId || seller.sellerId, record.signalCode, editing.remarks, editing.resolution, null)} style={{ fontSize: 'var(--font-size-xs)' }}>Save</Button>
                               <Button size="small" onClick={() => setEditingRemarks(prev => { const n = { ...prev }; delete n[record.id]; return n; })} style={{ fontSize: 'var(--font-size-xs)' }}>Cancel</Button>
                             </div>
                           </div>
@@ -601,7 +601,7 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
   // Comment
   const [newComment, setNewComment] = useState('');
   const [commentSending, setCommentSending] = useState(false);
-  const [evidenceDraft, setEvidenceDraft] = useState({ fileName: '', fileUrl: '', remarks: '' });
+  const [evidenceDraft, setEvidenceDraft] = useState({ fileName: '', fileUrl: '', remarks: '', activityId: '' });
   const [evidenceSaving, setEvidenceSaving] = useState(false);
 
   const handleSendComment = async () => {
@@ -624,8 +624,16 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
     if (!/^https?:\/\//i.test(fileUrl)) return message.warning('Enter a valid link starting with http:// or https://');
     setEvidenceSaving(true);
     try {
-      await tasksApi.uploadEvidence({ taskInstanceId: taskId, fileName, fileUrl, fileType: 'LINK', remarks: evidenceDraft.remarks.trim() });
-      setEvidenceDraft({ fileName: '', fileUrl: '', remarks: '' });
+      const linkedStep = (task?.subTasks || []).flatMap(st =>
+        (st.activities || []).map(act => ({ activityId: act.Id, phaseId: st.Id }))
+      ).find(step => step.activityId === evidenceDraft.activityId);
+      if (evidenceDraft.activityId && !linkedStep) return message.error('Selected activity no longer belongs to this task. Reload and select it again.');
+      await tasksApi.uploadEvidence({
+        taskInstanceId: taskId, fileName, fileUrl, fileType: 'LINK',
+        remarks: evidenceDraft.remarks.trim(),
+        ...(linkedStep ? { activityId: linkedStep.activityId, subTaskId: linkedStep.phaseId } : {}),
+      });
+      setEvidenceDraft({ fileName: '', fileUrl: '', remarks: '', activityId: '' });
       await loadTask({ silent: true });
       message.success('Evidence added');
     } catch (err) { message.error(err.message || 'Could not add evidence'); }
@@ -653,7 +661,7 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
     const timer = setTimeout(() => {
       setIssueSource(null); setTicketId(''); setRequestId(''); setActionNotes('');
       setVerifyResult(null); setAsinResults([]); setNewComment('');
-      setEvidenceDraft({ fileName: '', fileUrl: '', remarks: '' });
+      setEvidenceDraft({ fileName: '', fileUrl: '', remarks: '', activityId: '' });
       setTask(null);
       setActiveTab('overview');
     }, 0);
@@ -690,7 +698,7 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
       if (onRefresh) onRefresh();
       notifyTransition(toStatus);
       return true;
-    } catch (err) { console.error(err); return false; }
+    } catch (err) { message.error(err.message || 'Could not update task status'); return false; }
   };
 
   const checkGate = (toStatus) => {
@@ -751,11 +759,22 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
   };
 
   const handleCompleteActivity = async (actId) => {
-    try { await tasksApi.completeActivity(actId); await loadTask(); if (onRefresh) onRefresh(); } catch (err) { console.error(err); }
+    try {
+      await tasksApi.completeActivity(actId);
+      await loadTask();
+      onRefresh?.();
+    } catch (err) {
+      message.error(err.message || 'Could not complete activity');
+      if (err.code === 'ACTIVITY_EVIDENCE_REQUIRED') {
+        setEvidenceDraft(d => ({ ...d, activityId: actId }));
+        setActiveTab('evidence');
+      }
+    }
   };
 
   const handleCompleteSubTask = async (stId) => {
-    try { await tasksApi.completeSubTask(stId); await loadTask(); if (onRefresh) onRefresh(); } catch (err) { console.error(err); }
+    try { await tasksApi.completeSubTask(stId); await loadTask(); onRefresh?.(); }
+    catch (err) { message.error(err.message || 'Could not complete phase'); }
   };
 
   const handleReview = async () => {
@@ -790,6 +809,8 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
   const theme = CATEGORY_THEME[categoryKey] || CATEGORY_THEME.GENERAL;
 
   const canSubmit = issueSource && (ticketId || requestId);
+  // Preserve actual zero and use the authoritative persisted progress value.
+  const displayProgress = Math.max(0, Math.min(100, Number(task?.WeightedProgressPct ?? task?.ProgressPct ?? 0)));
   const completedSubTasks = subTasks.filter(st => st.IsCompleted).length;
   const allSubTasksDone = !subTasks.length || subTasks.every(st => st.IsCompleted);
 
@@ -930,6 +951,12 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
                             {act.ExpectedOutput && <Tag style={{ fontSize: 9, borderRadius: "var(--radius-sm)", background: 'var(--bc-green-50)', color: 'var(--bc-green-600)', border: '1px solid var(--bc-green-200)' }}>Output: {act.ExpectedOutput}</Tag>}
                             {act.ValidationRules && <Tag style={{ fontSize: 9, borderRadius: "var(--radius-sm)", background: 'var(--bc-amber-50)', color: 'var(--bc-amber-700)', border: '1px solid var(--bc-amber-200)' }}>Validation: {act.ValidationRules}</Tag>}
                             {act.estimatedMinutes && <Tag style={{ fontSize: 9, borderRadius: "var(--radius-sm)", background: 'var(--bc-surface-subtle)', color: 'var(--bc-text-secondary)' }}>{act.estimatedMinutes}m</Tag>}
+                            {Boolean(act.EvidenceRequired) && !act.IsCompleted && (
+                              <Button size="small" type="link" style={{ padding: '0 4px' }}
+                                onClick={e => { e.stopPropagation(); setEvidenceDraft(d => ({ ...d, activityId: act.Id })); setActiveTab('evidence'); }}>
+                                {(task?.evidence || []).some(ev => ev.ActivityId === act.Id) ? 'Evidence attached' : 'Attach required evidence'}
+                              </Button>
+                            )}
                           </Space>
                         </div>
                       </div>
@@ -999,6 +1026,19 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
               <Col xs={24} md={10}><Input size="small" prefix={<LinkOutlined />} placeholder="https://drive.google.com/…" value={evidenceDraft.fileUrl} onChange={e => setEvidenceDraft(d => ({ ...d, fileUrl: e.target.value }))} /></Col>
               <Col xs={24} md={6}><Button size="small" type="primary" block icon={<PlusOutlined />} loading={evidenceSaving} onClick={handleAddEvidence} style={{ borderRadius: 6 }}>Add</Button></Col>
             </Row>
+            <Select
+              size="small" showSearch optionFilterProp="label" allowClear
+              style={{ width: '100%', marginTop: 8 }}
+              placeholder="Apply to a specific activity (required for evidence-gated steps)"
+              value={evidenceDraft.activityId || undefined}
+              options={(task?.subTasks || []).flatMap((st, phaseIndex) =>
+                (st.activities || []).map(act => ({
+                  label: `Phase ${phaseIndex + 1}: ${st.Title} / Step ${act.StepNo}: ${act.Title}`,
+                  value: act.Id,
+                }))
+              )}
+              onChange={value => setEvidenceDraft(d => ({ ...d, activityId: value || '' }))}
+            />
             <Input size="small" style={{ marginTop: 8 }} placeholder="Remarks (optional)" value={evidenceDraft.remarks} onChange={e => setEvidenceDraft(d => ({ ...d, remarks: e.target.value }))} onPressEnter={handleAddEvidence} />
           </div>
           {!task?.evidence?.length ? <Empty description="No evidence attached yet" image={Empty.PRESENTED_IMAGE_SIMPLE} /> : task.evidence.map(ev => (
@@ -1008,7 +1048,7 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 {ev.FileUrl ? <a href={ev.FileUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>{ev.FileName} <ExportOutlined style={{ fontSize: 10 }} /></a> : <Text strong style={{ fontSize: 'var(--font-size-sm)' }}>{ev.FileName}</Text>}
-                <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)', display: 'block' }}>{ev.UploadedByName || 'Unknown'} · {dayjs(ev.UploadedAt).format('DD MMM YYYY [at] h:mm A')}</Text>
+                <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)', display: 'block' }}>{ev.UploadedByName || 'Unknown'} · {dayjs(ev.UploadedAt).format('DD MMM YYYY [at] h:mm A')}{ev.ActivityId ? ' · Linked to activity' : ' · Task-level evidence'}</Text>
               </div>
               {ev.Remarks && <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-text-secondary)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ev.Remarks}>{ev.Remarks}</Text>}
             </div>
@@ -1172,7 +1212,7 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
           <div style={{ width: 252, borderLeft: '1px solid var(--bc-border-default)', background: 'var(--bc-surface-subtle)', padding: 16, display: 'flex', flexDirection: 'column', gap: 16, flexShrink: 0, overflow: 'auto' }}>
             <div>
               <Text style={railLabel}>Progress</Text>
-              <Progress percent={Math.round(task.WeightedProgressPct || task.ProgressPct || 0)} strokeColor={(task.WeightedProgressPct || task.ProgressPct || 0) >= 80 ? 'var(--bc-green-600)' : 'var(--bc-blue-600)'} />
+              <Progress percent={Math.round(displayProgress)} strokeColor={displayProgress >= 80 ? 'var(--bc-green-600)' : 'var(--bc-blue-600)'} />
               <Text style={{ fontSize: 10, color: 'var(--bc-text-secondary)' }}>{completedSubTasks}/{subTasks.length} phases · {completedActivities}/{totalActivities} steps</Text>
             </div>
 

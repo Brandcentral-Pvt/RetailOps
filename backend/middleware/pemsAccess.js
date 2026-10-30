@@ -2,7 +2,7 @@
  * PEMS entity-access middleware — assignee / reviewer / global roles only.
  */
 const { sql, getPool } = require('../database/db');
-const { canActOnTask, canViewTask } = require('../services/pems/pemsPolicy');
+const { canActOnTask, canViewTask, canExecuteTask, canReviewTask, canTransitionTask } = require('../services/pems/pemsPolicy');
 const { isGlobalUserRole } = require('../utils/roleUtils');
 
 /**
@@ -28,22 +28,36 @@ function requireGlobalPemsRole(req, res, next) {
  * following subtask/activity references when needed.
  */
 async function resolveTaskId(req, pool) {
-  const direct = req.params.id || req.body?.taskInstanceId || req.body?.id;
-  if (direct) return direct;
+  // Child-resource identity MUST come from the database, never from a
+  // client-supplied taskInstanceId/id. Otherwise an attacker can authorize
+  // against their own task while completing another seller's activity.
+  const isActivity = Boolean(req.params.activityId);
+  const isPhase = Boolean(req.params.subTaskId);
+  if (isActivity || isPhase) {
+    const table = isActivity ? 'PemsActivities' : 'PemsSubTasks';
+    const childId = isActivity ? req.params.activityId : req.params.subTaskId;
+    // Table is selected exclusively from the fixed allow-list above.
+    const r = await pool.request().input('id', sql.VarChar, childId)
+      .query(`SELECT TaskInstanceId FROM ${table} WHERE Id = @id`);
+    const actualTaskId = r.recordset[0]?.TaskInstanceId;
+    if (!actualTaskId) return null;
 
-  if (req.params.subTaskId) {
-    const r = await pool.request().input('id', sql.VarChar, req.params.subTaskId)
-      .query('SELECT TaskInstanceId FROM PemsSubTasks WHERE Id = @id');
-    return r.recordset[0]?.TaskInstanceId || null;
+    // Reject mismatched claims instead of ignoring them, so malicious clients
+    // and stale UI payloads fail predictably.
+    const claimedTaskIds = [req.params.id, req.body?.taskInstanceId, req.body?.id]
+      .filter(value => value !== undefined && value !== null && value !== '');
+    if (claimedTaskIds.some(value => String(value) !== String(actualTaskId))) {
+      const error = new Error('Task identity does not match the requested activity or phase');
+      error.status = 403;
+      error.code = 'TASK_PARENT_MISMATCH';
+      throw error;
+    }
+    return actualTaskId;
   }
 
-  if (req.params.activityId) {
-    const r = await pool.request().input('id', sql.VarChar, req.params.activityId)
-      .query('SELECT TaskInstanceId FROM PemsActivities WHERE Id = @id');
-    return r.recordset[0]?.TaskInstanceId || null;
-  }
-
-  return null;
+  // Only direct task routes and task-level evidence/review routes may use
+  // their path or body task identifier as the resource being authorized.
+  return req.params.id || req.body?.taskInstanceId || req.body?.id || null;
 }
 
 /**
@@ -55,11 +69,17 @@ async function resolveTaskId(req, pool) {
  * owns it.
  */
 async function requireTaskAccess(req, res, next, options = {}) {
-  const mode = options.mode === 'view' ? 'view' : 'act';
+  const mode = options.mode || 'act';
   try {
     const pool = await getPool();
     const taskId = await resolveTaskId(req, pool);
-    if (!taskId) return res.status(400).json({ success: false, error: 'Task id required' });
+    if (!taskId) {
+      const childReference = req.params.activityId || req.params.subTaskId;
+      return res.status(childReference ? 404 : 400).json({
+        success: false,
+        error: childReference ? 'Activity or phase not found' : 'Task id required',
+      });
+    }
 
     // Synthetic ids minted for ruleset tasks live in `Actions`, not
     // PemsTaskInstances, so there is no row to load here. getInstanceById
@@ -70,11 +90,15 @@ async function requireTaskAccess(req, res, next, options = {}) {
     }
 
     const r = await pool.request().input('id', sql.VarChar, taskId)
-      .query('SELECT Id, AssignedTo, ReviewerId, SellerId, SellerName FROM PemsTaskInstances WHERE Id = @id');
+      .query('SELECT Id, AssignedTo, ReviewerId, SellerId, SellerName, Status FROM PemsTaskInstances WHERE Id = @id');
     const task = r.recordset[0];
     if (!task) return res.status(404).json({ success: false, error: 'Task not found' });
 
-    const allowed = mode === 'view' ? canViewTask(req.user, task) : canActOnTask(req.user, task);
+    const allowed = mode === 'view' ? canViewTask(req.user, task)
+      : mode === 'execute' ? canExecuteTask(req.user, task)
+      : mode === 'review' ? canReviewTask(req.user, task)
+      : mode === 'transition' ? canTransitionTask(req.user, task, req.body?.toStatus)
+      : canActOnTask(req.user, task);
     if (!allowed) {
       return res.status(403).json({ success: false, error: 'You do not have access to this task' });
     }
@@ -82,11 +106,20 @@ async function requireTaskAccess(req, res, next, options = {}) {
     req.pemsTask = task;
     next();
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(err.status || 500).json({
+      success: false, code: err.code || undefined,
+      error: err.status ? err.message : 'Unable to authorize task',
+    });
   }
 }
 
 /** View-level variant: seller scope only, no assignment requirement. */
 const requireTaskView = (req, res, next) => requireTaskAccess(req, res, next, { mode: 'view' });
+const requireTaskExecutor = (req, res, next) => requireTaskAccess(req, res, next, { mode: 'execute' });
+const requireTaskReviewer = (req, res, next) => requireTaskAccess(req, res, next, { mode: 'review' });
+const requireTaskTransition = (req, res, next) => requireTaskAccess(req, res, next, { mode: 'transition' });
 
-module.exports = { requireTaskAccess, requireTaskView, requireGlobalPemsRole };
+module.exports = {
+  requireTaskAccess, requireTaskView, requireTaskExecutor,
+  requireTaskReviewer, requireTaskTransition, requireGlobalPemsRole,
+};

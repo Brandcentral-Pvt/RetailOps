@@ -596,27 +596,39 @@ export default function TaskInstancesPage() {
 
   const bulkTransition = (toStatus, verb, color) => {
     const ids = [...selectedIds];
+    const reviewDecision = toStatus === 'APPROVED' ? 'APPROVE'
+      : toStatus === 'REJECTED' ? 'REJECT' : null;
+    let reviewFeedback = '';
     modal.confirm({
       title: `${verb} ${ids.length} task${ids.length !== 1 ? 's' : ''}?`,
       icon: <CheckCircleOutlined style={{ color }} />,
-      content: `This will move every selected task to “${WORKFLOW_STATUSES[toStatus]?.label || toStatus}”. Tasks in a non-transitionable state will be skipped.`,
-      okText: `${verb} all`,
+      content: reviewDecision === 'REJECT'
+        ? <Input.TextArea rows={3} placeholder="Reason for rework (required)" onChange={e => { reviewFeedback = e.target.value; }} />
+        : reviewDecision === 'APPROVE'
+          ? 'Only submitted tasks that you are authorized to review will be approved. All others are skipped.'
+          : `This will move eligible tasks to ${WORKFLOW_STATUSES[toStatus]?.label || toStatus}.`,
+      okText: `${verb} selected`,
       okButtonProps: { style: { background: color, borderColor: color } },
-      cancelText: 'Cancel',
       onOk: async () => {
-        try {
-          const res = await tasksApi.bulkTransition(ids, toStatus, `Bulk ${verb.toLowerCase()} via list`);
-          const { updatedCount = 0, skippedCount = 0 } = res?.data || {};
-          if (skippedCount > 0) {
-            message.warning(`${updatedCount} updated · ${skippedCount} skipped (not in a transitionable state)`);
-          } else {
-            message.success(`${updatedCount} of ${ids.length} tasks updated`);
-          }
-        } catch (err) {
-          message.error(err.message || 'Bulk transition failed');
+        if (reviewDecision === 'REJECT' && !reviewFeedback.trim()) {
+          message.error('Add feedback explaining what needs to be corrected');
+          throw new Error('Review feedback is required');
         }
-        setSelectedIds(new Set());
-        loadInstances();
+        try {
+          const res = reviewDecision
+            ? await tasksApi.bulkReview({ ids, decision: reviewDecision, feedback: reviewFeedback.trim() })
+            : await tasksApi.bulkTransition(ids, toStatus, { submissionRemarks: `Bulk ${verb.toLowerCase()} via list` });
+          const outcome = res?.data || {};
+          const updatedCount = reviewDecision ? (outcome.reviewed || []).length : (outcome.updatedCount || 0);
+          const skippedCount = reviewDecision ? (outcome.skipped || []).length : (outcome.skippedCount || 0);
+          if (skippedCount) message.warning(`${updatedCount} updated, ${skippedCount} skipped; check review eligibility`);
+          else message.success(`${updatedCount} of ${ids.length} tasks updated`);
+          setSelectedIds(new Set());
+          loadInstances();
+        } catch (error) {
+          message.error(error.message || 'Bulk action failed');
+          throw error;
+        }
       },
     });
   };
