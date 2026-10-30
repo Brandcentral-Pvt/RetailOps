@@ -29,6 +29,31 @@ function ensureExecutable(status) {
   }
 }
 
+/**
+ * All strict task writes lock their parent task first. This serializes
+ * submission against activity, evidence, phase and brand writes.
+ */
+async function lockTaskForExecution(tx, taskId) {
+  const found = await tx.request()
+    .input('taskId', sql.VarChar, taskId)
+    .query('SELECT Id, Status FROM PemsTaskInstances WITH (UPDLOCK, HOLDLOCK) WHERE Id = @taskId');
+  if (!found.recordset[0]) throw gateError('TASK_NOT_FOUND', 'Task not found');
+  return found.recordset[0];
+}
+
+async function lockChildParent(tx, childType, childId) {
+  const table = childType === 'activity' ? 'PemsActivities'
+    : childType === 'phase' ? 'PemsSubTasks' : null;
+  if (!table) throw new TypeError('Invalid task child type');
+  // Table names come from a literal allow-list, never from user input.
+  const found = await tx.request().input('id', sql.VarChar, childId)
+    .query(`SELECT TaskInstanceId FROM ${table} WHERE Id = @id`);
+  const taskId = found.recordset[0]?.TaskInstanceId;
+  if (!taskId) throw gateError(childType === 'activity' ? 'ACTIVITY_NOT_FOUND' : 'PHASE_NOT_FOUND', 'Task activity or phase not found');
+  await lockTaskForExecution(tx, taskId);
+  return taskId;
+}
+
 async function assertActivityReady(tx, activityId) {
   const result = await tx.request()
     .input('activityId', sql.VarChar, activityId)
@@ -182,6 +207,8 @@ async function reconcileTaskProgress(tx, taskId) {
 module.exports = {
   strictGatesEnabled,
   gateError,
+  lockTaskForExecution,
+  lockChildParent,
   assertActivityReady,
   assertPhaseReady,
   assertSubmissionReady,
