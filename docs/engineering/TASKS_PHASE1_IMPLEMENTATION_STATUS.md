@@ -1,53 +1,58 @@
-# Tasks Phase 1 Correctness: Implemented Slice and Remaining Gates
+# Tasks Phase 1: Implementation and Release Gate Report
 
-Base: `26ffa0c5423501e5ddaf96f9b45c363b4cdcd472`  
 Branch: `fix/tasks-phase1-correctness`  
-Status: **Partial implementation, draft review only. Not production verified.**
+Draft pull request: #210  
+Base commit: `26ffa0c5423501e5ddaf96f9b45c363b4cdcd472`  
+Status: **Source implementation substantially complete; not merged, not deployed, not authorized for production activation.**
 
-## Implemented in this branch
+## Implemented within existing RetailOps PEMS architecture
 
-- `backend/services/pems/taskExecutionGates.js`: reusable transaction-scoped guards for required activity evidence, mandatory phase activities, missing phase evidence, task submission completeness (required activities, phases, brands and linked evidence), auto-completion of a ready phase, and atomic count/weighted progress recalculation.
-- `backend/services/pems/pemsService.js`: preserves the pre-existing workflow by default. With `PEMS_STRICT_ACTIVITY_GATES=true`, activity and phase completions are validated in a transaction, and submission/resubmission checks required work before the ASIN gate.
-- `src/modules/tasks/utils/rbac.js`: removes implicit category-wide permission escalation. Explicit `task.*` remains supported; a named `task.create` permission no longer grants `task.submit`.
-- `backend/__tests__/unit/taskExecutionGates.test.js`: unit tests covering representative evidence, phase, submission, and progress invariants.
+1. Transaction-scoped activity evidence validation, mandatory step checks, phase readiness, brand and submission gates, task-level locking, idempotent completions, and consistent persisted progress.
+2. Reused existing `pemsService`, `PemsTaskInstances`, `PemsActivities`, `PemsSubTasks`, `PemsEvidence`, `PemsTaskBrands` and audit records rather than creating a second engine.
+3. Existing task instance creation can pin a published template view definition and frozen snapshot in its creation transaction; `PEMS_PIN_VIEW_SNAPSHOTS` defaults to off pending migration 033 and staging compatibility checks.
+4. Executor, reviewer and direct transition authorization separated at the backend access layer; standalone review-status transitions are denied; review decisions use the atomic review service.
+5. Corrected frontend task API contract mismatches for status transitions, brand completion, ASIN remarks/resolution, and bulk transition.
+6. Corrected frontend task-specific RBAC implicit category wildcard escalation.
+7. Standardized structured PEMS validation error details in relevant controller responses.
+8. Replaced Jest 25 with Jest 29 in backend dependencies and committed a matching package lockfile for deterministic `npm ci`.
 
-## Rollout protection
+## Verification evidence
 
-The stricter activity and submission rules are **disabled by default**. Do not turn them on in production for existing DLY-004 routines or other templates until a staging restore and compatibility audit confirm that all mandatory evidence records, phase states, tasks and expected exceptions match the new policy. No schema migration, backfill or active template change is included.
+GitHub Actions run `41017796747` (Jest 29 test runner, before final committed lockfile):
+- Eight selected PEMS correctness and route suites passed.
+- **114 assertions passed, 0 test assertion failures**.
+- Backend syntax checks and dependency installation passed.
+- Frontend typecheck subsequently failed on pre-existing TypeScript errors in `DataVisualizationCharts.tsx`, `useDashboardOrchestration.ts`, and `DashboardV2.tsx`, none of which this PR changes.
 
-An existing employee's evidence may be a link uploaded at task level rather than linked to a particular ActivityId. In strict mode, activity-specific evidence must be linked to the activity, so the original evidence UI or task data must be adapted and tested before activation. The new `assertSubmissionReady` gate intentionally requires all phases and assigned brands in strict mode; conditional/optional phase policies are future work. The phase auto-complete helper uses mandatory activity completion and does not distinguish conditionally skipped work yet. Both must be resolved in the versioned engine prior to broad rollout.
+OOS regression job `41017796907`:
+- OOS smoke/registry and three browser tests passed.
+- One OOS grid browser test failed: the fixture's root remained empty; expected `Nova Retail LLC`. Preserve this failure for investigation. No OOS production state was changed.
+- This does not establish that the OOS experimental template is ready for activation.
 
-## NOT completed, do not claim as implemented
+The final PR head must be rechecked in Actions for full reproducibility after lockfile update. Do not claim full CI green or production readiness.
 
-1. Immutable published view-definition snapshot written during `createInstance()` in the same SQL transaction.
-2. Robust transactional locking on the parent task during all completion paths to prevent simultaneous submission/activity edits.
-3. Full validator-key resolution for per-template output checks; current code checks persisted evidence and completion flags, not actual business outcomes.
-4. Explicit backend executor/reviewer permission separation across generic PEMS routes, including consistency checks on approval and self-review.
-5. Compatibility and actual route-contract fixes for old API-client paths; must be tested rather than assumed.
-6. No production historical data audit, schema backfill, or OOS remediation work.
-7. No local Jest, CI, staging, or live production test results available in this chat.
-8. No shadcn UI migration in this backend phase; the legacy UI is unchanged.
+## Feature flags and compatibility
 
-## Review and test requirements before merge
+`PEMS_STRICT_ACTIVITY_GATES=true` enables strict evidence, phase, submission, and transactional progress rules. Disabled by default.
 
-Run in a clean checkout of this branch:
+`PEMS_PIN_VIEW_SNAPSHOTS=true` pins published view definitions to newly created task instances. Disabled by default until schema/application compatibility is verified.
 
-```bash
-cd backend
-npm ci
-node --check services/pems/taskExecutionGates.js
-node --check services/pems/pemsService.js
-npm test -- --runInBand __tests__/unit/taskExecutionGates.test.js __tests__/unit/templateConfig.test.js __tests__/unit/pemsPolicy.test.js
-npm test -- --runInBand __tests__/routes/pemsInstances.test.js __tests__/routes/pemsSellerScope.test.js
-```
+**Do not enable either flag in production without a staging restore, representative active-task regression tests, and an approved rollout plan.**
 
-Run existing frontend lint/typecheck and confirm Task UI still compiles after narrowing RBAC. Stage the strict flag only after a compatibility report shows that no existing task is silently blocked or marked complete without evidence. Confirm allowed rollback simply disables the flag and restores the previous completion path, with no data migration required. Any new strict writes must remain correctly auditable after flag rollback.
+Legacy task-level evidence is not automatically equivalent to required activity-level evidence. If proof is stored without `ActivityId`, strict checks may block a legitimate task until evidence is properly linked. The template schema's conditional and optional activity semantics are deferred to the versioned workflow engine. Do not silently waive evidence requirements.
 
-## Next implementation slice
+## Remaining release blockers, not silent TODOs
 
-- Attach and validate required evidence via the currently supported `PemsEvidence` storage and task controls.
-- Introduce task-instance view-definition pinning without modifying existing historical instances.
-- Add route tests for activity completion, phase completion, submission and reviewer access, including concurrent/duplicate writes.
-- Keep `DLY-004` and contained `OOS-RECON-001` unchanged until separately approved.
+1. Verify final-commit GitHub Actions run, including the committed lockfile.
+2. Resolve or explicitly baseline existing unrelated frontend TypeScript failures via a separate focused PR; do not weaken typechecking to claim success.
+3. Diagnose the failing OOS grid regression separately; the contained `OOS-RECON-001` remains deactivated, and `DLY-004` unchanged.
+4. Obtain local/staging database evidence that migration 033 and 034 exist and that all read/write/permission paths work under representative existing templates.
+5. Reconcile historical tasks that have missing activity-linked evidence, stale phase flags, or no view snapshots before enabling strict gates.
+6. Complete a staging dry run of employee submit, reviewer approval/reject, multi-brand routine, concurrent activity writes, rollback and feature-flag toggles.
+7. Confirm no unauthorized task or seller access and that no task data, assignments, reviewer decisions, or audit events were lost.
 
-**No deployment or merge authorized.**
+**Release decision:** Remain a draft PR. Phase 1 implementation can be reviewed, but it is not safely releasable until the checks above pass.
+
+## Phase 2 exclusion
+
+No Task Management 2.0 UI redesign, dedicated manager workspace, conditional renderer engine, OOS activation, production backfill, or legacy frontend deletion is part of this PR. Those remain subsequent phases.
