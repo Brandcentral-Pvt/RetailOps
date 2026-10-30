@@ -101,7 +101,15 @@ test('published V2 workflow cannot be pinned before its execution persistence is
   process.env.PEMS_PIN_VIEW_SNAPSHOTS = 'true';
   const definition = {
     viewKey: 'STANDARD_V1', schemaVersion: '2.0', definitionVersion: 2,
-    tabs: [], workflow: { schemaVersion: '2.0', phases: [] },
+    tabs: [], workflow: { schemaVersion: '2.0', phases: [{
+      key: 'p', title: 'Required phase',
+      activities: [{
+        key: 'check', title: 'Verify source', instructions: 'Confirm the source',
+        type: 'CHECKLIST', required: true, evidenceRequired: false,
+        validatorKey: 'BOOLEAN_CONFIRMED',
+        fields: [{ key: 'checked', type: 'boolean', label: 'Checked', required: true }],
+      }],
+    }] },
   };
   mockPublished = [{
     Id: 'view-v2', ViewKey: 'STANDARD_V1', SchemaVersion: '2.0',
