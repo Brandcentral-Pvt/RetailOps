@@ -1,4 +1,4 @@
-const { canActOnTask, userIdOf, roleNameOf } = require('../../services/pems/pemsPolicy');
+const { canActOnTask, canExecuteTask, canReviewTask, canTransitionTask, userIdOf, roleNameOf } = require('../../services/pems/pemsPolicy');
 
 const globalUser = { Id: 'u-admin', role: { name: 'admin' } };
 const assignee = { Id: 'u-assignee', role: { name: 'brand_manager' } };
@@ -36,5 +36,30 @@ describe('pemsPolicy', () => {
     expect(canActOnTask(stranger, task)).toBe(false);
     expect(canActOnTask(null, task)).toBe(false);
     expect(canActOnTask({ Id: 'u-assignee', role: { name: 'brand_manager' } }, null)).toBe(false);
+  });
+});
+
+describe('Phase 1 separation of duties', () => {
+  it('allows the assigned employee to execute but not approve their own work', () => {
+    expect(canExecuteTask(assignee, task)).toBe(true);
+    expect(canReviewTask(assignee, task)).toBe(false);
+  });
+  it('allows assigned reviewer to review but not complete employee activities', () => {
+    expect(canReviewTask(reviewer, task)).toBe(true);
+    expect(canExecuteTask(reviewer, task)).toBe(false);
+  });
+  it('prohibits self-review for global administrators as well', () => {
+    const me = { Id: 'same', role: { name: 'admin' } };
+    const mine = { AssignedTo: 'same', ReviewerId: 'same', SellerId: null };
+    expect(canReviewTask(me, mine)).toBe(false);
+  });
+  it('rejects standalone approval, rejection and review-start transitions', () => {
+    expect(canTransitionTask(assignee, task, 'APPROVED')).toBe(false);
+    expect(canTransitionTask(reviewer, task, 'REJECTED')).toBe(false);
+    expect(canTransitionTask(globalUser, task, 'UNDER_REVIEW')).toBe(false);
+  });
+  it('keeps executor lifecycle transitions separate from review', () => {
+    expect(canTransitionTask(assignee, task, 'IN_PROGRESS')).toBe(true);
+    expect(canTransitionTask(reviewer, task, 'SUBMITTED')).toBe(false);
   });
 });
