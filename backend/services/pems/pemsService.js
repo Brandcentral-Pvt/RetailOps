@@ -1594,6 +1594,13 @@ async function uploadEvidence(data) {
   return withTransaction(async (tx) => {
     // Serialize evidence uploads against submission and activity completion.
     const task = await taskExecutionGates.lockTaskForExecution(tx, taskId);
+    if (taskWorkflowV2Execution.isV2Snapshot(task.ViewDefinitionSnapshot) &&
+        !taskWorkflowV2Execution.v2Enabled()) {
+      const err = new Error('V2 evidence uploads require active strict workflow gates');
+      err.status = 409;
+      err.code = 'WORKFLOW_V2_NOT_ACTIVATED';
+      throw err;
+    }
     if (taskExecutionGates.strictGatesEnabled() &&
         !['ACCEPTED', 'IN_PROGRESS', 'REWORK'].includes(task.Status)) {
       const error = new Error('Cannot add execution evidence while this task is not in progress');
