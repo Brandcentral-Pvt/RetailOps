@@ -63,3 +63,33 @@ describe('Phase 1 separation of duties', () => {
     expect(canTransitionTask(reviewer, task, 'SUBMITTED')).toBe(false);
   });
 });
+
+
+describe('Phase 1 executor and reviewer isolation', () => {
+  const { canExecuteTask, canReviewTask, canTransitionTask } = require('../../services/pems/pemsPolicy');
+  const scopedTask = { Id:'phase1', SellerId:'sellerA', AssignedTo:'executor1', ReviewerId:'reviewer1', Status:'SUBMITTED' };
+  const user = (id, assignedSellers = ['sellerA']) => ({
+    Id:id, role:{name:'brand_manager'}, assignedSellers,
+  });
+
+  test('reviewer cannot complete the executor activities', () => {
+    expect(canExecuteTask(user('executor1'), scopedTask)).toBe(true);
+    expect(canExecuteTask(user('reviewer1'), scopedTask)).toBe(false);
+  });
+
+  test('executor cannot approve their own task', () => {
+    expect(canReviewTask(user('executor1'), scopedTask)).toBe(false);
+    expect(canReviewTask(user('reviewer1'), scopedTask)).toBe(true);
+    expect(canReviewTask({Id:'executor1',role:{name:'admin'}}, scopedTask)).toBe(false);
+  });
+
+  test('unauthorized seller scope cannot review', () => {
+    expect(canReviewTask(user('reviewer1',['sellerB']), scopedTask)).toBe(false);
+  });
+
+  test('direct transitions cannot bypass review workflow', () => {
+    expect(canTransitionTask(user('executor1'), scopedTask, 'APPROVED')).toBe(false);
+    expect(canTransitionTask(user('executor1'), scopedTask, 'REJECTED')).toBe(false);
+    expect(canTransitionTask(user('executor1'), scopedTask, 'UNDER_REVIEW')).toBe(false);
+  });
+});
