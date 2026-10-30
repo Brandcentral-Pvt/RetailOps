@@ -233,3 +233,64 @@ test('V2 workflow cannot be published until its activity execution and storage a
   expect(mockRecords[0].Status).toBe('DRAFT');
   expect(mockCalls.some(c => /UPDATE PemsTemplateViewDefinitions/.test(c.query))).toBe(false);
 });
+
+
+describe('Phase 2.2 controlled V2 publication', () => {
+  const keys = ['PEMS_V2_EXECUTION_ENABLED', 'PEMS_STRICT_ACTIVITY_GATES', 'PEMS_PIN_VIEW_SNAPSHOTS'];
+  const saved = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+  afterAll(() => {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+  const v2 = () => ({
+    viewKey: 'STANDARD_V1', schemaVersion: '2.0', definitionVersion: 2, tabs: [],
+    workflow: {
+      schemaVersion: '2.0', phases: [{
+        key: 'check', title: 'Check',
+        activities: [{
+          key: 'source', title: 'Select source', instructions: 'Choose approved report',
+          type: 'SELECT_SOURCE', required: true, evidenceRequired: false,
+          validatorKey: 'SOURCE_SELECTED',
+          fields: [{ key: 'value', label: 'Source', type: 'select', required: true,
+            options: ['RETAILOPS', 'BRANDCENTRAL'] }],
+        }],
+      }],
+    },
+  });
+  beforeEach(() => {
+    for (const key of keys) process.env[key] = 'true';
+  });
+
+  test('publishes conditional-free V2 only with all development gates enabled', async () => {
+    seedExisting('v2-ready', v2(), { SchemaVersion: '2.0' });
+    const result = await viewService.publishViewDefinition('v2-ready', 'approver');
+    expect(result.status).toBe('PUBLISHED');
+    const pin = await snapshots.resolveViewPin(mockTx(), 'tpl-1');
+    expect(pin).toMatchObject({ pinned: true, viewDefinitionId: 'v2-ready' });
+    expect(JSON.parse(pin.snapshotJson).workflow.phases[0].activities[0].key).toBe('source');
+  });
+
+  test('conditional templates cannot be published until Phase 2.3 skip semantics', async () => {
+    const def = v2();
+    def.workflow.phases[0].activities.push({
+      key: 'dependent', title: 'Dependent step', instructions: 'Wait for source',
+      type: 'CHECKLIST', required: true, evidenceRequired: false,
+      validatorKey: 'BOOLEAN_CONFIRMED',
+      visibleWhen: { field: 'source.value', operator: 'equals', value: 'RETAILOPS' },
+      fields: [{ key: 'verified', label: 'Verified', type: 'boolean', required: true }],
+    });
+    seedExisting('v2-conditional', def, { SchemaVersion: '2.0' });
+    await expect(viewService.publishViewDefinition('v2-conditional', 'approver'))
+      .rejects.toMatchObject({ code: 'WORKFLOW_V2_CONDITIONS_PENDING', status: 409 });
+    expect(mockRecords[0].Status).toBe('DRAFT');
+  });
+
+  test('strict-mode flag is mandatory for new V2 publications', async () => {
+    process.env.PEMS_STRICT_ACTIVITY_GATES = 'false';
+    seedExisting('v2-disabled', v2(), { SchemaVersion: '2.0' });
+    await expect(viewService.publishViewDefinition('v2-disabled', 'approver'))
+      .rejects.toMatchObject({ code: 'WORKFLOW_V2_NOT_ACTIVATED', status: 409 });
+  });
+});
