@@ -66,7 +66,7 @@ afterAll(() => {
 test('new task pins published view and copies effective SOP from the locked template', async () => {
   const view = {viewKey:'STANDARD_V1',schemaVersion:'1.0',definitionVersion:1,tabs:[]};
   mockPublished = [{
-    Id:'view-1',ViewKey:'STANDARD_V1',DefinitionVersion:1,DefinitionJson:JSON.stringify(view),
+    Id:'view-1',ViewKey:'STANDARD_V1',SchemaVersion:'1.0',DefinitionVersion:1,DefinitionJson:JSON.stringify(view),
   }];
   await svc.createInstance({
     templateId:'tpl-1',title:'Daily check',status:'ASSIGNED',frequency:'DAILY',
@@ -91,7 +91,7 @@ test('legacy mode leaves new view columns out of the INSERT', async () => {
 });
 
 test('invalid published view aborts before task creation', async () => {
-  mockPublished = [{ Id:'bad',ViewKey:'STANDARD_V1',DefinitionVersion:2,DefinitionJson:'{not json' }];
+  mockPublished = [{ Id:'bad',ViewKey:'STANDARD_V1',SchemaVersion:'1.0',DefinitionVersion:2,DefinitionJson:'{not json' }];
   await expect(svc.createInstance({templateId:'tpl-1',title:'Blocked'})).rejects.toMatchObject({code:'TASK_VIEW_INVALID'});
   expect(mockCalls.some(c => /INSERT INTO PemsTaskInstances/.test(c.sql))).toBe(false);
 });
