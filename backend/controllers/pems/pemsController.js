@@ -336,6 +336,7 @@ const reviewActor = (req) => ({
   id: getUserId(req),
   name: getUserName(req) || req.user?.email,
   role: req.user?.role,
+  user: req.user,
 });
 
 // Review + workflow transition (claim → record → decide) in ONE transaction.
