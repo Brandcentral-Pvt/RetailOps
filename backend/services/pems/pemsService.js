@@ -1226,6 +1226,9 @@ async function setBrandCheck(taskId, brandRowId, completed, actorId, note, tx = 
   if (brandRowId && !res.rowsAffected[0]) { const e = new Error('Brand not found on this task'); e.status = 404; throw e; }
   const counts = (await pool.request().input('taskId', sql.VarChar, taskId)
     .query('SELECT COUNT(*) AS total, COALESCE(SUM(CASE WHEN IsCompleted = 1 THEN 1 ELSE 0 END), 0) AS done FROM PemsTaskBrands WHERE TaskInstanceId = @taskId')).recordset[0];
+  if (tx && taskExecutionGates.strictGatesEnabled()) {
+    await taskExecutionGates.reconcileTaskProgress(tx, taskId);
+  }
   return { total: counts.total, done: counts.done };
 }
 
