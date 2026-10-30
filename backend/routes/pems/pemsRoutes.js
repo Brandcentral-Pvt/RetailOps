@@ -12,6 +12,7 @@ router.get('/templates/filters', auth, cacheRoute('pems:meta', 300), ctrl.getFil
 // Express treats 'validate'/'config' as a template id.
 router.get('/templates/summary', auth, cacheRoute('pems:templates', 60), ctrl.getTemplateSummary);
 router.post('/templates/validate', auth, requirePermission('tasks_manage'), ctrl.validateTemplate);
+router.post('/templates/workflow/validate', auth, requirePermission('tasks_manage'), ctrl.validateWorkflowV2);
 router.post('/templates/config', auth, requirePermission('tasks_manage'), invalidateCache('pems:templates'), ctrl.saveTemplateConfiguration);
 router.put('/templates/config/:id', auth, requirePermission('tasks_manage'), invalidateCache('pems:templates'), ctrl.saveTemplateConfiguration);
 router.get('/templates/:id', auth, cacheRoute('pems:templates', 120), ctrl.getTemplateById);
