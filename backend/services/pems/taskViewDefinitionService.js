@@ -69,6 +69,48 @@ function validateDefinitionJson(definition) {
   return { ok: errors.length === 0, errors };
 }
 
+/**
+ * The SQL row and the persisted definition JSON represent one immutable view
+ * identity. Validate them together at every boundary that accepts or publishes
+ * a definition, and again before pinning it to a task instance.
+ *
+ * Pure helper: safe to call before opening a DB transaction.
+ */
+function validateDefinitionIdentity(metadata, definition) {
+  const result = validateDefinitionJson(definition);
+  const errors = [...result.errors];
+  if (metadata?.viewKey !== definition?.viewKey) {
+    errors.push('viewKey does not match definitionJson.viewKey');
+  }
+  if (metadata?.schemaVersion !== definition?.schemaVersion) {
+    errors.push('schemaVersion does not match definitionJson.schemaVersion');
+  }
+  if (metadata?.definitionVersion !== definition?.definitionVersion) {
+    errors.push('definitionVersion does not match definitionJson.definitionVersion');
+  }
+  return { ok: errors.length === 0, errors };
+}
+
+function validatePersistedDefinition(row, errorStatus = 409) {
+  let definition;
+  try {
+    definition = JSON.parse(row.DefinitionJson);
+  } catch {
+    throw httpError(errorStatus, 'Stored view definition is not valid JSON', 'INVALID_DEFINITION');
+  }
+  const validation = validateDefinitionIdentity({
+    viewKey: row.ViewKey,
+    schemaVersion: row.SchemaVersion,
+    definitionVersion: row.DefinitionVersion,
+  }, definition);
+  if (!validation.ok) {
+    throw httpError(errorStatus,
+      `Stored view identity is inconsistent: ${validation.errors.join('; ')}`,
+      'INVALID_DEFINITION_IDENTITY');
+  }
+  return definition;
+}
+
 async function createViewDefinition({
   templateId,
   viewKey,
@@ -82,14 +124,22 @@ async function createViewDefinition({
   if (!viewKey || !ALLOWED_VIEW_KEYS.has(viewKey)) {
     throw httpError(400, `viewKey must be one of ${[...ALLOWED_VIEW_KEYS].join(', ')}`, 'INVALID_VIEW_KEY');
   }
-  if (!schemaVersion) throw httpError(400, 'schemaVersion is required', 'SCHEMA_VERSION_REQUIRED');
+  if (typeof schemaVersion !== 'string' || !schemaVersion.trim()) {
+    throw httpError(400, 'schemaVersion must be a nonempty string', 'SCHEMA_VERSION_REQUIRED');
+  }
   if (!Number.isSafeInteger(definitionVersion) || definitionVersion < 1) {
     throw httpError(400, 'definitionVersion must be a positive integer', 'VERSION_REQUIRED');
   }
 
-  const validation = validateDefinitionJson(definitionJson);
-  if (!validation.ok) {
-    throw httpError(400, `Invalid definition: ${validation.errors.join('; ')}`, 'INVALID_DEFINITION');
+  const shapeValidation = validateDefinitionJson(definitionJson);
+  if (!shapeValidation.ok) {
+    throw httpError(400, `Invalid definition: ${shapeValidation.errors.join('; ')}`, 'INVALID_DEFINITION');
+  }
+  const identityValidation = validateDefinitionIdentity(
+    { viewKey, schemaVersion, definitionVersion }, definitionJson);
+  if (!identityValidation.ok) {
+    throw httpError(400, `Conflicting view metadata: ${identityValidation.errors.join('; ')}`,
+      'INVALID_DEFINITION_IDENTITY');
   }
 
   const pool = await getPool();
@@ -154,28 +204,38 @@ async function getPublishedViewDefinition(templateId, viewKey) {
 }
 
 async function publishViewDefinition(id, createdBy) {
-  const pool = await getPool();
-  const existing = await pool
-    .request()
-    .input('id', sql.VarChar, id)
-    .query('SELECT * FROM PemsTemplateViewDefinitions WHERE Id = @id');
-  const def = existing.recordset[0];
-  if (!def) throw httpError(404, 'View definition not found', 'NOT_FOUND');
-  if (def.Status === 'PUBLISHED') return { ...def, alreadyPublished: true };
+  // Lock the draft and publish within one transaction. Do not permit edits
+  // between validating the persisted JSON and updating the publication state.
+  const { withTransaction } = require('../../database/db');
+  return withTransaction(async (tx) => {
+    const existing = await tx
+      .request()
+      .input('id', sql.VarChar, id)
+      .query('SELECT * FROM PemsTemplateViewDefinitions WITH (UPDLOCK, HOLDLOCK) WHERE Id = @id');
+    const def = existing.recordset[0];
+    if (!def) throw httpError(404, 'View definition not found', 'NOT_FOUND');
 
-  await pool
-    .request()
-    .input('id', sql.VarChar, id)
-    .input('status', sql.VarChar, 'PUBLISHED')
-    .input('publishedAt', sql.DateTime2, new Date())
-    .input('publishedBy', sql.VarChar, createdBy || null)
-    .query(`
-      UPDATE PemsTemplateViewDefinitions
-      SET Status = @status, PublishedAt = @publishedAt, PublishedBy = @publishedBy
-      WHERE Id = @id
-    `);
+    // Validate even an already-published row: idempotency must not disguise
+    // historical invalid data as a successful publication.
+    validatePersistedDefinition(def);
+    if (def.Status === 'PUBLISHED') return { ...def, alreadyPublished: true };
 
-  return { ...def, status: 'PUBLISHED', publishedAt: new Date(), publishedBy: createdBy };
+    const publishedAt = new Date();
+    const publishedBy = createdBy || null;
+    await tx
+      .request()
+      .input('id', sql.VarChar, id)
+      .input('status', sql.VarChar, 'PUBLISHED')
+      .input('publishedAt', sql.DateTime2, publishedAt)
+      .input('publishedBy', sql.VarChar, publishedBy)
+      .query(`
+        UPDATE PemsTemplateViewDefinitions
+        SET Status = @status, PublishedAt = @publishedAt, PublishedBy = @publishedBy
+        WHERE Id = @id AND Status = 'DRAFT'
+      `);
+
+    return { ...def, status: 'PUBLISHED', publishedAt, publishedBy };
+  });
 }
 
 async function listViewDefinitions(templateId) {
@@ -237,13 +297,7 @@ async function getViewDefinitionForTaskInstance(taskInstanceId) {
       .input('id', sql.VarChar, task.ViewDefinitionId)
       .query('SELECT * FROM PemsTemplateViewDefinitions WHERE Id = @id');
     if (def.recordset[0]) {
-      let definition;
-      try { definition = JSON.parse(def.recordset[0].DefinitionJson); }
-      catch (error) { throw httpError(409, 'Pinned task view definition is malformed', 'INVALID_VIEW_DEFINITION'); }
-      const validation = validateDefinitionJson(definition);
-      if (!validation.ok) {
-        throw httpError(409, 'Pinned task view definition is invalid', 'INVALID_VIEW_DEFINITION');
-      }
+      const definition = validatePersistedDefinition(def.recordset[0]);
       return { definition, fromSnapshot: false, definitionId: task.ViewDefinitionId };
     }
     throw httpError(409, 'Pinned task view definition no longer exists', 'MISSING_PINNED_VIEW');
@@ -258,6 +312,7 @@ module.exports = {
   ALLOWED_VIEW_KEYS,
   ALLOWED_WIDGET_KEYS,
   validateDefinitionJson,
+  validateDefinitionIdentity,
   createViewDefinition,
   getViewDefinitionByTemplate,
   getPublishedViewDefinition,
