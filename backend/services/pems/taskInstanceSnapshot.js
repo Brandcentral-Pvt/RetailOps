@@ -10,6 +10,7 @@
  */
 const { sql } = require('../../database/db');
 const { validateDefinitionIdentity } = require('./taskViewDefinitionService');
+const { assertExecutableWorkflow } = require('./taskWorkflowV2Execution');
 
 const DEFAULT_VIEW = Object.freeze({
   viewKey: 'STANDARD_V1',
@@ -59,15 +60,10 @@ async function resolveViewPin(tx, templateId) {
     error.status = 409;
     throw error;
   }
-  // Published V2 workflows are not yet executable by the legacy activity
-  // persistence layer. Fail closed instead of creating task instances whose
-  // pinned instructions cannot be completed or validated.
-  if (definition.workflow) {
-    const error = new Error('Workflow V2 execution is not yet activated');
-    error.code = 'WORKFLOW_V2_NOT_ACTIVATED';
-    error.status = 409;
-    throw error;
-  }
+  // A V2 snapshot is allowed only when the existing PEMS activity tables can
+  // actually persist its outputs. Conditional branches remain disabled until
+  // Phase 2.3, including if an invalid published row is encountered.
+  if (definition.workflow) assertExecutableWorkflow(definition.workflow);
   const validation = validateDefinitionIdentity({
     viewKey: row.ViewKey,
     schemaVersion: row.SchemaVersion,
