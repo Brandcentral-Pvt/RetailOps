@@ -8,7 +8,7 @@ let mockInstanceCount = 0;
 let mockTemplateSop = [];
 let mockNextId = 0;
 
-function fakePool() {
+function mockPool() {
   return {
     request() {
       const inputs = {};
@@ -35,9 +35,9 @@ function fakePool() {
 
 jest.mock('../../database/db', () => ({
   sql: require('../../testUtils/fakePool').FAKE_SQL,
-  getPool: async () => fakePool(),
+  getPool: async () => mockPool(),
   generateId: () => 'id-' + (++mockNextId),
-  withTransaction: async (fn) => fn(fakePool()),
+  withTransaction: async (fn) => fn(mockPool()),
 }));
 jest.mock('../../utils/logger', () => ({ info() {},warn() {},error() {},debug() {} }));
 jest.mock('../../services/eventBus', () => ({emit() {},on() {},EVENTS:{} }));
