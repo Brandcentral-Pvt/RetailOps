@@ -31,7 +31,7 @@ const snapshot = JSON.stringify({
   definitionVersion: 2, tabs: [], workflow,
 });
 
-function connection() {
+function mockConnection() {
   return {
     request() {
       const inputs = {};
@@ -81,8 +81,8 @@ function connection() {
 
 jest.mock('../../database/db', () => ({
   sql: require('../../testUtils/fakePool').FAKE_SQL,
-  getPool: async () => connection(),
-  withTransaction: async fn => fn(connection()),
+  getPool: async () => mockConnection(),
+  withTransaction: async fn => fn(mockConnection()),
   generateId: () => 'audit-' + (++mockNextId),
 }));
 const svc = require('../../services/pems/taskWorkflowV2Execution');
@@ -194,15 +194,15 @@ describe('Phase 2.2 persisted activity outputs', () => {
     await expect(save({
       activityId: 'act-verify', output: { checked: true },
     })).resolves.toMatchObject({ revision: 1 });
-    await expect(svc.assertStepReady(connection(), 'task-a', 'act-verify'))
+    await expect(svc.assertStepReady(mockConnection(), 'task-a', 'act-verify'))
       .rejects.toMatchObject({ status: 422, code: 'ACTIVITY_OUTPUT_INVALID' });
     mockEvidenceCount = 1;
-    await expect(svc.assertStepReady(connection(), 'task-a', 'act-verify'))
+    await expect(svc.assertStepReady(mockConnection(), 'task-a', 'act-verify'))
       .resolves.toMatchObject({ activityKey: 'verify', output: { checked: true } });
   });
 
   test('completion rejects an activity without any persisted output', async () => {
-    await expect(svc.assertStepReady(connection(), 'task-a', 'act-source'))
+    await expect(svc.assertStepReady(mockConnection(), 'task-a', 'act-source'))
       .rejects.toMatchObject({ code: 'ACTIVITY_OUTPUT_REQUIRED' });
   });
 
