@@ -144,10 +144,19 @@ function validateWorkflowDefinition(workflow) {
             issue(errors, path + '.visibleWhen.field', 'Condition must reference a preceding activity field');
           if (!CONDITION_OPERATORS.includes(c.operator))
             issue(errors, path + '.visibleWhen.operator', 'Unsupported condition operator');
-          if (c.operator === 'in' && (!Array.isArray(c.value) || !c.value.length || c.value.length > 20))
-            issue(errors, path + '.visibleWhen.value', 'in requires 1 to 20 options');
-          if (!validJsonValue(c.value) || (plain(c.value) && Object.keys(c.value).length))
-            issue(errors, path + '.visibleWhen.value', 'Unsafe condition literal');
+          const primitive = v => v === null || typeof v === 'string' ||
+            typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v));
+          if (c.operator === 'in') {
+            if (!Array.isArray(c.value) || !c.value.length || c.value.length > 20 ||
+                !c.value.every(primitive)) {
+              issue(errors, path + '.visibleWhen.value', 'in requires 1 to 20 scalar options');
+            }
+          } else if (!primitive(c.value)) {
+            issue(errors, path + '.visibleWhen.value', 'Condition value must be a scalar literal');
+          }
+          if (c.operator === 'truthy' && typeof c.value !== 'boolean') {
+            issue(errors, path + '.visibleWhen.value', 'truthy requires a boolean target');
+          }
         }
       }
       if (activity.type === 'SELECT_SOURCE' && !refs.some(f => f.type === 'select' && f.required))
@@ -220,8 +229,15 @@ function validateActivityOutput(activity, output, evidenceCount = 0) {
       boolean: () => typeof value === 'boolean',
       select: () => typeof value === 'string' && field.options.includes(value),
       date: () => typeof value === 'string' && /^\d{4}-\d\d-\d\d$/.test(value)
-        && !Number.isNaN(Date.parse(value + 'T00:00:00Z')),
-      url: () => typeof value === 'string' && value.length <= 2048 && /^https:\/\//i.test(value),
+        && !Number.isNaN(Date.parse(value + 'T00:00:00Z'))
+        && new Date(value + 'T00:00:00Z').toISOString().slice(0, 10) === value,
+      url: () => {
+        if (typeof value !== 'string' || value.length > 2048) return false;
+        try {
+          const parsed = new URL(value);
+          return parsed.protocol === 'https:' && Boolean(parsed.hostname);
+        } catch { return false; }
+      },
     };
     if (!typeCheck[field.type]?.()) { issue(errors, 'output.' + field.key, 'Invalid input type or value'); continue; }
     if (typeof value === 'number' && ((field.min != null && value < field.min) || (field.max != null && value > field.max)))
@@ -231,14 +247,14 @@ function validateActivityOutput(activity, output, evidenceCount = 0) {
   }
   switch (activity.validatorKey) {
     case 'BOOLEAN_CONFIRMED':
-      if (!fields.some(f => f.type === 'boolean' && output[f.key] === true)) issue(errors, 'output', 'Confirmation required');
+      if (!fields.some(f => f.type === 'boolean' && f.required && output[f.key] === true)) issue(errors, 'output', 'Confirmation required');
       break;
     case 'NONEMPTY_TEXT':
       if (!fields.some(f => f.type === 'text' && typeof output[f.key] === 'string' && output[f.key].trim()))
         issue(errors, 'output', 'A written observation is required');
       break;
     case 'SOURCE_SELECTED':
-      if (!fields.some(f => f.type === 'select' && f.options.includes(output[f.key])))
+      if (!fields.some(f => f.type === 'select' && f.required && f.options.includes(output[f.key])))
         issue(errors, 'output', 'Select an authorized source');
       break;
     case 'EVIDENCE_LINKED':
