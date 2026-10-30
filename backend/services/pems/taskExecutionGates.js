@@ -104,13 +104,16 @@ async function assertPhaseReady(tx, subTaskId) {
     .input('subTaskId', sql.VarChar, subTaskId)
     .query(`
       SELECT
-        SUM(CASE WHEN a.IsMandatory = 1 AND a.IsCompleted = 0 THEN 1 ELSE 0 END) AS PendingRequired,
-        SUM(CASE WHEN a.IsMandatory = 1 AND a.EvidenceRequired = 1
-                  AND NOT EXISTS (
-                    SELECT 1 FROM PemsEvidence e
-                    WHERE e.TaskInstanceId = a.TaskInstanceId AND e.ActivityId = a.Id
-                  ) THEN 1 ELSE 0 END) AS MissingEvidence
-      FROM PemsActivities a WHERE a.SubTaskId = @subTaskId
+        COALESCE(SUM(CASE WHEN a.IsMandatory = 1 AND a.IsCompleted = 0 THEN 1 ELSE 0 END), 0) AS PendingRequired,
+        COALESCE(SUM(CASE WHEN a.IsMandatory = 1 AND a.EvidenceRequired = 1
+                  AND proof.EvidenceId IS NULL THEN 1 ELSE 0 END), 0) AS MissingEvidence
+      FROM PemsActivities a
+      OUTER APPLY (
+        SELECT TOP (1) e.Id AS EvidenceId
+        FROM PemsEvidence e
+        WHERE e.TaskInstanceId = a.TaskInstanceId AND e.ActivityId = a.Id
+      ) proof
+      WHERE a.SubTaskId = @subTaskId
     `);
   const row = check.recordset[0];
   if (!row) throw gateError('PHASE_VALIDATION_UNAVAILABLE', 'Cannot verify phase requirements');
