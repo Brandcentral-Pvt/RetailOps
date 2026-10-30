@@ -1,5 +1,14 @@
 const widgetRegistry = new Map();
 const viewRegistry = new Map();
+const activityRendererRegistry = new Map();
+
+// Must match the backend's trusted ACTIVITY_TYPES list. This registry accepts
+// only locally imported React components, never names or code from the server.
+const ACTIVITY_TYPES_V2 = new Set([
+  'CHECKLIST', 'FORM_INPUT', 'SELECT_SOURCE', 'DATA_REVIEW', 'TABLE_REVIEW',
+  'FILE_UPLOAD', 'COMMUNICATION', 'EVIDENCE_REVIEW',
+]);
+
 
 const VIEW_KEY_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
 const WIDGET_KEY_PATTERN = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
@@ -81,6 +90,29 @@ export function validateViewDefinition(rawDefinition) {
     }
   }
   return { valid: true, definition: rawDefinition };
+}
+
+/**
+ * Phase 2 shares the existing task view registry. Activity types resolve to
+ * trusted application-bundled components only. No dynamic imports, eval or
+ * server-provided component paths are permitted.
+ */
+export function registerActivityRenderer(type, component) {
+  if (!ACTIVITY_TYPES_V2.has(type) || !isComponent(component)) {
+    console.warn(`[ViewRegistry] Refusing untrusted activity renderer for "${String(type)}"`);
+    return false;
+  }
+  if (activityRendererRegistry.has(type)) return false;
+  activityRendererRegistry.set(type, component);
+  return true;
+}
+
+export function getActivityRenderer(type) {
+  return ACTIVITY_TYPES_V2.has(type) ? (activityRendererRegistry.get(type) || null) : null;
+}
+
+export function getRegisteredActivityRenderers() {
+  return Array.from(activityRendererRegistry.keys());
 }
 
 export function registerWidget(key, component) {
@@ -182,4 +214,5 @@ export function getWidgetForKey(widgetKey) {
 export function clearRegistry() {
   widgetRegistry.clear();
   viewRegistry.clear();
+  activityRendererRegistry.clear();
 }
