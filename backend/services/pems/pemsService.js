@@ -3,6 +3,8 @@ const { canTransition, calculateSLAStatus, calculateAchievement, calculateVarian
 const { canActOnTask, canReviewTask, canTransitionTask } = require('./pemsPolicy');
 const taskExecutionGates = require('./taskExecutionGates');
 const taskInstanceSnapshot = require('./taskInstanceSnapshot');
+const taskWorkflowV2Execution = require('./taskWorkflowV2Execution');
+const { materializeWorkflowSop } = require('./templateWorkflow');
 const { isGlobalUserRole } = require('../../utils/roleUtils');
 const { resolveSellerScope, buildScopeClause, canViewTaskByScope, applyScopeInputs } = require('./sellerScope');
 
@@ -250,6 +252,10 @@ async function createInstance(data) {
   }
   const department = data.department || tplRow?.Department || 'Operations';
   const viewPin = await taskInstanceSnapshot.resolveViewPin(pool, data.templateId);
+  const pinnedWorkflow = viewPin.pinned && viewPin.snapshotJson
+    ? JSON.parse(viewPin.snapshotJson).workflow : null;
+  const isV2Workflow = Boolean(pinnedWorkflow);
+  if (isV2Workflow) taskWorkflowV2Execution.assertExecutableWorkflow(pinnedWorkflow);
 
   // Resolve sellerName if not provided
   let sellerName = data.sellerName || '';
@@ -310,12 +316,14 @@ async function createInstance(data) {
   // Fetch template's SOP if subTaskDefinitions not provided in request
   // Snapshot mode uses the template SOP from the locked database row,
   // preventing caller-supplied step overrides for published task instances.
-  let subTaskDefs = viewPin.pinned && data.templateId && tplRow
-    ? safeParse(tplRow.SubTaskDefinitions, [])
-    : data.subTaskDefinitions;
-  if ((!subTaskDefs || subTaskDefs.length === 0) && data.templateId && tplRow?.SubTaskDefinitions) {
+  let subTaskDefs = isV2Workflow
+    ? materializeWorkflowSop(pinnedWorkflow)
+    : viewPin.pinned && data.templateId && tplRow
+      ? safeParse(tplRow.SubTaskDefinitions, [])
+      : data.subTaskDefinitions;
+  if (!isV2Workflow && (!subTaskDefs || subTaskDefs.length === 0) && data.templateId && tplRow?.SubTaskDefinitions) {
     subTaskDefs = safeParse(tplRow.SubTaskDefinitions, []);
-  } else if ((!subTaskDefs || subTaskDefs.length === 0) && data.templateId) {
+  } else if (!isV2Workflow && (!subTaskDefs || subTaskDefs.length === 0) && data.templateId) {
     const tplResult2 = await pool.request().input('tplId', sql.VarChar, data.templateId)
       .query('SELECT SubTaskDefinitions FROM PemsTaskTemplates WHERE Id = @tplId');
     const tplRow2 = tplResult2.recordset[0];
@@ -323,7 +331,7 @@ async function createInstance(data) {
   }
 
   // Recurring routines: only the sub-tasks scheduled for this occurrence's date (e.g. Monday-only steps)
-  if (data.occurrenceDate && subTaskDefs && subTaskDefs.length > 0) {
+  if (!isV2Workflow && data.occurrenceDate && subTaskDefs && subTaskDefs.length > 0) {
     subTaskDefs = filterSubTasksForDate(subTaskDefs, data.occurrenceDate);
   }
 
@@ -341,9 +349,10 @@ async function createInstance(data) {
         .input('status', sql.VarChar, 'PENDING')
         .input('expectedOutput', sql.NVarChar, st.expectedOutput || '')
         .input('sortOrder', sql.Int, i)
+        .input('workflowPhaseKey', sql.VarChar, isV2Workflow ? st.key : null)
         .query(`
-          INSERT INTO PemsSubTasks (Id, TaskInstanceId, SubTaskCode, Title, Description, Status, ExpectedOutput, SortOrder)
-          VALUES (@id, @taskInstanceId, @subTaskCode, @title, @description, @status, @expectedOutput, @sortOrder)
+          INSERT INTO PemsSubTasks (Id, TaskInstanceId, SubTaskCode, Title, Description, Status, ExpectedOutput, SortOrder${isV2Workflow ? ', WorkflowPhaseKey' : ''})
+          VALUES (@id, @taskInstanceId, @subTaskCode, @title, @description, @status, @expectedOutput, @sortOrder${isV2Workflow ? ', @workflowPhaseKey' : ''})
         `);
 
       // Create activities for each subtask
@@ -362,9 +371,11 @@ async function createInstance(data) {
             .input('supportDocuments', sql.NVarChar(sql.MAX), JSON.stringify(act.supportDocuments || []))
             .input('isMandatory', sql.Bit, act.isMandatory !== false ? 1 : 0)
             .input('evidenceRequired', sql.Bit, evidenceRequired)
+            .input('workflowActivityKey', sql.VarChar, isV2Workflow ? act.key : null)
+            .input('activityType', sql.VarChar, isV2Workflow ? act.type : null)
             .query(`
-              INSERT INTO PemsActivities (Id, SubTaskId, TaskInstanceId, StepNo, Title, Instructions, ExpectedOutput, SupportDocuments, IsMandatory, EvidenceRequired)
-              VALUES (@id, @subTaskId, @taskInstanceId, @stepNo, @title, @instructions, @expectedOutput, @supportDocuments, @isMandatory, @evidenceRequired)
+              INSERT INTO PemsActivities (Id, SubTaskId, TaskInstanceId, StepNo, Title, Instructions, ExpectedOutput, SupportDocuments, IsMandatory, EvidenceRequired${isV2Workflow ? ', WorkflowActivityKey, ActivityType' : ''})
+              VALUES (@id, @subTaskId, @taskInstanceId, @stepNo, @title, @instructions, @expectedOutput, @supportDocuments, @isMandatory, @evidenceRequired${isV2Workflow ? ', @workflowActivityKey, @activityType' : ''})
             `);
         }
       }
