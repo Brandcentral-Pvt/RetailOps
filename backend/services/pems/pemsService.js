@@ -1526,27 +1526,92 @@ async function resolveAsin(taskInstanceId, asinId, action, waiveReason, actorId,
 // ═══════════════════════════════════════════════════════
 
 async function uploadEvidence(data) {
-  const pool = await getPool();
-  const id = genId();
-  await pool.request()
-    .input('id', sql.VarChar, id)
-    .input('taskInstanceId', sql.VarChar, data.taskInstanceId)
-    .input('subTaskId', sql.VarChar, data.subTaskId || null)
-    .input('activityId', sql.VarChar, data.activityId || null)
-    .input('fileName', sql.NVarChar, data.fileName)
-    .input('fileUrl', sql.NVarChar, data.fileUrl)
-    .input('fileType', sql.VarChar, data.fileType || 'FILE')
-    .input('fileSize', sql.BigInt, data.fileSize || 0)
-    .input('mimeType', sql.NVarChar, data.mimeType || '')
-    .input('remarks', sql.NVarChar, data.remarks || '')
-    .input('uploadedBy', sql.VarChar, data.uploadedBy)
-    .input('uploadedByName', sql.NVarChar, data.uploadedByName || '')
-    .query(`
-      INSERT INTO PemsEvidence (Id, TaskInstanceId, SubTaskId, ActivityId, FileName, FileUrl, FileType, FileSize, MimeType, Remarks, UploadedBy, UploadedByName)
-      VALUES (@id, @taskInstanceId, @subTaskId, @activityId, @fileName, @fileUrl, @fileType, @fileSize, @mimeType, @remarks, @uploadedBy, @uploadedByName)
-    `);
-  await writeAuditLog(data.taskInstanceId, 'EVIDENCE_UPLOADED', null, null, data.uploadedBy, data.uploadedByName, `Evidence uploaded: ${data.fileName}`);
-  return { id };
+  const taskId = String(data?.taskInstanceId || '').trim();
+  const fileName = String(data?.fileName || '').trim();
+  const fileUrl = String(data?.fileUrl || '').trim();
+  const activityId = data?.activityId || null;
+  const subTaskId = data?.subTaskId || null;
+  if (!taskId || !fileName || !fileUrl || !data?.uploadedBy) {
+    const error = new Error('Task, evidence name, URL and authenticated uploader are required');
+    error.status = 400;
+    throw error;
+  }
+  if (String(data.fileType || 'FILE').toUpperCase() === 'LINK' && !/^https?:\/\//i.test(fileUrl)) {
+    const error = new Error('Evidence links must use http or https');
+    error.status = 400;
+    throw error;
+  }
+
+  return withTransaction(async (tx) => {
+    // Serialize evidence uploads against submission and activity completion.
+    const task = await taskExecutionGates.lockTaskForExecution(tx, taskId);
+    if (taskExecutionGates.strictGatesEnabled() &&
+        !['ACCEPTED', 'IN_PROGRESS', 'REWORK'].includes(task.Status)) {
+      const error = new Error('Cannot add execution evidence while this task is not in progress');
+      error.status = 409;
+      throw error;
+    }
+
+    if (activityId) {
+      const record = await tx.request().input('activityId', sql.VarChar, activityId)
+        .query('SELECT Id, TaskInstanceId, SubTaskId FROM PemsActivities WHERE Id = @activityId');
+      const activity = record.recordset[0];
+      if (!activity || activity.TaskInstanceId !== taskId ||
+          (subTaskId && activity.SubTaskId !== subTaskId)) {
+        const error = new Error('Evidence activity does not belong to this task and phase');
+        error.status = 400;
+        throw error;
+      }
+    } else if (subTaskId) {
+      const record = await tx.request().input('phaseId', sql.VarChar, subTaskId)
+        .query('SELECT Id, TaskInstanceId FROM PemsSubTasks WHERE Id = @phaseId');
+      if (!record.recordset[0] || record.recordset[0].TaskInstanceId !== taskId) {
+        const error = new Error('Evidence phase does not belong to this task');
+        error.status = 400;
+        throw error;
+      }
+    }
+
+    // A retry with the identical task, activity, URL and uploader returns the
+    // existing record instead of creating duplicate proof.
+    const existing = await tx.request()
+      .input('taskId', sql.VarChar, taskId)
+      .input('activityId', sql.VarChar, activityId)
+      .input('subTaskId', sql.VarChar, subTaskId)
+      .input('fileUrl', sql.NVarChar, fileUrl)
+      .input('uploadedBy', sql.VarChar, data.uploadedBy)
+      .query(`
+        SELECT TOP (1) Id FROM PemsEvidence
+        WHERE TaskInstanceId = @taskId
+          AND ((ActivityId = @activityId) OR (ActivityId IS NULL AND @activityId IS NULL))
+          AND ((SubTaskId = @subTaskId) OR (SubTaskId IS NULL AND @subTaskId IS NULL))
+          AND FileUrl = @fileUrl AND UploadedBy = @uploadedBy
+        ORDER BY UploadedAt DESC
+      `);
+    if (existing.recordset[0]) return { id: existing.recordset[0].Id, alreadyExists: true };
+
+    const id = genId();
+    await tx.request()
+      .input('id', sql.VarChar, id)
+      .input('taskInstanceId', sql.VarChar, taskId)
+      .input('subTaskId', sql.VarChar, subTaskId)
+      .input('activityId', sql.VarChar, activityId)
+      .input('fileName', sql.NVarChar, fileName)
+      .input('fileUrl', sql.NVarChar, fileUrl)
+      .input('fileType', sql.VarChar, data.fileType || 'FILE')
+      .input('fileSize', sql.BigInt, data.fileSize || 0)
+      .input('mimeType', sql.NVarChar, data.mimeType || '')
+      .input('remarks', sql.NVarChar, data.remarks || '')
+      .input('uploadedBy', sql.VarChar, data.uploadedBy)
+      .input('uploadedByName', sql.NVarChar, data.uploadedByName || '')
+      .query(`
+        INSERT INTO PemsEvidence (Id, TaskInstanceId, SubTaskId, ActivityId, FileName, FileUrl, FileType, FileSize, MimeType, Remarks, UploadedBy, UploadedByName)
+        VALUES (@id, @taskInstanceId, @subTaskId, @activityId, @fileName, @fileUrl, @fileType, @fileSize, @mimeType, @remarks, @uploadedBy, @uploadedByName)
+      `);
+    await writeAuditLog(taskId, 'EVIDENCE_UPLOADED', null, null,
+      data.uploadedBy, data.uploadedByName, `Evidence uploaded: ${fileName}`, tx);
+    return { id };
+  });
 }
 
 // ═══════════════════════════════════════════════════════
