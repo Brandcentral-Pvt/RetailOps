@@ -14,7 +14,9 @@ const { validateDefinitionJson } = require('./taskViewDefinitionService');
 const DEFAULT_VIEW = Object.freeze({
   viewKey: 'STANDARD_V1',
   schemaVersion: '1.0',
-  definitionVersion: 0,
+  // This is a valid self-contained renderer snapshot, not a published view ID.
+  // Use a positive version so the canonical reader accepts the generated JSON.
+  definitionVersion: 1,
   tabs: [],
   widgets: [],
 });
