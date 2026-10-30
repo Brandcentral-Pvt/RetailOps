@@ -101,6 +101,8 @@ jobs:
       - name: Install backend dependencies
         working-directory: backend
         run: npm ci
+      - name: Install isolated SQL driver with complete dependency tree
+        run: npm install --prefix /tmp/pems-phase1-sql --ignore-scripts --no-audit --no-fund mssql@12.7.11
       - name: Execute phase SQL and evidence scenarios in disposable tempdb
         working-directory: backend
         env:
@@ -109,5 +111,6 @@ jobs:
           PEMS_TEST_SQLSERVER_PORT: '1433'
           PEMS_TEST_SQLSERVER_USER: 'sa'
           PEMS_TEST_SQLSERVER_PASSWORD: 'Phase1Disposable#2026!'
+          PEMS_TEST_MSSQL_MODULE: '/tmp/pems-phase1-sql/node_modules/mssql'
         run: |
           npm test -- --runInBand __tests__/integration/pemsPhaseGateSqlServer.test.js
