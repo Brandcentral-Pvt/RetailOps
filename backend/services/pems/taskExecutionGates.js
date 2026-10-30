@@ -36,7 +36,7 @@ function ensureExecutable(status) {
 async function lockTaskForExecution(tx, taskId) {
   const found = await tx.request()
     .input('taskId', sql.VarChar, taskId)
-    .query('SELECT Id, Status FROM PemsTaskInstances WITH (UPDLOCK, HOLDLOCK) WHERE Id = @taskId');
+    .query('SELECT Id, Status, ViewDefinitionSnapshot FROM PemsTaskInstances WITH (UPDLOCK, HOLDLOCK) WHERE Id = @taskId');
   if (!found.recordset[0]) throw gateError('TASK_NOT_FOUND', 'Task not found');
   return found.recordset[0];
 }
@@ -59,7 +59,7 @@ async function assertActivityReady(tx, activityId) {
     .input('activityId', sql.VarChar, activityId)
     .query(`
       SELECT a.Id, a.TaskInstanceId, a.SubTaskId, a.IsCompleted,
-             a.EvidenceRequired, i.Status
+             a.EvidenceRequired, i.Status, i.ViewDefinitionSnapshot
       FROM PemsActivities a WITH (UPDLOCK, ROWLOCK)
       JOIN PemsTaskInstances i ON i.Id = a.TaskInstanceId
       WHERE a.Id = @activityId

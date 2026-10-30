@@ -6,6 +6,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   clearRegistry,
+  getActivityRenderer,
+  getRegisteredActivityRenderers,
+  registerActivityRenderer,
   getRegisteredViews,
   getView,
   registerView,
@@ -148,4 +151,19 @@ test('application boot imports the OOS registration module', () => {
   assert.match(mainSource, /import\s+['"]\.\/modules\/tasks\/views\/oos['"]/);
   assert.match(oosSource, /registerView\('OOS_RECON_V1',\s*OosTaskView\)/);
   assert.match(oosSource, /registerWidget\('OosAffectedAsinsGrid',\s*OosAffectedAsinsGrid\)/);
+});
+
+
+test('Phase 2 activity renderer registration is local and allow-listed', () => {
+  assert.equal(registerActivityRenderer('CHECKLIST', ViewA), true);
+  assert.equal(getActivityRenderer('CHECKLIST'), ViewA);
+  assert.deepEqual(getRegisteredActivityRenderers(), ['CHECKLIST']);
+  assert.equal(registerActivityRenderer('CHECKLIST', ViewB), false);
+  assert.equal(getActivityRenderer('CHECKLIST'), ViewA);
+  assert.equal(registerActivityRenderer('REMOTE_JS', ViewB), false);
+  assert.equal(registerActivityRenderer('../Remote', ViewB), false);
+  assert.equal(registerActivityRenderer('SELECT_SOURCE', 'https://remote.example/component'), false);
+  assert.equal(getActivityRenderer('REMOTE_JS'), null);
+  clearRegistry();
+  assert.deepEqual(getRegisteredActivityRenderers(), []);
 });

@@ -2,6 +2,8 @@ const pemsService = require('../../services/pems/pemsService');
 const { WORKFLOW_STATUSES, FREQUENCIES, CATEGORIES, PRIORITIES } = require('../../services/pems/workflowEngine');
 const { canCreateTaskForSeller } = require('../../services/pems/pemsPolicy');
 const { isGlobalUserRole } = require('../../utils/roleUtils');
+const { validateWorkflowDefinition, buildExecutionPlan, materializeWorkflowSop } = require('../../services/pems/templateWorkflow');
+const taskWorkflowV2Execution = require('../../services/pems/taskWorkflowV2Execution');
 
 function getUserId(req) { return req.user?.Id || req.user?._id; }
 function getUserName(req) { return (`${req.user?.FirstName || ''} ${req.user?.LastName || ''}`).trim() || req.user?.Email; }
@@ -101,6 +103,35 @@ exports.saveTemplateConfiguration = async (req, res) => {
   } catch (err) {
     const status = err.status || 500;
     res.status(status).json({ success: false, error: err.message, validation: err.validation || null });
+  }
+};
+
+
+/**
+ * Phase 2 template workflow preview. Deliberately read-only, scoped to the
+ * existing tasks_manage permission at the route. It does NOT publish templates
+ * or execute marketplace actions.
+ */
+exports.validateWorkflowV2 = async (req, res) => {
+  try {
+    const workflow = req.body?.workflow;
+    const validation = validateWorkflowDefinition(workflow);
+    if (!validation.ok) {
+      return res.status(422).json({ success: false, code: 'INVALID_WORKFLOW_V2', validation });
+    }
+    const preview = buildExecutionPlan(workflow);
+    return res.json({
+      success: true,
+      data: {
+        validation,
+        preview,
+        legacySopPreview: materializeWorkflowSop(workflow),
+        phaseCount: workflow.phases.length,
+        activityCount: workflow.phases.reduce((n, p) => n + p.activities.length, 0),
+      },
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, code: 'WORKFLOW_PREVIEW_FAILED', error: err.message });
   }
 };
 
@@ -233,6 +264,46 @@ exports.updateAchievement = async (req, res) => {
   } catch (err) {
     console.error('updateAchievement error:', err);
     res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * Phase 2.2 execution state is returned from the immutable pinned view and
+ * persisted PemsActivities. The route enforces task-level read permission.
+ */
+exports.getWorkflowExecution = async (req, res) => {
+  try {
+    const data = await taskWorkflowV2Execution.getWorkflowExecution(req.params.id);
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(err.status || 500).json({
+      success: false, code: err.code || 'WORKFLOW_STATE_FAILED',
+      error: err.message, validation: err.validation || undefined,
+    });
+  }
+};
+
+/**
+ * Typed step outputs are checked against the frozen task-instance schema and
+ * written transactionally with an optimistic revision check. Authorization is
+ * handled by requireTaskExecutor BEFORE this controller is called.
+ */
+exports.saveWorkflowActivityOutput = async (req, res) => {
+  try {
+    const { output, expectedRevision } = req.body || {};
+    const data = await taskWorkflowV2Execution.saveActivityOutput({
+      taskId: req.params.id,
+      activityId: req.params.activityId,
+      output, expectedRevision,
+      actorId: getUserId(req),
+      actorName: getUserName(req),
+    });
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(err.status || 500).json({
+      success: false, code: err.code || 'WORKFLOW_OUTPUT_SAVE_FAILED',
+      error: err.message, validation: err.validation || undefined,
+    });
   }
 };
 

@@ -49,6 +49,10 @@ const tasksApi = {
 
   validateTemplate: async (data) => call(`/pems/templates/validate`, { method: 'POST', body: data }),
 
+  // Phase 2 read-only preview; does not publish or mutate existing templates.
+  validateWorkflowV2: async (workflow) =>
+    call('/pems/templates/workflow/validate', { method: 'POST', body: { workflow } }),
+
   saveTemplateConfig: async (id, data) => call(`/pems/templates/config/${id}`, { method: 'PUT', body: data }),
 
   upsertAssignmentRules: async (templateId, data) =>
@@ -61,6 +65,16 @@ const tasksApi = {
   },
 
   getInstanceById: async (id) => call(`/pems/instances/${id}`),
+
+  // Phase 2.2: execution state comes from the pinned task template and saved
+  // activity rows, never an editable client-side workflow configuration.
+  getWorkflowExecution: async (id) =>
+    call(`/pems/instances/${id}/workflow`),
+
+  saveWorkflowActivityOutput: async (taskId, activityId, output, expectedRevision) =>
+    call(`/pems/instances/${taskId}/activities/${activityId}/output`, {
+      method: 'PUT', body: { output, expectedRevision },
+    }),
 
   createInstance: async (data) => call(`/pems/instances`, { method: 'POST', body: data }),
 

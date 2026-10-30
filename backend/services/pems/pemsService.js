@@ -3,6 +3,8 @@ const { canTransition, calculateSLAStatus, calculateAchievement, calculateVarian
 const { canActOnTask, canReviewTask, canTransitionTask } = require('./pemsPolicy');
 const taskExecutionGates = require('./taskExecutionGates');
 const taskInstanceSnapshot = require('./taskInstanceSnapshot');
+const taskWorkflowV2Execution = require('./taskWorkflowV2Execution');
+const { materializeWorkflowSop } = require('./templateWorkflow');
 const { isGlobalUserRole } = require('../../utils/roleUtils');
 const { resolveSellerScope, buildScopeClause, canViewTaskByScope, applyScopeInputs } = require('./sellerScope');
 
@@ -250,6 +252,10 @@ async function createInstance(data) {
   }
   const department = data.department || tplRow?.Department || 'Operations';
   const viewPin = await taskInstanceSnapshot.resolveViewPin(pool, data.templateId);
+  const pinnedWorkflow = viewPin.pinned && viewPin.snapshotJson
+    ? JSON.parse(viewPin.snapshotJson).workflow : null;
+  const isV2Workflow = Boolean(pinnedWorkflow);
+  if (isV2Workflow) taskWorkflowV2Execution.assertExecutableWorkflow(pinnedWorkflow);
 
   // Resolve sellerName if not provided
   let sellerName = data.sellerName || '';
@@ -310,12 +316,14 @@ async function createInstance(data) {
   // Fetch template's SOP if subTaskDefinitions not provided in request
   // Snapshot mode uses the template SOP from the locked database row,
   // preventing caller-supplied step overrides for published task instances.
-  let subTaskDefs = viewPin.pinned && data.templateId && tplRow
-    ? safeParse(tplRow.SubTaskDefinitions, [])
-    : data.subTaskDefinitions;
-  if ((!subTaskDefs || subTaskDefs.length === 0) && data.templateId && tplRow?.SubTaskDefinitions) {
+  let subTaskDefs = isV2Workflow
+    ? materializeWorkflowSop(pinnedWorkflow)
+    : viewPin.pinned && data.templateId && tplRow
+      ? safeParse(tplRow.SubTaskDefinitions, [])
+      : data.subTaskDefinitions;
+  if (!isV2Workflow && (!subTaskDefs || subTaskDefs.length === 0) && data.templateId && tplRow?.SubTaskDefinitions) {
     subTaskDefs = safeParse(tplRow.SubTaskDefinitions, []);
-  } else if ((!subTaskDefs || subTaskDefs.length === 0) && data.templateId) {
+  } else if (!isV2Workflow && (!subTaskDefs || subTaskDefs.length === 0) && data.templateId) {
     const tplResult2 = await pool.request().input('tplId', sql.VarChar, data.templateId)
       .query('SELECT SubTaskDefinitions FROM PemsTaskTemplates WHERE Id = @tplId');
     const tplRow2 = tplResult2.recordset[0];
@@ -323,7 +331,7 @@ async function createInstance(data) {
   }
 
   // Recurring routines: only the sub-tasks scheduled for this occurrence's date (e.g. Monday-only steps)
-  if (data.occurrenceDate && subTaskDefs && subTaskDefs.length > 0) {
+  if (!isV2Workflow && data.occurrenceDate && subTaskDefs && subTaskDefs.length > 0) {
     subTaskDefs = filterSubTasksForDate(subTaskDefs, data.occurrenceDate);
   }
 
@@ -341,9 +349,10 @@ async function createInstance(data) {
         .input('status', sql.VarChar, 'PENDING')
         .input('expectedOutput', sql.NVarChar, st.expectedOutput || '')
         .input('sortOrder', sql.Int, i)
+        .input('workflowPhaseKey', sql.VarChar, isV2Workflow ? st.key : null)
         .query(`
-          INSERT INTO PemsSubTasks (Id, TaskInstanceId, SubTaskCode, Title, Description, Status, ExpectedOutput, SortOrder)
-          VALUES (@id, @taskInstanceId, @subTaskCode, @title, @description, @status, @expectedOutput, @sortOrder)
+          INSERT INTO PemsSubTasks (Id, TaskInstanceId, SubTaskCode, Title, Description, Status, ExpectedOutput, SortOrder${isV2Workflow ? ', WorkflowPhaseKey' : ''})
+          VALUES (@id, @taskInstanceId, @subTaskCode, @title, @description, @status, @expectedOutput, @sortOrder${isV2Workflow ? ', @workflowPhaseKey' : ''})
         `);
 
       // Create activities for each subtask
@@ -362,9 +371,11 @@ async function createInstance(data) {
             .input('supportDocuments', sql.NVarChar(sql.MAX), JSON.stringify(act.supportDocuments || []))
             .input('isMandatory', sql.Bit, act.isMandatory !== false ? 1 : 0)
             .input('evidenceRequired', sql.Bit, evidenceRequired)
+            .input('workflowActivityKey', sql.VarChar, isV2Workflow ? act.key : null)
+            .input('activityType', sql.VarChar, isV2Workflow ? act.type : null)
             .query(`
-              INSERT INTO PemsActivities (Id, SubTaskId, TaskInstanceId, StepNo, Title, Instructions, ExpectedOutput, SupportDocuments, IsMandatory, EvidenceRequired)
-              VALUES (@id, @subTaskId, @taskInstanceId, @stepNo, @title, @instructions, @expectedOutput, @supportDocuments, @isMandatory, @evidenceRequired)
+              INSERT INTO PemsActivities (Id, SubTaskId, TaskInstanceId, StepNo, Title, Instructions, ExpectedOutput, SupportDocuments, IsMandatory, EvidenceRequired${isV2Workflow ? ', WorkflowActivityKey, ActivityType' : ''})
+              VALUES (@id, @subTaskId, @taskInstanceId, @stepNo, @title, @instructions, @expectedOutput, @supportDocuments, @isMandatory, @evidenceRequired${isV2Workflow ? ', @workflowActivityKey, @activityType' : ''})
             `);
         }
       }
@@ -971,10 +982,17 @@ async function transitionStatus(taskInstanceId, toStatus, actorId, actorName, ac
   const pool = tx || (await getPool());
   const instanceResult = await pool.request()
     .input('id', sql.VarChar, taskInstanceId)
-    .query(`SELECT Status, AssignedTo, AssigneeName, ReviewerId, ReviewerName, DueDate, SLAHours, Title
+    .query(`SELECT Status, AssignedTo, AssigneeName, ReviewerId, ReviewerName, DueDate, SLAHours, Title, ViewDefinitionSnapshot
              FROM PemsTaskInstances ${tx && taskExecutionGates.strictGatesEnabled() ? 'WITH (UPDLOCK, HOLDLOCK)' : ''} WHERE Id = @id`);
   const instance = instanceResult.recordset[0];
   if (!instance) throw new Error('Task instance not found');
+  if (taskWorkflowV2Execution.isV2Snapshot(instance.ViewDefinitionSnapshot) &&
+      !taskWorkflowV2Execution.v2Enabled()) {
+    const err = new Error('V2 execution gates are disabled for this task');
+    err.status = 409;
+    err.code = 'WORKFLOW_V2_NOT_ACTIVATED';
+    throw err;
+  }
 
   if (!canTransition(instance.Status, toStatus)) {
     throw new Error(`Invalid transition: ${instance.Status} → ${toStatus}`);
@@ -1155,6 +1173,8 @@ async function completeSubTask(subTaskId, actorId, actorName) {
       await taskExecutionGates.lockChildParent(tx, 'phase', subTaskId);
       const phase = await taskExecutionGates.assertPhaseReady(tx, subTaskId);
       if (phase.alreadyCompleted) return { success: true, alreadyCompleted: true };
+      // Strict phase checks already require every mandatory activity to be
+      // completed. Its V2 completion path validates typed output first.
       const result = await tx.request().input('id', sql.VarChar, subTaskId)
         .query("UPDATE PemsSubTasks SET IsCompleted = 1, Status = 'COMPLETED', CompletedAt = dbo.GetEnvDate() WHERE Id = @id AND IsCompleted = 0");
       if (Number(result.rowsAffected?.[0] || 0) === 0) return { success: true, alreadyCompleted: true };
@@ -1165,6 +1185,14 @@ async function completeSubTask(subTaskId, actorId, actorName) {
   }
   return withTransaction(async (tx) => {
   const pool = tx;
+  const guard = await pool.request().input('id', sql.VarChar, subTaskId)
+    .query('SELECT i.ViewDefinitionSnapshot FROM PemsSubTasks st JOIN PemsTaskInstances i ON i.Id = st.TaskInstanceId WHERE st.Id = @id');
+  if (taskWorkflowV2Execution.isV2Snapshot(guard.recordset[0]?.ViewDefinitionSnapshot)) {
+    const err = new Error('V2 phase completion requires strict workflow gates');
+    err.status = 409;
+    err.code = 'WORKFLOW_V2_NOT_ACTIVATED';
+    throw err;
+  }
   await pool.request()
     .input('id', sql.VarChar, subTaskId)
     .query("UPDATE PemsSubTasks SET IsCompleted = 1, Status = 'COMPLETED', CompletedAt = dbo.GetEnvDate() WHERE Id = @id");
@@ -1204,7 +1232,14 @@ async function setBrandCheck(taskId, brandRowId, completed, actorId, note, tx = 
     await taskExecutionGates.lockTaskForExecution(tx, taskId);
   }
   const task = (await pool.request().input('id', sql.VarChar, taskId)
-    .query('SELECT Id, Status FROM PemsTaskInstances WHERE Id = @id')).recordset[0];
+    .query('SELECT Id, Status, ViewDefinitionSnapshot FROM PemsTaskInstances WHERE Id = @id')).recordset[0];
+  if (taskWorkflowV2Execution.isV2Snapshot(task?.ViewDefinitionSnapshot) &&
+      !taskWorkflowV2Execution.v2Enabled()) {
+    const err = new Error('V2 brand updates require strict workflow gates');
+    err.status = 409;
+    err.code = 'WORKFLOW_V2_NOT_ACTIVATED';
+    throw err;
+  }
   if (!task) { const e = new Error('Task not found'); e.status = 404; throw e; }
   if (!['IN_PROGRESS', 'REWORK', 'ACCEPTED'].includes(task.Status)) {
     const e = new Error('Start the task before ticking brands'); e.status = 409; throw e;
@@ -1238,6 +1273,9 @@ async function completeActivity(activityId, actorId, actorName) {
       await taskExecutionGates.lockChildParent(tx, 'activity', activityId);
       const activity = await taskExecutionGates.assertActivityReady(tx, activityId);
       if (activity.alreadyCompleted) return { success: true, alreadyCompleted: true };
+      if (taskWorkflowV2Execution.isV2Snapshot(activity.ViewDefinitionSnapshot)) {
+        await taskWorkflowV2Execution.assertStepReady(tx, activity.TaskInstanceId, activityId);
+      }
       const change = await tx.request()
         .input('id', sql.VarChar, activityId)
         .input('actorId', sql.VarChar, actorId)
@@ -1250,6 +1288,14 @@ async function completeActivity(activityId, actorId, actorName) {
     });
   }
   const pool = await getPool();
+  const guard = await pool.request().input('id', sql.VarChar, activityId)
+    .query('SELECT i.ViewDefinitionSnapshot FROM PemsActivities a JOIN PemsTaskInstances i ON i.Id = a.TaskInstanceId WHERE a.Id = @id');
+  if (taskWorkflowV2Execution.isV2Snapshot(guard.recordset[0]?.ViewDefinitionSnapshot)) {
+    const err = new Error('V2 activity completion requires strict workflow validation');
+    err.status = 409;
+    err.code = 'WORKFLOW_V2_NOT_ACTIVATED';
+    throw err;
+  }
   await pool.request()
     .input('id', sql.VarChar, activityId)
     .input('actorId', sql.VarChar, actorId)
@@ -1548,6 +1594,13 @@ async function uploadEvidence(data) {
   return withTransaction(async (tx) => {
     // Serialize evidence uploads against submission and activity completion.
     const task = await taskExecutionGates.lockTaskForExecution(tx, taskId);
+    if (taskWorkflowV2Execution.isV2Snapshot(task.ViewDefinitionSnapshot) &&
+        !taskWorkflowV2Execution.v2Enabled()) {
+      const err = new Error('V2 evidence uploads require active strict workflow gates');
+      err.status = 409;
+      err.code = 'WORKFLOW_V2_NOT_ACTIVATED';
+      throw err;
+    }
     if (taskExecutionGates.strictGatesEnabled() &&
         !['ACCEPTED', 'IN_PROGRESS', 'REWORK'].includes(task.Status)) {
       const error = new Error('Cannot add execution evidence while this task is not in progress');
@@ -1694,7 +1747,7 @@ async function submitReviewAndTransition(rawData, actor) {
   return withTransaction(async (tx) => {
     const cur = await tx.request()
       .input('id', sql.VarChar, data.taskInstanceId)
-      .query('SELECT Status, AssignedTo, ReviewerId, SellerId FROM PemsTaskInstances WITH (UPDLOCK, ROWLOCK) WHERE Id = @id');
+      .query('SELECT Status, AssignedTo, ReviewerId, SellerId, ViewDefinitionSnapshot FROM PemsTaskInstances WITH (UPDLOCK, ROWLOCK) WHERE Id = @id');
     const task = cur.recordset[0];
     if (!task) throw new Error('Task instance not found');
 
@@ -1711,6 +1764,13 @@ async function submitReviewAndTransition(rawData, actor) {
 
     // Approval must validate the same immutable execution requirements as
     // submission. Rejections remain possible so incomplete work can be returned.
+    if (taskWorkflowV2Execution.isV2Snapshot(task.ViewDefinitionSnapshot) &&
+        !taskWorkflowV2Execution.v2Enabled()) {
+      const err = new Error('V2 review requires strict workflow gates');
+      err.status = 409;
+      err.code = 'WORKFLOW_V2_NOT_ACTIVATED';
+      throw err;
+    }
     if (data.decision === 'APPROVE' && taskExecutionGates.strictGatesEnabled()) {
       await taskExecutionGates.assertSubmissionReady(tx, data.taskInstanceId);
     }

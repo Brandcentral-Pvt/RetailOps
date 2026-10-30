@@ -12,6 +12,7 @@ router.get('/templates/filters', auth, cacheRoute('pems:meta', 300), ctrl.getFil
 // Express treats 'validate'/'config' as a template id.
 router.get('/templates/summary', auth, cacheRoute('pems:templates', 60), ctrl.getTemplateSummary);
 router.post('/templates/validate', auth, requirePermission('tasks_manage'), ctrl.validateTemplate);
+router.post('/templates/workflow/validate', auth, requirePermission('tasks_manage'), ctrl.validateWorkflowV2);
 router.post('/templates/config', auth, requirePermission('tasks_manage'), invalidateCache('pems:templates'), ctrl.saveTemplateConfiguration);
 router.put('/templates/config/:id', auth, requirePermission('tasks_manage'), invalidateCache('pems:templates'), ctrl.saveTemplateConfiguration);
 router.get('/templates/:id', auth, cacheRoute('pems:templates', 120), ctrl.getTemplateById);
@@ -36,6 +37,9 @@ router.get('/instances/:id', auth, requireTaskView, cacheRoute('pems:instances',
 router.post('/instances', auth, requirePermission('tasks_manage'), invalidateCache('pems:instances'), ctrl.createInstance);
 router.post('/instances/bulk/transition', auth, invalidateCache('pems:instances'), ctrl.bulkTransition);
 router.post('/instances/:id/transition', auth, requireTaskTransition, invalidateCache('pems:instances'), ctrl.transitionStatus);
+// Phase 2.2: same PEMS identity and seller-scoped permissions as existing task routes.
+router.get('/instances/:id/workflow', auth, requireTaskView, ctrl.getWorkflowExecution);
+router.put('/instances/:id/activities/:activityId/output', auth, requireTaskExecutor, invalidateCache('pems:instances'), ctrl.saveWorkflowActivityOutput);
 router.post('/instances/:id/comments', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.addComment);
 router.post('/instances/:id/verify-fix', auth, requireTaskExecutor, ctrl.verifyFix);
 router.put('/instances/:id/achievement', auth, requireTaskExecutor, invalidateCache('pems:instances'), ctrl.updateAchievement);
