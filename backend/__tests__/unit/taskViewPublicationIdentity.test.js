@@ -210,3 +210,26 @@ describe('View definition metadata identity lifecycle', () => {
       .rejects.toMatchObject({ status: 404, code: 'NOT_FOUND' });
   });
 });
+
+
+test('V2 workflow cannot be published until its activity execution and storage adapter is ready', async () => {
+  const validWorkflow = {
+    schemaVersion: '2.0',
+    phases: [{
+      key: 'p', title: 'Phase',
+      activities: [{
+        key: 'a', title: 'Confirm', instructions: 'Review the source',
+        type: 'CHECKLIST', required: true, evidenceRequired: false,
+        validatorKey: 'BOOLEAN_CONFIRMED',
+        fields: [{ key: 'checked', type: 'boolean', label: 'Checked', required: true }],
+      }],
+    }],
+  };
+  seedExisting('view-pending', {
+    ...baseDefinition(), schemaVersion: '2.0', workflow: validWorkflow,
+  }, { SchemaVersion: '2.0' });
+  await expect(viewService.publishViewDefinition('view-pending', 'publisher'))
+    .rejects.toMatchObject({ status: 409, code: 'WORKFLOW_V2_NOT_ACTIVATED' });
+  expect(mockRecords[0].Status).toBe('DRAFT');
+  expect(mockCalls.some(c => /UPDATE PemsTemplateViewDefinitions/.test(c.query))).toBe(false);
+});
