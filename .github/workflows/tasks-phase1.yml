@@ -57,6 +57,7 @@ jobs:
             __tests__/unit/taskViewDefinitionLegacy.test.js \
             __tests__/unit/pemsPhase1Instance.test.js \
             __tests__/unit/pemsPhase1Evidence.test.js \
+            __tests__/unit/pemsPhase1ReviewGate.test.js \
             __tests__/unit/pemsPolicy.test.js \
             __tests__/unit/templateConfig.test.js \
             __tests__/routes/pemsExecutionRoles.test.js \
