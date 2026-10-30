@@ -1709,6 +1709,12 @@ async function submitReviewAndTransition(rawData, actor) {
       throw error;
     }
 
+    // Approval must validate the same immutable execution requirements as
+    // submission. Rejections remain possible so incomplete work can be returned.
+    if (data.decision === 'APPROVE' && taskExecutionGates.strictGatesEnabled()) {
+      await taskExecutionGates.assertSubmissionReady(tx, data.taskInstanceId);
+    }
+
     const from = task.Status;
     if (from !== 'UNDER_REVIEW') {
       await transitionStatus(data.taskInstanceId, 'UNDER_REVIEW', actor.id, actor.name, actor.role, 'Review started', tx);
