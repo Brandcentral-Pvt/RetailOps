@@ -267,7 +267,7 @@ describe('Phase 2.2 controlled V2 publication', () => {
     seedExisting('v2-ready', v2(), { SchemaVersion: '2.0' });
     const result = await viewService.publishViewDefinition('v2-ready', 'approver');
     expect(result.status).toBe('PUBLISHED');
-    const pin = await snapshots.resolveViewPin(mockTx(), 'tpl-1');
+    const pin = await snapshots.resolveViewPin(mockPool(), 'tpl-1');
     expect(pin).toMatchObject({ pinned: true, viewDefinitionId: 'v2-ready' });
     expect(JSON.parse(pin.snapshotJson).workflow.phases[0].activities[0].key).toBe('source');
   });
