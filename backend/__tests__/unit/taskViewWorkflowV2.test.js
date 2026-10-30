@@ -79,3 +79,14 @@ describe('Phase 2 integration into published PEMS views', () => {
     expect(result.errors.join(' ')).toMatch(/schemaVersion/);
   });
 });
+
+
+test('directly creating a PUBLISHED V2 workflow is blocked before any database write', async () => {
+  const workflow = validDefinition();
+  const service = require('../../services/pems/taskViewDefinitionService');
+  await expect(service.createViewDefinition({
+    templateId: 'tpl1', viewKey: 'STANDARD_V1',
+    schemaVersion: '2.0', definitionVersion: 2,
+    definitionJson: workflow, status: 'PUBLISHED',
+  })).rejects.toMatchObject({ status: 409, code: 'WORKFLOW_V2_NOT_ACTIVATED' });
+});
