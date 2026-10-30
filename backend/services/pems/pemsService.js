@@ -1,6 +1,7 @@
 const { sql, getPool, generateId, withTransaction } = require('../../database/db');
 const { canTransition, calculateSLAStatus, calculateAchievement, calculateVariance, getNextDueDate, getTransitionTimestamps, resolveReviewTransition, WORKFLOW_STATUSES } = require('./workflowEngine');
 const { canActOnTask } = require('./pemsPolicy');
+const taskExecutionGates = require('./taskExecutionGates');
 const { isGlobalUserRole } = require('../../utils/roleUtils');
 const { resolveSellerScope, buildScopeClause, canViewTaskByScope, applyScopeInputs } = require('./sellerScope');
 
@@ -965,6 +966,11 @@ async function transitionStatus(taskInstanceId, toStatus, actorId, actorName, ac
   const isSubmitGate = (instance.Status === 'IN_PROGRESS' && toStatus === 'SUBMITTED');
   const isResubmitGate = (instance.Status === 'REWORK' && toStatus === 'RESUBMITTED');
 
+  // Template activity and evidence gates cannot be bypassed by ASIN waivers.
+  if ((isSubmitGate || isResubmitGate) && taskExecutionGates.strictGatesEnabled()) {
+    await taskExecutionGates.assertSubmissionReady(pool, taskInstanceId);
+  }
+
   if ((isSubmitGate || isResubmitGate) && !details?.waiveAsinGate) {
     const gate = await checkAsinSubmissionGate(pool, taskInstanceId);
     if (gate) {
@@ -1113,6 +1119,18 @@ async function bulkTransition(taskIds, toStatus, actorId, actorName, actorRole, 
 // ═══════════════════════════════════════════════════════
 
 async function completeSubTask(subTaskId, actorId, actorName) {
+  if (taskExecutionGates.strictGatesEnabled()) {
+    return withTransaction(async (tx) => {
+      const phase = await taskExecutionGates.assertPhaseReady(tx, subTaskId);
+      if (phase.alreadyCompleted) return { success: true, alreadyCompleted: true };
+      const result = await tx.request().input('id', sql.VarChar, subTaskId)
+        .query("UPDATE PemsSubTasks SET IsCompleted = 1, Status = 'COMPLETED', CompletedAt = dbo.GetEnvDate() WHERE Id = @id AND IsCompleted = 0");
+      if (Number(result.rowsAffected?.[0] || 0) === 0) return { success: true, alreadyCompleted: true };
+      const progress = await taskExecutionGates.reconcileTaskProgress(tx, phase.TaskInstanceId);
+      await writeAuditLog(phase.TaskInstanceId, 'SUBTASK_COMPLETED', null, null, actorId, actorName, 'Subtask completed', tx);
+      return { success: true, progress };
+    });
+  }
   return withTransaction(async (tx) => {
   const pool = tx;
   await pool.request()
@@ -1122,7 +1140,6 @@ async function completeSubTask(subTaskId, actorId, actorName) {
   const st = await pool.request().input('id', sql.VarChar, subTaskId).query('SELECT TaskInstanceId FROM PemsSubTasks WHERE Id = @id');
   if (st.recordset[0]) {
     const instId = st.recordset[0].TaskInstanceId;
-    // Recalculate progress
     const stCount = await pool.request().input('instId', sql.VarChar, instId)
       .query("SELECT COUNT(*) as total, SUM(CASE WHEN IsCompleted = 1 THEN 1 ELSE 0 END) as done FROM PemsSubTasks WHERE TaskInstanceId = @instId");
     const total = stCount.recordset[0]?.total || 0;
@@ -1135,7 +1152,7 @@ async function completeSubTask(subTaskId, actorId, actorName) {
       .input('pct', sql.Decimal(5, 2), progressPct)
       .input('wp', sql.Decimal(5, 2), weightedProgress)
       .query('UPDATE PemsTaskInstances SET CompletedSubTasks = @done, ProgressPct = @pct, WeightedProgressPct = @wp WHERE Id = @instId');
-    await writeAuditLog(instId, 'SUBTASK_COMPLETED', null, null, actorId, actorName, `Subtask completed`, tx);
+    await writeAuditLog(instId, 'SUBTASK_COMPLETED', null, null, actorId, actorName, 'Subtask completed', tx);
     eventBus.emit(eventBus.EVENTS.SUBTASK_COMPLETED, { taskInstanceId: instId, subTaskId, actorId, actorName });
   }
   });
@@ -1174,6 +1191,21 @@ async function setBrandCheck(taskId, brandRowId, completed, actorId, note) {
 }
 
 async function completeActivity(activityId, actorId, actorName) {
+  if (taskExecutionGates.strictGatesEnabled()) {
+    return withTransaction(async (tx) => {
+      const activity = await taskExecutionGates.assertActivityReady(tx, activityId);
+      if (activity.alreadyCompleted) return { success: true, alreadyCompleted: true };
+      const change = await tx.request()
+        .input('id', sql.VarChar, activityId)
+        .input('actorId', sql.VarChar, actorId)
+        .query("UPDATE PemsActivities SET IsCompleted = 1, CompletedAt = dbo.GetEnvDate(), CompletedBy = @actorId WHERE Id = @id AND IsCompleted = 0");
+      if (Number(change.rowsAffected?.[0] || 0) === 0) return { success: true, alreadyCompleted: true };
+      await taskExecutionGates.autoCompleteReadyPhase(tx, activity.SubTaskId, activity.TaskInstanceId);
+      const progress = await taskExecutionGates.reconcileTaskProgress(tx, activity.TaskInstanceId);
+      await writeAuditLog(activity.TaskInstanceId, 'ACTIVITY_COMPLETED', null, null, actorId, actorName, `Activity ${activityId} completed`, tx);
+      return { success: true, progress };
+    });
+  }
   const pool = await getPool();
   await pool.request()
     .input('id', sql.VarChar, activityId)
