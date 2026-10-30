@@ -96,7 +96,7 @@ describe.each(['false', 'true'])('Child authorization independent of strict gate
   beforeEach(() => { process.env.PEMS_STRICT_ACTIVITY_GATES = flag; });
 
   test.each([
-    ['/api/pems/mockActivityParents/activity-foreign/complete', 'activity'],
+    ['/api/pems/activities/activity-foreign/complete', 'activity'],
     ['/api/pems/subtasks/phase-foreign/complete', 'phase'],
   ])('rejects cross-seller %s even with a forged own task ID', async (url, childType) => {
     const forged = await request(app).post(url).send({ taskInstanceId: 'task-owned' });
@@ -109,7 +109,7 @@ describe.each(['false', 'true'])('Child authorization independent of strict gate
   });
 
   test.each([
-    ['/api/pems/mockActivityParents/activity-foreign/complete'],
+    ['/api/pems/activities/activity-foreign/complete'],
     ['/api/pems/subtasks/phase-foreign/complete'],
   ])('rejects foreign child even when no task ID is supplied in the body', async url => {
     const response = await request(app).post(url).send({});
@@ -118,7 +118,7 @@ describe.each(['false', 'true'])('Child authorization independent of strict gate
   });
 
   test.each([
-    ['/api/pems/mockActivityParents/activity-foreign/complete'],
+    ['/api/pems/activities/activity-foreign/complete'],
     ['/api/pems/subtasks/phase-foreign/complete'],
   ])('does not accept body.id as an alternate authorization target', async url => {
     const response = await request(app).post(url).send({ id: 'task-owned' });
@@ -128,7 +128,7 @@ describe.each(['false', 'true'])('Child authorization independent of strict gate
   });
 
   test.each([
-    ['/api/pems/mockActivityParents/activity-owned/complete', 'completeActivity'],
+    ['/api/pems/activities/activity-owned/complete', 'completeActivity'],
     ['/api/pems/subtasks/phase-owned/complete', 'completeSubTask'],
   ])('preserves authorized execution for an owned child', async (url, action) => {
     const response = await request(app).post(url).send({ taskInstanceId: 'task-owned' });
@@ -138,7 +138,7 @@ describe.each(['false', 'true'])('Child authorization independent of strict gate
   });
 
   test('returns 404 for a nonexistent activity, not permission for a claimed parent', async () => {
-    const response = await request(app).post('/api/pems/mockActivityParents/missing/complete')
+    const response = await request(app).post('/api/pems/activities/missing/complete')
       .send({ taskInstanceId: 'task-owned' });
     expect(response.status).toBe(404);
     expect(mockExecutions).toHaveLength(0);
