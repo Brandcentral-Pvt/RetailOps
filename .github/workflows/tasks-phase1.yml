@@ -32,6 +32,27 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: backend/package-lock.json
+      - name: Generate backend lockfile correction evidence
+        working-directory: backend
+        run: |
+          cp package-lock.json /tmp/tasks-phase1-lock-original.json
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          node <<'NODE'
+          const fs = require('fs');
+          const previous = JSON.parse(fs.readFileSync('/tmp/tasks-phase1-lock-original.json', 'utf8'));
+          const current = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+          const delta = { root: {}, changedPackages: {}, removedPackages: [] };
+          for (const [name, value] of Object.entries(current)) {
+            if (name !== 'packages' && JSON.stringify(previous[name]) !== JSON.stringify(value)) delta.root[name] = value;
+          }
+          for (const [name, value] of Object.entries(current.packages || {})) {
+            if (JSON.stringify(previous.packages?.[name]) !== JSON.stringify(value)) delta.changedPackages[name] = value;
+          }
+          for (const name of Object.keys(previous.packages || {})) {
+            if (!(name in (current.packages || {}))) delta.removedPackages.push(name);
+          }
+          process.stdout.write('LOCK_DELTA_START' + JSON.stringify(delta) + 'LOCK_DELTA_END\\n');
+          NODE
       - name: Install backend dependencies
         working-directory: backend
         run: npm ci
