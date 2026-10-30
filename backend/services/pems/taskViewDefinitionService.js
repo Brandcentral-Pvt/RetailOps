@@ -1,5 +1,6 @@
 const { getPool, sql, generateId } = require('../../database/db');
 const { validateWorkflowDefinition } = require('./templateWorkflow');
+const { assertExecutableWorkflow } = require('./taskWorkflowV2Execution');
 
 const ALLOWED_VIEW_KEYS = new Set([
   'STANDARD_V1',
@@ -237,10 +238,9 @@ async function publishViewDefinition(id, createdBy) {
     // Validate even an already-published row: idempotency must not disguise
     // historical invalid data as a successful publication.
     const definition = validatePersistedDefinition(def);
-    if (definition.workflow) {
-      throw httpError(409, 'Workflow V2 publication is disabled until execution persistence is ready',
-        'WORKFLOW_V2_NOT_ACTIVATED');
-    }
+    // Phase 2.2 executes only conditional-free V2 templates on a deliberately
+    // enabled development stack. Branching/skip/reopen awaits Phase 2.3.
+    if (definition.workflow) assertExecutableWorkflow(definition.workflow);
     if (def.Status === 'PUBLISHED') return { ...def, alreadyPublished: true };
     if (def.Status !== 'DRAFT') {
       throw httpError(409, 'Only a draft view can be published', 'INVALID_VIEW_STATUS');
