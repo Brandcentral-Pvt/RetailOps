@@ -2,7 +2,7 @@
 
 **Branch:** `feat/tasks-phase2-template-engine`  
 **PR:** stacked on `fix/tasks-phase1-correctness` (Phase 1 PR #210)  
-**Current development stage:** Phase 2.1, workflow contract and safe preview, **not** the complete execution engine.
+**Current development stage:** Phase 2.2, typed activity persistence in the existing PEMS engine. Conditional branches and the guided runner remain Phase 2.3/2.4.
 
 ## Purpose
 
@@ -53,20 +53,78 @@ outputs. The separate employee UI and operations manager UI are later phases.
   branches without turning on or changing `DLY-004` or `OOS-RECON-001`:
   `backend/__tests__/fixtures/taskWorkflowV2.inventory.sample.json`.
 
-## Publication safety while the engine is being built
+## Phase 2.2: Activity output persistence
 
-This **first increment is draft/preview only**.
+Phase 2.2 adds an **idempotent, additive migration** to existing PEMS tables:
 
-- Creating a view definition containing `workflow` with status
-  `PUBLISHED` returns `409 WORKFLOW_V2_NOT_ACTIVATED`.
-- `publishViewDefinition()` rejects V2 workflows until activity-level
-  persistence and conditional completion logic are ready.
-- `taskInstanceSnapshot.resolveViewPin()` fails closed if a published V2
-  workflow is found by the instance creation path, rather than creating a
-  task whose SOP cannot be executed correctly.
+- `backend/migrations/042_pems_workflow_v2_activity_outputs.js` adds
+  `WorkflowPhaseKey` to `PemsSubTasks`, and `WorkflowActivityKey`,
+  `ActivityType`, `OutputJson`, `OutputRevision`, `OutputUpdatedAt`,
+  and `OutputUpdatedBy` to `PemsActivities`.
+- Legacy records retain NULL workflow keys and zero output revisions.
+  Two filtered per-instance unique indexes prevent duplicate template
+  step keys. Migration 042 can be rerun without overwriting old data.
+- `pemsService.createInstance()` materializes phase/activity rows from the
+  **pinned published workflow snapshot inside its existing transaction**,
+  ignoring caller-supplied SOP overrides for V2 tasks.
+- `taskWorkflowV2Execution.js` stores typed activity output JSON using
+  the original task's frozen definition. Every write serializes on the
+  task parent, checks the child belongs to that parent, enforces the
+  assigned executor route, and increments `OutputRevision` through
+  compare-and-swap. Identical retries are idempotent; stale conflicting
+  writers receive `409 ACTIVITY_REVISION_CONFLICT`.
+- `completeActivity()` uses the actual persisted output plus activity-linked
+  evidence before marking V2 work complete. Evidence need not already
+  exist when saving a typed output, but is mandatory at completion.
+- All updates create task audit records without logging confidential output
+  values; saved results and revision numbers are returned via a read-only
+  task execution endpoint, authorized by existing seller-scope middleware.
+- Strict-gate disablement is **fail closed** on existing V2 child completion,
+  submission and review paths. Legacy V1 task behavior is preserved.
 
-This is intentional. A previewable schema is not yet a complete executable
-workflow. Do **not** turn off the guards to simulate successful completion.
+### Developer activation
+
+```env
+PEMS_PIN_VIEW_SNAPSHOTS=true
+PEMS_STRICT_ACTIVITY_GATES=true
+PEMS_V2_EXECUTION_ENABLED=true
+```
+
+All three must be explicitly enabled on a migrated, isolated development
+database, including migrations 033, 034 and 042. The default remains
+`false`, and V2 snapshots cannot be published or executed without all flags.
+
+**Phase 2.2 supports only unconditional V2 workflows for execution.**
+V2 definitions with `visibleWhen` remain valid for draft editing and preview,
+but cannot be published or pinned to executable instances until Phase 2.3
+implements conditional skip, re-open and progress semantics. This protects
+users from false 100% completion or unfinishable tasks. The dedicated test
+fixture `taskWorkflowV2.inventory.sample.json` illustrates a conditional
+draft, NOT an executable Phase 2.2 template.
+
+### Endpoint contract
+
+```http
+GET /api/pems/instances/:id/workflow
+Authorization: Bearer <authorized reader>
+```
+
+Returns pinned phases and activities with immutable schema, stable keys,
+`activityId`, stored `output`, `outputRevision` and `isCompleted`.
+Requires seller-scoped task-view access.
+
+```http
+PUT /api/pems/instances/:id/activities/:activityId/output
+Authorization: Bearer <authorized executor>
+Content-Type: application/json
+
+{ "output": { "source": "RETAILOPS" }, "expectedRevision": 0 }
+```
+
+Returns the next revision and an idempotency marker, or structured validation
+errors. Requires seller-scoped task execution permission and a child activity
+that actually belongs to the route's task. The client must **never** specify
+the schema, task owner, or proof count; those come from backend records.
 
 ## Illustrative API shape
 
@@ -81,15 +139,7 @@ Authorization: Bearer <authorised user token>
 Success: `{success:true,data:{validation,preview,legacySopPreview,phaseCount,activityCount}}`.
 Invalid schema: `422 INVALID_WORKFLOW_V2` with field-level errors.
 
-## Next Phase 2 increments (not yet implemented)
-
-**Phase 2.2, execution persistence.**
-Add an additive idempotent PEMS migration for stable phase/activity keys,
-activity type, typed output JSON, revisions, and conditional skip records.
-Create activity rows from the pinned published workflow within the existing
-`pemsService.createInstance()` transaction. Add seller-scoped, executor-only
-output and validation endpoints, with server-side evidence verification and
-idempotent writes. Maintain per-instance immutable template snapshots.
+## Remaining Phase 2 increments
 
 **Phase 2.3, conditional execution invariants.**
 Re-evaluate conditional visibility from persisted, validated outputs;
@@ -120,7 +170,7 @@ existing navigation and deep links until the later verified cutover.
 7. Jest, registry tests, Vite build and relevant SQL Server integration tests
    pass; any external unrelated diagnostics are reported, not concealed.
 
-**Do not mark Phase 2 complete based only on Phase 2.1 tests.**
+**Do not mark Phase 2 complete based only on Phase 2.1 or Phase 2.2 tests.**
 
 ## Phase 2.1 CI evidence
 
@@ -133,4 +183,17 @@ completed successfully:
 - Vite frontend build, **passed**.
 - No live database, production template, or historical task was changed.
 
-This verification closes only Phase 2.1, not Phase 2.2 through 2.4.
+This verification closes only Phase 2.1. Phase 2.2 is verified separately below when its CI evidence is available.
+
+## Phase 2.2 tests and release boundary
+
+Phase 2.2 adds unit and route regressions for pinned V2 materialization,
+output schema validation, optimistic revisions, idempotent retries,
+activity-level evidence, conditional-template rejection, and access control.
+The CI configuration runs a separate disposable SQL Server 2022 integration
+test to verify the migration and output persistence SQL, rather than trusting
+fake database responses alone.
+
+Until that CI run succeeds, **Phase 2.2 is an in-review implementation**, not
+a fully accepted development milestone. No production data or OOS workflow
+has been changed, and PR #212 remains Draft and stacked on Phase 1 PR #210.
