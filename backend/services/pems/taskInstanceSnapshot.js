@@ -59,6 +59,15 @@ async function resolveViewPin(tx, templateId) {
     error.status = 409;
     throw error;
   }
+  // Published V2 workflows are not yet executable by the legacy activity
+  // persistence layer. Fail closed instead of creating task instances whose
+  // pinned instructions cannot be completed or validated.
+  if (definition.workflow) {
+    const error = new Error('Workflow V2 execution is not yet activated');
+    error.code = 'WORKFLOW_V2_NOT_ACTIVATED';
+    error.status = 409;
+    throw error;
+  }
   const validation = validateDefinitionIdentity({
     viewKey: row.ViewKey,
     schemaVersion: row.SchemaVersion,
