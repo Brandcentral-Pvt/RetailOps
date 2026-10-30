@@ -153,6 +153,14 @@ async function createViewDefinition({
       'INVALID_DEFINITION_IDENTITY');
   }
 
+  // The first Phase 2 increment supports draft validation and preview only.
+  // Do not bypass the publisher by creating a PUBLISHED workflow directly:
+  // persistence and step execution are introduced in the next increment.
+  if (definitionJson.workflow && status !== 'DRAFT') {
+    throw httpError(409, 'Workflow V2 is draft-only until execution persistence is ready',
+      'WORKFLOW_V2_NOT_ACTIVATED');
+  }
+
   const pool = await getPool();
   const existing = await pool
     .request()
@@ -228,7 +236,11 @@ async function publishViewDefinition(id, createdBy) {
 
     // Validate even an already-published row: idempotency must not disguise
     // historical invalid data as a successful publication.
-    validatePersistedDefinition(def);
+    const definition = validatePersistedDefinition(def);
+    if (definition.workflow) {
+      throw httpError(409, 'Workflow V2 publication is disabled until execution persistence is ready',
+        'WORKFLOW_V2_NOT_ACTIVATED');
+    }
     if (def.Status === 'PUBLISHED') return { ...def, alreadyPublished: true };
     if (def.Status !== 'DRAFT') {
       throw httpError(409, 'Only a draft view can be published', 'INVALID_VIEW_STATUS');
