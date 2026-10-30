@@ -209,7 +209,7 @@ function buildExecutionPlan(workflow, outputs = {}) {
   };
 }
 
-function validateActivityOutput(activity, output, evidenceCount = 0) {
+function validateActivityOutput(activity, output, evidenceCount = 0, options = {}) {
   const errors = [];
   if (!plain(output) || !validJsonValue(output) || JSON.stringify(output).length > 16000) {
     return { ok: false, errors: [{ field: 'output', message: 'Output must be a bounded JSON object' }] };
@@ -258,12 +258,12 @@ function validateActivityOutput(activity, output, evidenceCount = 0) {
         issue(errors, 'output', 'Select an authorized source');
       break;
     case 'EVIDENCE_LINKED':
-      if (evidenceCount <= 0) issue(errors, 'evidence', 'Attach activity-level evidence');
+      if (options.requireEvidence !== false && evidenceCount <= 0) issue(errors, 'evidence', 'Attach activity-level evidence');
       break;
     case 'FIELDS_VALID': break;
     default: issue(errors, 'validatorKey', 'Unregistered validator');
   }
-  if (activity.evidenceRequired && evidenceCount <= 0)
+  if (options.requireEvidence !== false && activity.evidenceRequired && evidenceCount <= 0)
     issue(errors, 'evidence', 'Attach activity-level evidence before completing this activity');
   return { ok: errors.length === 0, errors };
 }
