@@ -224,7 +224,7 @@ const getStatusTag = (status) => {
                             />
                             <div style={{ display: 'flex', gap: 4 }}>
                               <Input size="small" placeholder="Resolution" value={editing.resolution || ''} onChange={e => setEditingRemarks(prev => ({ ...prev, [record.id]: { ...prev[record.id], resolution: e.target.value } }))} style={{ flex: 1 }} />
-                              <Button size="small" type="primary" onClick={() => handleSaveRemarks(record.id, record.sellerId || seller.sellerId, record.signalCode, editing.remarks, editing.resolution, null)} style={{ fontSize: 'var(--font-size-xs)' }}>Save</Button>
+                              <Button size="small" type="primary" onClick={() => handleSaveRemarks(record.asinCode, record.sellerId || seller.sellerId, record.signalCode, editing.remarks, editing.resolution, null)} style={{ fontSize: 'var(--font-size-xs)' }}>Save</Button>
                               <Button size="small" onClick={() => setEditingRemarks(prev => { const n = { ...prev }; delete n[record.id]; return n; })} style={{ fontSize: 'var(--font-size-xs)' }}>Cancel</Button>
                             </div>
                           </div>
