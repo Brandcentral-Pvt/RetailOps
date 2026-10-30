@@ -95,3 +95,18 @@ test('pinning rejects a published row whose definitionVersion conflicts with JSO
   await expect(snapshots.resolveViewPin(mockTx(), 'tpl1'))
     .rejects.toMatchObject({ code: 'TASK_VIEW_INVALID', status: 409 });
 });
+
+
+test('published V2 workflow cannot be pinned before its execution persistence is implemented', async () => {
+  process.env.PEMS_PIN_VIEW_SNAPSHOTS = 'true';
+  const definition = {
+    viewKey: 'STANDARD_V1', schemaVersion: '2.0', definitionVersion: 2,
+    tabs: [], workflow: { schemaVersion: '2.0', phases: [] },
+  };
+  mockPublished = [{
+    Id: 'view-v2', ViewKey: 'STANDARD_V1', SchemaVersion: '2.0',
+    DefinitionVersion: 2, DefinitionJson: JSON.stringify(definition),
+  }];
+  await expect(snapshots.resolveViewPin(mockTx(), 'tpl1'))
+    .rejects.toMatchObject({ status: 409, code: 'WORKFLOW_V2_NOT_ACTIVATED' });
+});
