@@ -240,7 +240,8 @@ async function publishViewDefinition(id, createdBy) {
       throw httpError(409, 'View changed while publishing; reload and retry', 'VIEW_PUBLISH_CONFLICT');
     }
 
-    return { ...def, status: 'PUBLISHED', publishedAt, publishedBy };
+    return { ...def, Status: 'PUBLISHED', status: 'PUBLISHED', PublishedAt: publishedAt,
+      PublishedBy: publishedBy, publishedAt, publishedBy };
   });
 }
 
