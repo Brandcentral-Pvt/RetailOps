@@ -1,6 +1,6 @@
 const { sql, getPool, generateId, withTransaction } = require('../../database/db');
 const { canTransition, calculateSLAStatus, calculateAchievement, calculateVariance, getNextDueDate, getTransitionTimestamps, resolveReviewTransition, WORKFLOW_STATUSES } = require('./workflowEngine');
-const { canActOnTask } = require('./pemsPolicy');
+const { canActOnTask, canReviewTask, canTransitionTask } = require('./pemsPolicy');
 const taskExecutionGates = require('./taskExecutionGates');
 const taskInstanceSnapshot = require('./taskInstanceSnapshot');
 const { isGlobalUserRole } = require('../../utils/roleUtils');
@@ -957,10 +957,22 @@ async function checkAsinSubmissionGate(pool, taskInstanceId) {
 }
 
 async function transitionStatus(taskInstanceId, toStatus, actorId, actorName, actorRole, details, tx) {
+  // Only an atomic review transaction may approve or reject a task.
+  // The direct /transition endpoint must never bypass review records.
+  if (!tx && ['UNDER_REVIEW', 'APPROVED', 'REJECTED'].includes(toStatus)) {
+    const error = new Error('Review decisions must use the review endpoint');
+    error.status = 403;
+    throw error;
+  }
+  if (!tx && taskExecutionGates.strictGatesEnabled()) {
+    return withTransaction((transaction) =>
+      transitionStatus(taskInstanceId, toStatus, actorId, actorName, actorRole, details, transaction));
+  }
   const pool = tx || (await getPool());
   const instanceResult = await pool.request()
     .input('id', sql.VarChar, taskInstanceId)
-    .query('SELECT Status, AssignedTo, AssigneeName, ReviewerId, ReviewerName, DueDate, SLAHours, Title FROM PemsTaskInstances WHERE Id = @id');
+    .query(`SELECT Status, AssignedTo, AssigneeName, ReviewerId, ReviewerName, DueDate, SLAHours, Title
+             FROM PemsTaskInstances ${tx && taskExecutionGates.strictGatesEnabled() ? 'WITH (UPDLOCK, HOLDLOCK)' : ''} WHERE Id = @id`);
   const instance = instanceResult.recordset[0];
   if (!instance) throw new Error('Task instance not found');
 
@@ -1033,7 +1045,13 @@ async function transitionStatus(taskInstanceId, toStatus, actorId, actorName, ac
     }
   }
 
-  await req.query(`UPDATE PemsTaskInstances SET ${sets.join(', ')} WHERE Id = @id`);
+  req.input('fromStatus', sql.VarChar, instance.Status);
+  const changed = await req.query(`UPDATE PemsTaskInstances SET ${sets.join(', ')} WHERE Id = @id AND Status = @fromStatus`);
+  if (Number(changed.rowsAffected?.[0] || 0) !== 1) {
+    const error = new Error('Task status changed while processing this action. Refresh and retry.');
+    error.status = 409;
+    throw error;
+  }
 
   await writeAuditLog(taskInstanceId, 'STATUS_CHANGED', instance.Status, toStatus, actorId, actorName, typeof details === 'string' ? details : JSON.stringify(details), tx);
 
@@ -1087,6 +1105,11 @@ async function transitionStatus(taskInstanceId, toStatus, actorId, actorName, ac
 async function bulkTransition(taskIds, toStatus, actorId, actorName, actorRole, details, requester = null) {
   if (!Array.isArray(taskIds) || taskIds.length === 0) throw new Error('No task ids provided');
   if (!WORKFLOW_STATUSES[toStatus]) throw new Error(`Unknown status: ${toStatus}`);
+  if (['UNDER_REVIEW', 'APPROVED', 'REJECTED'].includes(toStatus)) {
+    const error = new Error('Bulk review decisions must use /reviews/bulk');
+    error.status = 403;
+    throw error;
+  }
   if (taskIds.length > 200) throw new Error('Too many tasks (max 200 per bulk operation)');
 
   const pool = await getPool();
@@ -1104,7 +1127,7 @@ async function bulkTransition(taskIds, toStatus, actorId, actorName, actorRole, 
         .query('SELECT Id, Status, AssignedTo, ReviewerId, SellerId FROM PemsTaskInstances WHERE Id = @id');
       const row = inst.recordset[0];
       if (!row) { skipped.push({ id, reason: 'NOT_FOUND' }); continue; }
-      if (!canActOnTask(actor, row)) {
+      if (!canTransitionTask(actor, row, toStatus)) {
         skipped.push({ id, reason: 'NO_ACCESS' });
         continue;
       }
@@ -1129,6 +1152,7 @@ async function bulkTransition(taskIds, toStatus, actorId, actorName, actorRole, 
 async function completeSubTask(subTaskId, actorId, actorName) {
   if (taskExecutionGates.strictGatesEnabled()) {
     return withTransaction(async (tx) => {
+      await taskExecutionGates.lockChildParent(tx, 'phase', subTaskId);
       const phase = await taskExecutionGates.assertPhaseReady(tx, subTaskId);
       if (phase.alreadyCompleted) return { success: true, alreadyCompleted: true };
       const result = await tx.request().input('id', sql.VarChar, subTaskId)
@@ -1170,8 +1194,15 @@ async function completeSubTask(subTaskId, actorId, actorName) {
  * Tick / un-tick a brand on a multi-brand task (or all of them when brandRowId is omitted).
  * Only while the work is open — same window in which steps can be ticked.
  */
-async function setBrandCheck(taskId, brandRowId, completed, actorId, note) {
-  const pool = await getPool();
+async function setBrandCheck(taskId, brandRowId, completed, actorId, note, tx = null) {
+  if (!tx && taskExecutionGates.strictGatesEnabled()) {
+    return withTransaction((transaction) =>
+      setBrandCheck(taskId, brandRowId, completed, actorId, note, transaction));
+  }
+  const pool = tx || (await getPool());
+  if (tx && taskExecutionGates.strictGatesEnabled()) {
+    await taskExecutionGates.lockTaskForExecution(tx, taskId);
+  }
   const task = (await pool.request().input('id', sql.VarChar, taskId)
     .query('SELECT Id, Status FROM PemsTaskInstances WHERE Id = @id')).recordset[0];
   if (!task) { const e = new Error('Task not found'); e.status = 404; throw e; }
@@ -1201,6 +1232,7 @@ async function setBrandCheck(taskId, brandRowId, completed, actorId, note) {
 async function completeActivity(activityId, actorId, actorName) {
   if (taskExecutionGates.strictGatesEnabled()) {
     return withTransaction(async (tx) => {
+      await taskExecutionGates.lockChildParent(tx, 'activity', activityId);
       const activity = await taskExecutionGates.assertActivityReady(tx, activityId);
       if (activity.alreadyCompleted) return { success: true, alreadyCompleted: true };
       const change = await tx.request()
@@ -1594,16 +1626,19 @@ async function submitReviewAndTransition(rawData, actor) {
   return withTransaction(async (tx) => {
     const cur = await tx.request()
       .input('id', sql.VarChar, data.taskInstanceId)
-      .query('SELECT Status, AssignedTo, ReviewerId FROM PemsTaskInstances WITH (UPDLOCK, ROWLOCK) WHERE Id = @id');
+      .query('SELECT Status, AssignedTo, ReviewerId, SellerId FROM PemsTaskInstances WITH (UPDLOCK, ROWLOCK) WHERE Id = @id');
     const task = cur.recordset[0];
     if (!task) throw new Error('Task instance not found');
 
     if (!REVIEWABLE_STATUSES.includes(task.Status)) {
       throw new Error(`Task is ${task.Status} and is not awaiting review`);
     }
-    const actorRole = String(actor.role?.name || actor.role || '').toLowerCase();
-    if (!isGlobalUserRole(actorRole) && task.AssignedTo && task.AssignedTo === actor.id) {
-      throw new Error('You cannot review a task that is assigned to you');
+    // No administrator bypass for separation of duties. Review assignment
+    // and seller scope must match the authenticated caller, not request body.
+    if (!canReviewTask(actor.user || { Id: actor.id, role: actor.role }, task)) {
+      const error = new Error('You cannot review this task or your own assigned work');
+      error.status = 403;
+      throw error;
     }
 
     const from = task.Status;
@@ -1647,7 +1682,7 @@ async function bulkReview(taskIds, data, actor, user) {
         .query('SELECT Id, AssignedTo, ReviewerId, SellerId FROM PemsTaskInstances WHERE Id = @id');
       const row = r.recordset[0];
       if (!row) { skipped.push({ id, reason: 'Task not found' }); continue; }
-      if (!canActOnTask(user, row)) { skipped.push({ id, reason: 'No access to this task' }); continue; }
+      if (!canReviewTask(user, row)) { skipped.push({ id, reason: 'No permission to review this task' }); continue; }
       const out = await submitReviewAndTransition({ ...data, taskInstanceId: id }, actor);
       reviewed.push({ id, to: out.to });
     } catch (err) {
