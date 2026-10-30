@@ -3021,14 +3021,23 @@ async function recalculateAllWeightedProgress() {
   const pool = await getPool();
   const instances = await pool.request()
     .query("SELECT Id FROM PemsTaskInstances WHERE Status NOT IN ('APPROVED','CANCELLED')");
-  
+
   let updated = 0;
   for (const inst of instances.recordset) {
-    const wp = await calculateWeightedProgress(inst.Id);
-    await pool.request()
-      .input('id', sql.VarChar, inst.Id)
-      .input('wp', sql.Decimal(5, 2), wp)
-      .query('UPDATE PemsTaskInstances SET WeightedProgressPct = @wp WHERE Id = @id');
+    if (taskExecutionGates.strictGatesEnabled()) {
+      // Keep an administrative progress rebuild consistent with the exact
+      // activity and brand model used by live task writes.
+      await withTransaction(async (tx) => {
+        await taskExecutionGates.lockTaskForExecution(tx, inst.Id);
+        await taskExecutionGates.reconcileTaskProgress(tx, inst.Id);
+      });
+    } else {
+      const wp = await calculateWeightedProgress(inst.Id);
+      await pool.request()
+        .input('id', sql.VarChar, inst.Id)
+        .input('wp', sql.Decimal(5, 2), wp)
+        .query('UPDATE PemsTaskInstances SET WeightedProgressPct = @wp WHERE Id = @id');
+    }
     updated++;
   }
   return { updated };
