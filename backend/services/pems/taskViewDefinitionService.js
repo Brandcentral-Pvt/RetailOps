@@ -1,4 +1,5 @@
 const { getPool, sql, generateId } = require('../../database/db');
+const { validateWorkflowDefinition } = require('./templateWorkflow');
 
 const ALLOWED_VIEW_KEYS = new Set([
   'STANDARD_V1',
@@ -64,6 +65,16 @@ function validateDefinitionJson(definition) {
   }
   if (definition.requiredOutputs && !Array.isArray(definition.requiredOutputs)) {
     errors.push('requiredOutputs must be an array');
+  }
+
+  // Phase 2 is additive. Historical STANDARD_V1 and OOS_RECON_V1 published
+  // layouts without a workflow keep their original rendering and validation.
+  if (definition.workflow !== undefined) {
+    if (definition.schemaVersion !== '2.0' || definition.viewKey !== 'STANDARD_V1') {
+      errors.push('Workflow V2 requires STANDARD_V1 and schemaVersion 2.0');
+    }
+    const v2 = validateWorkflowDefinition(definition.workflow);
+    if (!v2.ok) errors.push(...v2.errors.map(err => `${err.field}: ${err.message}`));
   }
 
   return { ok: errors.length === 0, errors };
