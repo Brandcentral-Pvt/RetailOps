@@ -2,6 +2,10 @@
 const express = require('express');
 const request = require('supertest');
 
+jest.mock('../../database/db', () => ({
+  sql: require('../../testUtils/fakePool').FAKE_SQL,
+  getPool: async () => { throw new Error('Read-only workflow preview must not access database'); },
+}));
 let mockActor = null;
 jest.mock('../../services/pems/pemsService', () => ({}));
 jest.mock('../../middleware/auth', () => ({
