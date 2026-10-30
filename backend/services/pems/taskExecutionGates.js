@@ -59,7 +59,7 @@ async function assertActivityReady(tx, activityId) {
     .input('activityId', sql.VarChar, activityId)
     .query(`
       SELECT a.Id, a.TaskInstanceId, a.SubTaskId, a.IsCompleted,
-             a.EvidenceRequired, i.Status
+             a.EvidenceRequired, i.Status, i.ViewDefinitionSnapshot
       FROM PemsActivities a WITH (UPDLOCK, ROWLOCK)
       JOIN PemsTaskInstances i ON i.Id = a.TaskInstanceId
       WHERE a.Id = @activityId
