@@ -49,6 +49,10 @@ const tasksApi = {
 
   validateTemplate: async (data) => call(`/pems/templates/validate`, { method: 'POST', body: data }),
 
+  // Phase 2 read-only preview; does not publish or mutate existing templates.
+  validateWorkflowV2: async (workflow) =>
+    call('/pems/templates/workflow/validate', { method: 'POST', body: { workflow } }),
+
   saveTemplateConfig: async (id, data) => call(`/pems/templates/config/${id}`, { method: 'PUT', body: data }),
 
   upsertAssignmentRules: async (templateId, data) =>
