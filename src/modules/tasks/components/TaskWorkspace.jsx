@@ -809,6 +809,8 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
   const theme = CATEGORY_THEME[categoryKey] || CATEGORY_THEME.GENERAL;
 
   const canSubmit = issueSource && (ticketId || requestId);
+  // Preserve actual zero and use the authoritative persisted progress value.
+  const displayProgress = Math.max(0, Math.min(100, Number(task?.WeightedProgressPct ?? task?.ProgressPct ?? 0)));
   const completedSubTasks = subTasks.filter(st => st.IsCompleted).length;
   const allSubTasksDone = !subTasks.length || subTasks.every(st => st.IsCompleted);
 
@@ -1210,7 +1212,7 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
           <div style={{ width: 252, borderLeft: '1px solid var(--bc-border-default)', background: 'var(--bc-surface-subtle)', padding: 16, display: 'flex', flexDirection: 'column', gap: 16, flexShrink: 0, overflow: 'auto' }}>
             <div>
               <Text style={railLabel}>Progress</Text>
-              <Progress percent={Math.round(task.WeightedProgressPct || task.ProgressPct || 0)} strokeColor={(task.WeightedProgressPct || task.ProgressPct || 0) >= 80 ? 'var(--bc-green-600)' : 'var(--bc-blue-600)'} />
+              <Progress percent={Math.round(displayProgress)} strokeColor={displayProgress >= 80 ? 'var(--bc-green-600)' : 'var(--bc-blue-600)'} />
               <Text style={{ fontSize: 10, color: 'var(--bc-text-secondary)' }}>{completedSubTasks}/{subTasks.length} phases · {completedActivities}/{totalActivities} steps</Text>
             </div>
 
