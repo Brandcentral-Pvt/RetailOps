@@ -1,0 +1,65 @@
+name: Tasks Phase 1 Correctness
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/services/pems/**'
+      - 'backend/middleware/pemsAccess.js'
+      - 'backend/controllers/pems/pemsController.js'
+      - 'backend/routes/pems/pemsRoutes.js'
+      - 'backend/__tests__/**'
+      - 'src/modules/tasks/**'
+      - '.github/workflows/tasks-phase1.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tasks-phase1-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  correctness:
+    name: Task permissions, evidence, snapshot and progress
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Check modified backend module syntax
+        working-directory: backend
+        run: |
+          node --check services/pems/taskExecutionGates.js
+          node --check services/pems/taskInstanceSnapshot.js
+          node --check services/pems/taskViewDefinitionService.js
+          node --check services/pems/pemsPolicy.js
+          node --check services/pems/pemsService.js
+          node --check middleware/pemsAccess.js
+          node --check routes/pems/pemsRoutes.js
+          node --check controllers/pems/pemsController.js
+      - name: Run Phase 1 regression suite
+        working-directory: backend
+        run: |
+          npm test -- --runInBand \
+            __tests__/unit/taskExecutionGates.test.js \
+            __tests__/unit/taskInstanceSnapshot.test.js \
+            __tests__/unit/pemsPhase1Instance.test.js \
+            __tests__/unit/pemsPolicy.test.js \
+            __tests__/unit/templateConfig.test.js \
+            __tests__/routes/pemsExecutionRoles.test.js \
+            __tests__/routes/pemsInstances.test.js \
+            __tests__/routes/pemsSellerScope.test.js
+      - name: Frontend contract and syntax
+        run: |
+          npm ci
+          npm run typecheck
+          npm run build
