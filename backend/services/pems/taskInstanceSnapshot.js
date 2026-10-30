@@ -9,7 +9,7 @@
  * the snapshot here freezes the UI contract, not the executable SOP.
  */
 const { sql } = require('../../database/db');
-const { validateDefinitionJson } = require('./taskViewDefinitionService');
+const { validateDefinitionIdentity } = require('./taskViewDefinitionService');
 
 const DEFAULT_VIEW = Object.freeze({
   viewKey: 'STANDARD_V1',
@@ -37,7 +37,7 @@ async function resolveViewPin(tx, templateId) {
   const result = await tx.request()
     .input('templateId', sql.VarChar, templateId)
     .query(`
-      SELECT TOP (1) Id, DefinitionJson, ViewKey, DefinitionVersion
+      SELECT TOP (1) Id, DefinitionJson, ViewKey, SchemaVersion, DefinitionVersion
       FROM PemsTemplateViewDefinitions
       WHERE TemplateId = @templateId AND Status = 'PUBLISHED'
       ORDER BY DefinitionVersion DESC, PublishedAt DESC, Id DESC
@@ -59,9 +59,12 @@ async function resolveViewPin(tx, templateId) {
     error.status = 409;
     throw error;
   }
-  const validation = validateDefinitionJson(definition);
-  if (!validation.ok || definition.viewKey !== row.ViewKey ||
-      definition.definitionVersion !== row.DefinitionVersion) {
+  const validation = validateDefinitionIdentity({
+    viewKey: row.ViewKey,
+    schemaVersion: row.SchemaVersion,
+    definitionVersion: row.DefinitionVersion,
+  }, definition);
+  if (!validation.ok) {
     const error = new Error('Published task view definition is invalid or has a mismatched identity');
     error.code = 'TASK_VIEW_INVALID';
     error.status = 409;
