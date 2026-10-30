@@ -121,3 +121,16 @@ existing navigation and deep links until the later verified cutover.
    pass; any external unrelated diagnostics are reported, not concealed.
 
 **Do not mark Phase 2 complete based only on Phase 2.1 tests.**
+
+## Phase 2.1 CI evidence
+
+GitHub Actions [run 41033157763](https://github.com/Brandcentral-Pvt/RetailOps/actions/runs/41033157763)
+at implementation commit `4aee6dd00e5d450fa981e55838fc901ff3e47d7a`
+completed successfully:
+
+- 7 backend Jest suites, **69 tests passed** (including the new example-fixture branch test).
+- Existing task view registry, **11 tests passed**.
+- Vite frontend build, **passed**.
+- No live database, production template, or historical task was changed.
+
+This verification closes only Phase 2.1, not Phase 2.2 through 2.4.
