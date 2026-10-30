@@ -1,0 +1,75 @@
+'use strict';
+
+/**
+ * Pins the render definition used by a new task instance. This is deliberately
+ * opt-in until the deployment has confirmed migration 033 and historical view
+ * compatibility. It is called INSIDE the same transaction as task creation.
+ *
+ * PemsSubTasks / PemsActivities are already copied at instance creation, so
+ * the snapshot here freezes the UI contract, not the executable SOP.
+ */
+const { sql } = require('../../database/db');
+const { validateDefinitionJson } = require('./taskViewDefinitionService');
+
+const DEFAULT_VIEW = Object.freeze({
+  viewKey: 'STANDARD_V1',
+  schemaVersion: '1.0',
+  definitionVersion: 0,
+  tabs: [],
+  widgets: [],
+});
+
+function viewPinningEnabled() {
+  return process.env.PEMS_PIN_VIEW_SNAPSHOTS === 'true';
+}
+
+async function resolveViewPin(tx, templateId) {
+  if (!viewPinningEnabled()) {
+    return { viewDefinitionId: null, snapshotJson: null, pinned: false };
+  }
+
+  if (!templateId) {
+    return { viewDefinitionId: null, snapshotJson: JSON.stringify(DEFAULT_VIEW), pinned: true };
+  }
+
+  const result = await tx.request()
+    .input('templateId', sql.VarChar, templateId)
+    .query(`
+      SELECT TOP (1) Id, DefinitionJson, ViewKey, DefinitionVersion
+      FROM PemsTemplateViewDefinitions
+      WHERE TemplateId = @templateId AND Status = 'PUBLISHED'
+      ORDER BY DefinitionVersion DESC, PublishedAt DESC, Id DESC
+    `);
+  const row = result.recordset[0];
+
+  if (!row) {
+    // Existing template with no published view uses an explicitly pinned
+    // standard renderer. It must never silently inherit a future view version.
+    return { viewDefinitionId: null, snapshotJson: JSON.stringify(DEFAULT_VIEW), pinned: true };
+  }
+
+  let definition;
+  try {
+    definition = JSON.parse(row.DefinitionJson);
+  } catch {
+    const error = new Error('Published task view definition contains invalid JSON');
+    error.code = 'TASK_VIEW_INVALID';
+    error.status = 409;
+    throw error;
+  }
+  const validation = validateDefinitionJson(definition);
+  if (!validation.ok || definition.viewKey !== row.ViewKey ||
+      definition.definitionVersion !== row.DefinitionVersion) {
+    const error = new Error('Published task view definition is invalid or has a mismatched identity');
+    error.code = 'TASK_VIEW_INVALID';
+    error.status = 409;
+    throw error;
+  }
+  return {
+    viewDefinitionId: row.Id,
+    snapshotJson: JSON.stringify(definition),
+    pinned: true,
+  };
+}
+
+module.exports = { DEFAULT_VIEW, viewPinningEnabled, resolveViewPin };
