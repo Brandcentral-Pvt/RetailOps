@@ -36,7 +36,7 @@ function ensureExecutable(status) {
 async function lockTaskForExecution(tx, taskId) {
   const found = await tx.request()
     .input('taskId', sql.VarChar, taskId)
-    .query('SELECT Id, Status FROM PemsTaskInstances WITH (UPDLOCK, HOLDLOCK) WHERE Id = @taskId');
+    .query('SELECT Id, Status, ViewDefinitionSnapshot FROM PemsTaskInstances WITH (UPDLOCK, HOLDLOCK) WHERE Id = @taskId');
   if (!found.recordset[0]) throw gateError('TASK_NOT_FOUND', 'Task not found');
   return found.recordset[0];
 }
