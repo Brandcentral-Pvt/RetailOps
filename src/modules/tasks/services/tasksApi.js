@@ -165,12 +165,12 @@ const tasksApi = {
   },
 
   getAffectedAsins: async (taskInstanceId, runId, params = {}) => {
-    const q = new URLSearchParams(params).toString();
-    return call(`/pems/instances/${taskInstanceId}/oos/affected-asins${q ? `?${q}` : ''}`);
+    const q = new URLSearchParams({ ...params, runId }).toString();
+    return call(`/pems/instances/${taskInstanceId}/oos/affected-asins?${q}`);
   },
 
   getAffectedAsinSummary: async (taskInstanceId, runId) =>
-    call(`/pems/instances/${taskInstanceId}/oos/affected-asins/summary`),
+    call(`/pems/instances/${taskInstanceId}/oos/affected-asins/summary?runId=${runId}`),
 
   getAffectedAsinDetail: async (taskInstanceId, caseId) =>
     call(`/pems/instances/${taskInstanceId}/oos/affected-asins/${caseId}`),

@@ -124,14 +124,19 @@ function OosAffectedAsinsTab({ task, activeRun, runs, canResync }) {
   };
 
   const handleRequestResync = async () => {
-    if (!taskInstanceId || !activeRun) return;
+    if (!taskInstanceId || !activeRun || !selectedRows.length) return;
     setResyncLoading(true);
     try {
-      const res = await tasksApi.requestResync(taskInstanceId, activeRun);
-      if (res.success) {
-        message.success('Resync requested');
-        loadData();
+      // Get full row data for selected rows to extract DecisionId (caseId)
+      const selectedData = gridData.rows.filter(r => selectedRows.includes(r.id));
+      for (const row of selectedData) {
+        const caseId = row.id || row.DecisionId;
+        if (caseId) {
+          await tasksApi.requestResync(taskInstanceId, activeRun, caseId, { asin: row.asinCode });
+        }
       }
+      message.success(`Resync requested for ${selectedData.length} ASIN(s)`);
+      loadData();
     } catch (err) {
       setError(err.message || 'Resync request failed');
     } finally {

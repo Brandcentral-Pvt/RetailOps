@@ -17,7 +17,7 @@ function OosExportPanel({ taskId, runId, canManage }) {
     if (!taskId || !runId) return;
     setLoading(true);
     try {
-      const res = await tasksApi.listExports(taskId, activeRun);
+      const res = await tasksApi.listExports(taskId, runId);
       if (res.success) setExports(res.data || res.exports || []);
     } catch (err) {
       console.error(err);
