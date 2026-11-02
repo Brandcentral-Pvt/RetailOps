@@ -3,6 +3,7 @@ const { getPool, sql, generateId } = require('../../database/db');
 const ALLOWED_VIEW_KEYS = new Set([
   'STANDARD_V1',
   'OOS_RECON_V1',
+  'GUIDED_V1',
 ]);
 
 const ALLOWED_WIDGET_KEYS = new Set([
@@ -16,6 +17,14 @@ const ALLOWED_WIDGET_KEYS = new Set([
   'IncidentFollowups',
   'ExportPanel',
   'ReviewPanel',
+  'ChecklistRenderer',
+  'FormInputRenderer',
+  'SelectSourceRenderer',
+  'DataReviewRenderer',
+  'TableReviewRenderer',
+  'FileUploadRenderer',
+  'CommunicationRenderer',
+  'EvidenceReviewRenderer',
 ]);
 
 function httpError(status, message, code) {

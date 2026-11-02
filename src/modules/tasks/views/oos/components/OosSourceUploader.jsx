@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { App, Card, Upload, Button, Space, Tag, Alert, Divider, Typography, List, Badge, Row, Col } from 'antd';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { UploadOutlined, FileOutlined, DownloadOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -13,7 +13,7 @@ const SOURCE_TYPES = [
   { value: 'RETAILOPS', label: 'RetailOps (auto)', required: false, icon: '🤖' },
 ];
 
-function OosSourceUploader({ task, activeRun, canManage }) {
+function OosSourceUploader({ task, activeRun, runs, canManage }) {
   const { message } = App.useApp();
   const [uploads, setUploads] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -21,6 +21,12 @@ function OosSourceUploader({ task, activeRun, canManage }) {
   const [reuploadLoading, setReuploadLoading] = useState({});
 
   const taskInstanceId = task?.Id;
+
+  const runDate = useMemo(() => {
+    if (!activeRun || !runs?.length) return null;
+    const run = runs.find(r => r.Id === activeRun);
+    return run?.RunDate || null;
+  }, [activeRun, runs]);
 
   const loadUploads = useCallback(async () => {
     if (!taskInstanceId || !activeRun) return;
@@ -75,8 +81,7 @@ function OosSourceUploader({ task, activeRun, canManage }) {
   const handleDownload = async (item) => {
     if (!taskInstanceId) return;
     try {
-      const res = await tasksApi.downloadOosImport(taskInstanceId, item.Id || item.id);
-      const blob = await res.blob();
+      const blob = await tasksApi.downloadOosImport(taskInstanceId, item.Id || item.id);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -209,7 +214,7 @@ function OosSourceUploader({ task, activeRun, canManage }) {
     <Card size="small" loading={loading} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
         <Space>
-          <Text strong>Run: {activeRun ? dayjs(activeRun).format('DD MMM YYYY') : 'Select a run'}</Text>
+          <Text strong>Run: {runDate ? dayjs(runDate).format('DD MMM YYYY') : 'Select a run'}</Text>
           <Space size={8}>
             {SOURCE_TYPES.filter(s => s.required).map(s => <Tag key={s.value} color="blue">{s.label} (Required)</Tag>)}
             {SOURCE_TYPES.filter(s => !s.required).map(s => <Tag key={s.value} color="default">{s.label} (Optional)</Tag>)}

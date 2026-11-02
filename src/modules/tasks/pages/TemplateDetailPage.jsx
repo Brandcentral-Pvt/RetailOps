@@ -201,7 +201,7 @@ export default function TemplateDetailPage() {
                 const wf = { DRAFT:{c:'#64748b',l:'Draft'}, ASSIGNED:{c:'#0288D1',l:'Assigned'}, IN_PROGRESS:{c:'#1976D2',l:'In Progress'}, UNDER_REVIEW:{c:'#9C27B0',l:'Review'}, APPROVED:{c:'#2E7D32',l:'Approved'}, REJECTED:{c:'#D32F2F',l:'Rejected'}, CANCELLED:{c:'#94a3b8',l:'Cancelled'} };
                 const s = wf[i.Status] || { c: '#64748b', l: i.Status };
                 return (
-                  <div key={i.Id} onClick={() => navigate(`/tasks/tasks`)} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #f1f5f9', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div key={i.Id} onClick={() => navigate(`/tasks/operations`)} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #f1f5f9', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Space size={10}>
                       <Text code style={{ fontSize: 11 }}>{i.InstanceCode}</Text>
                       <Text style={{ fontSize: 12 }}>{i.Title}</Text>
@@ -265,7 +265,7 @@ export default function TemplateDetailPage() {
               </div>
             </div>
             <Space wrap>
-              <Button type="primary" icon={<PlayCircleOutlined />} size="large" onClick={() => navigate(`/tasks/tasks?template=${id}&new=1`)} style={{ borderRadius: 12, fontWeight: 700, background: 'linear-gradient(135deg,#10b981,#059669)', border: 'none', boxShadow: '0 8px 20px -8px rgba(16,185,129,0.5)' }}>Run task from template</Button>
+              <Button type="primary" icon={<PlayCircleOutlined />} size="large" onClick={() => navigate(`/tasks/operations?template=${id}&new=1`)} style={{ borderRadius: 12, fontWeight: 700, background: 'linear-gradient(135deg,#10b981,#059669)', border: 'none', boxShadow: '0 8px 20px -8px rgba(16,185,129,0.5)' }}>Run task from template</Button>
               <Button icon={<EditOutlined />} size="large" onClick={() => navigate(`/tasks/templates?edit=${id}`)} style={{ borderRadius: 12, fontWeight: 600 }}>Edit</Button>
               <Button icon={<CopyOutlined />} size="large" onClick={() => navigate(`/tasks/templates?clone=${id}`)} style={{ borderRadius: 12, fontWeight: 600 }}>Clone</Button>
               <Popconfirm title="Delete this template?" description="Existing tasks created from it are kept." onConfirm={handleDelete} okText="Delete" okButtonProps={{ danger: true }}>

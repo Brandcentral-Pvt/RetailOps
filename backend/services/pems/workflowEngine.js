@@ -83,6 +83,15 @@ const NOTIFICATION_TYPES = {
   REVIEW_ASSIGNED: 'REVIEW_ASSIGNED',
 };
 
+// V2.3: Conditional workflow states
+const VISIBILITY_STATES = {
+  VISIBLE: 'VISIBLE',
+  SKIPPED: 'SKIPPED',
+  WAITING: 'WAITING',
+};
+
+const CONDITION_OPERATORS = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'in', 'nin', 'contains', 'is_null', 'is_not_null'];
+
 function canTransition(fromStatus, toStatus) {
   const allowed = VALID_TRANSITIONS[fromStatus];
   if (!allowed) return false;
@@ -118,6 +127,138 @@ function calculateProgress(subTasks) {
   return Math.round((completed / subTasks.length) * 100);
 }
 
+/**
+ * V2.3: Evaluate a condition expression against persisted outputs.
+ * Condition format: { field: 'outputField', operator: 'eq', value: 'expected' }
+ * Supports nested conditions: { and: [...] }, { or: [...] }, { not: {...} }
+ */
+function evaluateCondition(condition, outputs) {
+  if (!condition) return true; // No condition = always visible
+
+  // Handle compound conditions
+  if (condition.and && Array.isArray(condition.and)) {
+    return condition.and.every(c => evaluateCondition(c, outputs));
+  }
+  if (condition.or && Array.isArray(condition.or)) {
+    return condition.or.some(c => evaluateCondition(c, outputs));
+  }
+  if (condition.not) {
+    return !evaluateCondition(condition.not, outputs);
+  }
+
+  // Simple condition: { field, operator, value }
+  const { field, operator, value } = condition;
+  if (!field || !operator) {
+    return true; // Malformed condition = visible (fail open for safety)
+  }
+
+  const actual = outputs?.[field];
+  const expected = value;
+
+  switch (operator) {
+    case 'eq': return actual === expected;
+    case 'neq': return actual !== expected;
+    case 'gt': return Number(actual) > Number(expected);
+    case 'gte': return Number(actual) >= Number(expected);
+    case 'lt': return Number(actual) < Number(expected);
+    case 'lte': return Number(actual) <= Number(expected);
+    case 'in': return Array.isArray(expected) && expected.includes(actual);
+    case 'nin': return Array.isArray(expected) && !expected.includes(actual);
+    case 'contains': return String(actual || '').includes(String(expected || ''));
+    case 'is_null': return actual === null || actual === undefined || actual === '';
+    case 'is_not_null': return actual !== null && actual !== undefined && actual !== '';
+    default: return true; // Unknown operator = visible (fail open)
+  }
+}
+
+/**
+ * V2.3: Determine visibility state for an activity/subtask based on its VisibleWhen condition.
+ * Returns 'VISIBLE', 'SKIPPED', or 'WAITING'.
+ * WAITING means the condition depends on outputs that don't exist yet.
+ */
+function evaluateVisibility(visibleWhen, outputs) {
+  if (!visibleWhen) return VISIBILITY_STATES.VISIBLE;
+
+  // Check if all required fields for the condition exist in outputs
+  const requiredFields = extractConditionFields(visibleWhen);
+  const missingFields = requiredFields.filter(f => !(f in (outputs || {})));
+
+  if (missingFields.length > 0) {
+    return VISIBILITY_STATES.WAITING;
+  }
+
+  const result = evaluateCondition(visibleWhen, outputs);
+  return result ? VISIBILITY_STATES.VISIBLE : VISIBILITY_STATES.SKIPPED;
+}
+
+/**
+ * Extract all field references from a condition (including nested).
+ */
+function extractConditionFields(condition) {
+  const fields = new Set();
+  function walk(c) {
+    if (!c || typeof c !== 'object') return;
+    if (c.field) fields.add(c.field);
+    if (c.and) c.and.forEach(walk);
+    if (c.or) c.or.forEach(walk);
+    if (c.not) walk(c.not);
+  }
+  walk(condition);
+  return Array.from(fields);
+}
+
+/**
+ * V2.3: Calculate weighted progress excluding skipped activities.
+ * WeightedProgress = (CompletedMandatory + CompletedOptional) / (TotalMandatory + VisibleOptional) * 100
+ */
+function calculateWeightedProgress(subTasks, activities) {
+  if (!subTasks || subTasks.length === 0) return 0;
+
+  let totalWeight = 0;
+  let earnedWeight = 0;
+
+  for (const st of subTasks) {
+    const stActivities = activities?.filter(a => a.SubTaskId === st.Id) || [];
+    const mandatoryCount = stActivities.filter(a => a.IsMandatory).length;
+    const completedMandatory = stActivities.filter(a => a.IsMandatory && a.IsCompleted).length;
+
+    const visibleOptional = stActivities.filter(a => !a.IsMandatory && (a.VisibilityState || 'VISIBLE') === 'VISIBLE').length;
+    const completedOptional = stActivities.filter(a => !a.IsMandatory && a.IsCompleted && (a.VisibilityState || 'VISIBLE') === 'VISIBLE').length;
+
+    // Subtask weight = 1 (or could be WeightagePct)
+    const stWeight = st.WeightagePct || 1;
+    totalWeight += stWeight;
+
+    // Earn weight proportionally
+    const mandatoryRatio = mandatoryCount > 0 ? completedMandatory / mandatoryCount : 1;
+    const optionalRatio = visibleOptional > 0 ? completedOptional / visibleOptional : 1;
+    // Weight = 70% mandatory, 30% optional (or use WeightagePct)
+    earnedWeight += stWeight * (0.7 * mandatoryRatio + 0.3 * optionalRatio);
+  }
+
+  return totalWeight > 0 ? Math.round((earnedWeight / totalWeight) * 100 * 100) / 100 : 0;
+}
+
+/**
+ * V2.3: Check if a subtask is "complete" considering conditional visibility.
+ * A subtask is complete when all its VISIBLE mandatory activities are completed.
+ */
+function isSubTaskComplete(subTask, activities) {
+  const stActivities = activities?.filter(a => a.SubTaskId === subTask.Id) || [];
+  const visibleMandatory = stActivities.filter(a => a.IsMandatory && (a.VisibilityState || 'VISIBLE') === 'VISIBLE');
+  if (visibleMandatory.length === 0) return subTask.IsCompleted || false;
+  return visibleMandatory.every(a => a.IsCompleted);
+}
+
+/**
+ * V2.3: Check if a task is "complete" considering conditional visibility.
+ * A task is complete when all its subtasks are complete (considering visibility).
+ */
+function isTaskComplete(subTasks, activities) {
+  if (!subTasks || subTasks.length === 0) return false;
+  return subTasks.every(st => isSubTaskComplete(st, activities));
+}
+
 function getNextDueDate(frequency, customCron, fromDate = new Date()) {
   const d = new Date(fromDate);
   switch (frequency) {
@@ -133,11 +274,6 @@ function getNextDueDate(frequency, customCron, fromDate = new Date()) {
   return d;
 }
 
-/**
- * Lifecycle timestamps for a status transition.
- * Pure + unit-testable. APPROVED stamps ReviewedAt + CompletedAt;
- * REJECTED stamps ReviewedAt and clears CompletedAt.
- */
 function getTransitionTimestamps(fromStatus, toStatus, now = new Date()) {
   const t = {};
   switch (toStatus) {
@@ -153,23 +289,12 @@ function getTransitionTimestamps(fromStatus, toStatus, now = new Date()) {
   return t;
 }
 
-/**
- * Maps a review decision to the resulting workflow status.
- * APPROVE → APPROVED · REWORK → REWORK · anything else → REJECTED.
- */
 function resolveReviewTransition(decision) {
   if (decision === 'APPROVE') return 'APPROVED';
   if (decision === 'REWORK') return 'REWORK';
   return 'REJECTED';
 }
 
-/**
- * Escalation rules:
- * 24h before SLA → notify assignee
- * 12h before SLA → notify reviewer
- * On breach → notify manager
- * 24h after breach → notify admin
- */
 function getEscalationLevel(dueDate, slaHours) {
   if (!dueDate) return null;
   const now = new Date();
@@ -187,8 +312,11 @@ module.exports = {
   FREQUENCIES, DEPARTMENTS, CATEGORIES, PRIORITIES, TARGET_TYPES,
   COMPLEXITY_LEVELS, APPROVAL_LEVELS, AUTO_ASSIGN_STRATEGIES,
   NOTIFICATION_TYPES,
+  VISIBILITY_STATES, CONDITION_OPERATORS,
   canTransition, getNextTransitions, calculateSLAStatus,
   calculateAchievement, calculateVariance, calculateProgress,
+  calculateWeightedProgress, isSubTaskComplete, isTaskComplete,
+  evaluateCondition, evaluateVisibility, extractConditionFields,
   getNextDueDate, getEscalationLevel, getTransitionTimestamps,
   resolveReviewTransition,
 };

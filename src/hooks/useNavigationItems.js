@@ -207,10 +207,10 @@ export function useNavigationItems() {
             guard(
                 isAdmin || isGlobalUser || hasPermission('tasks_view'),
                 {
-                    key: 'tasks',
-                    label: 'Tasks',
-                    path: '/tasks/tasks',
-                    icon: ListTodo,
+                    key: 'operations',
+                    label: 'Operations Center',
+                    path: '/tasks/operations',
+                    icon: LineChart,
                     section: 'automation',
                 }
             ),

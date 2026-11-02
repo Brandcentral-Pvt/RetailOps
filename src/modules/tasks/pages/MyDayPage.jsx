@@ -297,7 +297,7 @@ export default function MyDayPage() {
               : 'New work will appear here the moment it\'s assigned.'}
           </Text>
           <div className="md-clear__actions">
-            <Button onClick={() => navigate('/tasks/tasks')}>Browse all tasks</Button>
+            <Button onClick={() => navigate('/tasks/operations')}>Browse all tasks</Button>
             {summary.reviewCount > 0 && <Button type="primary" onClick={() => navigate('/tasks/reviews')}>Open review queue</Button>}
           </div>
         </div>

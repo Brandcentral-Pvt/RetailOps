@@ -10,11 +10,61 @@ const { retailOpsInput, observationInput } = require('./oosReconciliationService
 const incidents = require('./oosIncidentService');
 const liveDataSyncService = require('../liveDataSyncService');
 
+const MAX_DISPATCH_ATTEMPTS = 3;
+const RESYNC_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+const RESYNC_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour window
+const RESYNC_MAX_REQUESTS_PER_WINDOW = 50; // max 50 resync requests per hour per seller
+const RESYNC_PROVIDER_QUOTA_DAILY = 500; // daily provider quota
+
+const resyncRateLimitMap = new Map(); // key: sellerId, value: { count, windowStart }
+
 function httpError(status, message, code) {
   const err = new Error(message);
   err.status = status;
   err.code = code || message;
   return err;
+}
+
+function checkRateLimit(sellerId) {
+  const now = Date.now();
+  const record = resyncRateLimitMap.get(sellerId);
+  
+  if (!record || now - record.windowStart > RESYNC_RATE_LIMIT_WINDOW_MS) {
+    resyncRateLimitMap.set(sellerId, { count: 1, windowStart: now });
+    return { allowed: true, remaining: RESYNC_MAX_REQUESTS_PER_WINDOW - 1 };
+  }
+  
+  if (record.count >= RESYNC_MAX_REQUESTS_PER_WINDOW) {
+    const retryAfterMs = RESYNC_RATE_LIMIT_WINDOW_MS - (now - record.windowStart);
+    return { 
+      allowed: false, 
+      remaining: 0, 
+      retryAfterMs,
+      message: `Rate limit exceeded. Try again in ${Math.ceil(retryAfterMs / 60000)} minutes.`
+    };
+  }
+  
+  record.count++;
+  return { allowed: true, remaining: RESYNC_MAX_REQUESTS_PER_WINDOW - record.count };
+}
+
+function checkProviderQuota(sellerId) {
+  // In a real implementation, this would check a daily quota table
+  // For now, we track a simple daily counter
+  const today = new Date().toDateString();
+  const key = `${sellerId}:${today}`;
+  const record = resyncRateLimitMap.get(key) || { count: 0 };
+  
+  if (record.count >= RESYNC_PROVIDER_QUOTA_DAILY) {
+    return { 
+      allowed: false, 
+      message: 'Daily provider quota exceeded. Please try again tomorrow.' 
+    };
+  }
+  
+  record.count++;
+  resyncRateLimitMap.set(key, record);
+  return { allowed: true, remaining: RESYNC_PROVIDER_QUOTA_DAILY - record.count };
 }
 
 async function loadRun(pool, runId) {
@@ -73,6 +123,18 @@ async function requestResync({ runId, asin, revision, requestedBy, preStatus } =
   const eligibility = await evaluateEligibility(run, asin, policy);
   if (!eligibility.eligible) throw httpError(422, eligibility.reason, 'RESYNC_NOT_ELIGIBLE');
 
+  // Rate limiting per seller
+  const rateLimit = checkRateLimit(run.SellerId);
+  if (!rateLimit.allowed) {
+    throw httpError(429, rateLimit.message, 'RATE_LIMIT_EXCEEDED');
+  }
+
+  // Provider quota check
+  const quotaCheck = checkProviderQuota(run.SellerId);
+  if (!quotaCheck.allowed) {
+    throw httpError(429, quotaCheck.message, 'PROVIDER_QUOTA_EXCEEDED');
+  }
+
   const decisionResult = await pool
     .request()
     .input('runId', sql.VarChar, runId)
@@ -130,8 +192,6 @@ async function requestResync({ runId, asin, revision, requestedBy, preStatus } =
   return { job: inserted.recordset[0], created: true, eligibility };
 }
 
-const MAX_DISPATCH_ATTEMPTS = 3;
-const RESYNC_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 
 async function dispatchResync(sellerId, asinCode, channel, jobId) {
   try {

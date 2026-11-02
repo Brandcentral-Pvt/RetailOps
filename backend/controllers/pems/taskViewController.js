@@ -64,14 +64,34 @@ exports.getOosContext = async (req, res) => {
     const task = await ensureTaskAccess(req, res, req.params.id);
     if (!task) return;
 
+    // Accept either sellerId or runId
     const sellerId = req.params.sellerId || req.query.sellerId;
-    if (!sellerId) return res.status(400).json({ success: false, error: 'sellerId required' });
+    const runId = req.query.runId;
+    
+    let targetSellerId = sellerId;
+    let runResult = null;
+    
+    if (runId) {
+      runResult = await monitoring.getRun(runId);
+      if (runResult) {
+        targetSellerId = targetSellerId || runResult.SellerId;
+      }
+    }
+    
+    if (!targetSellerId) {
+      return res.status(400).json({ success: false, error: 'sellerId or runId required' });
+    }
 
-    const scope = sellerScopeOr403(req, res, sellerId);
+    const scope = sellerScopeOr403(req, res, targetSellerId);
     if (!scope) return;
 
-    const runResult = await monitoring.getRun(req.query.runId);
-    if (!runResult) return res.json({ success: true, data: { counts: {}, manifest: null } });
+    if (!runResult && runId) {
+      runResult = await monitoring.getRun(runId);
+    }
+    
+    if (!runResult) {
+      return res.json({ success: true, data: { counts: {}, manifest: null } });
+    }
 
     const policy = await getActivePolicy();
     const [counts, manifest] = await Promise.all([
@@ -187,6 +207,90 @@ exports.downloadOosImport = async (req, res) => {
   } catch (err) { return fail(res, err); }
 };
 
+exports.uploadInventory = async (req, res) => {
+  try {
+    const task = await ensureTaskAccess(req, res, req.params.id);
+    if (!task) return;
+
+    const runId = req.params.runId;
+    const run = await monitoring.getRun(runId);
+    if (!run) return res.status(404).json({ success: false, error: 'Run not found' });
+
+    const files = req.files || {};
+    const vendorFile = files.vendorCentralFile?.[0];
+    const brandFile = files.brandCentralFile?.[0];
+
+    if (!vendorFile && !brandFile) {
+      return res.status(400).json({ success: false, code: 'NO_FILES', error: 'At least one file (vendorCentralFile or brandCentralFile) is required' });
+    }
+
+    // Custom column mappings for each source type
+    const vendorMapping = {
+      asin: 'ASIN',
+      sku: 'SKU',
+      quantity: 'Available units',
+      availability: 'Status',
+      status: 'Status',
+      timestamp: null,
+    };
+
+    const brandMapping = {
+      asin: null,
+      sku: 'Model No',
+      quantity: 'old_quantity',
+      availability: null,
+      status: null,
+      timestamp: null,
+    };
+
+    const results = {};
+
+    if (vendorFile) {
+      const vendorResult = await uploads.ingestUpload({
+        runId: run.Id,
+        sellerId: run.SellerId,
+        channel: run.Channel,
+        sourceType: 'VENDOR_CENTRAL',
+        fileName: vendorFile.originalname,
+        fileBuffer: vendorFile.buffer,
+        mapping: vendorMapping,
+        createdBy: req.user?.Id,
+      });
+      results.vendorCentral = vendorResult;
+    }
+
+    if (brandFile) {
+      const brandResult = await uploads.ingestBrandCentralUpload({
+        runId: run.Id,
+        sellerId: run.SellerId,
+        channel: run.Channel,
+        fileName: brandFile.originalname,
+        fileBuffer: brandFile.buffer,
+        mapping: brandMapping,
+        createdBy: req.user?.Id,
+      });
+      results.brandCentral = brandResult;
+    }
+
+    // Auto-trigger reconciliation so the grid updates immediately
+    let reconcileResult = null;
+    if (vendorFile || brandFile) {
+      try {
+        reconcileResult = await reconciliation.reconcileRun(run.Id, { actorId: req.user?.Id });
+      } catch (reconcileErr) {
+        // Don't fail the upload if reconciliation fails - log and continue
+        console.warn('[OOS] Reconciliation after inventory upload failed:', reconcileErr.message);
+      }
+    }
+
+    return res.json({
+      success: true,
+      uploads: results,
+      reconciliation: reconcileResult,
+    });
+  } catch (err) { return fail(res, err); }
+};
+
 exports.reconcileOosRun = async (req, res) => {
   try {
     const task = await ensureTaskAccess(req, res, req.params.id);
@@ -214,9 +318,6 @@ exports.getAffectedAsins = async (req, res) => {
     const runId = req.query.runId;
     if (!runId) return res.status(400).json({ success: false, error: 'runId required' });
 
-    const scope = sellerScopeOr403(req, res, req.query.sellerId);
-    if (!scope) return;
-
     // Clamp and validate pagination
     const page = Math.max(parseInt(req.query.page) || 1, 1);
     const pageSize = Math.min(Math.max(parseInt(req.query.pageSize) || 50, 1), 200);
@@ -231,8 +332,8 @@ exports.getAffectedAsins = async (req, res) => {
     const run = runResult.recordset[0];
     if (!run) return res.status(404).json({ success: false, error: 'Run not found' });
 
-    const scopeCheck = sellerScopeOr403(req, res, run.SellerId);
-    if (!scopeCheck) return;
+    const scope = sellerScopeOr403(req, res, run.SellerId);
+    if (!scope) return;
 
     // Build WHERE clause against vw_OosAffectedAsins (decision metrics view)
     let where = 'WHERE v.RunId = @runId AND v.SellerId = @sellerId AND v.Channel = @channel';
@@ -312,10 +413,14 @@ exports.getAffectedAsinsSummary = async (req, res) => {
     const runId = req.query.runId;
     if (!runId) return res.status(400).json({ success: false, error: 'runId required' });
 
-    const scope = sellerScopeOr403(req, res, req.query.sellerId);
+    const pool = await getPool();
+    const runResult = await pool.request().input('id', sql.VarChar, runId).query('SELECT TOP 1 * FROM OosRuns WHERE Id = @id');
+    const run = runResult.recordset[0];
+    if (!run) return res.status(404).json({ success: false, error: 'Run not found' });
+
+    const scope = sellerScopeOr403(req, res, run.SellerId);
     if (!scope) return;
 
-    const pool = await getPool();
     const result = await pool.request().input('runId', sql.VarChar, runId).query(`
       SELECT
         COUNT(*) as total,

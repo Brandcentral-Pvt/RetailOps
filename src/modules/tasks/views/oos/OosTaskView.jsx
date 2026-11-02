@@ -87,10 +87,10 @@ function OosTaskView({ task }) {
 
   const tabs = [
     { key: 'overview', label: 'Overview', children: <OosOverviewTab task={task} activeRun={activeRun} runs={runs} loading={loading} onCreateRun={createRun} canManage={canManage} /> },
-    { key: 'sources', label: 'Data Sources', children: <OosSourceUploader task={task} activeRun={activeRun} canManage={canManage} onRunsChange={loadRuns} /> },
-    { key: 'asins', label: 'Affected ASINs', children: <OosAffectedAsinsTab task={task} activeRun={activeRun} canResync={canResync} /> },
-    { key: 'followups', label: 'Follow-ups & Export', children: <OosFollowupsTab task={task} activeRun={activeRun} canManage={canManage} /> },
-    { key: 'review', label: 'Review', children: <OosReviewTab task={task} activeRun={activeRun} canManage={canManage} /> },
+    { key: 'sources', label: 'Data Sources', children: <OosSourceUploader task={task} activeRun={activeRun} runs={runs} canManage={canManage} onRunsChange={loadRuns} /> },
+    { key: 'asins', label: 'Affected ASINs', children: <OosAffectedAsinsTab task={task} activeRun={activeRun} runs={runs} canResync={canResync} /> },
+    { key: 'followups', label: 'Follow-ups & Export', children: <OosFollowupsTab task={task} activeRun={activeRun} runs={runs} canManage={canManage} /> },
+    { key: 'review', label: 'Review', children: <OosReviewTab task={task} activeRun={activeRun} runs={runs} canManage={canManage} /> },
   ];
 
   return (

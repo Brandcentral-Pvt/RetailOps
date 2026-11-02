@@ -80,7 +80,7 @@ function requireOosRunAccess(options = {}) {
   return async function (req, res, next) {
     try {
       const pool = await getPool();
-      const runId = req.params.runId || req.params.id || req.query.runId || req.body?.runId;
+      const runId = req.query.runId || req.params.runId || req.body?.runId || req.params.id;
       if (!runId) return deny(res, 400, 'RUN_ID_REQUIRED', 'Run id required');
 
       // Load run
@@ -89,18 +89,10 @@ function requireOosRunAccess(options = {}) {
       const run = runRes.recordset[0];
       if (!run) return deny(res, 404, 'RUN_NOT_FOUND', 'OOS run not found');
 
-      // Find binding
+      // Find binding - required for all modes
       const binding = await findBindingByRun(pool, runId);
       if (!binding || !binding.TaskInstanceId) {
-        // For legacy/unbound runs, enforce seller scope at minimum
-        const scope = resolveSellerScope(req.user, run.SellerId);
-        if (scope.denied) return deny(res, 403, 'forbidden_seller', 'You do not have access to the requested seller.');
-        if (mode === 'act' && !isGlobalUserRole(roleNameOf(req.user))) {
-          return deny(res, 403, 'OOS_TASK_BINDING_REQUIRED', 'This run is not bound to an authorized task instance.');
-        }
-        req.oosRun = run;
-        req.oosBinding = null;
-        return next();
+        return deny(res, 403, 'OOS_TASK_BINDING_REQUIRED', 'This run is not bound to an authorized task instance.');
       }
 
       // Load task instance
@@ -137,26 +129,32 @@ function requireOosIncidentAccess(options = {}) {
       const incident = incidentRes.recordset[0];
       if (!incident) return deny(res, 404, 'INCIDENT_NOT_FOUND', 'Incident not found');
 
-      // Try to find binding by seller/channel
-      let binding = await findBindingBySellerChannel(pool, incident.SellerId, incident.Channel);
+      // Find binding by taskInstanceId if available in request (from task-bound routes)
+      // Otherwise find by runId on the incident
+      let binding = null;
+      const taskInstanceId = req.params.taskInstanceId || req.query.taskInstanceId || req.body?.taskInstanceId;
+      if (taskInstanceId) {
+        binding = await findBindingByTaskAndSeller(pool, taskInstanceId, incident.SellerId);
+      }
+      if (!binding && incident.RunId) {
+        binding = await findBindingByRun(pool, incident.RunId);
+      }
       if (!binding) {
-        // Fallback: any binding for seller
-        binding = await findBindingBySellerChannel(pool, incident.SellerId, null);
+        // Last resort: any binding for seller/channel
+        binding = await findBindingBySellerChannel(pool, incident.SellerId, incident.Channel);
       }
 
       if (!binding || !binding.TaskInstanceId) {
-        const scope = resolveSellerScope(req.user, incident.SellerId);
-        if (scope.denied) return deny(res, 403, 'forbidden_seller', 'You do not have access to the requested seller.');
-        if (mode === 'act' && !isGlobalUserRole(roleNameOf(req.user))) {
-          return deny(res, 403, 'OOS_TASK_BINDING_REQUIRED', 'This incident is not bound to an authorized task instance.');
-        }
-        req.oosIncident = incident;
-        req.oosBinding = null;
-        return next();
+        return deny(res, 403, 'OOS_TASK_BINDING_REQUIRED', 'This incident is not bound to an authorized task instance.');
       }
 
       const task = await loadTaskInstance(pool, binding.TaskInstanceId);
       if (!task) return deny(res, 404, 'TASK_NOT_FOUND', 'Task instance not found');
+
+      // Verify incident belongs to the bound run
+      if (incident.RunId && binding.OosRunId && String(incident.RunId) !== String(binding.OosRunId)) {
+        return deny(res, 403, 'OOS_SCOPE_MISMATCH', 'Incident run does not match task binding.');
+      }
 
       const denied = await enforceTaskAccess(req, res, mode, task, incident.SellerId);
       if (denied) return denied;
@@ -177,7 +175,7 @@ function requireOosExportAccess(options = {}) {
     try {
       const pool = await getPool();
       const exportId = req.params.exportId || req.query.exportId;
-      const runId = req.params.runId || req.params.id || req.query.runId || req.body?.runId;
+      const runId = req.query.runId || req.params.runId || req.body?.runId || req.params.id;
       let exportRow = null;
       if (exportId) {
         const er = await pool.request().input('id', sql.VarChar, exportId)
@@ -190,36 +188,32 @@ function requireOosExportAccess(options = {}) {
       }
       if (!exportRow) return deny(res, 404, 'EXPORT_NOT_FOUND', 'Export not found');
 
-      // Try binding via run or task instance
+      // Find binding via run or task instance
       let binding = null;
       if (exportRow.RunId) binding = await findBindingByRun(pool, exportRow.RunId);
       if (!binding && exportRow.TaskInstanceId) {
-        const r = await pool.request().input('taskInstanceId', sql.VarChar, exportRow.TaskInstanceId)
-          .query('SELECT TOP 1 b.Id, b.TaskInstanceId, b.SellerId, b.Channel, b.State, b.OosRunId FROM OosTaskBindings b WHERE b.TaskInstanceId = @taskInstanceId ORDER BY b.CreatedAt DESC');
-        binding = r.recordset[0];
+        binding = await findBindingByTaskAndSeller(pool, exportRow.TaskInstanceId, exportRow.SellerId);
       }
 
       const taskId = binding?.TaskInstanceId || exportRow.TaskInstanceId;
-      if (taskId) {
-        const task = await loadTaskInstance(pool, taskId);
-        if (task) {
-          const denied = await enforceTaskAccess(req, res, mode, task, exportRow.SellerId || binding?.SellerId);
-          if (denied) return denied;
-          req.oosTask = task;
-          req.oosBinding = binding;
-          req.oosExport = exportRow;
-          return next();
-        }
-      }
-
-      // Fallback to seller scope
-      const scope = resolveSellerScope(req.user, exportRow.SellerId);
-      if (scope.denied) return deny(res, 403, 'forbidden_seller', 'You do not have access to the requested seller.');
-      if (mode === 'act' && !isGlobalUserRole(roleNameOf(req.user))) {
+      if (!taskId) {
         return deny(res, 403, 'OOS_TASK_BINDING_REQUIRED', 'This export is not bound to an authorized task instance.');
       }
-      req.oosExport = exportRow;
+
+      const task = await loadTaskInstance(pool, taskId);
+      if (!task) return deny(res, 404, 'TASK_NOT_FOUND', 'Task instance not found');
+
+      // Verify export belongs to the bound run
+      if (exportRow.RunId && binding?.OosRunId && String(exportRow.RunId) !== String(binding.OosRunId)) {
+        return deny(res, 403, 'OOS_SCOPE_MISMATCH', 'Export run does not match task binding.');
+      }
+
+      const denied = await enforceTaskAccess(req, res, mode, task, exportRow.SellerId || binding?.SellerId);
+      if (denied) return denied;
+
+      req.oosTask = task;
       req.oosBinding = binding;
+      req.oosExport = exportRow;
       return next();
     } catch (err) {
       return res.status(500).json({ success: false, code: 'OOS_AUTH_ERROR', error: err.message });

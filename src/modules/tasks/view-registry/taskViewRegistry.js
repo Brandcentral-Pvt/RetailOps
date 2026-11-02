@@ -97,7 +97,14 @@ export function registerWidget(key, component) {
 }
 
 export function getWidget(key) {
-  return widgetRegistry.get(key) || null;
+  const widget = widgetRegistry.get(key);
+  if (!widget) return null;
+  // Support dynamic imports (lazy-loaded widgets)
+  if (typeof widget === 'function') {
+    // Return a promise that resolves to the component
+    return widget().then(m => m.default).catch(() => null);
+  }
+  return widget;
 }
 
 export function registerView(viewKey, viewComponent) {

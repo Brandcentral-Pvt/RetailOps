@@ -1,5 +1,5 @@
 const { sql, getPool, generateId, withTransaction } = require('../../database/db');
-const { canTransition, calculateSLAStatus, calculateAchievement, calculateVariance, getNextDueDate, getTransitionTimestamps, resolveReviewTransition, WORKFLOW_STATUSES } = require('./workflowEngine');
+const { canTransition, calculateSLAStatus, calculateAchievement, calculateVariance, getNextDueDate, getTransitionTimestamps, resolveReviewTransition, WORKFLOW_STATUSES, VISIBILITY_STATES, evaluateCondition, evaluateVisibility, extractConditionFields, isSubTaskComplete, isTaskComplete } = require('./workflowEngine');
 const { canActOnTask } = require('./pemsPolicy');
 const { isGlobalUserRole } = require('../../utils/roleUtils');
 const { resolveSellerScope, buildScopeClause, canViewTaskByScope, applyScopeInputs } = require('./sellerScope');
@@ -237,6 +237,23 @@ async function createInstance(data) {
   const now = new Date();
   const dueDate = data.dueDate || getNextDueDate(data.frequency || 'ONE_TIME');
 
+  // Reject client-supplied terminal and review-only statuses.
+  // Valid initial statuses: DRAFT, ASSIGNED (if assignedTo provided).
+  const terminalStatuses = new Set(['APPROVED', 'SUBMITTED', 'UNDER_REVIEW', 'REJECTED', 'REWORK', 'RESUBMITTED', 'CANCELLED', 'ESCALATED']);
+  const requestedStatus = data.status || 'DRAFT';
+  if (terminalStatuses.has(requestedStatus)) {
+    const err = new Error(`Invalid initial status: ${requestedStatus}. Tasks must be created as DRAFT or ASSIGNED.`);
+    err.status = 400;
+    err.code = 'INVALID_INITIAL_STATUS';
+    throw err;
+  }
+  if (requestedStatus === 'ASSIGNED' && !data.assignedTo) {
+    const err = new Error('ASSIGNED status requires an assignedTo user.');
+    err.status = 400;
+    err.code = 'ASSIGNEE_REQUIRED';
+    throw err;
+  }
+
   // Resolve template defaults (department, SOP) once up-front.
   // Guard against missing templateId so programmatic callers (ruleset engine,
   // integrations) can create ad-hoc tasks without a pre-existing template.
@@ -269,7 +286,7 @@ async function createInstance(data) {
     .input('reviewerId', sql.VarChar, data.reviewerId || null)
     .input('reviewerName', sql.NVarChar, data.reviewerName || '')
     .input('department', sql.NVarChar, department)
-    .input('status', sql.VarChar, data.status || 'DRAFT')
+    .input('status', sql.VarChar, requestedStatus)
     .input('reviewStatus', sql.VarChar, 'NOT_REVIEWED')
     .input('frequency', sql.VarChar, data.frequency || 'ONE_TIME')
     .input('title', sql.NVarChar, data.title || data.name || '')
@@ -280,7 +297,7 @@ async function createInstance(data) {
     .input('slaStatus', sql.VarChar, 'WITHIN_SLA')
     .input('slaHours', sql.Int, data.slaHours || 48)
     .input('dueDate', sql.DateTime2, dueDate)
-    .input('assignedAt', sql.DateTime2, data.status === 'ASSIGNED' || data.status === 'IN_PROGRESS' ? now : null)
+    .input('assignedAt', sql.DateTime2, requestedStatus === 'ASSIGNED' || requestedStatus === 'IN_PROGRESS' ? now : null)
     .input('attachments', sql.NVarChar(sql.MAX), JSON.stringify(data.attachments || []))
     .input('tags', sql.NVarChar(sql.MAX), JSON.stringify(data.tags || []))
     .input('source', sql.NVarChar, data.source || 'MANUAL')
@@ -391,7 +408,7 @@ async function createInstance(data) {
     .query('UPDATE PemsTaskInstances SET SubTaskCount = @stCount, ActivityCount = @actCount WHERE Id = @instId');
 
   // Audit log
-  await writeAuditLog(id, 'CREATED', null, data.status || 'DRAFT', data.createdBy, data.assigneeName, 'Task instance created', tx);
+  await writeAuditLog(id, 'CREATED', null, requestedStatus, data.createdBy, data.assigneeName, 'Task instance created', tx);
 
   return { id, instanceCode };
   });
@@ -1109,6 +1126,329 @@ async function bulkTransition(taskIds, toStatus, actorId, actorName, actorRole, 
 }
 
 // ═══════════════════════════════════════════════════════
+// V2.3: CONDITIONAL WORKFLOW ENGINE
+// ═══════════════════════════════════════════════════════
+
+/**
+ * V2.3: Fetch all persisted outputs for a task instance.
+ * Outputs come from activity ExpectedOutput values that have been filled in.
+ */
+async function getTaskOutputs(pool, taskInstanceId) {
+  const result = await pool.request()
+    .input('taskInstanceId', sql.VarChar, taskInstanceId)
+    .query(`
+      SELECT a.Id as ActivityId, a.ExpectedOutput, a.OutputValue, a.IsCompleted
+      FROM PemsActivities a
+      WHERE a.TaskInstanceId = @taskInstanceId
+    `);
+  
+  const outputs = {};
+  for (const row of result.recordset) {
+    if (row.OutputValue !== null && row.OutputValue !== undefined && row.OutputValue !== '') {
+      outputs[row.ActivityId] = row.OutputValue;
+    } else if (row.ExpectedOutput) {
+      // Use ExpectedOutput key if no explicit output field name
+      outputs[row.ExpectedOutput] = row.OutputValue;
+    }
+  }
+  return outputs;
+}
+
+/**
+ * V2.3: Evaluate and update visibility for all activities in a task.
+ * Returns array of changed activities for audit trail.
+ */
+async function evaluateTaskVisibility(pool, taskInstanceId, actorId, tx) {
+  const outputs = await getTaskOutputs(pool, taskInstanceId);
+  
+  // Get all activities with their VisibleWhen conditions
+  const actsResult = await pool.request()
+    .input('taskInstanceId', sql.VarChar, taskInstanceId)
+    .query(`
+      SELECT Id, VisibleWhen, VisibilityState, IsMandatory, ExpectedOutput, OutputValue
+      FROM PemsActivities
+      WHERE TaskInstanceId = @taskInstanceId
+    `);
+
+  const changes = [];
+  const now = new Date();
+
+  for (const act of actsResult.recordset) {
+    const previousState = act.VisibilityState || VISIBILITY_STATES.VISIBLE;
+    const newState = evaluateVisibility(act.VisibleWhen ? JSON.parse(act.VisibleWhen) : null, outputs);
+    
+    if (previousState !== newState) {
+      // Record the conditional decision
+      const decisionId = genId();
+      await (tx || pool).request()
+        .input('id', sql.VarChar, decisionId)
+        .input('taskInstanceId', sql.VarChar, taskInstanceId)
+        .input('activityId', sql.VarChar, act.Id)
+        .input('conditionExpression', sql.NVarChar(sql.MAX), act.VisibleWhen || '{}')
+        .input('inputValues', sql.NVarChar(sql.MAX), JSON.stringify(outputs))
+        .input('result', sql.VarChar, newState)
+        .input('previousResult', sql.VarChar, previousState)
+        .input('evaluatedBy', sql.VarChar, actorId)
+        .input('evaluatedAt', sql.DateTime2, now)
+        .input('reopenedDownstream', sql.Bit, 0)
+        .query(`
+          INSERT INTO PemsConditionalDecisions
+            (Id, TaskInstanceId, ActivityId, ConditionExpression, InputValues, Result, PreviousResult, EvaluatedBy, EvaluatedAt, ReopenedDownstream)
+          VALUES
+            (@id, @taskInstanceId, @activityId, @conditionExpression, @inputValues, @result, @previousResult, @evaluatedBy, @evaluatedAt, @reopenedDownstream)
+        `);
+
+      // Update activity visibility state
+      await (tx || pool).request()
+        .input('id', sql.VarChar, act.Id)
+        .input('state', sql.VarChar, newState)
+        .input('prevState', sql.VarChar, previousState)
+        .input('evaluatedAt', sql.DateTime2, now)
+        .input('evaluatedBy', sql.VarChar, actorId)
+        .input('conditionResult', sql.NVarChar(sql.MAX), JSON.stringify({ outputs }))
+        .query(`
+          UPDATE PemsActivities
+          SET VisibilityState = @state,
+              PreviousVisibilityState = @prevState,
+              ConditionEvaluatedAt = @evaluatedAt,
+              ConditionEvaluatedBy = @evaluatedBy,
+              ConditionResult = @conditionResult
+          WHERE Id = @id
+        `);
+
+      changes.push({
+        activityId: act.Id,
+        previousState,
+        newState,
+        condition: act.VisibleWhen,
+      });
+    }
+  }
+
+  return changes;
+}
+
+/**
+ * V2.3: When an upstream output changes, find and reopen downstream activities
+ * whose conditions are no longer satisfied (or were skipped but now visible).
+ * This runs within the parent transaction.
+ */
+async function reopenInvalidatedDownstream(pool, taskInstanceId, changedOutputs, actorId, tx) {
+  // Get all activities that have VisibleWhen conditions referencing the changed outputs
+  const affectedFields = Object.keys(changedOutputs);
+  if (affectedFields.length === 0) return [];
+
+  // Find activities whose conditions reference any of the changed fields
+  const actsResult = await pool.request()
+    .input('taskInstanceId', sql.VarChar, taskInstanceId)
+    .query(`
+      SELECT Id, VisibleWhen, VisibilityState, IsCompleted, CompletedAt, ExpectedOutput
+      FROM PemsActivities
+      WHERE TaskInstanceId = @taskInstanceId AND VisibleWhen IS NOT NULL
+    `);
+
+  const reopened = [];
+  const now = new Date();
+
+  for (const act of actsResult.recordset) {
+    if (!act.VisibleWhen) continue;
+    const condition = JSON.parse(act.VisibleWhen);
+    const referencedFields = extractConditionFields(condition);
+    
+    // Check if this activity's condition depends on any changed field
+    const hasChangedDependency = referencedFields.some(f => affectedFields.includes(f));
+    if (!hasChangedDependency) continue;
+
+    const outputs = await getTaskOutputs(pool, taskInstanceId);
+    const newState = evaluateVisibility(condition, outputs);
+    const previousState = act.VisibilityState || VISIBILITY_STATES.VISIBLE;
+
+    if (newState !== previousState) {
+      // If activity was SKIPPED and now VISIBLE, or was VISIBLE and now SKIPPED
+      // We need to reset its completion state if it was completed but now hidden
+      let resetCompletion = false;
+      if (act.IsCompleted && newState === VISIBILITY_STATES.SKIPPED) {
+        // Don't count completed skipped activities as business work
+        resetCompletion = true;
+      }
+
+      // Record the decision
+      const decisionId = genId();
+      await (tx || pool).request()
+        .input('id', sql.VarChar, decisionId)
+        .input('taskInstanceId', sql.VarChar, taskInstanceId)
+        .input('activityId', sql.VarChar, act.Id)
+        .input('conditionExpression', sql.NVarChar(sql.MAX), act.VisibleWhen)
+        .input('inputValues', sql.NVarChar(sql.MAX), JSON.stringify(outputs))
+        .input('result', sql.VarChar, newState)
+        .input('previousResult', sql.VarChar, previousState)
+        .input('evaluatedBy', sql.VarChar, actorId)
+        .input('evaluatedAt', sql.DateTime2, now)
+        .input('reopenedDownstream', sql.Bit, resetCompletion ? 1 : 0)
+        .query(`
+          INSERT INTO PemsConditionalDecisions
+            (Id, TaskInstanceId, ActivityId, ConditionExpression, InputValues, Result, PreviousResult, EvaluatedBy, EvaluatedAt, ReopenedDownstream)
+          VALUES
+            (@id, @taskInstanceId, @activityId, @conditionExpression, @inputValues, @result, @previousResult, @evaluatedBy, @evaluatedAt, @reopenedDownstream)
+        `);
+
+      // Update activity
+      const updateReq = (tx || pool).request()
+        .input('id', sql.VarChar, act.Id)
+        .input('state', sql.VarChar, newState)
+        .input('prevState', sql.VarChar, previousState)
+        .input('evaluatedAt', sql.DateTime2, now)
+        .input('evaluatedBy', sql.VarChar, actorId)
+        .input('conditionResult', sql.NVarChar(sql.MAX), JSON.stringify({ outputs }));
+
+      if (resetCompletion) {
+        updateReq.query(`
+          UPDATE PemsActivities
+          SET VisibilityState = @state,
+              PreviousVisibilityState = @prevState,
+              ConditionEvaluatedAt = @evaluatedAt,
+              ConditionEvaluatedBy = @evaluatedBy,
+              ConditionResult = @conditionResult,
+              IsCompleted = 0,
+              CompletedAt = NULL,
+              CompletedBy = NULL
+          WHERE Id = @id
+        `);
+      } else {
+        updateReq.query(`
+          UPDATE PemsActivities
+          SET VisibilityState = @state,
+              PreviousVisibilityState = @prevState,
+              ConditionEvaluatedAt = @evaluatedAt,
+              ConditionEvaluatedBy = @evaluatedBy,
+              ConditionResult = @conditionResult
+          WHERE Id = @id
+        `);
+      }
+
+      reopened.push({
+        activityId: act.Id,
+        previousState,
+        newState,
+        resetCompletion,
+      });
+    }
+  }
+
+  return reopened;
+}
+
+/**
+ * V2.3: Recalculate weighted progress for a task instance.
+ * Updates ProgressPct, WeightedProgressPct, and CompletedSubTasks.
+ */
+async function recalculateTaskProgress(pool, taskInstanceId, tx) {
+  // Get all subtasks with their activities
+  const stResult = await pool.request()
+    .input('taskInstanceId', sql.VarChar, taskInstanceId)
+    .query(`
+      SELECT Id, WeightagePct, IsCompleted
+      FROM PemsSubTasks
+      WHERE TaskInstanceId = @taskInstanceId
+      ORDER BY SortOrder
+    `);
+
+  const subTasks = stResult.recordset;
+  
+  // Get all activities
+  const actResult = await pool.request()
+    .input('taskInstanceId', sql.VarChar, taskInstanceId)
+    .query(`
+      SELECT Id, SubTaskId, IsMandatory, IsCompleted, VisibilityState
+      FROM PemsActivities
+      WHERE TaskInstanceId = @taskInstanceId
+    `);
+
+  const activities = actResult.recordset;
+
+  let totalWeight = 0;
+  let earnedWeight = 0;
+  let completedSubTasks = 0;
+
+  for (const st of subTasks) {
+    const stActivities = activities.filter(a => a.SubTaskId === st.Id);
+    const mandatoryCount = stActivities.filter(a => a.IsMandatory).length;
+    const completedMandatory = stActivities.filter(a => a.IsMandatory && a.IsCompleted && (a.VisibilityState || 'VISIBLE') === 'VISIBLE').length;
+
+    const visibleOptional = stActivities.filter(a => !a.IsMandatory && (a.VisibilityState || 'VISIBLE') === 'VISIBLE').length;
+    const completedOptional = stActivities.filter(a => !a.IsMandatory && a.IsCompleted && (a.VisibilityState || 'VISIBLE') === 'VISIBLE').length;
+
+    const stWeight = st.WeightagePct || 1;
+    totalWeight += stWeight;
+
+    const mandatoryRatio = mandatoryCount > 0 ? completedMandatory / mandatoryCount : 1;
+    const optionalRatio = visibleOptional > 0 ? completedOptional / visibleOptional : 1;
+    earnedWeight += stWeight * (0.7 * mandatoryRatio + 0.3 * optionalRatio);
+
+    // Check if subtask is complete (all visible mandatory activities done)
+    const isComplete = isSubTaskComplete(st, stActivities);
+    if (isComplete) completedSubTasks++;
+  }
+
+  const weightedProgressPct = totalWeight > 0 ? Math.round((earnedWeight / totalWeight) * 100 * 100) / 100 : 0;
+  const progressPct = subTasks.length > 0 ? Math.round((completedSubTasks / subTasks.length) * 100) : 0;
+
+  await (tx || pool).request()
+    .input('instId', sql.VarChar, taskInstanceId)
+    .input('done', sql.Int, completedSubTasks)
+    .input('pct', sql.Decimal(5, 2), progressPct)
+    .input('wp', sql.Decimal(5, 2), weightedProgressPct)
+    .query('UPDATE PemsTaskInstances SET CompletedSubTasks = @done, ProgressPct = @pct, WeightedProgressPct = @wp, ConditionalProgressEvaluatedAt = dbo.GetEnvDate() WHERE Id = @instId');
+
+  // Update subtask completion counts
+  for (const st of subTasks) {
+    const stActivities = activities.filter(a => a.SubTaskId === st.Id);
+    const mandatoryCount = stActivities.filter(a => a.IsMandatory).length;
+    const completedMandatory = stActivities.filter(a => a.IsMandatory && a.IsCompleted && (a.VisibilityState || 'VISIBLE') === 'VISIBLE').length;
+    const visibleActivities = stActivities.filter(a => (a.VisibilityState || 'VISIBLE') === 'VISIBLE').length;
+    const completedVisible = stActivities.filter(a => a.IsCompleted && (a.VisibilityState || 'VISIBLE') === 'VISIBLE').length;
+
+    await (tx || pool).request()
+      .input('stId', sql.VarChar, st.Id)
+      .input('mandatoryTotal', sql.Int, mandatoryCount)
+      .input('mandatoryDone', sql.Int, completedMandatory)
+      .input('visibleTotal', sql.Int, visibleActivities)
+      .input('visibleDone', sql.Int, completedVisible)
+      .query(`
+        UPDATE PemsSubTasks
+        SET MandatoryActivityCount = @mandatoryTotal,
+            CompletedMandatoryActivityCount = @mandatoryDone,
+            VisibilityState = CASE 
+              WHEN @visibleTotal = 0 THEN 'VISIBLE'
+              WHEN @visibleDone = @visibleTotal THEN 'VISIBLE'
+              ELSE 'VISIBLE'
+            END
+        WHERE Id = @stId
+      `);
+  }
+
+  return { progressPct, weightedProgressPct, completedSubTasks };
+}
+
+/**
+ * V2.3: Prevent hidden activities from being executed/completed.
+ * Returns false if activity is not VISIBLE.
+ */
+async function canExecuteActivity(pool, activityId) {
+  const result = await pool.request()
+    .input('id', sql.VarChar, activityId)
+    .query('SELECT VisibilityState, IsCompleted FROM PemsActivities WHERE Id = @id');
+  
+  const act = result.recordset[0];
+  if (!act) return { allowed: false, reason: 'ACTIVITY_NOT_FOUND' };
+  if (act.IsCompleted) return { allowed: false, reason: 'ALREADY_COMPLETED' };
+  if ((act.VisibilityState || 'VISIBLE') !== VISIBILITY_STATES.VISIBLE) {
+    return { allowed: false, reason: `ACTIVITY_${act.VisibilityState}` };
+  }
+  return { allowed: true };
+}
+
+// ═══════════════════════════════════════════════════════
 // SUB TASKS
 // ═══════════════════════════════════════════════════════
 
@@ -1122,19 +1462,8 @@ async function completeSubTask(subTaskId, actorId, actorName) {
   const st = await pool.request().input('id', sql.VarChar, subTaskId).query('SELECT TaskInstanceId FROM PemsSubTasks WHERE Id = @id');
   if (st.recordset[0]) {
     const instId = st.recordset[0].TaskInstanceId;
-    // Recalculate progress
-    const stCount = await pool.request().input('instId', sql.VarChar, instId)
-      .query("SELECT COUNT(*) as total, SUM(CASE WHEN IsCompleted = 1 THEN 1 ELSE 0 END) as done FROM PemsSubTasks WHERE TaskInstanceId = @instId");
-    const total = stCount.recordset[0]?.total || 0;
-    const done = stCount.recordset[0]?.done || 0;
-    const progressPct = total > 0 ? Math.round((done / total) * 100) : 0;
-    const weightedProgress = await calculateWeightedProgress(instId);
-    await pool.request()
-      .input('instId', sql.VarChar, instId)
-      .input('done', sql.Int, done)
-      .input('pct', sql.Decimal(5, 2), progressPct)
-      .input('wp', sql.Decimal(5, 2), weightedProgress)
-      .query('UPDATE PemsTaskInstances SET CompletedSubTasks = @done, ProgressPct = @pct, WeightedProgressPct = @wp WHERE Id = @instId');
+    // V2.3: Use conditional progress calculation
+    await recalculateTaskProgress(pool, instId, tx);
     await writeAuditLog(instId, 'SUBTASK_COMPLETED', null, null, actorId, actorName, `Subtask completed`, tx);
     eventBus.emit(eventBus.EVENTS.SUBTASK_COMPLETED, { taskInstanceId: instId, subTaskId, actorId, actorName });
   }
@@ -1175,13 +1504,76 @@ async function setBrandCheck(taskId, brandRowId, completed, actorId, note) {
 
 async function completeActivity(activityId, actorId, actorName) {
   const pool = await getPool();
+  
+  // V2.3: Check visibility state before allowing completion
+  const canExecute = await canExecuteActivity(pool, activityId);
+  if (!canExecute.allowed) {
+    const err = new Error(`Cannot complete activity: ${canExecute.reason}`);
+    err.status = 409;
+    err.code = canExecute.reason;
+    throw err;
+  }
+
   await pool.request()
     .input('id', sql.VarChar, activityId)
     .input('actorId', sql.VarChar, actorId)
     .query("UPDATE PemsActivities SET IsCompleted = 1, CompletedAt = dbo.GetEnvDate(), CompletedBy = @actorId WHERE Id = @id");
+
+// V2.3: After completing an activity, re-evaluate visibility for downstream activities
+  const actResult = await pool.request()
+    .input('id', sql.VarChar, activityId)
+    .query('SELECT TaskInstanceId FROM PemsActivities WHERE Id = @id');
+  
+  if (actResult.recordset[0]) {
+    const taskInstanceId = actResult.recordset[0].TaskInstanceId;
+    await evaluateTaskVisibility(pool, taskInstanceId, actorId);
+    await recalculateTaskProgress(pool, taskInstanceId);
+  }
 }
 
-// ════════════════════════════════════════════════════════
+/**
+ * V2.3: Update an activity's output value and trigger conditional visibility re-evaluation.
+ * This is called when a user fills in a form field, uploads evidence, or completes a step.
+ */
+async function updateActivityOutput(activityId, outputValue, actorId, actorName, tx) {
+  const pool = tx || (await getPool());
+  
+  const actResult = await pool.request()
+    .input('id', sql.VarChar, activityId)
+    .query('SELECT TaskInstanceId, ExpectedOutput FROM PemsActivities WHERE Id = @id');
+  
+  if (!actResult.recordset[0]) {
+    const err = new Error('Activity not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const taskInstanceId = actResult.recordset[0].TaskInstanceId;
+  const expectedOutputKey = actResult.recordset[0].ExpectedOutput;
+
+  // Update the output value
+  await pool.request()
+    .input('id', sql.VarChar, activityId)
+    .input('outputValue', sql.NVarChar(sql.MAX), outputValue)
+    .input('actorId', sql.VarChar, actorId)
+    .query('UPDATE PemsActivities SET OutputValue = @outputValue, UpdatedAt = dbo.GetEnvDate(), UpdatedBy = @actorId WHERE Id = @id');
+
+  // V2.3: Re-evaluate visibility for all activities in the task
+  await evaluateTaskVisibility(pool, taskInstanceId, actorId, tx);
+  
+  // V2.3: Check if any downstream activities need to be reopened
+  await reopenInvalidatedDownstream(pool, taskInstanceId, { [expectedOutputKey || activityId]: outputValue }, actorId, tx);
+  
+  // V2.3: Recalculate progress
+  await recalculateTaskProgress(pool, taskInstanceId, tx);
+
+  await writeAuditLog(taskInstanceId, 'ACTIVITY_OUTPUT_UPDATED', null, null, actorId, actorName, 
+    `Activity output updated: ${expectedOutputKey || activityId}`, tx);
+
+  return { success: true, taskInstanceId };
+}
+
+// ═════════════════════════════════════════════════════════
 // AFFECTED ASINS
 // ═════════════════════════════════════════════════════════
 
@@ -2957,7 +3349,7 @@ module.exports = {
   createTemplate, getTemplates, getTemplateSummary, getTemplateById, updateTemplate, deleteTemplate,
   createInstance, getInstances, getInstanceById,
   transitionStatus,
-  completeSubTask, completeActivity,
+  completeSubTask, completeActivity, updateActivityOutput,
   uploadEvidence,
   getInstanceAsins, updateAsinRemarks, resolveAsin,
   submitReview,
@@ -2971,9 +3363,11 @@ module.exports = {
   getSellersForPEMS, getBrandManagersForPEMS, getReviewersForPEMS, userCoversSeller, resolveAssigneeForSeller,
   getOosAffectedAsins,
   // V3 additions
-  calculateWeightedProgress, upsertAssignmentRules, getAssignmentRules,
+  upsertAssignmentRules, getAssignmentRules,
   getTemplateAnalytics, recalculateAllWeightedProgress,
   getAutomationStats,
   // Template configuration (validation + transactional save)
   validateTemplateForPublish, saveTemplateConfig,
+  // V2.3 additions
+  evaluateTaskVisibility, recalculateTaskProgress, canExecuteActivity, reopenInvalidatedDownstream,
 };

@@ -17,7 +17,7 @@ function OosExportPanel({ taskId, runId, canManage }) {
     if (!taskId || !runId) return;
     setLoading(true);
     try {
-      const res = await tasksApi.listExports(taskId);
+      const res = await tasksApi.listExports(taskId, activeRun);
       if (res.success) setExports(res.data || res.exports || []);
     } catch (err) {
       console.error(err);
@@ -36,7 +36,7 @@ function OosExportPanel({ taskId, runId, canManage }) {
     if (!taskId || !runId || !canManage) return;
     setGenerating(true);
     try {
-      const res = await tasksApi.buildExport(taskId, { scope: 'ALL_AUTHORIZED', runId });
+      const res = await tasksApi.buildExport(taskId, runId);
       if (res.success) {
         message.success('Export generated');
         loadExports();

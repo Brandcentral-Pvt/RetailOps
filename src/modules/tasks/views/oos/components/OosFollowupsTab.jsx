@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { App, Card, Table, Tag, Space, Button, Modal, Form, Input, Select, DatePicker, Popconfirm, Typography, Alert } from 'antd';
 import { ReloadOutlined, EditOutlined, CheckCircleOutlined, ReloadOutlined as RefreshOutlined } from '@ant-design/icons';
 import tasksApi from '../../../services/tasksApi';
@@ -10,7 +10,7 @@ const INCIDENT_STATUSES = ['OPEN', 'RESOLVED', 'WAIVED'];
 const COMM_STATUSES = ['NOT_REQUIRED', 'PENDING', 'APPROVED', 'SENT'];
 const RESYNC_STATUSES = ['QUEUED', 'RUNNING', 'VERIFIED_RECOVERED', 'OPEN_DISCREPANCY', 'FAILED', 'BLOCKED'];
 
-function OosFollowupsTab({ task, activeRun, canManage }) {
+function OosFollowupsTab({ task, activeRun, runs, canManage }) {
   const { message } = App.useApp();
   const [incidents, setIncidents] = useState([]);
   const [resyncJobs, setResyncJobs] = useState([]);
@@ -23,11 +23,17 @@ function OosFollowupsTab({ task, activeRun, canManage }) {
 
   const taskInstanceId = task?.Id;
 
+  const runDate = useMemo(() => {
+    if (!activeRun || !runs?.length) return null;
+    const run = runs.find(r => r.Id === activeRun);
+    return run?.RunDate || null;
+  }, [activeRun, runs]);
+
   const loadIncidents = useCallback(async () => {
     if (!taskInstanceId || !activeRun) return;
     setLoading(true);
     try {
-      const res = await tasksApi.getAffectedAsins(taskInstanceId, { runId: activeRun, incidentOnly: true });
+      const res = await tasksApi.getAffectedAsins(taskInstanceId, activeRun, { runId: activeRun });
       if (res.success) setIncidents(res.data?.incidents || res.data || []);
     } catch (err) {
       console.error(err);
@@ -39,7 +45,7 @@ function OosFollowupsTab({ task, activeRun, canManage }) {
   const loadResyncJobs = useCallback(async () => {
     if (!taskInstanceId || !activeRun) return;
     try {
-      const res = await tasksApi.getAffectedAsins(taskInstanceId, { runId: activeRun });
+      const res = await tasksApi.getAffectedAsins(taskInstanceId, activeRun, { runId: activeRun });
       if (res.success) {
         // Extract resync job info from affected ASIN rows
         const jobs = (res.data?.rows || []).map(r => ({
@@ -214,7 +220,7 @@ function OosFollowupsTab({ task, activeRun, canManage }) {
     <Card size="small" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
         <Space>
-          <Text strong>Run: {activeRun ? dayjs(activeRun).format('DD MMM YYYY') : 'Select a run'}</Text>
+          <Text strong>Run: {runDate ? dayjs(runDate).format('DD MMM YYYY') : 'Select a run'}</Text>
         </Space>
         <Space size={8}>
           <Button icon={<ReloadOutlined />} onClick={loadIncidents} loading={loading} disabled={!activeRun}>Refresh</Button>

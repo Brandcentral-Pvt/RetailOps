@@ -71,7 +71,7 @@ export default function SharedTaskShell({ open, onClose, taskId, onRefresh }) {
         const taskData = res.data;
         setTask(taskData);
         const viewResult = await tasksApi.getTaskView(taskId);
-        if (viewResult.success) setViewData(viewResult.data);
+        if (viewResult.success) setViewData(viewResult.data?.viewDefinition);
       }
     } catch (err) { console.error(err); }
     finally { if (!opts.silent) setLoading(false); }

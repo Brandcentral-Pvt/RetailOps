@@ -22,6 +22,9 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({ storage, fileFilter, limits: { fileSize: 50 * 1024 * 1024 } });
 
+// For dual-file upload (Vendor Central + BrandCentral)
+const dualUpload = multer({ storage, fileFilter, limits: { fileSize: 50 * 1024 * 1024 } });
+
 router.use(authenticate);
 
 router.get('/instances/:id/view', canView, controller.getTaskView);
@@ -30,6 +33,13 @@ router.get('/instances/:id/oos/sellers/:sellerId/runs', canView, controller.list
 router.post('/instances/:id/oos/sellers/:sellerId/runs', canExecute, controller.createOosRun);
 router.post('/instances/:id/oos/runs/:runId/files', canExecute, requireOosRunAccess({ mode: 'act' }), upload.single('file'), controller.uploadOosFile);
 router.get('/instances/:id/oos/runs/:runId/files', canView, requireOosRunAccess({ mode: 'view' }), controller.listOosUploads);
+
+// Dual-file inventory upload (Vendor Central + BrandCentral) - task-bound
+router.post('/instances/:id/oos/runs/:runId/inventory-upload', canExecute, requireOosRunAccess({ mode: 'act' }), dualUpload.fields([
+  { name: 'vendorCentralFile', maxCount: 1 },
+  { name: 'brandCentralFile', maxCount: 1 }
+]), controller.uploadInventory);
+
 router.get('/instances/:id/oos/imports/:importId/download', canView, requireOosRunAccess({ mode: 'view' }), controller.downloadOosImport);
 router.post('/instances/:id/oos/runs/:runId/reconcile', canExecute, requireOosRunAccess({ mode: 'act' }), controller.reconcileOosRun);
 router.get('/instances/:id/oos/affected-asins', canView, requireOosRunAccess({ mode: 'view' }), controller.getAffectedAsins);

@@ -212,7 +212,7 @@ export default function TaskTemplatesPage() {
     catch { message.error('Delete failed'); }
   };
 
-  const handleRunTemplate = (tpl) => navigate(`/tasks/tasks?template=${tpl.Id}&new=1`);
+  const handleRunTemplate = (tpl) => navigate(`/tasks/operations?template=${tpl.Id}&new=1`);
 
   const catChips = useMemo(() => ([
     { key: 'ALL', label: 'All', icon: <AppstoreOutlined /> },
@@ -271,7 +271,7 @@ export default function TaskTemplatesPage() {
           </div>
           <div className="tpl-hero__actions">
             {canManage && <button className="tpl-btn-primary" onClick={openCreate}><PlusOutlined /> New template</button>}
-            <button className="tpl-btn-ghost" onClick={() => navigate('/tasks/tasks')}><PlayCircleOutlined /> Run tasks</button>
+            <button className="tpl-btn-ghost" onClick={() => navigate('/tasks/operations')}><PlayCircleOutlined /> Run tasks</button>
             <button className="tpl-btn-ghost" onClick={() => navigate('/rule-sets')}><BulbOutlined /> Rules that auto-create tasks</button>
           </div>
         </div>

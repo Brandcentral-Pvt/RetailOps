@@ -68,6 +68,7 @@ const MyDayPage = lazy(() => import('./modules/tasks/pages/MyDayPage'));
 const TaskInstancesPage = lazy(() => import('./modules/tasks/pages/TaskInstancesPage'));
 const ReviewQueuePage = lazy(() => import('./modules/tasks/pages/ReviewQueuePage'));
 const TaskAnalyticsPage = lazy(() => import('./modules/tasks/pages/TaskAnalyticsPage'));
+const OperationsCenterPage = lazy(() => import('./modules/tasks/pages/OperationsCenterPage'));
 const TemplateDetailPage = lazy(() => import('./modules/tasks/pages/TemplateDetailPage'));
 const LiveSyncTrackerPage = lazy(() => import('./pages/LiveSyncTrackerPage'));
 const LiveDataInspectorPage = lazy(() => import('./pages/LiveDataInspectorPage'));
@@ -197,19 +198,20 @@ function AppRoutes() {
                   {/* Disabled: RetailOps AI */}
                   {/* <Route path="/ai-chat" element={<ProtectedRoute permission="dashboard_view"><AIChatPage /></ProtectedRoute>} /> */}
                   <Route path="/revenue-calculator" element={<ProtectedRoute permission="calculator_view"><RevenueCalculatorPage /></ProtectedRoute>} />
-                  <Route path="/tasks" element={<Navigate to="/tasks/tasks" replace />} />
+                  <Route path="/tasks" element={<Navigate to="/tasks/operations" replace />} />
                   <Route path="/tasks/my-day" element={<ProtectedRoute permission="tasks_view"><MyDayPage /></ProtectedRoute>} />
                   <Route path="/tasks/dashboard" element={<ProtectedRoute permission="tasks_view"><TaskPerformanceDashboard /></ProtectedRoute>} />
                   <Route path="/tasks/templates" element={<ProtectedRoute permission="tasks_manage"><TaskTemplatesPage /></ProtectedRoute>} />
                   <Route path="/tasks/templates/:id" element={<ProtectedRoute permission="tasks_manage"><TemplateDetailPage /></ProtectedRoute>} />
-                  <Route path="/tasks/tasks" element={<ProtectedRoute permission="tasks_view"><TaskInstancesPage /></ProtectedRoute>} />
+                  <Route path="/tasks/operations" element={<ProtectedRoute permission="tasks_view"><TaskInstancesPage /></ProtectedRoute>} />
+                  <Route path="/tasks/operations" element={<ProtectedRoute permission="tasks_view"><OperationsCenterPage /></ProtectedRoute>} />
                   <Route path="/tasks/reviews" element={<ProtectedRoute permission="tasks_view"><ReviewQueuePage /></ProtectedRoute>} />
                   <Route path="/tasks/analytics" element={<ProtectedRoute permission="tasks_view"><TaskAnalyticsPage /></ProtectedRoute>} />
                   {/* Legacy PEMS URLs — kept so existing bookmarks keep working. */}
                   <Route path="/pems/dashboard" element={<Navigate to="/tasks/dashboard" replace />} />
                   <Route path="/pems/templates" element={<Navigate to="/tasks/templates" replace />} />
                   <Route path="/pems/templates/:id" element={<LegacyTemplateRedirect />} />
-                  <Route path="/pems/tasks" element={<Navigate to="/tasks/tasks" replace />} />
+                  <Route path="/pems/tasks" element={<Navigate to="/tasks/operations" replace />} />
                   <Route path="/pems/reviews" element={<Navigate to="/tasks/reviews" replace />} />
                   <Route path="/pems/analytics" element={<Navigate to="/tasks/analytics" replace />} />
                   <Route path="/webhooks" element={<ProtectedRoute permission="rules_manage"><WebhookSettingsPage /></ProtectedRoute>} />

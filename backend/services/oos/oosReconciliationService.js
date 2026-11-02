@@ -8,6 +8,7 @@ const {
 } = require('./oosPolicy');
 const { getActivePolicy } = require('./oosPolicyService');
 const incidents = require('./oosIncidentService');
+const paretoService = require('./oosParetoService');
 
 // Missing-report / unknown evidence (R1/R6) is a run-level blocking exception,
 // not thousands of per-ASIN incidents; only real OOS signals open incidents.
@@ -119,6 +120,7 @@ async function upsertDecision(pool, { run, asin, result }) {
 /**
  * Persist classification metrics (PriorityGroup, IsNewAsin, GMS, etc.) to
  * OosDecisionMetrics for every decision in a run. New ASINs are always 20%.
+ * Verified New ASINs are placed in 20% group.
  */
 async function persistDecisionMetrics(pool, run, decisions, policy) {
   const sellerId = run.SellerId;
@@ -126,10 +128,10 @@ async function persistDecisionMetrics(pool, run, decisions, policy) {
   const now = new Date();
   const gmsWindowDays = policy.gmsWindowDays || 30;
 
-  // Gather GMS per ASIN from the policy service (seller-wide catalog)
+  // Gather GMS per ASIN from the policy service (seller-wide FULL catalog, not just affected ASINs)
   let pareto;
   try {
-    const paretoResult = await require('./oosParetoService').getSellerPareto({
+    const paretoResult = await paretoService.getSellerPareto({
       sellerId, channel, pct: policy.gmsParetoPct,
     });
     pareto = paretoResult;
@@ -149,6 +151,7 @@ async function persistDecisionMetrics(pool, run, decisions, policy) {
   }
 
   // Get first-seen dates from OosObservations (first RetailOps observation per ASIN)
+  // This is the authoritative first-seen date from RetailOps observations
   const firstSeenResult = await pool
     .request()
     .input('sellerId', sql.VarChar, sellerId)
@@ -168,7 +171,9 @@ async function persistDecisionMetrics(pool, run, decisions, policy) {
     const asin = decision.AsinCode;
     const firstSeenAt = firstSeenMap.get(asin);
 
-    // New ASINs are always 20%: first observed within the GMS window
+    // New ASIN definition: first observed by RetailOps within the GMS window (30 days by default)
+    // If firstSeenAt is within the GMS window, it's a New ASIN
+    // If firstSeenAt is null, it's not a New ASIN (no observation record)
     const isNewAsin = firstSeenAt
       ? (now.getTime() - new Date(firstSeenAt).getTime()) <= gmsWindowDays * 24 * 60 * 60 * 1000
         ? 1
@@ -177,6 +182,7 @@ async function persistDecisionMetrics(pool, run, decisions, policy) {
 
     let priorityGroup;
     if (isNewAsin) {
+      // Verified New ASINs are ALWAYS placed in 20% group
       priorityGroup = '20%';
     } else if (!pareto.verified) {
       priorityGroup = 'GMS_UNVERIFIED';
@@ -216,7 +222,7 @@ async function persistDecisionMetrics(pool, run, decisions, policy) {
             Gms = @gms, GmsSharePct = @gmsSharePct, CumulativePct = @cumulativePct,
             ClassificationVersion = @classificationVersion,
             ComputedAt = @computedAt
-            WHERE Id = @id
+          WHERE Id = @id
         `);
     } else {
       await pool

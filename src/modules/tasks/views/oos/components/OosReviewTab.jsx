@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { App, Card, Alert, Space, Button, Form, Input, Checkbox, Tag, List, Typography, Divider, Descriptions } from 'antd';
 import tasksApi from '../../../services/tasksApi';
 import dayjs from 'dayjs';
 
 const { Text } = Typography;
 
-function OosReviewTab({ task, activeRun, canManage }) {
+function OosReviewTab({ task, activeRun, runs, canManage }) {
   const { message } = App.useApp();
   const [submission, setSubmission] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -13,10 +13,16 @@ function OosReviewTab({ task, activeRun, canManage }) {
 
   const taskInstanceId = task?.Id;
 
+  const runDate = useMemo(() => {
+    if (!activeRun || !runs?.length) return null;
+    const run = runs.find(r => r.Id === activeRun);
+    return run?.RunDate || null;
+  }, [activeRun, runs]);
+
   const loadSubmission = useCallback(async () => {
     if (!taskInstanceId || !activeRun) return;
     try {
-      const res = await tasksApi.getAffectedAsins(taskInstanceId, { runId: activeRun, submission: true });
+      const res = await tasksApi.getAffectedAsins(taskInstanceId, activeRun, { runId: activeRun });
       if (res.success) setSubmission(res.data?.submission || res.data || null);
     } catch (err) {
       console.error(err);
@@ -58,7 +64,7 @@ function OosReviewTab({ task, activeRun, canManage }) {
     <Card size="small" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
         <Space>
-          <Text strong>Run: {activeRun ? dayjs(activeRun).format('DD MMM YYYY') : 'Select a run'}</Text>
+          <Text strong>Run: {runDate ? dayjs(runDate).format('DD MMM YYYY') : 'Select a run'}</Text>
         </Space>
       </div>
 

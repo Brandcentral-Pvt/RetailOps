@@ -276,7 +276,7 @@ export default function TaskPerformanceDashboard() {
     {
       title: 'Task', key: 'task', width: 200, render: (_, r) => (
         <div>
-          <Text strong className={`${s.valueInfo} ${s.linkText}`} onClick={() => navigate('/tasks/tasks')}>{r.InstanceCode}</Text>
+          <Text strong className={`${s.valueInfo} ${s.linkText}`} onClick={() => navigate('/tasks/operations')}>{r.InstanceCode}</Text>
           <Text className={s.valueBody} style={{ fontSize: 'var(--bc-text-xs)', display: 'block', lineHeight: 1.3 }}>{r.Title || 'Untitled'}</Text>
         </div>
       )
@@ -299,7 +299,7 @@ export default function TaskPerformanceDashboard() {
     {
       title: 'Actions', key: 'actions', width: 80, align: 'right', render: (_, r) => (
         <Tooltip title="View">
-          <Button type="text" icon={<EyeOutlined />} size="small" aria-label={`View task ${r.InstanceCode || ''}`} onClick={() => navigate('/tasks/tasks')} />
+          <Button type="text" icon={<EyeOutlined />} size="small" aria-label={`View task ${r.InstanceCode || ''}`} onClick={() => navigate('/tasks/operations')} />
         </Tooltip>
       )
     },
@@ -348,7 +348,7 @@ export default function TaskPerformanceDashboard() {
             {lastRefreshed && <span className={s.lastUpdated}>Updated {formatTime(lastRefreshed.toISOString())}</span>}
             <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={refreshing} size="small">Refresh</Button>
             <Button icon={<DownloadOutlined />} size="small">Export</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/tasks/tasks')} size="small">Create Task</Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/tasks/operations')} size="small">Create Task</Button>
           </div>
         </div>
       </div>
@@ -469,7 +469,7 @@ export default function TaskPerformanceDashboard() {
         {/* ═══ LIVE TASK QUEUE ═══ */}
         <Card size="small" title={<Space><FireOutlined style={{ color: 'var(--bc-status-danger-text)' }} /><Text strong style={{ fontSize: 13 }}>Live Task Queue</Text><Tag className={`${s.tag} ${s.tagSm} ${s.tagNeutral}`}>{liveTasks.length} tasks</Tag></Space>}
           styles={{ body: { padding: 0 } }} style={{ marginBottom: 14 }}
-          extra={<Button size="small" type="link" onClick={() => navigate('/tasks/tasks')}>View All <RightOutlined /></Button>}>
+          extra={<Button size="small" type="link" onClick={() => navigate('/tasks/operations')}>View All <RightOutlined /></Button>}>
           <Table dataSource={liveTasks} columns={liveTaskColumns} rowKey="Id" size="small" pagination={false} scroll={{ x: 1100 }}
             rowClassName={(_, i) => (i % 2 === 1 ? s.zebraRow : '')}
             locale={{ emptyText: <Empty description="No active tasks" /> }}

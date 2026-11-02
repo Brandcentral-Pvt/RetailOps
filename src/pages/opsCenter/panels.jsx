@@ -616,7 +616,7 @@ export const TasksPanel = ({ tasks = [], error, onRetry }) => {
         .slice(0, 5);
 
     return (
-        <Panel id="ops-tasks" span={4} kicker="Task pipeline" meta={`${tasks.length} workspace tasks${overdue > 0 ? ` · ${overdue} overdue` : ''}`} linkTo="/tasks/tasks" linkLabel="Workspace">
+        <Panel id="ops-tasks" span={4} kicker="Task pipeline" meta={`${tasks.length} workspace tasks${overdue > 0 ? ` · ${overdue} overdue` : ''}`} linkTo="/tasks/operations" linkLabel="Workspace">
             {error ? (
                 <MiniState tone="error" title="Tasks unavailable" note={String(error)} onRetry={onRetry} />
             ) : tasks.length === 0 ? (

@@ -38,7 +38,7 @@ function OosOverviewTab({ task, activeRun, runs, loading, onCreateRun, canManage
     <Card size="small" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
         <Space>
-          <Text strong>Run: {activeRun ? dayjs(activeRun).format('DD MMM YYYY') : 'Select a run'}</Text>
+          <Text strong>Run: {activeRun && runs?.length ? dayjs(runs.find(r => r.Id === activeRun)?.RunDate).format('DD MMM YYYY') : 'Select a run'}</Text>
           <Tag color={summary?.statusColor || 'blue'}>{summary?.status || '—'}</Tag>
         </Space>
         <Space size={8}>
