@@ -13,7 +13,7 @@
     "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage"
   },
   "dependencies": {
-    "@clerk/clerk-sdk-node": "^4.12.12",
+    "@clerk/clerk-sdk-node": "^5.1.6",
     "@socket.io/pm2": "^5.3.0",
     "@socket.io/redis-adapter": "^8.3.0",
     "@socket.io/sticky": "^2.0.1",
