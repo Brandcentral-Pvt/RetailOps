@@ -37,7 +37,7 @@
     "@visactor/react-vchart": "^2.1.7",
     "@visactor/vchart": "^2.1.7",
     "antd": "^6.6.7",
-    "apexcharts": "^8.0.0",
+    "apexcharts": "^8.7.0",
     "axios": "^1.16.1",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.2",
