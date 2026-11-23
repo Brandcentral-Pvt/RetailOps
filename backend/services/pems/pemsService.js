@@ -1,6 +1,6 @@
 const { sql, getPool, generateId, withTransaction } = require('../../database/db');
 const { canTransition, calculateSLAStatus, calculateAchievement, calculateVariance, getNextDueDate, getTransitionTimestamps, resolveReviewTransition, WORKFLOW_STATUSES, VISIBILITY_STATES, evaluateCondition, evaluateVisibility, extractConditionFields, isSubTaskComplete, isTaskComplete } = require('./workflowEngine');
-const { canActOnTask, canReviewTask } = require('./pemsPolicy');
+const { canActOnTask, canReviewTask, canTransitionTask } = require('./pemsPolicy');
 const taskExecutionGates = require('./taskExecutionGates');
 const taskInstanceSnapshot = require('./taskInstanceSnapshot');
 const { isGlobalUserRole } = require('../../utils/roleUtils');
@@ -1127,7 +1127,7 @@ async function bulkTransition(taskIds, toStatus, actorId, actorName, actorRole, 
         .query('SELECT Id, Status, AssignedTo, ReviewerId, SellerId FROM PemsTaskInstances WHERE Id = @id');
       const row = inst.recordset[0];
       if (!row) { skipped.push({ id, reason: 'NOT_FOUND' }); continue; }
-      if (!canActOnTask(actor, row)) {
+      if (!canTransitionTask(actor, row, toStatus)) {
         skipped.push({ id, reason: 'NO_ACCESS' });
         continue;
       }
@@ -2139,7 +2139,7 @@ async function bulkReview(taskIds, data, actor, user) {
         .query('SELECT Id, AssignedTo, ReviewerId, SellerId FROM PemsTaskInstances WHERE Id = @id');
       const row = r.recordset[0];
       if (!row) { skipped.push({ id, reason: 'Task not found' }); continue; }
-      if (!canActOnTask(user, row)) { skipped.push({ id, reason: 'No access to this task' }); continue; }
+      if (!canReviewTask(user, row)) { skipped.push({ id, reason: 'No access to this task' }); continue; }
       const out = await submitReviewAndTransition({ ...data, taskInstanceId: id }, actor);
       reviewed.push({ id, to: out.to });
     } catch (err) {
