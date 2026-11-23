@@ -1511,6 +1511,34 @@ async function setBrandCheck(taskId, brandRowId, completed, actorId, note) {
 }
 
 async function completeActivity(activityId, actorId, actorName) {
+  if (taskExecutionGates.strictGatesEnabled()) {
+    return withTransaction(async (tx) => {
+      // Lock the authoritative parent before reading or writing child state.
+      const taskId = await taskExecutionGates.lockChildParent(tx, 'activity', activityId);
+      const activity = await taskExecutionGates.assertActivityReady(tx, activityId);
+      if (activity.alreadyCompleted) return { success: true, alreadyCompleted: true };
+      // Existing conditional rules must also pass inside the same transaction.
+      const execution = await canExecuteActivity(tx, activityId);
+      if (!execution.allowed) {
+        const error = new Error(`Cannot complete activity: ${execution.reason}`);
+        error.status = 409;
+        error.code = execution.reason;
+        throw error;
+      }
+      const changed = await tx.request()
+        .input('id', sql.VarChar, activityId)
+        .input('taskId', sql.VarChar, taskId)
+        .input('actorId', sql.VarChar, actorId)
+        .query("UPDATE PemsActivities SET IsCompleted = 1, CompletedAt = dbo.GetEnvDate(), CompletedBy = @actorId WHERE Id = @id AND TaskInstanceId = @taskId AND IsCompleted = 0");
+      if (!Number(changed.rowsAffected?.[0] || 0)) return { success: true, alreadyCompleted: true };
+      await evaluateTaskVisibility(tx, taskId, actorId);
+      await taskExecutionGates.autoCompleteReadyPhase(tx, activity.SubTaskId, taskId);
+      const progress = await taskExecutionGates.reconcileTaskProgress(tx, taskId);
+      await writeAuditLog(taskId, 'ACTIVITY_COMPLETED', null, null, actorId, actorName,
+        `Activity ${activityId} completed`, tx);
+      return { success: true, progress };
+    });
+  }
   const pool = await getPool();
   
   // V2.3: Check visibility state before allowing completion
