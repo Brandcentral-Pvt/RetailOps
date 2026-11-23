@@ -54,9 +54,16 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - name: Reproducible dependencies
         run: npm ci
+      - name: Verify Puppeteer dependency consistency
+        run: npm ls puppeteer puppeteer-extra --depth=0
       - name: Task service syntax validation
         run: |
           node --check services/pems/pemsService.js
+          node --check services/pems/taskExecutionGates.js
+          node --check services/pems/taskInstanceSnapshot.js
+          node --check services/pems/pemsPolicy.js
+          node --check middleware/pemsAccess.js
+          node --check routes/pems/pemsRoutes.js
           node --check services/pems/taskViewDefinitionService.js
           node --check controllers/pems/pemsController.js
       - name: Task backend regression suites
