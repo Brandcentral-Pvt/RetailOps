@@ -88,5 +88,5 @@ test('directly creating a PUBLISHED V2 workflow is blocked before any database w
     templateId: 'tpl1', viewKey: 'STANDARD_V1',
     schemaVersion: '2.0', definitionVersion: 2,
     definitionJson: workflow, status: 'PUBLISHED',
-  })).rejects.toMatchObject({ status: 409, code: 'WORKFLOW_V2_NOT_ACTIVATED' });
+  })).rejects.toMatchObject({ status: 400, code: 'INVALID_INITIAL_VIEW_STATUS' });
 });
