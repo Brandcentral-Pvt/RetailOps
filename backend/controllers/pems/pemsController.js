@@ -1,4 +1,6 @@
 const pemsService = require('../../services/pems/pemsService');
+const { validateWorkflowDefinition, buildExecutionPlan, materializeWorkflowSop } = require('../../services/pems/templateWorkflow');
+const taskWorkflowV2Execution = require('../../services/pems/taskWorkflowV2Execution');
 const { WORKFLOW_STATUSES, FREQUENCIES, CATEGORIES, PRIORITIES } = require('../../services/pems/workflowEngine');
 const { canCreateTaskForSeller } = require('../../services/pems/pemsPolicy');
 const { isGlobalUserRole } = require('../../utils/roleUtils');
@@ -74,6 +76,24 @@ exports.deleteTemplate = async (req, res) => {
  * Validate a (possibly unsaved) template configuration for publication.
  * Read-only: callers can check without persisting.
  */
+exports.validateWorkflowV2 = async (req, res) => {
+  try {
+    const workflow = req.body?.workflow;
+    const validation = validateWorkflowDefinition(workflow);
+    if (!validation.ok) {
+      return res.status(422).json({ success: false, code: 'INVALID_WORKFLOW_V2', validation });
+    }
+    return res.json({ success: true, data: {
+      validation, preview: buildExecutionPlan(workflow),
+      legacySopPreview: materializeWorkflowSop(workflow),
+      phaseCount: workflow.phases.length,
+      activityCount: workflow.phases.reduce((count, phase) => count + phase.activities.length, 0),
+    } });
+  } catch (err) {
+    return res.status(err.status || 500).json({ success: false, error: err.message });
+  }
+};
+
 exports.validateTemplate = async (req, res) => {
   try {
     const { template, assignmentRules } = req.body || {};
@@ -239,6 +259,31 @@ exports.updateAchievement = async (req, res) => {
 // ════════════════════════════════════════════════════════
 // SUB TASKS & ACTIVITIES
 // ═══════════════════════════════════════════════════════
+
+// All endpoints retain existing PEMS authorization from the route middleware.
+exports.getWorkflowExecution = async (req, res) => {
+  try {
+    const data = await taskWorkflowV2Execution.getWorkflowExecution(req.params.id);
+    return res.json({ success: true, data });
+  } catch (err) {
+    return res.status(err.status || 500).json({ success: false, code: err.code, error: err.message });
+  }
+};
+
+exports.saveWorkflowActivityOutput = async (req, res) => {
+  try {
+    const { output, expectedRevision } = req.body || {};
+    const data = await taskWorkflowV2Execution.saveActivityOutput({
+      taskId: req.params.id, activityId: req.params.activityId,
+      output, expectedRevision,
+      actorId: getUserId(req), actorName: getUserName(req) || req.user?.email,
+    });
+    return res.json({ success: true, data });
+  } catch (err) {
+    return res.status(err.status || 500).json({ success: false, code: err.code, error: err.message,
+      validation: err.validation });
+  }
+};
 
 exports.completeSubTask = async (req, res) => {
   try {
