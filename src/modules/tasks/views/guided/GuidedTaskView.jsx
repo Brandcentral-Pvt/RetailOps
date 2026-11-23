@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Card, Tabs, Steps, Alert, Spin, Tag, Space, Button, Typography, Tooltip, Modal, Collapse, Row, Col } from 'antd';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Card, Tabs, Steps, Alert, Spin, Tag, Space, Button, Typography, Tooltip, Modal, Collapse, Row, Col, message } from 'antd';
 import { 
   CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined, 
   LockOutlined, UploadOutlined, FileTextOutlined, EditOutlined,
@@ -34,8 +34,39 @@ const RENDERER_MAP = {
 };
 
 /**
+ * Check if task has a V2 workflow (pinned snapshot with schemaVersion 2.0)
+ */
+function isV2Workflow(task) {
+  if (!task?.ViewDefinitionSnapshot) return false;
+  try {
+    const snapshot = typeof task.ViewDefinitionSnapshot === 'string' 
+      ? JSON.parse(task.ViewDefinitionSnapshot) 
+      : task.ViewDefinitionSnapshot;
+    return snapshot?.workflow?.schemaVersion === '2.0';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Get V2 workflow from task snapshot
+ */
+function getV2Workflow(task) {
+  if (!task?.ViewDefinitionSnapshot) return null;
+  try {
+    const snapshot = typeof task.ViewDefinitionSnapshot === 'string' 
+      ? JSON.parse(task.ViewDefinitionSnapshot) 
+      : task.ViewDefinitionSnapshot;
+    return snapshot?.workflow || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * GuidedTaskView - Renders a task using the pinned view definition
  * Shows phases, activities, conditional visibility, and evidence requirements
+ * Supports both V1 (legacy) and V2 (typed outputs, execution gates) workflows
  */
 export default function GuidedTaskView({ task, viewDefinition, onAction }) {
   const { hasPermission, isAdmin, isGlobalUser, user } = useAuth();
@@ -47,8 +78,13 @@ export default function GuidedTaskView({ task, viewDefinition, onAction }) {
   const [activeTab, setActiveTab] = useState(0);
   const [error, setError] = useState(null);
   const [activityOutputs, setActivityOutputs] = useState({});
+  const [activityRevisions, setActivityRevisions] = useState({}); // For V2 optimistic locking
   const [modalVisible, setModalVisible] = useState(false);
   const [modalData, setModalData] = useState(null);
+  
+  // Detect V2 workflow
+  const isV2 = useMemo(() => isV2Workflow(taskData), [taskData]);
+  const v2Workflow = useMemo(() => getV2Workflow(taskData), [taskData]);
   
   // Load task data and outputs
   const loadTask = useCallback(async () => {
@@ -62,14 +98,20 @@ export default function GuidedTaskView({ task, viewDefinition, onAction }) {
         const actsRes = await tasksApi.getInstanceById(task.Id);
         if (actsRes.success && actsRes.data.subTasks) {
           const outputs = {};
+          const revisions = {};
           actsRes.data.subTasks.forEach(st => {
             st.activities?.forEach(act => {
               if (act.OutputValue !== undefined) {
                 outputs[act.Id] = act.OutputValue;
               }
+              // For V2, also track output revision for optimistic locking
+              if (act.OutputRevision !== undefined) {
+                revisions[act.Id] = act.OutputRevision;
+              }
             });
           });
           setActivityOutputs(outputs);
+          setActivityRevisions(revisions);
         }
       }
     } catch (err) {
@@ -123,19 +165,76 @@ export default function GuidedTaskView({ task, viewDefinition, onAction }) {
   const handleOutputChange = async (activityId, outputValue) => {
     setActivityOutputs(prev => ({ ...prev, [activityId]: outputValue }));
     try {
-      await tasksApi.updateActivityOutput?.(activityId, outputValue, user?.id, user?.name);
+      if (isV2) {
+        // V2 workflow: use saveWorkflowActivityOutput with optimistic locking
+        const expectedRevision = activityRevisions[activityId] || 0;
+        const result = await tasksApi.saveWorkflowActivityOutput(taskData.Id, activityId, outputValue, expectedRevision);
+        if (result.success && result.data?.revision !== undefined) {
+          setActivityRevisions(prev => ({ ...prev, [activityId]: result.data.revision }));
+        }
+      } else {
+        // V1 legacy workflow
+        await tasksApi.updateActivityOutput?.(activityId, outputValue, user?.id, user?.name);
+      }
     } catch (err) {
       console.error('Failed to save output:', err);
+      // Handle V2 execution gate errors
+      if (err.code && isV2) {
+        setError(handleGateError(err));
+      }
     }
   };
   
   const handleCompleteActivity = async (activityId) => {
     try {
-      await tasksApi.completeActivity(activityId);
+      if (isV2) {
+        // V2 workflow: complete activity via output with completion flag
+        // First save the output, then the backend will handle completion
+        const expectedRevision = activityRevisions[activityId] || 0;
+        const result = await tasksApi.saveWorkflowActivityOutput(taskData.Id, activityId, { completed: true }, expectedRevision);
+        if (result.success && result.data?.revision !== undefined) {
+          setActivityRevisions(prev => ({ ...prev, [activityId]: result.data.revision }));
+        }
+      } else {
+        // V1 legacy workflow
+        await tasksApi.completeActivity(activityId);
+      }
       loadTask();
       if (onAction) onAction({ type: 'ACTIVITY_COMPLETED', activityId });
     } catch (err) {
       setError(err.message || 'Failed to complete activity');
+      // Handle V2 execution gate errors
+      if (err.code && isV2) {
+        setError(handleGateError(err));
+      }
+    }
+  };
+  
+  /**
+   * Handle V2 execution gate errors with user-friendly messages
+   */
+  const handleGateError = (err) => {
+    switch (err.code) {
+      case 'TASK_NOT_EXECUTABLE':
+        return 'Start or resume the task before completing its activities.';
+      case 'ACTIVITY_EVIDENCE_REQUIRED':
+        return 'Attach evidence to this activity before marking it complete.';
+      case 'PHASE_NOT_FOUND':
+      case 'ACTIVITY_NOT_FOUND':
+      case 'TASK_NOT_FOUND':
+        return 'Task or activity not found. Please refresh and try again.';
+      case 'INVALID_REVISION':
+        return 'Activity has been modified by another user. Please refresh and try again.';
+      case 'WORKFLOW_V2_NOT_ACTIVATED':
+        return 'V2 workflow execution is not enabled.';
+      case 'WORKFLOW_V2_CONDITIONS_PENDING':
+        return 'Conditional workflow execution is not yet available.';
+      case 'INVALID_WORKFLOW_V2':
+        return 'Pinned workflow is invalid. Contact administrator.';
+      case 'INVALID_VIEW_SNAPSHOT':
+        return 'Task view snapshot is invalid. Contact administrator.';
+      default:
+        return err.message || 'An error occurred while saving.';
     }
   };
   
@@ -227,6 +326,9 @@ export default function GuidedTaskView({ task, viewDefinition, onAction }) {
                 phase={phase} 
                 task={taskData}
                 activityOutputs={activityOutputs}
+                activityRevisions={activityRevisions}
+                isV2={isV2}
+                v2Workflow={v2Workflow}
                 canEdit={canEdit}
                 canManage={canManage}
                 onOutputChange={handleOutputChange}
@@ -252,7 +354,7 @@ export default function GuidedTaskView({ task, viewDefinition, onAction }) {
   );
 }
 
-function PhaseView({ phase, task, activityOutputs, canEdit, canManage, onOutputChange, onCompleteActivity }) {
+function PhaseView({ phase, task, activityOutputs, activityRevisions, isV2, v2Workflow, canEdit, canManage, onOutputChange, onCompleteActivity }) {
   if (!phase.activities || phase.activities.length === 0) {
     return (
       <Alert message="No activities defined for this phase" type="info" showIcon style={{ padding: 24 }} />
@@ -283,8 +385,11 @@ function PhaseView({ phase, task, activityOutputs, canEdit, canManage, onOutputC
               activity={activity}
               task={task}
               outputValue={activityOutputs[activity.Id]}
+              outputRevision={activityRevisions[activity.Id]}
               canEdit={canEdit && !activity.isSkipped && !activity.isWaiting}
               canManage={canManage}
+              isV2={isV2}
+              v2Workflow={v2Workflow}
               onOutputChange={(value) => onOutputChange(activity.Id, value)}
               onComplete={() => onCompleteActivity(activity.Id)}
             />
@@ -295,7 +400,7 @@ function PhaseView({ phase, task, activityOutputs, canEdit, canManage, onOutputC
   );
 }
 
-function ActivityRenderer({ activity, task, outputValue, canEdit, canManage, onOutputChange, onComplete }) {
+function ActivityRenderer({ activity, task, outputValue, outputRevision, canEdit, canManage, isV2, v2Workflow, onOutputChange, onComplete }) {
   const Renderer = RENDERER_MAP[activity.type] || DefaultRenderer;
   const isCompleted = activity.IsCompleted;
   
@@ -311,8 +416,11 @@ function ActivityRenderer({ activity, task, outputValue, canEdit, canManage, onO
             activity={activity}
             task={task}
             outputValue={outputValue}
+            outputRevision={outputRevision}
             onOutputChange={onOutputChange}
             readOnly={!canEdit || activity.isSkipped || activity.isWaiting}
+            isV2={isV2}
+            v2Workflow={v2Workflow}
           />
         </div>
         

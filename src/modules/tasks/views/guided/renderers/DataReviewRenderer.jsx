@@ -9,8 +9,9 @@ const { Text } = Typography;
 /**
  * DATA_REVIEW renderer - source metrics and validation results
  * Displays data from a source for review/confirmation
+ * V2: Uses outputValue prop
  */
-export default function DataReviewRenderer({ activity, task, onOutputChange, readOnly }) {
+export default function DataReviewRenderer({ activity, task, onOutputChange, readOnly, isV2, v2Workflow, outputValue, outputRevision }) {
   const { hasPermission, isAdmin, isGlobalUser } = useAuth();
   const canEdit = !readOnly && (isAdmin || isGlobalUser || hasPermission('tasks_execute'));
   
@@ -18,7 +19,7 @@ export default function DataReviewRenderer({ activity, task, onOutputChange, rea
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [confirmed, setConfirmed] = useState(activity.outputValue?.confirmed || false);
+  const [confirmed, setConfirmed] = useState(outputValue?.confirmed || activity.outputValue?.confirmed || false);
   
   const loadData = useCallback(async () => {
     if (!sourceConfig.endpoint) return;
@@ -43,7 +44,7 @@ export default function DataReviewRenderer({ activity, task, onOutputChange, rea
   
   const handleConfirm = async () => {
     if (!canEdit) return;
-    await onOutputChange({ ...activity.outputValue, confirmed: true, confirmedAt: new Date().toISOString() });
+    await onOutputChange({ ...outputValue, ...activity.outputValue, confirmed: true, confirmedAt: new Date().toISOString() });
     setConfirmed(true);
   };
   

@@ -424,15 +424,17 @@ exports.getAffectedAsinsSummary = async (req, res) => {
     const result = await pool.request().input('runId', sql.VarChar, runId).query(`
       SELECT
         COUNT(*) as total,
-        SUM(CASE WHEN Category = 'CONFIRMED_CHANNEL_OOS' THEN 1 ELSE 0 END) as CONFIRMED_CHANNEL_OOS,
-        SUM(CASE WHEN Category = 'DISCREPANCY' THEN 1 ELSE 0 END) as DISCREPANCY,
-        SUM(CASE WHEN Category = 'INSUFFICIENT_EVIDENCE' THEN 1 ELSE 0 END) as INSUFFICIENT_EVIDENCE,
-        SUM(CASE WHEN Category = 'NO_CURRENT_OOS_SIGNAL' THEN 1 ELSE 0 END) as NO_CURRENT_OOS_SIGNAL,
-        SUM(CASE WHEN PriorityGroup = '80%' THEN 1 ELSE 0 END) as PRIORITY_80,
-        SUM(CASE WHEN PriorityGroup = '20%' THEN 1 ELSE 0 END) as PRIORITY_20,
-        SUM(CASE WHEN IsNewAsin = 1 THEN 1 ELSE 0 END) as NEW_ASIN_20,
-        SUM(CASE WHEN GmsVerified = 0 THEN 1 ELSE 0 END) as GMS_UNVERIFIED
-      FROM OosDecisions WHERE RunId = @runId
+        SUM(CASE WHEN d.Category = 'CONFIRMED_CHANNEL_OOS' THEN 1 ELSE 0 END) as CONFIRMED_CHANNEL_OOS,
+        SUM(CASE WHEN d.Category = 'DISCREPANCY' THEN 1 ELSE 0 END) as DISCREPANCY,
+        SUM(CASE WHEN d.Category = 'INSUFFICIENT_EVIDENCE' THEN 1 ELSE 0 END) as INSUFFICIENT_EVIDENCE,
+        SUM(CASE WHEN d.Category = 'NO_CURRENT_OOS_SIGNAL' THEN 1 ELSE 0 END) as NO_CURRENT_OOS_SIGNAL,
+        SUM(CASE WHEN m.PriorityGroup = '80%' THEN 1 ELSE 0 END) as PRIORITY_80,
+        SUM(CASE WHEN m.PriorityGroup = '20%' THEN 1 ELSE 0 END) as PRIORITY_20,
+        SUM(CASE WHEN m.IsNewAsin = 1 THEN 1 ELSE 0 END) as NEW_ASIN_20,
+        SUM(CASE WHEN m.GmsVerified = 0 THEN 1 ELSE 0 END) as GMS_UNVERIFIED
+      FROM OosDecisions d
+      INNER JOIN OosDecisionMetrics m ON m.DecisionId = d.Id
+      WHERE d.RunId = @runId
     `);
 
     return res.json({ success: true, counts: result.recordset[0] });

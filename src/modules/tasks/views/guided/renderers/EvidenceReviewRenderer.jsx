@@ -9,14 +9,16 @@ const { Text } = Typography;
 /**
  * EVIDENCE_REVIEW renderer - evidence inspection and confirmation
  * Displays uploaded evidence with verification status, allows approval/rejection
+ * V2: Uses outputValue prop
  */
-export default function EvidenceReviewRenderer({ activity, task, onOutputChange, readOnly }) {
+export default function EvidenceReviewRenderer({ activity, task, onOutputChange, readOnly, isV2, v2Workflow, outputValue, outputRevision }) {
   const { hasPermission, isAdmin, isGlobalUser } = useAuth();
   const canEdit = !readOnly && (isAdmin || isGlobalUser || hasPermission('tasks_execute'));
   const canManage = isAdmin || isGlobalUser || hasPermission('tasks_manage');
   
   const evidenceConfig = activity.evidenceConfig || {};
-  const [evidence, setEvidence] = useState(activity.outputValue?.evidence || []);
+  const initialOutput = outputValue !== undefined ? outputValue : activity.outputValue;
+  const [evidence, setEvidence] = useState(initialOutput?.evidence || []);
   const [selectedEvidence, setSelectedEvidence] = useState(null);
   const [verifying, setVerifying] = useState({});
   const [error, setError] = useState(null);
@@ -29,7 +31,7 @@ export default function EvidenceReviewRenderer({ activity, task, onOutputChange,
         e.id === evidenceId ? { ...e, verified, verifiedAt: new Date().toISOString(), verifiedBy: 'current_user' } : e
       );
       setEvidence(updated);
-      await onOutputChange({ ...activity.outputValue, evidence: updated });
+      await onOutputChange({ ...initialOutput, evidence: updated });
     } catch (err) {
       setError(err.message || 'Verification failed');
     } finally {
@@ -63,7 +65,7 @@ export default function EvidenceReviewRenderer({ activity, task, onOutputChange,
     if (!canManage) return;
     const updated = evidence.filter(e => e.id !== evidenceId);
     setEvidence(updated);
-    await onOutputChange({ ...activity.outputValue, evidence: updated });
+    await onOutputChange({ ...initialOutput, evidence: updated });
   };
   
   const getStatusTag = (item) => {

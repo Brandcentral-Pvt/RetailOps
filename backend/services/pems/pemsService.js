@@ -225,7 +225,52 @@ async function updateTemplate(id, data) {
 
 async function deleteTemplate(id) {
   const pool = await getPool();
-  await pool.request().input('id', sql.VarChar, id).query('DELETE FROM PemsTaskTemplates WHERE Id = @id');
+  
+  return withTransaction(async (tx) => {
+    // Delete assignment rules first (FK constraint)
+    await tx.request()
+      .input('id', sql.VarChar, id)
+      .query('DELETE FROM PemsAssignmentRules WHERE TemplateId = @id');
+    
+    // Check if template has instances
+    const instanceCheck = await tx.request()
+      .input('id', sql.VarChar, id)
+      .query('SELECT COUNT(*) as cnt FROM PemsTaskInstances WHERE TemplateId = @id');
+    
+    const instanceCount = instanceCheck.recordset[0]?.cnt || 0;
+    
+    if (instanceCount > 0) {
+      // Delete related sub-tasks, activities, evidence, reviews, audit logs, notifications first
+      // These are linked to instances, so we need to get instance IDs first
+      const instanceIdsResult = await tx.request()
+        .input('id', sql.VarChar, id)
+        .query('SELECT Id FROM PemsTaskInstances WHERE TemplateId = @id');
+      
+      const instanceIds = instanceIdsResult.recordset.map(r => r.Id);
+      
+      if (instanceIds.length > 0) {
+        const idList = instanceIds.map((_, i) => `@id${i}`).join(',');
+        const request = tx.request();
+        instanceIds.forEach((instId, i) => request.input(`id${i}`, sql.VarChar, instId));
+        
+        // Delete in correct order due to FK constraints (children first)
+        await request.query(`DELETE FROM PemsSubTasks WHERE TaskInstanceId IN (${idList})`);
+        await request.query(`DELETE FROM PemsActivities WHERE TaskInstanceId IN (${idList})`);
+        await request.query(`DELETE FROM PemsEvidence WHERE TaskInstanceId IN (${idList})`);
+        await request.query(`DELETE FROM PemsTaskReviews WHERE TaskInstanceId IN (${idList})`);
+        await request.query(`DELETE FROM PemsTaskAuditLogs WHERE TaskInstanceId IN (${idList})`);
+        await request.query(`DELETE FROM PemsNotifications WHERE TaskInstanceId IN (${idList})`);
+      }
+      
+      // Delete instances
+      await tx.request()
+        .input('id', sql.VarChar, id)
+        .query('DELETE FROM PemsTaskInstances WHERE TemplateId = @id');
+    }
+    
+    // Finally delete the template
+    await tx.request().input('id', sql.VarChar, id).query('DELETE FROM PemsTaskTemplates WHERE Id = @id');
+  });
 }
 
 // ═══════════════════════════════════════════════════════

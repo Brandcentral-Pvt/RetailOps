@@ -9,16 +9,24 @@ const { Text } = Typography;
 /**
  * FORM_INPUT renderer - text, numbers, dates and structured data
  * Supports different field types: text, number, date, select, textarea
+ * V2: Uses outputValue prop, supports typed validation from v2Workflow
  */
-export default function FormInputRenderer({ activity, task, onOutputChange, readOnly }) {
+export default function FormInputRenderer({ activity, task, onOutputChange, readOnly, isV2, v2Workflow, outputValue, outputRevision }) {
   const { hasPermission } = useAuth();
   const canEdit = !readOnly && hasPermission('tasks_execute');
   
   const fieldConfig = activity.fieldConfig || { type: 'text' };
-  const [value, setValue] = useState(activity.outputValue || '');
+  const [value, setValue] = useState(outputValue !== undefined ? outputValue : (activity.outputValue || ''));
   const [error, setError] = useState(null);
   
-  const validation = activity.validation || {};
+  // For V2, get typed validation from workflow
+  let validation = activity.validation || {};
+  if (isV2 && v2Workflow) {
+    const actDef = v2Workflow.phases.flatMap(p => p.activities).find(a => a.key === activity.key);
+    if (actDef?.outputSchema) {
+      validation = { ...validation, ...actDef.outputSchema };
+    }
+  }
   
   const handleChange = async (newValue) => {
     if (!canEdit) return;
@@ -42,10 +50,10 @@ export default function FormInputRenderer({ activity, task, onOutputChange, read
   };
   
   useEffect(() => {
-    if (activity.outputValue !== undefined && activity.outputValue !== value) {
-      setValue(activity.outputValue);
+    if (outputValue !== undefined && outputValue !== value) {
+      setValue(outputValue);
     }
-  }, [activity.outputValue]);
+  }, [outputValue]);
   
   const renderInput = () => {
     const placeholder = fieldConfig.placeholder || activity.instructions || 'Enter value...';

@@ -9,6 +9,7 @@ const { Text } = Typography;
 /**
  * COMMUNICATION renderer - approved communication and records
  * Structured messaging with thread support, attachments, and approval workflow
+ * V2: Uses outputValue prop
  */
 
 function ReplyForm({ parentMessage, onReply }) {
@@ -18,7 +19,7 @@ function ReplyForm({ parentMessage, onReply }) {
   return (
     <div>
       {!showReply && (
-        <Button size="small" type="text" icon={<ReplyOutlined />} onClick={() => setShowReply(true)}>Reply</Button>
+        <Button size="small" type="text" icon={<MailOutlined />} onClick={() => setShowReply(true)}>Reply</Button>
       )}
       {showReply && (
         <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
@@ -37,13 +38,14 @@ function ReplyForm({ parentMessage, onReply }) {
   );
 }
 
-export default function CommunicationRenderer({ activity, task, onOutputChange, readOnly }) {
+export default function CommunicationRenderer({ activity, task, onOutputChange, readOnly, isV2, v2Workflow, outputValue, outputRevision }) {
   const { hasPermission, user } = useAuth();
   const canEdit = !readOnly && hasPermission('tasks_execute');
   const canManage = hasPermission('tasks_manage');
   
   const commConfig = activity.commConfig || {};
-  const [messages, setMessages] = useState(activity.outputValue?.messages || []);
+  const initialOutput = outputValue !== undefined ? outputValue : activity.outputValue;
+  const [messages, setMessages] = useState(initialOutput?.messages || []);
   const [newMessage, setNewMessage] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [sending, setSending] = useState(false);
