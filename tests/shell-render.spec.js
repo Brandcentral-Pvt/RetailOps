@@ -91,7 +91,7 @@ async function installOosRoutes(page) {
 
     if (path.endsWith('/auth/me')) return routeJson(route, { success: true, data: user });
     if (/\/pems\/instances\/inst-1\/view$/.test(path)) {
-      return routeJson(route, { success: true, data: oosViewSnapshot });
+      return routeJson(route, { success: true, data: { ...task, viewDefinition: oosViewSnapshot } });
     }
     if (/\/pems\/instances\/inst-1$/.test(path)) {
       return routeJson(route, { success: true, data: { ...task, subTasks: [], activities: [], auditLogs: [] } });
