@@ -1481,7 +1481,7 @@ async function canExecuteActivity(pool, activityId) {
 // ═══════════════════════════════════════════════════════
 
 async function completeSubTask(subTaskId, actorId, actorName) {
-  if (!taskWorkflowV2Execution.v2Enabled()) {
+  if (!taskExecutionGates.strictGatesEnabled()) {
     const guardPool = await getPool();
     const guard = await guardPool.request().input('id', sql.VarChar, subTaskId)
       .query('SELECT i.ViewDefinitionSnapshot FROM PemsSubTasks st JOIN PemsTaskInstances i ON i.Id = st.TaskInstanceId WHERE st.Id = @id');
@@ -1567,7 +1567,7 @@ async function setBrandCheck(taskId, brandRowId, completed, actorId, note, tx = 
 
 async function completeActivity(activityId, actorId, actorName) {
   // V2 task writes cannot silently fall back to legacy unvalidated completion.
-  if (!taskWorkflowV2Execution.v2Enabled()) {
+  if (!taskExecutionGates.strictGatesEnabled()) {
     const guardPool = await getPool();
     const guard = await guardPool.request().input('id', sql.VarChar, activityId)
       .query('SELECT i.ViewDefinitionSnapshot FROM PemsActivities a JOIN PemsTaskInstances i ON i.Id = a.TaskInstanceId WHERE a.Id = @id');
