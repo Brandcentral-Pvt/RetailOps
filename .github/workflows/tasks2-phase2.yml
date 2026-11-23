@@ -13,6 +13,7 @@ on:
       - 'backend/migrations/042_pems_workflow_v2_activity_outputs.js'
       - 'backend/controllers/pems/pemsController.js'
       - 'backend/routes/pems/pemsRoutes.js'
+      - 'backend/__tests__/**'
       - 'backend/__tests__/unit/templateWorkflowV2.test.js'
       - 'backend/__tests__/unit/taskViewWorkflowV2.test.js'
       - 'backend/__tests__/unit/taskWorkflowV2Execution.test.js'
@@ -24,7 +25,7 @@ on:
       - 'backend/__tests__/fixtures/taskWorkflowV2.inventory.sample.json'
       - 'src/modules/tasks/view-registry/**'
       - 'src/modules/tasks/services/tasksApi.js'
-      - '.github/workflows/tasks-phase2.yml'
+      - '.github/workflows/tasks2-phase2.yml'
 
 permissions:
   contents: read
@@ -75,7 +76,14 @@ jobs:
             __tests__/unit/taskViewPublicationIdentity.test.js \
             __tests__/unit/taskInstanceSnapshot.test.js \
             __tests__/unit/pemsPhase1Instance.test.js \
-            __tests__/routes/pemsChildAuthorization.test.js
+            __tests__/routes/pemsChildAuthorization.test.js \
+            __tests__/routes/pemsInstances.test.js \
+            __tests__/routes/pemsSellerScope.test.js \
+            __tests__/routes/pemsExecutionRoles.test.js \
+            __tests__/unit/pemsPhase1Evidence.test.js \
+            __tests__/unit/taskViewIdentityIntegration.test.js \
+            __tests__/unit/taskViewDefinitionLegacy.test.js \
+            __tests__/unit/taskExecutionGates.test.js
       - name: Install frontend dependencies
         run: npm ci
       - name: Run existing task registry tests
