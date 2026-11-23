@@ -60,4 +60,49 @@ jobs:
           node --check services/pems/taskViewDefinitionService.js
           node --check controllers/pems/pemsController.js
       - name: Task backend regression suites
-        run: npm test -- --runInBand __tests__/routes/pemsInstances.test.js __tests__/routes/pemsSellerScope.test.js
+        run: |
+          npm test -- --runInBand \
+            __tests__/routes/pemsInstances.test.js \
+            __tests__/routes/pemsSellerScope.test.js \
+            __tests__/routes/pemsChildAuthorization.test.js \
+            __tests__/routes/pemsExecutionRoles.test.js \
+            __tests__/unit/taskExecutionGates.test.js \
+            __tests__/unit/taskInstanceSnapshot.test.js \
+            __tests__/unit/taskViewIdentityIntegration.test.js \
+            __tests__/unit/taskViewPublicationIdentity.test.js \
+            __tests__/unit/taskViewDefinitionLegacy.test.js \
+            __tests__/unit/pemsPhase1Instance.test.js \
+            __tests__/unit/pemsPhase1Evidence.test.js \
+            __tests__/unit/pemsPhase1ReviewGate.test.js
+  sqlserver:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_PID: Developer
+          MSSQL_SA_PASSWORD: 'Phase1Disposable#2026!'
+        ports:
+          - 1433:1433
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - run: npm install --prefix /tmp/pems-phase1-sql --ignore-scripts --no-audit --no-fund mssql@12.7.11
+      - name: Validate phase SQL on disposable SQL Server
+        working-directory: backend
+        env:
+          PEMS_SQLSERVER_SMOKE: '1'
+          PEMS_TEST_SQLSERVER_HOST: '127.0.0.1'
+          PEMS_TEST_SQLSERVER_PORT: '1433'
+          PEMS_TEST_SQLSERVER_USER: 'sa'
+          PEMS_TEST_SQLSERVER_PASSWORD: 'Phase1Disposable#2026!'
+          PEMS_TEST_MSSQL_MODULE: '/tmp/pems-phase1-sql/node_modules/mssql'
+        run: npm test -- --runInBand __tests__/integration/pemsPhaseGateSqlServer.test.js
