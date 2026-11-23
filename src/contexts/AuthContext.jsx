@@ -17,6 +17,8 @@ export const AuthProvider = ({ children }) => {
     const [loadingPermissions, setLoadingPermissions] = useState(false);   // ← NEW
     const [bootstrapping, setBootstrapping] = useState(false);
     const [error, setError] = useState(null);
+    const [needsPasswordReset, setNeedsPasswordReset] = useState(false);
+    const [requiresSetup, setRequiresSetup] = useState(false);
 
     // Helper to normalize user object
     const normalizeUser = (raw) => ({
@@ -126,10 +128,22 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const logout = () => {
+    const logout = async () => {
+        try {
+            await fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/logout`, {
+                method: 'POST',
+                credentials: 'same-origin',
+            });
+        } catch (e) {
+            console.warn('Logout API call failed:', e.message);
+        }
         setUser(null);
         setError(null);
+        setNeedsPasswordReset(false);
+        setRequiresSetup(false);
         localStorage.removeItem('user');
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('refreshToken');
         if (window.location.pathname !== '/login') {
             window.location.href = '/login';
         }
@@ -188,16 +202,15 @@ export const AuthProvider = ({ children }) => {
             if (!rawUser) throw new AuthRequestError('SERVER_ERROR');
             const normalized = normalizeUser(rawUser);
 
+            const needsSetup = loginData.requiresSetup || loginData.data?.requiresSetup || rawUser.requiresSetup;
+            const needsPwdReset = loginData.needsPasswordReset || loginData.data?.needsPasswordReset || rawUser.needsPasswordReset;
+
             setUser(normalized);
+            setRequiresSetup(needsSetup);
+            setNeedsPasswordReset(needsPwdReset);
             localStorage.setItem('user', JSON.stringify(normalized));
 
             // Tokens are now handled by httpOnly cookies
-
-
-            // Check if setup wizard is needed
-            if (loginData.requiresSetup || loginData.data?.requiresSetup) {
-                // Will be handled by route protection
-            }
 
             // Fetch permissions if missing
             if (!normalized.permissions || normalized.permissions.length === 0) {
@@ -242,6 +255,8 @@ export const AuthProvider = ({ children }) => {
         isOperationalManager: (user?.role?.name || user?.role || '').toString().toLowerCase() === 'operational_manager',
         isGlobalUser: ['admin', 'super_admin', 'super admin', 'supert admin', 'operational_manager'].includes((user?.role?.name || user?.role || '').toString().toLowerCase()) || (user?.role?.name || user?.role || '').toString().toLowerCase().includes('super') || (user?.role?.name || user?.role || '').toString().toLowerCase().includes('supert'),
         isFirstLogin: !!user?.isFirstLogin,
+        needsPasswordReset,
+        requiresSetup,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

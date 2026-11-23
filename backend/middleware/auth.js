@@ -12,12 +12,13 @@ const eventBus = require('../services/eventBus');
  * bearer middleware, so it protects every feature router rather than relying
  * on each controller to remember a first-login/password-expiry check.
  */
-function isCredentialMaintenanceRequest(req, allowSetupWizard) {
+function isCredentialMaintenanceRequest(req, allowSetupWizard, needsPasswordReset) {
   const pathname = String(req.originalUrl || req.url || '').split('?')[0];
   if (/\/(?:api\/)?auth\/(me|logout|change-password|request-password-change|change-password-with-otp)$/.test(pathname)) {
     return true;
   }
-  return allowSetupWizard && /\/(?:api\/)?setup-wizard\//.test(pathname);
+  // Allow setup wizard for both first-login setup AND password reset scenarios
+  return (allowSetupWizard || needsPasswordReset) && /\/(?:api\/)?setup-wizard\//.test(pathname);
 }
 
 /**
@@ -103,7 +104,7 @@ exports.authenticate = async (req, res, next) => {
     // temporary/expired credential must not call normal protected APIs by
     // bypassing the mobile setup screen. Leave only the authoritative session
     // read, logout and credential-maintenance endpoints reachable.
-    if ((needsPasswordReset || requiresSetup) && !isCredentialMaintenanceRequest(req, requiresSetup)) {
+    if ((needsPasswordReset || requiresSetup) && !isCredentialMaintenanceRequest(req, requiresSetup, needsPasswordReset)) {
       return res.status(428).json({
         success: false,
         code: 'CREDENTIAL_UPDATE_REQUIRED',

@@ -648,16 +648,19 @@ export const sellerApi = {
       return acc;
     }, {});
 
-    const query = new URLSearchParams(cleanParams).toString();
+    const { noCache, ...queryParams } = cleanParams;
+    const query = new URLSearchParams(queryParams).toString();
     const cacheKey = `sellers:${query}`;
 
+    // Use shorter TTL (30s) for sellers list so LAST ACTIVITY stays fresh
+    // Allow bypassing cache with noCache=true (e.g., from socket events)
     return cachedFetch(cacheKey, async () => {
       const res = await fetch(`${API_BASE}/sellers?${query}`, {
         headers: { ...getAuthHeader() },
       });
       if (!res.ok) throw new Error('Failed to fetch sellers');
       return res.json();
-    }, 5 * 60 * 1000); // 5 min TTL
+    }, noCache ? 0 : 30 * 1000); // 30s TTL, 0 = no cache
   },
 
   getStats: async (params = {}) => {

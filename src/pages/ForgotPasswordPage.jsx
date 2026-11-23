@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import AuthLayout from '../components/auth/AuthLayout';
 import AuthButton from '../components/auth/AuthButton';
@@ -10,7 +10,13 @@ import { authApi } from '../services/api';
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const ForgotPasswordPage = () => {
+  const location = useLocation();
   const [email, setEmail] = useState('');
+
+  useEffect(() => {
+    const stateEmail = location.state?.email;
+    if (stateEmail) setEmail(stateEmail);
+  }, [location]);
   const [fieldError, setFieldError] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
