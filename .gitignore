@@ -48,3 +48,6 @@ test-results/
 tasks-module/
 src/contexts/AuthContext.jsx.bak
 graphify-out/
+
+# Runtime OOS seller uploads. Existing tracked files require separate history remediation.
+/private/oos_uploads/
