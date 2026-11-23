@@ -1481,6 +1481,15 @@ async function canExecuteActivity(pool, activityId) {
 // ═══════════════════════════════════════════════════════
 
 async function completeSubTask(subTaskId, actorId, actorName) {
+  if (!taskWorkflowV2Execution.v2Enabled()) {
+    const guardPool = await getPool();
+    const guard = await guardPool.request().input('id', sql.VarChar, subTaskId)
+      .query('SELECT i.ViewDefinitionSnapshot FROM PemsSubTasks st JOIN PemsTaskInstances i ON i.Id = st.TaskInstanceId WHERE st.Id = @id');
+    if (taskWorkflowV2Execution.isV2Snapshot(guard.recordset[0]?.ViewDefinitionSnapshot)) {
+      const e = new Error('V2 phase completion requires strict workflow gates');
+      e.status = 409; e.code = 'WORKFLOW_V2_NOT_ACTIVATED'; throw e;
+    }
+  }
   if (taskExecutionGates.strictGatesEnabled()) {
     return withTransaction(async tx => {
       const taskId = await taskExecutionGates.lockChildParent(tx, 'phase', subTaskId);
@@ -1523,7 +1532,11 @@ async function setBrandCheck(taskId, brandRowId, completed, actorId, note, tx = 
   }
   const pool = tx || (await getPool());
   if (tx && taskExecutionGates.strictGatesEnabled()) {
-    await taskExecutionGates.lockTaskForExecution(tx, taskId);
+    const locked = await taskExecutionGates.lockTaskForExecution(tx, taskId);
+    if (taskWorkflowV2Execution.isV2Snapshot(locked.ViewDefinitionSnapshot) && !taskWorkflowV2Execution.v2Enabled()) {
+      const e = new Error('V2 brand update requires active strict workflow gates');
+      e.status = 409; e.code = 'WORKFLOW_V2_NOT_ACTIVATED'; throw e;
+    }
   }
   const task = (await pool.request().input('id', sql.VarChar, taskId)
     .query('SELECT Id, Status FROM PemsTaskInstances WHERE Id = @id')).recordset[0];
@@ -1553,12 +1566,25 @@ async function setBrandCheck(taskId, brandRowId, completed, actorId, note, tx = 
 }
 
 async function completeActivity(activityId, actorId, actorName) {
+  // V2 task writes cannot silently fall back to legacy unvalidated completion.
+  if (!taskWorkflowV2Execution.v2Enabled()) {
+    const guardPool = await getPool();
+    const guard = await guardPool.request().input('id', sql.VarChar, activityId)
+      .query('SELECT i.ViewDefinitionSnapshot FROM PemsActivities a JOIN PemsTaskInstances i ON i.Id = a.TaskInstanceId WHERE a.Id = @id');
+    if (taskWorkflowV2Execution.isV2Snapshot(guard.recordset[0]?.ViewDefinitionSnapshot)) {
+      const e = new Error('V2 completion requires strict workflow gates');
+      e.status = 409; e.code = 'WORKFLOW_V2_NOT_ACTIVATED'; throw e;
+    }
+  }
   if (taskExecutionGates.strictGatesEnabled()) {
     return withTransaction(async (tx) => {
       // Lock the authoritative parent before reading or writing child state.
       const taskId = await taskExecutionGates.lockChildParent(tx, 'activity', activityId);
       const activity = await taskExecutionGates.assertActivityReady(tx, activityId);
       if (activity.alreadyCompleted) return { success: true, alreadyCompleted: true };
+      if (taskWorkflowV2Execution.isV2Snapshot(activity.ViewDefinitionSnapshot)) {
+        await taskWorkflowV2Execution.assertStepReady(tx, taskId, activityId);
+      }
       // Existing conditional rules must also pass inside the same transaction.
       const execution = await canExecuteActivity(tx, activityId);
       if (!execution.allowed) {
