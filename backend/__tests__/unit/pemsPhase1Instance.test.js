@@ -69,7 +69,7 @@ test('new task pins published view and copies effective SOP from the locked temp
     Id:'view-1',ViewKey:'STANDARD_V1',SchemaVersion:'1.0',DefinitionVersion:1,DefinitionJson:JSON.stringify(view),
   }];
   await svc.createInstance({
-    templateId:'tpl-1',title:'Daily check',status:'ASSIGNED',frequency:'DAILY',
+    templateId:'tpl-1',title:'Daily check',status:'ASSIGNED',assignedTo:'employee-1',frequency:'DAILY',
     subTaskDefinitions:[{title:'Tampered client activity',activities:[]}],
   });
   const created = mockCalls.find(c => /INSERT INTO PemsTaskInstances/.test(c.sql));
