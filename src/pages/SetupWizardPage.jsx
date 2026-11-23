@@ -83,7 +83,7 @@ const getUserFullName = (user) => {
 
 const SetupWizardPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, needsPasswordReset, requiresSetup } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -115,8 +115,14 @@ const SetupWizardPage = () => {
 
   const policiesValid = policies.tos && policies.privacy && policies.responsibilities;
 
+  // Determine which steps to show based on the scenario
+  const isPasswordResetFlow = needsPasswordReset && !requiresSetup;
+  const activeSteps = isPasswordResetFlow
+    ? steps.filter(s => s.id !== 'policies').slice(2) // password, complete (skip policies for password reset)
+    : steps; // all steps for first login
+
   const handleNextStep = async () => {
-    const step = steps[currentStep];
+    const step = activeSteps[currentStep];
     setError('');
     setLoading(true);
 
@@ -273,10 +279,12 @@ const SetupWizardPage = () => {
   const renderPassword = () => (
     <div className="step-content password-step" style={{ maxWidth: 540 }}>
       <Title level={2} className="step-title" style={{ textAlign: 'center', marginBottom: 12 }}>
-        Create Your Password
+        {isPasswordResetFlow ? 'Update Your Password' : 'Create Your Password'}
       </Title>
       <Text className="step-description" style={{ display: 'block', textAlign: 'center', marginBottom: 24, fontSize: 15, color: '#475569' }}>
-        Please update your temporary password to continue securing your workspace.
+        {isPasswordResetFlow
+          ? 'Your password has expired. Please enter your current password and set a new one to continue.'
+          : 'Please update your temporary password to continue securing your workspace.'}
       </Text>
 
       {error && (
@@ -293,11 +301,13 @@ const SetupWizardPage = () => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, border: '1px solid #e2e8f0', background: '#fff', borderRadius: "var(--radius-lg)", padding: 24 }}>
         {/* Current Password */}
         <div>
-          <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#334155', display: 'block', marginBottom: 6 }}>Current Temporary Password</Text>
+          <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#334155', display: 'block', marginBottom: 6 }}>
+            {isPasswordResetFlow ? 'Current Password' : 'Current Temporary Password'}
+          </Text>
           <Input.Password
             value={passwordForm.current}
             onChange={e => setPasswordForm({ ...passwordForm, current: e.target.value })}
-            placeholder="Enter temporary password"
+            placeholder={isPasswordResetFlow ? 'Enter your current password' : 'Enter temporary password'}
             size="large"
             style={{ borderRadius: "var(--radius-md)" }}
           />
@@ -466,11 +476,15 @@ const SetupWizardPage = () => {
   };
 
   const renderComplete = () => {
-    const items = [
+    const isFirstLoginFlow = !isPasswordResetFlow;
+    const items = isFirstLoginFlow ? [
       { key: '1', label: 'User Name', children: fullName },
       { key: '2', label: 'Role', children: user?.role?.displayName || user?.role?.name || 'User' },
       { key: '3', label: 'Security State', children: 'Password Set & Verified' },
       { key: '4', label: 'Policies Accepted', children: 'Yes' }
+    ] : [
+      { key: '1', label: 'User Name', children: fullName },
+      { key: '2', label: 'Security State', children: 'Password Updated' },
     ];
 
     return (
@@ -491,15 +505,17 @@ const SetupWizardPage = () => {
           </div>
           
           <Title level={2} style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 600, margin: '0 0 8px' }}>
-            Account Setup Completed!
+            {isPasswordResetFlow ? 'Password Updated Successfully!' : 'Account Setup Completed!'}
           </Title>
           <Text type="secondary" style={{ fontSize: 'var(--font-size-base)', display: 'block', marginBottom: 24 }}>
-            Congratulations, your credentials and privacy agreements have been successfully updated.
+            {isPasswordResetFlow
+              ? 'Your password has been updated. You can now access all features.'
+              : 'Congratulations, your credentials and privacy agreements have been successfully updated.'}
           </Text>
 
           <div style={{ border: '1px solid #e2e8f0', background: '#fff', borderRadius: "var(--radius-lg)", padding: 20, textAlign: 'left', marginBottom: 16 }}>
             <Title level={5} style={{ margin: '0 0 12px 0', fontSize: 'var(--font-size-xs)', textTransform: 'uppercase', color: '#64748b', letterSpacing: 0.5 }}>
-              Setup Summary
+              {isPasswordResetFlow ? 'Update Summary' : 'Setup Summary'}
             </Title>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {items.map(item => (
@@ -516,7 +532,9 @@ const SetupWizardPage = () => {
   };
 
   const renderCurrentStep = () => {
-    switch (steps[currentStep].id) {
+    const step = activeSteps[currentStep];
+    if (!step) return null;
+    switch (step.id) {
       case 'welcome': return renderWelcome();
       case 'security': return renderSecurity();
       case 'password': return renderPassword();
@@ -528,8 +546,10 @@ const SetupWizardPage = () => {
 
   const isNextDisabled = () => {
     if (loading) return true;
-    if (steps[currentStep].id === 'password') return !pwValid;
-    if (steps[currentStep].id === 'policies') return !policiesValid;
+    const step = activeSteps[currentStep];
+    if (!step) return true;
+    if (step.id === 'password') return !pwValid;
+    if (step.id === 'policies') return !policiesValid;
     return false;
   };
 
@@ -547,9 +567,6 @@ const SetupWizardPage = () => {
               className="logo-img"
             />
           </div>
-          <div className="wizard-progress-text">
-            Step {currentStep + 1} of {steps.length}
-          </div>
         </div>
 
         {/* Full Page Content Panels */}
@@ -558,19 +575,21 @@ const SetupWizardPage = () => {
           <div className="wizard-sidebar">
             <div className="sidebar-header">
               <Title level={4} style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#0f172a' }}>
-                Account Setup
+                {isPasswordResetFlow ? 'Password Reset' : 'Account Setup'}
               </Title>
               <Text style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', display: 'block', marginTop: 4 }}>
-                Complete all steps to continue
+                {isPasswordResetFlow
+                  ? 'Update your password to continue'
+                  : 'Complete all steps to continue'}
               </Text>
             </div>
 
             <div className="steps-list">
-              {steps.map((step, idx) => {
+              {activeSteps.map((step, idx) => {
                 const StepIcon = step.icon;
                 const isActive = idx === currentStep;
                 const isCompleted = idx < currentStep;
-                const isLast = idx === steps.length - 1;
+                const isLast = idx === activeSteps.length - 1;
 
                 return (
                   <div key={step.id} className="step-item">
@@ -648,7 +667,7 @@ const SetupWizardPage = () => {
             {/* Footer with Actions */}
             <div className="content-footer">
               <div>
-                {currentStep > 0 && currentStep < steps.length - 1 && (
+                {currentStep > 0 && currentStep < activeSteps.length - 1 && (
                   <button
                     onClick={handleBack}
                     className="btn-back"
@@ -661,7 +680,7 @@ const SetupWizardPage = () => {
               </div>
 
               <div className="footer-actions">
-                {currentStep < steps.length - 1 ? (
+                {currentStep < activeSteps.length - 1 ? (
                   <button
                     onClick={handleNextStep}
                     disabled={isNextDisabled()}
@@ -674,7 +693,7 @@ const SetupWizardPage = () => {
                       </>
                     ) : (
                       <>
-                        {currentStep === steps.length - 2 ? 'Complete Setup' : 'Continue'}
+                        {currentStep === activeSteps.length - 2 ? 'Complete Setup' : 'Continue'}
                         <ArrowRight size={16} />
                       </>
                     )}

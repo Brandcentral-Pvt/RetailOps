@@ -253,7 +253,7 @@ const SellersPage = () => {
   useEffect(() => {
     if (!socket) return;
     const handleSellersUpdated = () => {
-      void loadSellersRef.current({ ...filterStateRef.current, silent: true });
+      void loadSellersRef.current({ ...filterStateRef.current, silent: true, noCache: true });
     };
     socket.on('SELLERS_UPDATED', handleSellersUpdated);
     return () => socket.off('SELLERS_UPDATED', handleSellersUpdated);
@@ -263,7 +263,7 @@ const SellersPage = () => {
   useEffect(() => {
     if (!socket) return;
     const handleAsinsUpdated = () => {
-      void loadSellersRef.current({ ...filterStateRef.current, silent: true });
+      void loadSellersRef.current({ ...filterStateRef.current, silent: true, noCache: true });
     };
     const handleLiveSyncCompleted = (data) => {
       // During a GLOBAL run every seller emits its own completion event; showing
@@ -281,6 +281,8 @@ const SellersPage = () => {
       } else {
         toastRef.current(`Global sync complete: ${data.success} sellers, ${data.totalAsinsUpdated} ASINs in ${(data.duration / 1000).toFixed(1)}s`, 'success');
       }
+      // Refresh sellers list with fresh data after global sync completes
+      void loadSellersRef.current({ ...filterStateRef.current, silent: true, noCache: true });
     };
     socket.on('ASINS_UPDATED', handleAsinsUpdated);
     socket.on('liveSync:completed', handleLiveSyncCompleted);

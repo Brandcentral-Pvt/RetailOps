@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const { sql, getPool, generateId } = require('../database/db');
+const passwordExpiryNotificationService = require('./passwordExpiryNotificationService');
 
 class RecurringTaskScheduler {
     constructor() {
@@ -12,6 +13,12 @@ class RecurringTaskScheduler {
             // Silent execution
             await this.processRecurringTasks();
             await this.checkAndNotifyOverdueTasks();
+        });
+
+        // Run daily at 9 AM to check for expiring passwords
+        cron.schedule('0 9 * * *', async () => {
+            console.log('[PasswordExpiry] Running scheduled password expiry check...');
+            await passwordExpiryNotificationService.checkAndNotifyExpiringPasswords();
         });
 
         // Run Keepa Seller ASIN auto-discovery every 12 hours

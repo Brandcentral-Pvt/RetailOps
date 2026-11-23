@@ -1,25 +1,16 @@
 import React from 'react';
 import { Search } from 'lucide-react';
 import { useHeader } from '../../contexts/HeaderContext';
-import { usePlatform, useKeyboardShortcut } from './headerHooks';
+import { usePlatform } from './headerHooks';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 /**
- * SearchTrigger — shadcn button that opens the command palette (Cmd/K).
- *
- * Replaces the wide antd search bar: the actual search input now lives inside
- * the command palette. Kept as a global entry point for search/navigation.
+ * SearchTrigger — shadcn button that opens the global search modal (Cmd/K).
  */
 export default function SearchTrigger() {
   const { setCmdOpen } = useHeader();
   const { modKey } = usePlatform();
-
-  useKeyboardShortcut(
-    ['k'],
-    () => setCmdOpen(true),
-    { metaKey: true, preventDefault: true }
-  );
 
   return (
     <Tooltip>
@@ -29,7 +20,7 @@ export default function SearchTrigger() {
           variant="outline"
           size="sm"
           onClick={() => setCmdOpen(true)}
-          aria-label="Open command palette"
+          aria-label="Open search"
         >
           <Search size={15} className="mr-2" aria-hidden="true" />
           Search
@@ -38,7 +29,7 @@ export default function SearchTrigger() {
           </span>
         </Button>
       </TooltipTrigger>
-      <TooltipContent side="bottom">Command palette ({modKey} + K)</TooltipContent>
+      <TooltipContent side="bottom">Search ({modKey} + K)</TooltipContent>
     </Tooltip>
   );
 }
