@@ -1,8 +1,8 @@
 'use strict';
 
-const records = [];
-let updates = 0;
-let transactions = 0;
+const mockRecords = [];
+let mockUpdates = 0;
+let mockTransactions = 0;
 jest.mock('../../database/db', () => {
   const request = () => {
     const bindings = {};
@@ -13,10 +13,10 @@ jest.mock('../../database/db', () => {
       },
       async query(query) {
         if (query.includes('SELECT * FROM PemsTemplateViewDefinitions WITH (UPDLOCK, HOLDLOCK)')) {
-          return { recordset: records };
+          return { recordset: mockRecords };
         }
         if (query.includes('UPDATE PemsTemplateViewDefinitions')) {
-          updates += 1;
+          mockUpdates += 1;
           return { rowsAffected: [1] };
         }
         throw new Error('Unexpected SQL: ' + query);
@@ -29,7 +29,7 @@ jest.mock('../../database/db', () => {
     sql: { VarChar: 'VarChar', Int: 'Int', DateTime2: 'DateTime2', NVarChar: () => 'NVarChar', MAX: 'MAX' },
     generateId: () => 'test-id',
     withTransaction: async callback => {
-      transactions += 1;
+      mockTransactions += 1;
       return callback({ request });
     },
   };
@@ -48,9 +48,9 @@ const row = (json, overrides = {}) => ({
 });
 
 beforeEach(() => {
-  records.length = 0;
-  updates = 0;
-  transactions = 0;
+  mockRecords.length = 0;
+  mockUpdates = 0;
+  mockTransactions = 0;
 });
 
 test('preserves the guided renderer allowlist while checking identity', () => {
@@ -73,26 +73,26 @@ test('rejects zero and fractional persisted view versions', () => {
 });
 
 test('refuses publication of inconsistent stored metadata under a task-safe transaction', async () => {
-  records.push(row(definition(), { DefinitionVersion: 3 }));
+  mockRecords.push(row(definition(), { DefinitionVersion: 3 }));
   await expect(svc.publishViewDefinition('view-1', 'reviewer'))
     .rejects.toMatchObject({ code: 'INVALID_DEFINITION_IDENTITY', status: 409 });
-  expect(transactions).toBe(1);
-  expect(updates).toBe(0);
+  expect(mockTransactions).toBe(1);
+  expect(mockUpdates).toBe(0);
 });
 
 test('publishes a matching draft exactly once', async () => {
-  records.push(row(definition()));
+  mockRecords.push(row(definition()));
   const result = await svc.publishViewDefinition('view-1', 'reviewer');
   expect(result.status).toBe('PUBLISHED');
-  expect(updates).toBe(1);
+  expect(mockUpdates).toBe(1);
 });
 
 test('does not write for an invalid or already published state', async () => {
-  records.push(row(definition(), { Status: 'ARCHIVED' }));
+  mockRecords.push(row(definition(), { Status: 'ARCHIVED' }));
   await expect(svc.publishViewDefinition('view-1', 'reviewer'))
     .rejects.toMatchObject({ code: 'INVALID_VIEW_STATUS' });
-  expect(updates).toBe(0);
-  records[0].Status = 'PUBLISHED';
+  expect(mockUpdates).toBe(0);
+  mockRecords[0].Status = 'PUBLISHED';
   expect((await svc.publishViewDefinition('view-1', 'reviewer')).alreadyPublished).toBe(true);
-  expect(updates).toBe(0);
+  expect(mockUpdates).toBe(0);
 });
