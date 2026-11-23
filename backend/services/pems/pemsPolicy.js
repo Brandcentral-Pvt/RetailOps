@@ -51,11 +51,33 @@ function canActOnTask(user, task) {
 }
 
 /**
- * May `user` move `task` between statuses? Same as acting on it, but a global
- * role is still the only role allowed to override someone else's task.
+ * Executor and reviewer are distinct capabilities. A reviewer can read and
+ * approve work but cannot complete another employee's activities.
+ * Global operations roles may intervene in execution, but must never
+ * approve a task assigned to themselves.
  */
-function canTransitionTask(user, task) {
-  return canActOnTask(user, task);
+function canExecuteTask(user, task) {
+  if (!user || !task) return false;
+  if (isGlobalUserRole(roleNameOf(user))) return true;
+  return canViewTaskByScope(user, task) && userIdOf(user) === task.AssignedTo;
+}
+
+function canReviewTask(user, task) {
+  if (!user || !task) return false;
+  const uid = userIdOf(user);
+  if (!uid || uid === task.AssignedTo) return false;
+  if (isGlobalUserRole(roleNameOf(user))) return true;
+  return canViewTaskByScope(user, task) && uid === task.ReviewerId;
+}
+
+function canTransitionTask(user, task, toStatus) {
+  // Review decisions must use the atomic /reviews endpoint and never a
+  // standalone status change without the review record.
+  if (['APPROVED', 'REJECTED', 'UNDER_REVIEW'].includes(toStatus)) return false;
+  if (['ASSIGNED', 'CANCELLED'].includes(toStatus)) {
+    return Boolean(user && task && isGlobalUserRole(roleNameOf(user)));
+  }
+  return canExecuteTask(user, task);
 }
 
 /**
@@ -77,6 +99,8 @@ module.exports = {
   isAssignedOrReviewer,
   canViewTask,
   canActOnTask,
+  canExecuteTask,
+  canReviewTask,
   canTransitionTask,
   canCreateTaskForSeller,
   isGlobalUserRole,
