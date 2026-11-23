@@ -973,10 +973,19 @@ async function checkAsinSubmissionGate(pool, taskInstanceId) {
 }
 
 async function transitionStatus(taskInstanceId, toStatus, actorId, actorName, actorRole, details, tx) {
+  if (!tx && ['UNDER_REVIEW', 'APPROVED', 'REJECTED'].includes(toStatus)) {
+    const error = new Error('Review decisions must use the review endpoint');
+    error.status = 403;
+    throw error;
+  }
+  if (!tx && taskExecutionGates.strictGatesEnabled()) {
+    return withTransaction(transaction =>
+      transitionStatus(taskInstanceId, toStatus, actorId, actorName, actorRole, details, transaction));
+  }
   const pool = tx || (await getPool());
   const instanceResult = await pool.request()
     .input('id', sql.VarChar, taskInstanceId)
-    .query('SELECT Status, AssignedTo, AssigneeName, ReviewerId, ReviewerName, DueDate, SLAHours, Title FROM PemsTaskInstances WHERE Id = @id');
+    .query(`SELECT Status, AssignedTo, AssigneeName, ReviewerId, ReviewerName, DueDate, SLAHours, Title FROM PemsTaskInstances ${tx && taskExecutionGates.strictGatesEnabled() ? 'WITH (UPDLOCK, HOLDLOCK)' : ''} WHERE Id = @id`);
   const instance = instanceResult.recordset[0];
   if (!instance) throw new Error('Task instance not found');
 
@@ -989,6 +998,9 @@ async function transitionStatus(taskInstanceId, toStatus, actorId, actorName, ac
   // for templates that have required ASIN signals.
   const isSubmitGate = (instance.Status === 'IN_PROGRESS' && toStatus === 'SUBMITTED');
   const isResubmitGate = (instance.Status === 'REWORK' && toStatus === 'RESUBMITTED');
+  if ((isSubmitGate || isResubmitGate) && taskExecutionGates.strictGatesEnabled()) {
+    await taskExecutionGates.assertSubmissionReady(pool, taskInstanceId);
+  }
 
   if ((isSubmitGate || isResubmitGate) && !details?.waiveAsinGate) {
     const gate = await checkAsinSubmissionGate(pool, taskInstanceId);
@@ -1461,6 +1473,21 @@ async function canExecuteActivity(pool, activityId) {
 // ═══════════════════════════════════════════════════════
 
 async function completeSubTask(subTaskId, actorId, actorName) {
+  if (taskExecutionGates.strictGatesEnabled()) {
+    return withTransaction(async tx => {
+      const taskId = await taskExecutionGates.lockChildParent(tx, 'phase', subTaskId);
+      const phase = await taskExecutionGates.assertPhaseReady(tx, subTaskId);
+      if (phase.alreadyCompleted) return { success: true, alreadyCompleted: true };
+      const changed = await tx.request()
+        .input('id', sql.VarChar, subTaskId)
+        .input('taskId', sql.VarChar, taskId)
+        .query("UPDATE PemsSubTasks SET IsCompleted = 1, Status = 'COMPLETED', CompletedAt = dbo.GetEnvDate() WHERE Id = @id AND TaskInstanceId = @taskId AND IsCompleted = 0");
+      if (!Number(changed.rowsAffected?.[0] || 0)) return { success: true, alreadyCompleted: true };
+      const progress = await taskExecutionGates.reconcileTaskProgress(tx, taskId);
+      await writeAuditLog(taskId, 'SUBTASK_COMPLETED', null, null, actorId, actorName, 'Subtask completed', tx);
+      return { success: true, progress };
+    });
+  }
   return withTransaction(async (tx) => {
   const pool = tx;
   await pool.request()
@@ -1482,8 +1509,14 @@ async function completeSubTask(subTaskId, actorId, actorName) {
  * Tick / un-tick a brand on a multi-brand task (or all of them when brandRowId is omitted).
  * Only while the work is open — same window in which steps can be ticked.
  */
-async function setBrandCheck(taskId, brandRowId, completed, actorId, note) {
-  const pool = await getPool();
+async function setBrandCheck(taskId, brandRowId, completed, actorId, note, tx = null) {
+  if (!tx && taskExecutionGates.strictGatesEnabled()) {
+    return withTransaction(transaction => setBrandCheck(taskId, brandRowId, completed, actorId, note, transaction));
+  }
+  const pool = tx || (await getPool());
+  if (tx && taskExecutionGates.strictGatesEnabled()) {
+    await taskExecutionGates.lockTaskForExecution(tx, taskId);
+  }
   const task = (await pool.request().input('id', sql.VarChar, taskId)
     .query('SELECT Id, Status FROM PemsTaskInstances WHERE Id = @id')).recordset[0];
   if (!task) { const e = new Error('Task not found'); e.status = 404; throw e; }
@@ -1507,6 +1540,7 @@ async function setBrandCheck(taskId, brandRowId, completed, actorId, note) {
   if (brandRowId && !res.rowsAffected[0]) { const e = new Error('Brand not found on this task'); e.status = 404; throw e; }
   const counts = (await pool.request().input('taskId', sql.VarChar, taskId)
     .query('SELECT COUNT(*) AS total, COALESCE(SUM(CASE WHEN IsCompleted = 1 THEN 1 ELSE 0 END), 0) AS done FROM PemsTaskBrands WHERE TaskInstanceId = @taskId')).recordset[0];
+  if (tx && taskExecutionGates.strictGatesEnabled()) await taskExecutionGates.reconcileTaskProgress(tx, taskId);
   return { total: counts.total, done: counts.done };
 }
 
