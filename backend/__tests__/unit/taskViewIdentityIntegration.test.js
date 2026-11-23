@@ -67,6 +67,13 @@ test('rejects conflicting metadata before any SQL is accessed', async () => {
   })).rejects.toMatchObject({ code: 'INVALID_DEFINITION_IDENTITY', status: 400 });
 });
 
+test('rejects direct published creation before any database access', async () => {
+  await expect(svc.createViewDefinition({
+    templateId: 'template', viewKey: 'GUIDED_V1', schemaVersion: '1.0',
+    definitionVersion: 2, definitionJson: definition(), status: 'PUBLISHED',
+  })).rejects.toMatchObject({ code: 'INVALID_INITIAL_VIEW_STATUS', status: 400 });
+});
+
 test('rejects zero and fractional persisted view versions', () => {
   expect(svc.validateDefinitionJson({ ...definition(), definitionVersion: 0 }).ok).toBe(false);
   expect(svc.validateDefinitionJson({ ...definition(), definitionVersion: 1.5 }).ok).toBe(false);
