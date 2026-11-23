@@ -1,0 +1,63 @@
+name: Tasks 2 Production Integration Baseline
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/services/pems/**'
+      - 'backend/controllers/pems/**'
+      - 'backend/routes/pems/**'
+      - 'backend/middleware/pemsAccess.js'
+      - 'backend/migrations/**'
+      - 'backend/__tests__/**'
+      - 'backend/package.json'
+      - 'backend/package-lock.json'
+      - 'src/modules/tasks/**'
+      - 'src/App.jsx'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/tasks2-integration-baseline.yml'
+permissions:
+  contents: read
+concurrency:
+  group: tasks2-integration-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Task view registry contracts
+        run: npm run test:task-registry
+      - name: Task planner contracts
+        run: npm run test:planner
+      - name: Vite production build
+        run: npm run build
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Reproducible dependencies
+        run: npm ci
+      - name: Task service syntax validation
+        run: |
+          node --check services/pems/pemsService.js
+          node --check services/pems/taskViewDefinitionService.js
+          node --check controllers/pems/pemsController.js
+      - name: Task backend regression suites
+        run: npm test -- --runInBand __tests__/routes/pemsInstances.test.js __tests__/routes/pemsSellerScope.test.js
