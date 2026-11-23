@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
-import { Table, Tag, Space, Button, Typography } from 'antd';
-import { PlayCircleOutlined } from '@ant-design/icons';
+import React, { useState, useMemo } from 'react';
+import { Table, Tag, Space, Button, Typography, Flex, Divider, Radio } from 'antd';
+import { PlayCircleOutlined, ReloadOutlined, ExportOutlined, DownloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
@@ -49,289 +49,7 @@ function SourceQuantityCell({ quantity, rawStatus, sourceTimestamp }) {
   );
 }
 
-// Column definitions - each has a key, builder function, and default config
-const COLUMN_DEFINITIONS = [
-  {
-    key: 'seller',
-    defaultConfig: { title: 'Seller', width: 150, fixed: 'left', order: 1 },
-    build: () => ({
-      title: 'Seller',
-      dataIndex: 'sellerName',
-      key: 'sellerName',
-      width: 150,
-      fixed: 'left',
-      render: (v, r) => (
-        <Space size={4} direction="vertical">
-          <Text strong>{r.sellerName}</Text>
-          <Text code style={{ fontSize: 10, color: 'var(--bc-text-muted)' }}>{r.sellerId}</Text>
-        </Space>
-      ),
-    }),
-  },
-  {
-    key: 'channel',
-    defaultConfig: { title: 'Channel', width: 110, fixed: 'left', order: 2 },
-    build: () => ({
-      title: 'Channel',
-      dataIndex: 'channel',
-      key: 'channel',
-      width: 110,
-      fixed: 'left',
-      render: (v) => <Tag>{v}</Tag>,
-    }),
-  },
-  {
-    key: 'asin',
-    defaultConfig: { title: 'ASIN', width: 140, fixed: 'left', order: 3 },
-    build: () => ({
-      title: 'ASIN',
-      dataIndex: 'asinCode',
-      key: 'asinCode',
-      width: 140,
-      fixed: 'left',
-      render: (v, r) => (
-        <Space size={4} direction="vertical">
-          <Text code style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--bc-font-mono)' }}>{v}</Text>
-          <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)' }}>{r.sku || '—'}</Text>
-        </Space>
-      ),
-    }),
-  },
-  {
-    key: 'title',
-    defaultConfig: { title: 'Title', width: 200, order: 4 },
-    build: () => ({
-      title: 'Title',
-      dataIndex: 'productTitle',
-      key: 'productTitle',
-      width: 200,
-      ellipsis: true,
-    }),
-  },
-  {
-    key: 'retailOps',
-    defaultConfig: { title: 'RetailOps', width: 180, order: 5 },
-    build: () => ({
-      title: 'RetailOps',
-      key: 'retailOps',
-      width: 180,
-      render: (_, r) => (
-        <Space size={4} direction="vertical" style={{ width: '100%' }}>
-          <Tag color={r.retailOpsState === 'OOS' || r.retailOpsState === 'OOS_ZERO' ? 'red' : r.retailOpsState === 'IN_STOCK' ? 'green' : r.retailOpsState === 'LOW_STOCK' ? 'gold' : 'default'}>
-            {r.retailOpsState}
-          </Tag>
-          <SourceQuantityCell
-            quantity={r.retailOpsQuantity}
-            rawStatus={r.retailOpsRawStatus}
-            sourceTimestamp={r.retailOpsObservedAt}
-          />
-          <Text type="secondary" style={{ fontSize: 10 }}>
-            {r.retailOpsObservedAt ? dayjs(r.retailOpsObservedAt).format('DD MMM HH:mm') : '—'}
-            {r.retailOpsFreshness != null && <Text> · {r.retailOpsFreshness}h old</Text>}
-          </Text>
-        </Space>
-      ),
-    }),
-  },
-  {
-    key: 'brandCentral',
-    defaultConfig: { title: 'BrandCentral', width: 150, order: 6 },
-    build: () => ({
-      title: 'BrandCentral',
-      key: 'brandCentral',
-      width: 150,
-      render: (_, r) => (
-        <Space size={4} direction="vertical" style={{ width: '100%' }}>
-          <Tag color={r.brandCentralState === 'OOS_ZERO' ? 'red' : r.brandCentralState === 'IN_STOCK' ? 'green' : r.brandCentralState === 'LOW_STOCK' ? 'gold' : r.brandCentralState === 'N/A' ? 'default' : 'default'}>
-            {r.brandCentralState}
-          </Tag>
-          <SourceQuantityCell
-            quantity={r.brandCentralQuantity}
-            rawStatus={r.brandCentralRawStatus}
-            sourceTimestamp={r.brandCentralObservedAt}
-          />
-        </Space>
-      ),
-    }),
-  },
-  {
-    key: 'vendorCentral',
-    defaultConfig: { title: 'Vendor Central', width: 150, order: 7 },
-    build: () => ({
-      title: 'Vendor Central',
-      key: 'vendorCentral',
-      width: 150,
-      render: (_, r) => {
-        if (r.vendorApplicable === false) {
-          return <Tag color="default">N/A</Tag>;
-        }
-        return (
-          <Space size={4} direction="vertical" style={{ width: '100%' }}>
-            <Tag color={r.vendorCentralState === 'OOS_ZERO' ? 'red' : r.vendorCentralState === 'IN_STOCK' ? 'green' : r.vendorCentralState === 'LOW_STOCK' ? 'gold' : 'default'}>
-              {r.vendorCentralState}
-            </Tag>
-            <SourceQuantityCell
-              quantity={r.vendorCentralQuantity}
-              rawStatus={r.vendorCentralRawStatus}
-              sourceTimestamp={r.vendorCentralObservedAt}
-            />
-          </Space>
-        );
-      },
-    }),
-  },
-  {
-    key: 'gms',
-    defaultConfig: { title: 'GMS / Pareto', width: 200, order: 8 },
-    build: () => ({
-      title: 'GMS / Pareto',
-      key: 'gms',
-      width: 200,
-      render: (_, r) => (
-        <Space size={4} direction="vertical" style={{ width: '100%' }}>
-          <Space>
-            <Text strong>{r.gms != null ? r.gms.toLocaleString() : 'Unverified'}</Text>
-            <Tag color={r.gmsVerified ? 'green' : 'orange'}>
-              {r.gmsVerified ? 'Verified' : 'Unverified'}
-            </Tag>
-          </Space>
-          <Space>
-            <Text type="secondary" style={{ fontSize: 10 }}>
-              Share: {r.gmsSharePct != null ? r.gmsSharePct.toFixed(2) + '%' : '—'}
-            </Text>
-            <Text type="secondary" style={{ fontSize: 10 }}>
-              Cumul: {r.cumulativePct != null ? r.cumulativePct.toFixed(2) + '%' : '—'}
-            </Text>
-          </Space>
-          <PriorityTag
-            group={r.priorityGroup}
-            isNew={r.isNewAsin}
-            firstSeen={r.firstSeenAt}
-            gmsVerified={r.gmsVerified}
-          />
-        </Space>
-      ),
-    }),
-  },
-  {
-    key: 'classification',
-    defaultConfig: { title: 'Classification', width: 180, order: 9 },
-    build: () => ({
-      title: 'Classification',
-      key: 'classification',
-      width: 180,
-      render: (_, r) => (
-        <Space size={4} direction="vertical" style={{ width: '100%' }}>
-          <ClassificationTag
-            classification={r.classification}
-            ruleId={r.ruleId}
-            confidence={r.confidence}
-          />
-          <Text type="secondary" style={{ fontSize: 10 }}>
-            Rev: {r.revision || 1}
-          </Text>
-          {r.exceptionReason && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Tag color="orange">Exception</Tag>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{r.exceptionReason}</p>
-              </TooltipContent>
-            </Tooltip>
-          )}
-        </Space>
-      ),
-    }),
-  },
-  {
-    key: 'resync',
-    defaultConfig: { title: 'Resync', width: 180, order: 10 },
-    build: (canResync) => ({
-      title: 'Resync',
-      key: 'resync',
-      width: 180,
-      render: (_, r) => (
-        <Space size={4} direction="vertical" style={{ width: '100%' }}>
-          <ResyncStatusTag
-            status={r.resyncStatus}
-            jobId={r.resyncJobId}
-            requestedAt={r.resyncRequestedAt}
-            observationTime={r.resyncObservedAt}
-          />
-          {canResync && r.resyncEligible && r.resyncStatus === 'NONE' && (
-            <Button size="small" type="primary" icon={<PlayCircleOutlined />} style={{ width: '100%' }}>
-              Queue Resync
-            </Button>
-          )}
-          {r.resyncStatus === 'QUEUED' && <Tag color="blue">Queued</Tag>}
-          {r.resyncStatus === 'RUNNING' && <Tag color="blue">Running</Tag>}
-        </Space>
-      ),
-    }),
-  },
-  {
-    key: 'incident',
-    defaultConfig: { title: 'Incident', width: 200, order: 11 },
-    build: () => ({
-      title: 'Incident',
-      key: 'incident',
-      width: 200,
-      render: (_, r) => (
-        <Space size={4} direction="vertical" style={{ width: '100%' }}>
-          <IncidentTag
-            status={r.incidentStatus}
-            owner={r.incidentOwner}
-            communicationStatus={r.communicationStatus}
-            followUpDate={r.followUpDate}
-          />
-          <Space size={4}>
-            <Text type="secondary" style={{ fontSize: 10 }}>
-              Owner: {r.incidentOwner || '—'}
-            </Text>
-            <Text type="secondary" style={{ fontSize: 10 }}>
-              {r.followUpDate ? dayjs(r.followUpDate).format('DD MMM') : '—'}
-            </Text>
-          </Space>
-        </Space>
-      ),
-    }),
-  },
-];
-
-function buildColumns(columnConfig, canResync) {
-  // Start with default definitions
-  const defs = COLUMN_DEFINITIONS.map((d) => ({
-    ...d,
-    config: { ...d.defaultConfig },
-  }));
-
-  // Apply server config overrides
-  if (columnConfig && Array.isArray(columnConfig)) {
-    for (const serverCol of columnConfig) {
-      const def = defs.find((d) => d.key === serverCol.key);
-      if (def) {
-        def.config = { ...def.config, ...serverCol };
-      }
-    }
-  }
-
-  // Sort by order, filter enabled, build column objects
-  return defs
-    .filter((d) => d.config.enabled !== false)
-    .sort((a, b) => (a.config.order || 99) - (b.config.order || 99))
-    .map((d) => {
-      const built = d.build(canResync);
-      return {
-        ...built,
-        ...d.config,
-        // Don't let config override the render function
-        render: built.render,
-      };
-    });
-}
-
-export function PriorityTag({ group, isNew, firstSeen }) {
+function PriorityTag({ group, isNew, firstSeen }) {
   const priorityGroup = ['80%', '20%', 'GMS_UNVERIFIED'].includes(group)
     ? group
     : 'PRIORITY_PENDING';
@@ -407,6 +125,169 @@ function IncidentTag({ status, owner, communicationStatus, followUpDate }) {
   );
 }
 
+function buildColumns(canResync) {
+  return [
+    {
+      title: 'ASIN',
+      dataIndex: 'asinCode',
+      key: 'asinCode',
+      width: 140,
+      render: (v, r) => (
+        <Space size={4} direction="vertical">
+          <Text code style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--bc-font-mono)' }}>{v}</Text>
+          <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)' }}>{r.sku || '—'}</Text>
+        </Space>
+      ),
+    },
+    {
+      title: 'Title',
+      dataIndex: 'productTitle',
+      key: 'productTitle',
+      width: 250,
+      ellipsis: true,
+    },
+    {
+      title: 'Classification',
+      dataIndex: 'classification',
+      key: 'classification',
+      width: 160,
+      render: (v, r) => (
+        <Space size={4} direction="vertical" style={{ width: '100%' }}>
+          <ClassificationTag classification={v} ruleId={r.ruleId} confidence={r.confidence} />
+          <Text type="secondary" style={{ fontSize: 10 }}>Rev: {r.revision || 1}</Text>
+        </Space>
+      ),
+    },
+    {
+      title: 'Priority',
+      dataIndex: 'priorityGroup',
+      key: 'priorityGroup',
+      width: 140,
+      render: (v, r) => (
+        <PriorityTag group={v} isNew={r.isNewAsin} firstSeen={r.firstSeenAt} />
+      ),
+    },
+    {
+      title: 'GMS / Pareto',
+      dataIndex: 'gms',
+      key: 'gms',
+      width: 160,
+      render: (v, r) => (
+        <Space size={4} direction="vertical" style={{ width: '100%' }}>
+          <Space>
+            <Text strong>{v != null ? v.toLocaleString() : 'Unverified'}</Text>
+            <Tag color={r.gmsVerified ? 'green' : 'orange'}>
+              {r.gmsVerified ? 'Verified' : 'Unverified'}
+            </Tag>
+          </Space>
+          <Space>
+            <Text type="secondary" style={{ fontSize: 10 }}>
+              Share: {r.gmsSharePct != null ? r.gmsSharePct.toFixed(2) + '%' : '—'}
+            </Text>
+            <Text type="secondary" style={{ fontSize: 10 }}>
+              Cumul: {r.cumulativePct != null ? r.cumulativePct.toFixed(2) + '%' : '—'}
+            </Text>
+          </Space>
+        </Space>
+      ),
+    },
+    {
+      title: 'RetailOps',
+      dataIndex: 'retailOpsState',
+      key: 'retailOps',
+      width: 160,
+      render: (_, r) => (
+        <Space size={4} direction="vertical" style={{ width: '100%' }}>
+          <Tag color={r.retailOpsState === 'OOS' || r.retailOpsState === 'OOS_ZERO' ? 'red' : r.retailOpsState === 'IN_STOCK' ? 'green' : r.retailOpsState === 'LOW_STOCK' ? 'gold' : 'default'}>
+            {r.retailOpsState}
+          </Tag>
+          <Space size={4} direction="vertical" style={{ width: '100%' }}>
+            <Text strong>{r.retailOpsQuantity !== null ? r.retailOpsQuantity : '—'}</Text>
+            <Text type="secondary" style={{ fontSize: 10 }}>
+              {r.retailOpsObservedAt ? dayjs(r.retailOpsObservedAt).format('DD MMM HH:mm') : '—'}
+            </Text>
+          </Space>
+        </Space>
+      ),
+    },
+    {
+      title: 'BrandCentral',
+      dataIndex: 'brandCentralState',
+      key: 'brandCentral',
+      width: 140,
+      render: (_, r) => (
+        <Space size={4} direction="vertical" style={{ width: '100%' }}>
+          <Tag color={r.brandCentralState === 'OOS_ZERO' ? 'red' : r.brandCentralState === 'IN_STOCK' ? 'green' : r.brandCentralState === 'LOW_STOCK' ? 'gold' : 'default'}>
+            {r.brandCentralState}
+          </Tag>
+          <Space size={4} direction="vertical" style={{ width: '100%' }}>
+            <Text strong>{r.brandCentralQuantity !== null ? r.brandCentralQuantity : '—'}</Text>
+            <Text type="secondary" style={{ fontSize: 10 }}>
+              {r.brandCentralObservedAt ? dayjs(r.brandCentralObservedAt).format('DD MMM HH:mm') : '—'}
+            </Text>
+          </Space>
+        </Space>
+      ),
+    },
+    {
+      title: 'Vendor Central',
+      dataIndex: 'vendorCentralState',
+      key: 'vendorCentral',
+      width: 140,
+      render: (_, r) => {
+        if (r.vendorApplicable === false) {
+          return <Tag color="default">N/A</Tag>;
+        }
+        return (
+          <Space size={4} direction="vertical" style={{ width: '100%' }}>
+            <Tag color={r.vendorCentralState === 'OOS_ZERO' ? 'red' : r.vendorCentralState === 'IN_STOCK' ? 'green' : r.vendorCentralState === 'LOW_STOCK' ? 'gold' : 'default'}>
+              {r.vendorCentralState}
+            </Tag>
+            <Space size={4} direction="vertical" style={{ width: '100%' }}>
+              <Text strong>{r.vendorCentralQuantity !== null ? r.vendorCentralQuantity : '—'}</Text>
+              <Text type="secondary" style={{ fontSize: 10 }}>
+                {r.vendorCentralObservedAt ? dayjs(r.vendorCentralObservedAt).format('DD MMM HH:mm') : '—'}
+              </Text>
+            </Space>
+          </Space>
+        );
+      },
+    },
+    {
+      title: 'Resync',
+      dataIndex: 'resyncStatus',
+      key: 'resync',
+      width: 160,
+      render: (v, r) => (
+        <Space size={4} direction="vertical" style={{ width: '100%' }}>
+          <ResyncStatusTag
+            status={v}
+            jobId={r.resyncJobId}
+            requestedAt={r.resyncRequestedAt}
+            observationTime={r.resyncObservedAt}
+          />
+        </Space>
+      ),
+    },
+    {
+      title: 'Incident',
+      dataIndex: 'incidentStatus',
+      key: 'incident',
+      width: 180,
+      render: (_, r) => (
+        <Space size={4} direction="vertical" style={{ width: '100%' }}>
+          <IncidentTag
+            status={r.incidentStatus}
+            owner={r.incidentOwner}
+            communicationStatus={r.communicationStatus}
+            followUpDate={r.followUpDate}
+          />
+        </Space>
+      ),
+    },
+  ];
+}
+
 export default function OosAffectedAsinsGrid({
   data = [],
   loading = false,
@@ -416,44 +297,124 @@ export default function OosAffectedAsinsGrid({
   onSelectionChange,
   canResync,
   columnConfig = null,
+  onAction,
+  selectionType = 'checkbox',
 }) {
-  const columns = useMemo(() => buildColumns(columnConfig, canResync), [columnConfig, canResync]);
+  const columns = useMemo(() => buildColumns(canResync), [canResync]);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [localSelectionType, setLocalSelectionType] = useState(selectionType);
+  const hasSelection = selectedRowKeys.length > 0;
+
+  const handleAction = async (actionType) => {
+    if (!hasSelection) return;
+    if (!onAction) return;
+
+    setActionLoading(true);
+    try {
+      await onAction({ type: actionType, ids: selectedRowKeys });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const rowSelection = {
+    type: localSelectionType,
+    selectedRowKeys,
+    onChange: onSelectionChange,
+    columnWidth: 44,
+  };
 
   return (
-    <Table
-      columns={columns}
-      dataSource={data}
-      rowKey="id"
-      loading={loading}
-      pagination={pagination}
-      onChange={onTableChange}
-      rowSelection={{
-        columnWidth: 40,
-        selectedRowKeys,
-        onChange: onSelectionChange,
-      }}
-      size="small"
-      bordered
-      scroll={{ x: 1600, y: 500 }}
-      locale={{
-        emptyText: 'No affected ASINs for this run',
-        filterTitle: 'Filter',
-        filterConfirm: 'OK',
-        filterReset: 'Reset',
-        filterEmptyText: 'No matches',
-        filterCheckall: 'Select all items',
-        filterSearchPlaceholder: 'Search in column',
-        selectionAll: 'Select all',
-        selectionInvert: 'Invert selection',
-        selectionNone: 'Clear all',
-        selectAll: 'Select all',
-        sortTitle: 'Sort',
-        expand: 'Expand row',
-        collapse: 'Collapse row',
-        triggerDesc: 'Click to sort descending',
-        triggerAsc: 'Click to sort ascending',
-        cancelSort: 'Cancel sorting',
-      }}
-    />
+    <Flex vertical gap="small" style={{ width: '100%' }}>
+      <Flex align="center" justify="space-between" gap="small" wrap>
+        <Flex gap="small" align="center">
+          {hasSelection && (
+            <Text strong>
+              {selectedRowKeys.length} item{selectedRowKeys.length !== 1 ? 's' : ''} selected
+            </Text>
+          )}
+        </Flex>
+        <Flex gap="small" align="center">
+          <Radio.Group value={localSelectionType} onChange={(e) => setLocalSelectionType(e.target.value)} style={{ marginRight: 8 }}>
+            <Radio value="checkbox">Checkbox</Radio>
+            <Radio value="radio">Radio</Radio>
+          </Radio.Group>
+          <Divider type="vertical" />
+          {hasSelection && (
+            <Flex gap="small">
+              <Button
+                type="primary"
+                icon={<PlayCircleOutlined />}
+                onClick={() => handleAction('resync')}
+                disabled={!hasSelection || actionLoading}
+                loading={actionLoading}
+                size="small"
+              >
+                Queue Resync
+              </Button>
+              <Button
+                icon={<ExportOutlined />}
+                onClick={() => handleAction('export')}
+                disabled={!hasSelection || actionLoading}
+                loading={actionLoading}
+                size="small"
+              >
+                Export
+              </Button>
+              <Button
+                icon={<DownloadOutlined />}
+                onClick={() => handleAction('download')}
+                disabled={!hasSelection || actionLoading}
+                loading={actionLoading}
+                size="small"
+              >
+                Download
+              </Button>
+            </Flex>
+          )}
+          <Button
+            type="primary"
+            icon={<ReloadOutlined />}
+            onClick={() => onAction?.({ type: 'refresh' })}
+            loading={loading}
+            size="small"
+          >
+            Reload
+          </Button>
+        </Flex>
+      </Flex>
+
+      <Divider />
+
+      <Table
+        columns={columns}
+        dataSource={data}
+        rowKey="id"
+        rowSelection={rowSelection}
+        loading={loading}
+        pagination={pagination}
+        onChange={onTableChange}
+        size="small"
+        bordered
+        scroll={{ x: 'max-content', y: 500 }}
+        locale={{
+          emptyText: 'No affected ASINs for this run',
+          filterTitle: 'Filter',
+          filterConfirm: 'OK',
+          filterReset: 'Reset',
+          filterEmptyText: 'No matches',
+          filterCheckall: 'Select all items',
+          filterInvert: 'Invert selection',
+          filterNone: 'Clear all',
+          selectAll: 'Select all',
+          sortTitle: 'Sort',
+          expand: 'Expand row',
+          collapse: 'Collapse row',
+          triggerDesc: 'Click to sort descending',
+          triggerAsc: 'Click to sort ascending',
+          cancelSort: 'Cancel sorting',
+        }}
+      />
+    </Flex>
   );
 }

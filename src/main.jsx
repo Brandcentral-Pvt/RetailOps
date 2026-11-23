@@ -9,6 +9,7 @@ import './styles/global-overrides.css'
 import App from './App.jsx'
 import './modules/tasks/views/oos';
 import './modules/tasks/views/guided';
+import './modules/tasks/views/generic';
 import UnderMaintenance from './pages/UnderMaintenance';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 

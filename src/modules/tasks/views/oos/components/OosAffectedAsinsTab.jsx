@@ -19,6 +19,10 @@ function OosAffectedAsinsTab({ task, activeRun, runs, canResync }) {
   const [exportLoading, setExportLoading] = useState(false);
   const [resyncLoading, setResyncLoading] = useState(false);
   const [gridData, setGridData] = useState({ rows: [], total: 0, summary: null });
+
+  // Ensure gridData.rows is always an array
+  const gridRows = Array.isArray(gridData?.rows) ? gridData.rows : [];
+  const gridTotal = Number(gridData?.total) || 0;
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
     page: 1,
@@ -40,7 +44,7 @@ function OosAffectedAsinsTab({ task, activeRun, runs, canResync }) {
   const [sourceIntakeOpen, setSourceIntakeOpen] = useState(true);
 
   // Source intake data
-  const [sourceData, setSourceData] = useState(null);
+  const [sourceData, setSourceData] = useState({});
   const [sourceLoading, setSourceLoading] = useState(false);
 
   const runDate = useMemo(() => {
@@ -81,68 +85,77 @@ function OosAffectedAsinsTab({ task, activeRun, runs, canResync }) {
     }
   }, [activeRun, taskInstanceId]);
 
-  const handleDownloadExport = async () => {
-    if (!taskInstanceId || !activeRun) return;
-    setExportLoading(true);
-    try {
-      const res = await tasksApi.buildExport(taskInstanceId, activeRun);
-      if (res.success) {
-        const exportId = res.export?.Id || res.export?.id;
-        if (exportId) {
-          const blob = await tasksApi.downloadExport(taskInstanceId, exportId);
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'oos-export-' + activeRun + '.xlsx';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          window.URL.revokeObjectURL(url);
-        }
-      }
-    } catch (err) {
-      setError(err.message || 'Export download failed');
-    } finally {
-      setExportLoading(false);
-    }
-  };
+  const handleGridAction = async (action) => {
+    const { type, ids } = action;
+    if (!ids || ids.length === 0) return;
 
-  const handleExport = async () => {
-    if (!taskInstanceId || !activeRun) return;
-    setExportLoading(true);
-    try {
-      const res = await tasksApi.buildExport(taskInstanceId, activeRun);
-      if (res.success) {
-        message.success('Export created successfully');
+    switch (type) {
+      case 'resync':
+        setResyncLoading(true);
+        try {
+          const selectedData = gridData.rows.filter(r => ids.includes(r.id));
+          for (const row of selectedData) {
+            const caseId = row.id || row.DecisionId;
+            if (caseId) {
+              await tasksApi.requestResync(taskInstanceId, activeRun, caseId, { asin: row.asinCode });
+            }
+          }
+          message.success(`${selectedData.length} ASIN(s) queued for resync`);
+          loadData();
+        } catch (err) {
+          message.error(err.message || 'Failed to queue resync');
+        } finally {
+          setResyncLoading(false);
+        }
+        break;
+      case 'export':
+        setExportLoading(true);
+        try {
+          const res = await tasksApi.buildExport(taskInstanceId, activeRun);
+          if (res.success) {
+            message.success('Export generated');
+            loadExports();
+          }
+        } catch (err) {
+          message.error(err.message || 'Export generation failed');
+        } finally {
+          setExportLoading(false);
+        }
+        break;
+      case 'download':
+        setExportLoading(true);
+        try {
+          const res = await tasksApi.listExports(taskInstanceId, activeRun);
+          if (res.success && (res.data || res.exports || []).length > 0) {
+            const latestExport = (res.data || res.exports || [])[0];
+            const blob = await tasksApi.downloadExport(taskInstanceId, latestExport.Id);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = latestExport.FileName || `oos-export-${latestExport.Version}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            message.success('Download started');
+          } else {
+            message.warning('No exports available');
+          }
+        } catch (err) {
+          message.error(err.message || 'Download failed');
+        } finally {
+          setExportLoading(false);
+        }
+        break;
+      case 'refresh':
         loadData();
-      }
-    } catch (err) {
-      setError(err.message || 'Export failed');
-    } finally {
-      setExportLoading(false);
+        break;
     }
   };
 
-  const handleRequestResync = async () => {
-    if (!taskInstanceId || !activeRun || !selectedRows.length) return;
-    setResyncLoading(true);
-    try {
-      // Get full row data for selected rows to extract DecisionId (caseId)
-      const selectedData = gridData.rows.filter(r => selectedRows.includes(r.id));
-      for (const row of selectedData) {
-        const caseId = row.id || row.DecisionId;
-        if (caseId) {
-          await tasksApi.requestResync(taskInstanceId, activeRun, caseId, { asin: row.asinCode });
-        }
-      }
-      message.success(`Resync requested for ${selectedData.length} ASIN(s)`);
-      loadData();
-    } catch (err) {
-      setError(err.message || 'Resync request failed');
-    } finally {
-      setResyncLoading(false);
-    }
-  };
+  const handleRequestResync = () => handleGridAction({ type: 'resync', ids: selectedRows });
+  const handleExport = () => handleGridAction({ type: 'export', ids: selectedRows });
+  const handleDownloadExport = () => handleGridAction({ type: 'download', ids: selectedRows });
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -297,12 +310,12 @@ function OosAffectedAsinsTab({ task, activeRun, runs, canResync }) {
                 )}
 
                 <OosAffectedAsinsGrid
-                  data={gridData.rows}
+                  data={gridRows}
                   loading={loading}
                   pagination={{
                     current: filters.page,
                     pageSize: filters.pageSize,
-                    total: gridData.total,
+                    total: gridTotal,
                   }}
                   onTableChange={(pagination, tableFilters, sorter) => {
                     setFilters(prev => ({
@@ -317,6 +330,7 @@ function OosAffectedAsinsTab({ task, activeRun, runs, canResync }) {
                   onSelectionChange={setSelectedRows}
                   canResync={canResync}
                   columnConfig={columnConfig}
+                  onAction={handleGridAction}
                 />
 
                 <div

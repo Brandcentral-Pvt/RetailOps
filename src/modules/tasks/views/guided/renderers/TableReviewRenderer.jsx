@@ -9,8 +9,9 @@ const { Text } = Typography;
 /**
  * TABLE_REVIEW renderer - ASINs, listings or discrepancies review
  * Interactive table with inline editing, row actions, and bulk operations
+ * V2: Uses outputValue prop
  */
-export default function TableReviewRenderer({ activity, task, onOutputChange, readOnly }) {
+export default function TableReviewRenderer({ activity, task, onOutputChange, readOnly, isV2, v2Workflow, outputValue, outputRevision }) {
   const { hasPermission, isAdmin, isGlobalUser } = useAuth();
   const canEdit = !readOnly && (isAdmin || isGlobalUser || hasPermission('tasks_execute'));
   const canManage = isAdmin || isGlobalUser || hasPermission('tasks_manage');

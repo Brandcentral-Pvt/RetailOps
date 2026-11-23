@@ -1131,3 +1131,64 @@
 .rv-comment { display: flex; gap: 10px; align-items: flex-start; }
 .rv-comment__bubble { flex: 1; background: var(--bc-surface-subtle, #f8fafc); border: 1px solid var(--bc-border-subtle, #f1f5f9); border-radius: 10px; padding: 8px 12px; }
 .rv-hist { border-left: 3px solid var(--rv-accent, #94a3b8); padding: 8px 12px; background: var(--bc-surface-card, #fff); border-radius: 0 8px 8px 0; border-top: 1px solid var(--bc-border-subtle, #f1f5f9); border-right: 1px solid var(--bc-border-subtle, #f1f5f9); border-bottom: 1px solid var(--bc-border-subtle, #f1f5f9); }
+
+/* ──────────────────────────────────────────────
+   OOS AFFECTED ASINS GRID — Fixed column fixes
+   ────────────────────────────────────────────── */
+/* Fix overlapping fixed columns in horizontal scroll */
+.ant-table-container {
+  overflow: visible !important;
+}
+
+/* Fixed left columns need higher z-index to stay above scrollable content */
+.ant-table-thead > tr > th.ant-table-cell-fixed-left,
+.ant-table-tbody > tr > td.ant-table-cell-fixed-left {
+  z-index: 2 !important;
+  background: var(--tec-surface, #fff) !important;
+}
+
+/* Fixed right columns */
+.ant-table-thead > tr > th.ant-table-cell-fixed-right,
+.ant-table-tbody > tr > td.ant-table-cell-fixed-right {
+  z-index: 2 !important;
+  background: var(--tec-surface, #fff) !important;
+}
+
+/* Header fixed columns */
+.ant-table-thead > tr > th.ant-table-cell-fixed-left {
+  z-index: 3 !important;
+}
+
+/* Ensure sticky header works with fixed columns */
+.ant-table-sticky-holder {
+  z-index: 4 !important;
+}
+
+/* Row hover should not break fixed columns */
+.ant-table-tbody > tr:hover > td.ant-table-cell-fixed-left,
+.ant-table-tbody > tr:hover > td.ant-table-cell-fixed-right {
+  background: #f8fafc !important;
+}
+
+/* Selected row fixed columns */
+.ant-table-tbody > tr.ant-table-row-selected > td.ant-table-cell-fixed-left,
+.ant-table-tbody > tr.ant-table-row-selected > td.ant-table-cell-fixed-right {
+  background: var(--tec-primary-sub, #eff6ff) !important;
+}
+
+/* Fix the scroll container */
+.ant-table-body {
+  overflow-x: auto !important;
+}
+
+/* Fix selection column fixed */
+.ant-table-selection-column.ant-table-cell-fixed-left {
+  z-index: 5 !important;
+}
+
+/* Ensure row key column is visible */
+.ant-table-row-hover .ant-table-cell-fixed-left,
+.ant-table-row-hover .ant-table-cell-fixed-right {
+  background: #f8fafc !important;
+}
+

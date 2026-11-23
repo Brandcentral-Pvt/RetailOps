@@ -9,15 +9,17 @@ const { Text } = Typography;
 /**
  * FILE_UPLOAD renderer - source report or required file intake
  * Handles file upload with validation, progress, and revision tracking
+ * V2: Uses outputValue prop
  */
-export default function FileUploadRenderer({ activity, task, onOutputChange, readOnly }) {
+export default function FileUploadRenderer({ activity, task, onOutputChange, readOnly, isV2, v2Workflow, outputValue, outputRevision }) {
   const { hasPermission } = useAuth();
   const canEdit = !readOnly && hasPermission('tasks_execute');
   
   const uploadConfig = activity.uploadConfig || {};
   const acceptedTypes = uploadConfig.acceptedTypes || ['.csv', '.xls', '.xlsx', '.pdf'];
   const maxSize = uploadConfig.maxSize || 50 * 1024 * 1024; // 50MB default
-  const [uploads, setUploads] = useState(activity.outputValue?.uploads || []);
+  const initialOutput = outputValue !== undefined ? outputValue : activity.outputValue;
+  const [uploads, setUploads] = useState(initialOutput?.uploads || []);
   const [uploading, setUploading] = useState(false);
   const [fileError, setFileError] = useState(null);
   
@@ -55,8 +57,8 @@ export default function FileUploadRenderer({ activity, task, onOutputChange, rea
       response: f.response,
     }));
     setUploads(newFiles);
-    await onOutputChange({ ...activity.outputValue, uploads: newFiles, lastUploadedAt: new Date().toISOString() });
-  }, [onOutputChange, activity.outputValue]);
+    await onOutputChange({ ...initialOutput, uploads: newFiles, lastUploadedAt: new Date().toISOString() });
+  }, [onOutputChange, initialOutput]);
   
   const handleDownload = async (upload) => {
     if (!upload.response?.downloadUrl) return;

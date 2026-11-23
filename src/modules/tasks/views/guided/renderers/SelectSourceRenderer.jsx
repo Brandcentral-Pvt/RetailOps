@@ -9,13 +9,14 @@ const { Text } = Typography;
 /**
  * SELECT_SOURCE renderer - authorized source or method selection
  * Employee chooses from pre-approved sources/methods
+ * V2: Uses outputValue prop
  */
-export default function SelectSourceRenderer({ activity, task, onOutputChange, readOnly }) {
+export default function SelectSourceRenderer({ activity, task, onOutputChange, readOnly, isV2, v2Workflow, outputValue, outputRevision }) {
   const { hasPermission } = useAuth();
   const canEdit = !readOnly && hasPermission('tasks_execute');
   
   const sources = activity.sources || activity.options || [];
-  const [selected, setSelected] = useState(activity.outputValue);
+  const [selected, setSelected] = useState(outputValue !== undefined ? outputValue : activity.outputValue);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
@@ -27,10 +28,10 @@ export default function SelectSourceRenderer({ activity, task, onOutputChange, r
   };
   
   useEffect(() => {
-    if (activity.outputValue !== undefined && activity.outputValue !== selected) {
-      setSelected(activity.outputValue);
+    if (outputValue !== undefined && outputValue !== selected) {
+      setSelected(outputValue);
     }
-  }, [activity.outputValue]);
+  }, [outputValue]);
   
   const renderSourceCard = (source) => (
     <div

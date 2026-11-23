@@ -9,13 +9,14 @@ const { Text } = Typography;
 /**
  * CHECKLIST renderer - explicit verification items
  * Each checklist item can be toggled independently
+ * V2: Uses outputValue prop
  */
-export default function ChecklistRenderer({ activity, task, onOutputChange, readOnly }) {
+export default function ChecklistRenderer({ activity, task, onOutputChange, readOnly, isV2, v2Workflow, outputValue, outputRevision }) {
   const { hasPermission } = useAuth();
   const canEdit = !readOnly && hasPermission('tasks_execute');
   
   const checklistItems = activity.checklistItems || activity.instructions?.split('\n').filter(Boolean) || [];
-  const completedItems = activity.outputValue || [];
+  const completedItems = outputValue !== undefined ? outputValue : (activity.outputValue || []);
   
   const handleToggle = async (index) => {
     if (!canEdit) return;
