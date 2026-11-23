@@ -1,6 +1,8 @@
 const { sql, getPool, generateId, withTransaction } = require('../../database/db');
 const { canTransition, calculateSLAStatus, calculateAchievement, calculateVariance, getNextDueDate, getTransitionTimestamps, resolveReviewTransition, WORKFLOW_STATUSES, VISIBILITY_STATES, evaluateCondition, evaluateVisibility, extractConditionFields, isSubTaskComplete, isTaskComplete } = require('./workflowEngine');
-const { canActOnTask } = require('./pemsPolicy');
+const { canActOnTask, canReviewTask, canTransitionTask } = require('./pemsPolicy');
+const taskExecutionGates = require('./taskExecutionGates');
+const taskInstanceSnapshot = require('./taskInstanceSnapshot');
 const { isGlobalUserRole } = require('../../utils/roleUtils');
 const { resolveSellerScope, buildScopeClause, canViewTaskByScope, applyScopeInputs } = require('./sellerScope');
 
@@ -260,10 +262,11 @@ async function createInstance(data) {
   let tplRow = null;
   if (data.templateId) {
     const tplResult = await pool.request().input('tplId', sql.VarChar, data.templateId)
-      .query('SELECT Department, SubTaskDefinitions FROM PemsTaskTemplates WHERE Id = @tplId');
+      .query(`SELECT Department, SubTaskDefinitions FROM PemsTaskTemplates${taskInstanceSnapshot.viewPinningEnabled() ? ' WITH (UPDLOCK, HOLDLOCK)' : ''} WHERE Id = @tplId`);
     tplRow = tplResult.recordset[0];
   }
   const department = data.department || tplRow?.Department || 'Operations';
+  const viewPin = await taskInstanceSnapshot.resolveViewPin(pool, data.templateId);
 
   // Resolve sellerName if not provided
   let sellerName = data.sellerName || '';
@@ -305,22 +308,27 @@ async function createInstance(data) {
     .input('sourceRef', sql.NVarChar, data.sourceRef || null)
     .input('asins', sql.NVarChar(sql.MAX), JSON.stringify(data.asins || data.ASINs || []))
     .input('category', sql.NVarChar, data.category || department)
+    .input('viewDefinitionId', sql.VarChar, viewPin.viewDefinitionId)
+    .input('viewDefinitionSnapshot', sql.NVarChar(sql.MAX), viewPin.snapshotJson)
     .query(`
       INSERT INTO PemsTaskInstances
         (Id, InstanceCode, TemplateId, SellerId, SellerName, AssignedTo, AssigneeName,
          ReviewerId, ReviewerName, Department, Status, ReviewStatus, Frequency, Title, Description,
          Priority, Target, Achievement, SLAStatus, SLAHours, DueDate, AssignedAt,
-         Attachments, Tags, Source, SourceId, SourceRef, Asins, Category)
+         Attachments, Tags, Source, SourceId, SourceRef, Asins, Category${viewPin.pinned ? ', ViewDefinitionId, ViewDefinitionSnapshot' : ''})
       VALUES
         (@id, @instanceCode, @templateId, @sellerId, @sellerName, @assignedTo, @assigneeName,
          @reviewerId, @reviewerName, @department, @status, @reviewStatus, @frequency, @title, @description,
          @priority, @target, @achievement, @slaStatus, @slaHours, @dueDate, @assignedAt,
-         @attachments, @tags, @source, @sourceId, @sourceRef, @asins, @category)
+         @attachments, @tags, @source, @sourceId, @sourceRef, @asins, @category${viewPin.pinned ? ', @viewDefinitionId, @viewDefinitionSnapshot' : ''})
     `);
 
   // Create subtasks from template definitions
   // Fetch template's SOP if subTaskDefinitions not provided in request
-  let subTaskDefs = data.subTaskDefinitions;
+  // Pinned tasks execute the template SOP captured under the creation lock.
+  let subTaskDefs = viewPin.pinned && data.templateId && tplRow
+    ? safeParse(tplRow.SubTaskDefinitions, [])
+    : data.subTaskDefinitions;
   if ((!subTaskDefs || subTaskDefs.length === 0) && data.templateId && tplRow?.SubTaskDefinitions) {
     subTaskDefs = safeParse(tplRow.SubTaskDefinitions, []);
   } else if ((!subTaskDefs || subTaskDefs.length === 0) && data.templateId) {
@@ -965,10 +973,19 @@ async function checkAsinSubmissionGate(pool, taskInstanceId) {
 }
 
 async function transitionStatus(taskInstanceId, toStatus, actorId, actorName, actorRole, details, tx) {
+  if (!tx && ['UNDER_REVIEW', 'APPROVED', 'REJECTED'].includes(toStatus)) {
+    const error = new Error('Review decisions must use the review endpoint');
+    error.status = 403;
+    throw error;
+  }
+  if (!tx && taskExecutionGates.strictGatesEnabled()) {
+    return withTransaction(transaction =>
+      transitionStatus(taskInstanceId, toStatus, actorId, actorName, actorRole, details, transaction));
+  }
   const pool = tx || (await getPool());
   const instanceResult = await pool.request()
     .input('id', sql.VarChar, taskInstanceId)
-    .query('SELECT Status, AssignedTo, AssigneeName, ReviewerId, ReviewerName, DueDate, SLAHours, Title FROM PemsTaskInstances WHERE Id = @id');
+    .query(`SELECT Status, AssignedTo, AssigneeName, ReviewerId, ReviewerName, DueDate, SLAHours, Title FROM PemsTaskInstances ${tx && taskExecutionGates.strictGatesEnabled() ? 'WITH (UPDLOCK, HOLDLOCK)' : ''} WHERE Id = @id`);
   const instance = instanceResult.recordset[0];
   if (!instance) throw new Error('Task instance not found');
 
@@ -981,6 +998,9 @@ async function transitionStatus(taskInstanceId, toStatus, actorId, actorName, ac
   // for templates that have required ASIN signals.
   const isSubmitGate = (instance.Status === 'IN_PROGRESS' && toStatus === 'SUBMITTED');
   const isResubmitGate = (instance.Status === 'REWORK' && toStatus === 'RESUBMITTED');
+  if ((isSubmitGate || isResubmitGate) && taskExecutionGates.strictGatesEnabled()) {
+    await taskExecutionGates.assertSubmissionReady(pool, taskInstanceId);
+  }
 
   if ((isSubmitGate || isResubmitGate) && !details?.waiveAsinGate) {
     const gate = await checkAsinSubmissionGate(pool, taskInstanceId);
@@ -1107,7 +1127,7 @@ async function bulkTransition(taskIds, toStatus, actorId, actorName, actorRole, 
         .query('SELECT Id, Status, AssignedTo, ReviewerId, SellerId FROM PemsTaskInstances WHERE Id = @id');
       const row = inst.recordset[0];
       if (!row) { skipped.push({ id, reason: 'NOT_FOUND' }); continue; }
-      if (!canActOnTask(actor, row)) {
+      if (!canTransitionTask(actor, row, toStatus)) {
         skipped.push({ id, reason: 'NO_ACCESS' });
         continue;
       }
@@ -1453,6 +1473,21 @@ async function canExecuteActivity(pool, activityId) {
 // ═══════════════════════════════════════════════════════
 
 async function completeSubTask(subTaskId, actorId, actorName) {
+  if (taskExecutionGates.strictGatesEnabled()) {
+    return withTransaction(async tx => {
+      const taskId = await taskExecutionGates.lockChildParent(tx, 'phase', subTaskId);
+      const phase = await taskExecutionGates.assertPhaseReady(tx, subTaskId);
+      if (phase.alreadyCompleted) return { success: true, alreadyCompleted: true };
+      const changed = await tx.request()
+        .input('id', sql.VarChar, subTaskId)
+        .input('taskId', sql.VarChar, taskId)
+        .query("UPDATE PemsSubTasks SET IsCompleted = 1, Status = 'COMPLETED', CompletedAt = dbo.GetEnvDate() WHERE Id = @id AND TaskInstanceId = @taskId AND IsCompleted = 0");
+      if (!Number(changed.rowsAffected?.[0] || 0)) return { success: true, alreadyCompleted: true };
+      const progress = await taskExecutionGates.reconcileTaskProgress(tx, taskId);
+      await writeAuditLog(taskId, 'SUBTASK_COMPLETED', null, null, actorId, actorName, 'Subtask completed', tx);
+      return { success: true, progress };
+    });
+  }
   return withTransaction(async (tx) => {
   const pool = tx;
   await pool.request()
@@ -1474,8 +1509,14 @@ async function completeSubTask(subTaskId, actorId, actorName) {
  * Tick / un-tick a brand on a multi-brand task (or all of them when brandRowId is omitted).
  * Only while the work is open — same window in which steps can be ticked.
  */
-async function setBrandCheck(taskId, brandRowId, completed, actorId, note) {
-  const pool = await getPool();
+async function setBrandCheck(taskId, brandRowId, completed, actorId, note, tx = null) {
+  if (!tx && taskExecutionGates.strictGatesEnabled()) {
+    return withTransaction(transaction => setBrandCheck(taskId, brandRowId, completed, actorId, note, transaction));
+  }
+  const pool = tx || (await getPool());
+  if (tx && taskExecutionGates.strictGatesEnabled()) {
+    await taskExecutionGates.lockTaskForExecution(tx, taskId);
+  }
   const task = (await pool.request().input('id', sql.VarChar, taskId)
     .query('SELECT Id, Status FROM PemsTaskInstances WHERE Id = @id')).recordset[0];
   if (!task) { const e = new Error('Task not found'); e.status = 404; throw e; }
@@ -1499,10 +1540,39 @@ async function setBrandCheck(taskId, brandRowId, completed, actorId, note) {
   if (brandRowId && !res.rowsAffected[0]) { const e = new Error('Brand not found on this task'); e.status = 404; throw e; }
   const counts = (await pool.request().input('taskId', sql.VarChar, taskId)
     .query('SELECT COUNT(*) AS total, COALESCE(SUM(CASE WHEN IsCompleted = 1 THEN 1 ELSE 0 END), 0) AS done FROM PemsTaskBrands WHERE TaskInstanceId = @taskId')).recordset[0];
+  if (tx && taskExecutionGates.strictGatesEnabled()) await taskExecutionGates.reconcileTaskProgress(tx, taskId);
   return { total: counts.total, done: counts.done };
 }
 
 async function completeActivity(activityId, actorId, actorName) {
+  if (taskExecutionGates.strictGatesEnabled()) {
+    return withTransaction(async (tx) => {
+      // Lock the authoritative parent before reading or writing child state.
+      const taskId = await taskExecutionGates.lockChildParent(tx, 'activity', activityId);
+      const activity = await taskExecutionGates.assertActivityReady(tx, activityId);
+      if (activity.alreadyCompleted) return { success: true, alreadyCompleted: true };
+      // Existing conditional rules must also pass inside the same transaction.
+      const execution = await canExecuteActivity(tx, activityId);
+      if (!execution.allowed) {
+        const error = new Error(`Cannot complete activity: ${execution.reason}`);
+        error.status = 409;
+        error.code = execution.reason;
+        throw error;
+      }
+      const changed = await tx.request()
+        .input('id', sql.VarChar, activityId)
+        .input('taskId', sql.VarChar, taskId)
+        .input('actorId', sql.VarChar, actorId)
+        .query("UPDATE PemsActivities SET IsCompleted = 1, CompletedAt = dbo.GetEnvDate(), CompletedBy = @actorId WHERE Id = @id AND TaskInstanceId = @taskId AND IsCompleted = 0");
+      if (!Number(changed.rowsAffected?.[0] || 0)) return { success: true, alreadyCompleted: true };
+      await evaluateTaskVisibility(tx, taskId, actorId);
+      await taskExecutionGates.autoCompleteReadyPhase(tx, activity.SubTaskId, taskId);
+      const progress = await taskExecutionGates.reconcileTaskProgress(tx, taskId);
+      await writeAuditLog(taskId, 'ACTIVITY_COMPLETED', null, null, actorId, actorName,
+        `Activity ${activityId} completed`, tx);
+      return { success: true, progress };
+    });
+  }
   const pool = await getPool();
   
   // V2.3: Check visibility state before allowing completion
@@ -1846,27 +1916,92 @@ async function resolveAsin(taskInstanceId, asinId, action, waiveReason, actorId,
 // ═══════════════════════════════════════════════════════
 
 async function uploadEvidence(data) {
-  const pool = await getPool();
-  const id = genId();
-  await pool.request()
-    .input('id', sql.VarChar, id)
-    .input('taskInstanceId', sql.VarChar, data.taskInstanceId)
-    .input('subTaskId', sql.VarChar, data.subTaskId || null)
-    .input('activityId', sql.VarChar, data.activityId || null)
-    .input('fileName', sql.NVarChar, data.fileName)
-    .input('fileUrl', sql.NVarChar, data.fileUrl)
-    .input('fileType', sql.VarChar, data.fileType || 'FILE')
-    .input('fileSize', sql.BigInt, data.fileSize || 0)
-    .input('mimeType', sql.NVarChar, data.mimeType || '')
-    .input('remarks', sql.NVarChar, data.remarks || '')
-    .input('uploadedBy', sql.VarChar, data.uploadedBy)
-    .input('uploadedByName', sql.NVarChar, data.uploadedByName || '')
-    .query(`
-      INSERT INTO PemsEvidence (Id, TaskInstanceId, SubTaskId, ActivityId, FileName, FileUrl, FileType, FileSize, MimeType, Remarks, UploadedBy, UploadedByName)
-      VALUES (@id, @taskInstanceId, @subTaskId, @activityId, @fileName, @fileUrl, @fileType, @fileSize, @mimeType, @remarks, @uploadedBy, @uploadedByName)
-    `);
-  await writeAuditLog(data.taskInstanceId, 'EVIDENCE_UPLOADED', null, null, data.uploadedBy, data.uploadedByName, `Evidence uploaded: ${data.fileName}`);
-  return { id };
+  const taskId = String(data?.taskInstanceId || '').trim();
+  const fileName = String(data?.fileName || '').trim();
+  const fileUrl = String(data?.fileUrl || '').trim();
+  const activityId = data?.activityId || null;
+  const subTaskId = data?.subTaskId || null;
+  if (!taskId || !fileName || !fileUrl || !data?.uploadedBy) {
+    const error = new Error('Task, evidence name, URL and authenticated uploader are required');
+    error.status = 400;
+    throw error;
+  }
+  if (String(data.fileType || 'FILE').toUpperCase() === 'LINK' && !/^https?:\/\//i.test(fileUrl)) {
+    const error = new Error('Evidence links must use http or https');
+    error.status = 400;
+    throw error;
+  }
+
+  return withTransaction(async (tx) => {
+    // Serialize evidence uploads against submission and activity completion.
+    const task = await taskExecutionGates.lockTaskForExecution(tx, taskId);
+    if (taskExecutionGates.strictGatesEnabled() &&
+        !['ACCEPTED', 'IN_PROGRESS', 'REWORK'].includes(task.Status)) {
+      const error = new Error('Cannot add execution evidence while this task is not in progress');
+      error.status = 409;
+      throw error;
+    }
+
+    if (activityId) {
+      const record = await tx.request().input('activityId', sql.VarChar, activityId)
+        .query('SELECT Id, TaskInstanceId, SubTaskId FROM PemsActivities WHERE Id = @activityId');
+      const activity = record.recordset[0];
+      if (!activity || activity.TaskInstanceId !== taskId ||
+          (subTaskId && activity.SubTaskId !== subTaskId)) {
+        const error = new Error('Evidence activity does not belong to this task and phase');
+        error.status = 400;
+        throw error;
+      }
+    } else if (subTaskId) {
+      const record = await tx.request().input('phaseId', sql.VarChar, subTaskId)
+        .query('SELECT Id, TaskInstanceId FROM PemsSubTasks WHERE Id = @phaseId');
+      if (!record.recordset[0] || record.recordset[0].TaskInstanceId !== taskId) {
+        const error = new Error('Evidence phase does not belong to this task');
+        error.status = 400;
+        throw error;
+      }
+    }
+
+    // A retry with the identical task, activity, URL and uploader returns the
+    // existing record instead of creating duplicate proof.
+    const existing = await tx.request()
+      .input('taskId', sql.VarChar, taskId)
+      .input('activityId', sql.VarChar, activityId)
+      .input('subTaskId', sql.VarChar, subTaskId)
+      .input('fileUrl', sql.NVarChar, fileUrl)
+      .input('uploadedBy', sql.VarChar, data.uploadedBy)
+      .query(`
+        SELECT TOP (1) Id FROM PemsEvidence
+        WHERE TaskInstanceId = @taskId
+          AND ((ActivityId = @activityId) OR (ActivityId IS NULL AND @activityId IS NULL))
+          AND ((SubTaskId = @subTaskId) OR (SubTaskId IS NULL AND @subTaskId IS NULL))
+          AND FileUrl = @fileUrl AND UploadedBy = @uploadedBy
+        ORDER BY UploadedAt DESC
+      `);
+    if (existing.recordset[0]) return { id: existing.recordset[0].Id, alreadyExists: true };
+
+    const id = genId();
+    await tx.request()
+      .input('id', sql.VarChar, id)
+      .input('taskInstanceId', sql.VarChar, taskId)
+      .input('subTaskId', sql.VarChar, subTaskId)
+      .input('activityId', sql.VarChar, activityId)
+      .input('fileName', sql.NVarChar, fileName)
+      .input('fileUrl', sql.NVarChar, fileUrl)
+      .input('fileType', sql.VarChar, data.fileType || 'FILE')
+      .input('fileSize', sql.BigInt, data.fileSize || 0)
+      .input('mimeType', sql.NVarChar, data.mimeType || '')
+      .input('remarks', sql.NVarChar, data.remarks || '')
+      .input('uploadedBy', sql.VarChar, data.uploadedBy)
+      .input('uploadedByName', sql.NVarChar, data.uploadedByName || '')
+      .query(`
+        INSERT INTO PemsEvidence (Id, TaskInstanceId, SubTaskId, ActivityId, FileName, FileUrl, FileType, FileSize, MimeType, Remarks, UploadedBy, UploadedByName)
+        VALUES (@id, @taskInstanceId, @subTaskId, @activityId, @fileName, @fileUrl, @fileType, @fileSize, @mimeType, @remarks, @uploadedBy, @uploadedByName)
+      `);
+    await writeAuditLog(taskId, 'EVIDENCE_UPLOADED', null, null,
+      data.uploadedBy, data.uploadedByName, `Evidence uploaded: ${fileName}`, tx);
+    return { id };
+  });
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1946,16 +2081,21 @@ async function submitReviewAndTransition(rawData, actor) {
   return withTransaction(async (tx) => {
     const cur = await tx.request()
       .input('id', sql.VarChar, data.taskInstanceId)
-      .query('SELECT Status, AssignedTo, ReviewerId FROM PemsTaskInstances WITH (UPDLOCK, ROWLOCK) WHERE Id = @id');
+      .query('SELECT Status, AssignedTo, ReviewerId, SellerId FROM PemsTaskInstances WITH (UPDLOCK, ROWLOCK) WHERE Id = @id');
     const task = cur.recordset[0];
     if (!task) throw new Error('Task instance not found');
 
     if (!REVIEWABLE_STATUSES.includes(task.Status)) {
       throw new Error(`Task is ${task.Status} and is not awaiting review`);
     }
-    const actorRole = String(actor.role?.name || actor.role || '').toLowerCase();
-    if (!isGlobalUserRole(actorRole) && task.AssignedTo && task.AssignedTo === actor.id) {
-      throw new Error('You cannot review a task that is assigned to you');
+    // Reviewer assignment and seller access are derived from authenticated identity.
+    if (!canReviewTask(actor.user || { Id: actor.id, role: actor.role }, task)) {
+      const error = new Error('You cannot review this task or your own assigned work');
+      error.status = 403;
+      throw error;
+    }
+    if (data.decision === 'APPROVE' && taskExecutionGates.strictGatesEnabled()) {
+      await taskExecutionGates.assertSubmissionReady(tx, data.taskInstanceId);
     }
 
     const from = task.Status;
@@ -1999,7 +2139,7 @@ async function bulkReview(taskIds, data, actor, user) {
         .query('SELECT Id, AssignedTo, ReviewerId, SellerId FROM PemsTaskInstances WHERE Id = @id');
       const row = r.recordset[0];
       if (!row) { skipped.push({ id, reason: 'Task not found' }); continue; }
-      if (!canActOnTask(user, row)) { skipped.push({ id, reason: 'No access to this task' }); continue; }
+      if (!canReviewTask(user, row)) { skipped.push({ id, reason: 'No access to this task' }); continue; }
       const out = await submitReviewAndTransition({ ...data, taskInstanceId: id }, actor);
       reviewed.push({ id, to: out.to });
     } catch (err) {

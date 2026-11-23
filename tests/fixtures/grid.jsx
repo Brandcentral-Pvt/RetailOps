@@ -2,6 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App as AntApp, ConfigProvider } from 'antd';
 import OosAffectedAsinsGrid from '/src/modules/tasks/views/oos/components/OosAffectedAsinsGrid.jsx';
+import { TooltipProvider } from '/src/components/ui/tooltip';
 
 const baseRow = {
   sellerName: 'Nova Retail LLC',
@@ -35,10 +36,12 @@ const rows = [
 createRoot(document.getElementById('root')).render(
   <ConfigProvider>
     <AntApp>
-      <OosAffectedAsinsGrid
+      <TooltipProvider>
+        <OosAffectedAsinsGrid
         data={rows}
         pagination={{ current: 1, pageSize: 50, total: rows.length }}
-      />
+        />
+      </TooltipProvider>
     </AntApp>
   </ConfigProvider>,
 );

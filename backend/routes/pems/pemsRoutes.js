@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { auth, requirePermission } = require('../../middleware/auth');
-const { requireTaskAccess, requireTaskView, requireGlobalPemsRole } = require('../../middleware/pemsAccess');
+const { requireTaskAccess, requireTaskView, requireTaskExecutor, requireTaskReviewer, requireTaskTransition, requireGlobalPemsRole } = require('../../middleware/pemsAccess');
 const ctrl = require('../../controllers/pems/pemsController');
 const { cacheRoute, invalidateCache } = require('../../middleware/cache');
 
@@ -20,8 +20,8 @@ router.put('/templates/:id', auth, requirePermission('tasks_manage'), invalidate
 router.delete('/templates/:id', auth, requirePermission('tasks_manage'), invalidateCache('pems:templates'), ctrl.deleteTemplate);
 
 // ── Brand checklist on multi-brand routines (brandId omitted = all brands) ──
-router.put('/instances/:id/brands', auth, requireTaskAccess, ctrl.setBrandCheck);
-router.put('/instances/:id/brands/:brandId', auth, requireTaskAccess, ctrl.setBrandCheck);
+router.put('/instances/:id/brands', auth, requireTaskExecutor, ctrl.setBrandCheck);
+router.put('/instances/:id/brands/:brandId', auth, requireTaskExecutor, ctrl.setBrandCheck);
 
 // ── Daily routine ──
 router.post('/routine/import', auth, requirePermission('tasks_manage'), invalidateCache('pems:templates'), ctrl.importDailyOps);
@@ -35,25 +35,25 @@ router.get('/instances', auth, cacheRoute('pems:instances', 30), ctrl.getInstanc
 router.get('/instances/:id', auth, requireTaskView, cacheRoute('pems:instances', 60), ctrl.getInstanceById);
 router.post('/instances', auth, requirePermission('tasks_manage'), invalidateCache('pems:instances'), ctrl.createInstance);
 router.post('/instances/bulk/transition', auth, invalidateCache('pems:instances'), ctrl.bulkTransition);
-router.post('/instances/:id/transition', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.transitionStatus);
+router.post('/instances/:id/transition', auth, requireTaskTransition, invalidateCache('pems:instances'), ctrl.transitionStatus);
 router.post('/instances/:id/comments', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.addComment);
-router.post('/instances/:id/verify-fix', auth, requireTaskAccess, ctrl.verifyFix);
-router.put('/instances/:id/achievement', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.updateAchievement);
+router.post('/instances/:id/verify-fix', auth, requireTaskExecutor, ctrl.verifyFix);
+router.put('/instances/:id/achievement', auth, requireTaskExecutor, invalidateCache('pems:instances'), ctrl.updateAchievement);
 
 // ── Sub Tasks & Activities ──
-router.post('/subtasks/:subTaskId/complete', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.completeSubTask);
-router.post('/activities/:activityId/complete', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.completeActivity);
+router.post('/subtasks/:subTaskId/complete', auth, requireTaskExecutor, invalidateCache('pems:instances'), ctrl.completeSubTask);
+router.post('/activities/:activityId/complete', auth, requireTaskExecutor, invalidateCache('pems:instances'), ctrl.completeActivity);
 
 // ── Evidence ──
-router.post('/evidence', auth, requireTaskAccess, ctrl.uploadEvidence);
+router.post('/evidence', auth, requireTaskExecutor, ctrl.uploadEvidence);
 
 // ── Affected ASINs (per task instance) ──
 router.get('/instances/:id/asins', auth, requireTaskView, ctrl.getInstanceAsins);
-router.put('/instances/:id/asins/remarks', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.updateAsinRemarks);
-router.post('/instances/:id/asins/:asinId/resolve', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.resolveAsin);
+router.put('/instances/:id/asins/remarks', auth, requireTaskExecutor, invalidateCache('pems:instances'), ctrl.updateAsinRemarks);
+router.post('/instances/:id/asins/:asinId/resolve', auth, requireTaskExecutor, invalidateCache('pems:instances'), ctrl.resolveAsin);
 
 // ── Reviews ──
-router.post('/reviews', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.submitReview);
+router.post('/reviews', auth, requireTaskReviewer, invalidateCache('pems:instances'), ctrl.submitReview);
 router.post('/reviews/bulk', auth, invalidateCache('pems:instances'), ctrl.bulkReview);
 router.get('/reviews/stats', auth, ctrl.getReviewStats);
 router.get('/my-day', auth, ctrl.getMyDay);
