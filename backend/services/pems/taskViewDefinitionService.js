@@ -1,4 +1,6 @@
 const { getPool, sql, generateId } = require('../../database/db');
+const { validateWorkflowDefinition } = require('./templateWorkflow');
+const { assertExecutableWorkflow } = require('./taskWorkflowV2Execution');
 
 const ALLOWED_VIEW_KEYS = new Set([
   'STANDARD_V1',
@@ -73,6 +75,15 @@ function validateDefinitionJson(definition) {
   }
   if (definition.requiredOutputs && !Array.isArray(definition.requiredOutputs)) {
     errors.push('requiredOutputs must be an array');
+  }
+
+  // V2 schema is an additive contract: legacy and OOS definitions remain unchanged.
+  if (definition.workflow !== undefined) {
+    if (definition.schemaVersion !== '2.0' || definition.viewKey !== 'STANDARD_V1') {
+      errors.push('Workflow V2 requires STANDARD_V1 and schemaVersion 2.0');
+    }
+    const v2 = validateWorkflowDefinition(definition.workflow);
+    if (!v2.ok) errors.push(...v2.errors.map(issue => `${issue.field}: ${issue.message}`));
   }
 
   return { ok: errors.length === 0, errors };
@@ -222,7 +233,8 @@ async function publishViewDefinition(id, createdBy) {
 
     // Validate even an already-published row: idempotency must not disguise
     // historical invalid data as a successful publication.
-    validatePersistedDefinition(def);
+    const validated = validatePersistedDefinition(def);
+    if (validated.workflow) assertExecutableWorkflow(validated.workflow);
     if (def.Status === 'PUBLISHED') return { ...def, alreadyPublished: true };
     if (def.Status !== 'DRAFT') {
       throw httpError(409, 'Only a draft view can be published', 'INVALID_VIEW_STATUS');
