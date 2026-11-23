@@ -993,10 +993,14 @@ async function transitionStatus(taskInstanceId, toStatus, actorId, actorName, ac
   const pool = tx || (await getPool());
   const instanceResult = await pool.request()
     .input('id', sql.VarChar, taskInstanceId)
-    .query(`SELECT Status, AssignedTo, AssigneeName, ReviewerId, ReviewerName, DueDate, SLAHours, Title FROM PemsTaskInstances ${tx && taskExecutionGates.strictGatesEnabled() ? 'WITH (UPDLOCK, HOLDLOCK)' : ''} WHERE Id = @id`);
+    .query(`SELECT Status, AssignedTo, AssigneeName, ReviewerId, ReviewerName, DueDate, SLAHours, Title, ViewDefinitionSnapshot FROM PemsTaskInstances ${tx && taskExecutionGates.strictGatesEnabled() ? 'WITH (UPDLOCK, HOLDLOCK)' : ''} WHERE Id = @id`);
   const instance = instanceResult.recordset[0];
   if (!instance) throw new Error('Task instance not found');
 
+  if (taskWorkflowV2Execution.isV2Snapshot(instance.ViewDefinitionSnapshot) && !taskWorkflowV2Execution.v2Enabled()) {
+    const e = new Error('V2 transitions require activated strict workflow gates');
+    e.status = 409; e.code = 'WORKFLOW_V2_NOT_ACTIVATED'; throw e;
+  }
   if (!canTransition(instance.Status, toStatus)) {
     throw new Error(`Invalid transition: ${instance.Status} → ${toStatus}`);
   }
@@ -1969,6 +1973,10 @@ async function uploadEvidence(data) {
   return withTransaction(async (tx) => {
     // Serialize evidence uploads against submission and activity completion.
     const task = await taskExecutionGates.lockTaskForExecution(tx, taskId);
+    if (taskWorkflowV2Execution.isV2Snapshot(task.ViewDefinitionSnapshot) && !taskWorkflowV2Execution.v2Enabled()) {
+      const e = new Error('V2 evidence requires active strict workflow gates');
+      e.status = 409; e.code = 'WORKFLOW_V2_NOT_ACTIVATED'; throw e;
+    }
     if (taskExecutionGates.strictGatesEnabled() &&
         !['ACCEPTED', 'IN_PROGRESS', 'REWORK'].includes(task.Status)) {
       const error = new Error('Cannot add execution evidence while this task is not in progress');
@@ -2115,10 +2123,14 @@ async function submitReviewAndTransition(rawData, actor) {
   return withTransaction(async (tx) => {
     const cur = await tx.request()
       .input('id', sql.VarChar, data.taskInstanceId)
-      .query('SELECT Status, AssignedTo, ReviewerId, SellerId FROM PemsTaskInstances WITH (UPDLOCK, ROWLOCK) WHERE Id = @id');
+      .query('SELECT Status, AssignedTo, ReviewerId, SellerId, ViewDefinitionSnapshot FROM PemsTaskInstances WITH (UPDLOCK, ROWLOCK) WHERE Id = @id');
     const task = cur.recordset[0];
     if (!task) throw new Error('Task instance not found');
 
+    if (taskWorkflowV2Execution.isV2Snapshot(task.ViewDefinitionSnapshot) && !taskWorkflowV2Execution.v2Enabled()) {
+      const e = new Error('V2 reviews require active strict workflow gates');
+      e.status = 409; e.code = 'WORKFLOW_V2_NOT_ACTIVATED'; throw e;
+    }
     if (!REVIEWABLE_STATUSES.includes(task.Status)) {
       throw new Error(`Task is ${task.Status} and is not awaiting review`);
     }
