@@ -15,7 +15,7 @@ function mockTransaction() {
         },
         async query(text) {
           mockQueries.push({ text, inputs: { ...inputs } });
-          if (/SELECT Status, AssignedTo, ReviewerId, SellerId FROM PemsTaskInstances WITH/.test(text)) {
+          if (/SELECT Status, AssignedTo, ReviewerId, SellerId(?:, ViewDefinitionSnapshot)? FROM PemsTaskInstances WITH/.test(text)) {
             return { recordset: [{ Status: mockTaskStatus, AssignedTo: 'worker', ReviewerId: 'reviewer', SellerId: null }] };
           }
           if (/AS PendingRequired/.test(text) && /AS PendingBrands/.test(text)) {
