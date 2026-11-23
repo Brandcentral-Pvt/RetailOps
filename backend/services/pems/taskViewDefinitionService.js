@@ -131,6 +131,8 @@ async function createViewDefinition({
   createdBy,
 } = {}) {
   if (!templateId) throw httpError(400, 'templateId is required', 'TEMPLATE_REQUIRED');
+  // Publication is a separate locked and validated operation; never bypass it at creation.
+  if (status !== 'DRAFT') throw httpError(400, 'New view definitions must start as drafts', 'INVALID_INITIAL_VIEW_STATUS');
   if (!viewKey || !ALLOWED_VIEW_KEYS.has(viewKey)) {
     throw httpError(400, `viewKey must be one of ${[...ALLOWED_VIEW_KEYS].join(', ')}`, 'INVALID_VIEW_KEY');
   }
