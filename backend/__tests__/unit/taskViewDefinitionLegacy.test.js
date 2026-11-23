@@ -32,6 +32,7 @@ const validView = {
 };
 
 beforeEach(() => {
+  process.env.PEMS_PIN_VIEW_SNAPSHOTS = 'true';
   mockTaskRow = null;
   mockPinnedDefinition = null;
   mockQueries = [];
