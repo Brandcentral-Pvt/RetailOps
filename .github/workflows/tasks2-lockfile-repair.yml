@@ -34,5 +34,7 @@ jobs:
             echo "Backend lockfile already consistent"
           else
             git commit -m "fix(deps): regenerate backend npm lockfile for reproducible installs"
+            git fetch origin feat/tasks2-production-phase1-20261123
+            git rebase origin/feat/tasks2-production-phase1-20261123
             git push origin HEAD:feat/tasks2-production-phase1-20261123
           fi
