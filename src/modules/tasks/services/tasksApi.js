@@ -132,6 +132,17 @@ const tasksApi = {
   uploadEvidence: async (data) =>
     call(`/pems/evidence`, { method: 'POST', body: data }),
 
+  // V2 workflow contract. Types and validators are server-authoritative.
+  validateWorkflowV2: async (workflow) =>
+    call('/pems/templates/workflow/validate', { method: 'POST', body: { workflow } }),
+
+  getWorkflowExecution: async (taskInstanceId) =>
+    call(`/pems/instances/${taskInstanceId}/workflow`),
+
+  saveWorkflowActivityOutput: async (taskInstanceId, activityId, output, expectedRevision) =>
+    call(`/pems/instances/${taskInstanceId}/activities/${activityId}/output`,
+      { method: 'PUT', body: { output, expectedRevision } }),
+
   // ── OOS (task-bound) ──
   getTaskView: async (taskInstanceId) =>
     call(`/pems/instances/${taskInstanceId}/view`),
