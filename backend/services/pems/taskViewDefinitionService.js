@@ -259,6 +259,24 @@ async function listViewDefinitions(templateId) {
   return result.recordset;
 }
 
+/**
+ * Compatibility with the original Phase 1 generated fallback snapshot, which
+ * used definitionVersion=0 even though the canonical validator requires a
+ * positive version. Only this exact, non-published STANDARD_V1 shape is allowed.
+ * Never use this exception for an actual published definition or arbitrary v0.
+ */
+function isLegacyGeneratedDefaultSnapshot(definition, definitionId) {
+  if (definitionId || !definition || typeof definition !== 'object' || Array.isArray(definition)) return false;
+  const allowedKeys = ['viewKey', 'schemaVersion', 'definitionVersion', 'tabs', 'widgets'];
+  return Object.keys(definition).length === allowedKeys.length
+    && Object.keys(definition).every(key => allowedKeys.includes(key))
+    && definition.viewKey === 'STANDARD_V1'
+    && definition.schemaVersion === '1.0'
+    && definition.definitionVersion === 0
+    && Array.isArray(definition.tabs) && definition.tabs.length === 0
+    && Array.isArray(definition.widgets) && definition.widgets.length === 0;
+}
+
 async function getViewDefinitionForTaskInstance(taskInstanceId) {
   const pool = await getPool();
   const taskResult = await pool
@@ -273,8 +291,12 @@ async function getViewDefinitionForTaskInstance(taskInstanceId) {
     try { definition = JSON.parse(task.ViewDefinitionSnapshot); }
     catch { throw httpError(409, 'Pinned task view snapshot is malformed', 'INVALID_VIEW_SNAPSHOT'); }
     const validation = validateDefinitionJson(definition);
-    if (!validation.ok) throw httpError(409, 'Pinned task view snapshot failed validation', 'INVALID_VIEW_SNAPSHOT');
-    return { definition, fromSnapshot: true };
+    const legacyGeneratedDefault = isLegacyGeneratedDefaultSnapshot(definition, task.ViewDefinitionId);
+    if (!validation.ok && !legacyGeneratedDefault) {
+      throw httpError(409, 'Pinned task view snapshot failed validation', 'INVALID_VIEW_SNAPSHOT');
+    }
+    return { definition, fromSnapshot: true, definitionId: task.ViewDefinitionId || null,
+      ...(legacyGeneratedDefault ? { legacyGeneratedDefault: true } : {}) };
   }
   if (task.ViewDefinitionId) {
     const def = await pool
@@ -284,6 +306,12 @@ async function getViewDefinitionForTaskInstance(taskInstanceId) {
     if (def.recordset[0]) {
       return { definition: validatePersistedDefinition(def.recordset[0]), fromSnapshot: false, definitionId: task.ViewDefinitionId };
     }
+    throw httpError(409, 'Pinned task view definition no longer exists', 'MISSING_PINNED_VIEW');
+  }
+  // Strict rollout leaves historical unpinned tasks on their original view.
+  // Until activation, keep the existing legacy resolution behavior intact.
+  if (process.env.PEMS_PIN_VIEW_SNAPSHOTS === 'true') {
+    return { definition: null, fromSnapshot: false, legacyUnpinned: true };
   }
   const templateResult = await pool
     .request()
