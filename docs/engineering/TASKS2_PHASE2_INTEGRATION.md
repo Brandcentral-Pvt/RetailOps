@@ -56,3 +56,7 @@ Phase 2.1 and 2.2 development integration passed targeted CI at run `45124493401
 - Frontend registry and Vite build.
 
 Registry follow-up commit adds explicit local renderer registration and its unit test, requiring a fresh CI run. This document does not constitute production approval.
+
+## Final expanded integration regression
+
+At Phase 2 code commit `aadef310e4c183525d6269d10bad832985e303fc`, [workflow run 45124907603](https://github.com/Brandcentral-Pvt/RetailOps/actions/runs/45124907603) passed both jobs. Backend: **18/18 suites and 195/195 tests passed** (including Phase 1 route/authorization regressions and Phase 2 typed-output tests). Frontend registry: **11 tests passed**. Vite production build: **passed**. Disposable SQL Server: **1/1 migration and CAS integration test passed**. PR #252 remains a draft stacked on PR #250; neither was deployed.
