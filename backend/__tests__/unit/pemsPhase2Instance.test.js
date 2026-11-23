@@ -92,7 +92,7 @@ afterAll(() => {
 describe('Phase 2.2 task-instance materialization in existing PEMS', () => {
   test('pins V2 and inserts stable phase and activity identities instead of client SOP', async () => {
     await pems.createInstance({
-      templateId: 'tpl1', title: 'Inventory', status: 'ASSIGNED',
+      templateId: 'tpl1', title: 'Inventory', status: 'ASSIGNED', assignedTo: 'employee-1',
       subTaskDefinitions: [{ title: 'Forged client phase', activities: [] }],
     });
     const instance = mockCalls.find(c => /INSERT INTO PemsTaskInstances/.test(c.sql));
@@ -131,7 +131,7 @@ describe('Phase 2.2 task-instance materialization in existing PEMS', () => {
     const def = { viewKey: 'STANDARD_V1', schemaVersion: '1.0', definitionVersion: 2, tabs: [] };
     mockPublished = { Id: 'v1', ViewKey: 'STANDARD_V1', SchemaVersion: '1.0',
       DefinitionVersion: 2, DefinitionJson: JSON.stringify(def) };
-    await pems.createInstance({ templateId: 'tpl1', title: 'Legacy', status: 'ASSIGNED' });
+    await pems.createInstance({ templateId: 'tpl1', title: 'Legacy', status: 'ASSIGNED', assignedTo: 'employee-1' });
     const phases = mockCalls.filter(c => /INSERT INTO PemsSubTasks/.test(c.sql));
     expect(phases).toHaveLength(1);
     expect(phases[0].inputs.title).toBe('Legacy SOP');
