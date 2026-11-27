@@ -2085,6 +2085,13 @@ export const gmsApi = {
       xhr.send(formData);
     });
   },
+  downloadImportIssues: async (id,format) => {
+    const res=await fetch(API_BASE+'/upload/gms-imports/'+encodeURIComponent(id)+'/errors?format='+encodeURIComponent(format),{credentials:'include'});
+    if(!res.ok)return handleResponse(res,'Unable to download the error report');
+    const disposition=res.headers.get('content-disposition')||'';
+    const filename=/filename="?([^";]+)"?/i.exec(disposition)?.[1] || 'gms_error_report.'+format;
+    return {blob:await res.blob(),filename};
+  },
   listImports: async ({signal} = {}) => handleResponse(await fetch(API_BASE + '/upload/gms-imports', {credentials:'include',signal}), 'Import history unavailable'),
   getImport: async (id, {signal} = {}) => handleResponse(await fetch(API_BASE + '/upload/gms-imports/' + encodeURIComponent(id), {credentials:'include',signal}), 'Import status unavailable'),
   confirmImport: async id => handleResponse(await fetch(API_BASE + '/upload/gms-imports/' + encodeURIComponent(id) + '/confirm', {method:'POST',credentials:'include'}), 'Import confirmation failed'),
