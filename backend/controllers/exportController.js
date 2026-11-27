@@ -1450,7 +1450,7 @@ async function processGmsExportJob(downloadId, params, userId, signal) {
         report = buildAnalytics(facts,{window,filters,level:exportLevel});
     }
     ensureActive(signal);
-    const {matrixRows,monthGroups}=report;
+    const {monthGroups}=report;
     await updateDownloadStatus(pool, downloadId, 'processing', 60);
 
     // Build column definitions
@@ -1501,9 +1501,12 @@ async function processGmsExportJob(downloadId, params, userId, signal) {
         .query('SELECT FileName FROM Downloads WHERE Id=@id');
     const fileName=gmsFileResult.recordset[0]?.FileName || `gms_export_${exportLevel}_${downloadId}.${fileExt}`;
     const filePath=path.join(EXPORTS_DIR,`${downloadId}_${fileName}`);
+    let published=false;
+    try {
     const stats=await writeGmsExport({filePath,format:fileExt,report,columns:columnDef,signal,onProgress:async(done,total)=>{
         await updateDownloadStatus(pool,downloadId,'processing',Math.min(95,70+Math.round(done/Math.max(total,1)*25)));
     }});
+    published=true;
     ensureActive(signal);
 
     await pool.request()
@@ -1515,6 +1518,11 @@ async function processGmsExportJob(downloadId, params, userId, signal) {
         .input('actualFormat',sql.NVarChar,fileExt)
         .query(`UPDATE Downloads SET Status = 'completed', Progress = 100, FileName=@actualName, Format=@actualFormat, FileSize = @fileSize, [RowCount] = @rowCount, FilePath = @filePath, CompletedAt = dbo.GetEnvDate(), ExpiresAt = DATEADD(HOUR, 24, dbo.GetEnvDate()) WHERE Id = @id`);
 
-    SocketService.emitExportUpdate(downloadId, { status: 'completed', progress: 100, filePath: `/exports/${downloadId}_${fileName}` });
+    } catch(err){
+      if(published)await fs.promises.unlink(filePath).catch(()=>{});
+      throw err;
+    }
+    try { SocketService.emitExportUpdate(downloadId, { status: 'completed', progress: 100, filePath: `/exports/${downloadId}_${fileName}` }); }
+    catch(err){console.error('GMS export completion notification failed:',err.message);}
 }
 
