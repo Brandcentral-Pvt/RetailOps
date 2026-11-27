@@ -96,7 +96,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scale_rows: [100000, 500000]
+        scale_rows: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('[{0}]', inputs.gms_scale_rows) || '[100000,500000]') }}
     services:
       sqlserver:
         image: mcr.microsoft.com/mssql/server:2022-latest
@@ -121,7 +121,7 @@ jobs:
         working-directory: backend
         env:
           GMS_SQLSERVER_SMOKE: '1'
-          GMS_SQL_SCALE_ROWS: ${{ github.event_name == 'workflow_dispatch' && inputs.gms_scale_rows || matrix.scale_rows }}
+          GMS_SQL_SCALE_ROWS: ${{ matrix.scale_rows }}
           GMS_TEST_SQLSERVER_HOST: '127.0.0.1'
           GMS_TEST_SQLSERVER_PASSWORD: 'GmsDisposable#2026!'
           GMS_TEST_MSSQL_MODULE: '/tmp/gms-test-sql/node_modules/mssql'
@@ -136,7 +136,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: node --test src/components/gms/__tests__/gmsPresentation.test.mjs
+      - run: node --test src/components/gms/__tests__/gmsPresentation.test.mjs src/services/__tests__/exportDownloadIntegrity.test.mjs
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test tests/gms-phase1.spec.js
