@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Search } from 'lucide-react';
+import { Menu, Search, Bell, Download, User, Layout, Zap, ChevronDown } from 'lucide-react';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useHeader } from '../../contexts/HeaderContext';
 import HeaderBrand from './HeaderBrand';
@@ -18,7 +18,7 @@ import { QuickActionSkeleton } from '@/components/ui/skeleton/QuickActionSkeleto
 import { UserMenuSkeleton } from '@/components/ui/skeleton/UserMenuSkeleton';
 
 /**
- * GlobalHeader — shared responsive application toolbar (shadcn).
+ * GlobalHeader — modernized responsive application toolbar (shadcn).
  *
  * H1: shell + navigation. 64 px desktop / ~56 px mobile, white background with
  * a subtle bottom border, BrandCentral blue (#1976D2) brand accents.
@@ -30,8 +30,12 @@ import { UserMenuSkeleton } from '@/components/ui/skeleton/UserMenuSkeleton';
  *   - Accessibility attributes (aria-labels, aria-expanded, aria-controls)
  *   - Error boundaries for each sub-component
  *   - Backward compatibility with existing components
+ *   - Modern shadcn UI design system
+ *   - Keyboard shortcut indicators
+ *   - Connection status indicator
+ *   - Live status pulse
  */
-export default function GlobalHeader() {
+function GlobalHeader() {
   const { toggleMobile, isOpen } = useSidebar();
   const { cmdOpen, setCmdOpen } = useHeader();
 
@@ -55,14 +59,21 @@ export default function GlobalHeader() {
         <HeaderBrand />
 
         {/* Center: search entry */}
-        <div className="hidden sm:flex items-center">
+        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-center max-w-2xl mx-4">
           <SearchTrigger />
         </div>
 
         <div className="shadcn-actions flex items-center gap-2 shrink-0">
+          {/* Connection status indicator */}
+          <div className="shadcn-connection" aria-label="Connection status">
+            <span className="connection-dot animate-pulse" aria-hidden="true" />
+            <span className="sr-only">Connected</span>
+          </div>
+
           <DateRangeSelector />
           <Separator orientation="vertical" className="h-5 w-[1px] mx-1" />
           <NotificationCenter />
+          <Separator orientation="vertical" className="h-5 w-[1px] mx-1" />
           <DownloadDrawer />
           <Separator orientation="vertical" className="h-5 w-[1px] mx-1" />
           <UserMenu />
@@ -75,7 +86,7 @@ export default function GlobalHeader() {
             variant="ghost"
             size="sm"
             onClick={() => setCmdOpen(true)}
-            aria-label="Open search palette"
+            aria-label="Open command palette"
           >
             <Search size={18} aria-hidden="true" />
           </Button>
@@ -86,3 +97,5 @@ export default function GlobalHeader() {
     </>
   );
 }
+
+export default GlobalHeader;

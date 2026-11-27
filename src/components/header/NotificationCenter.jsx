@@ -17,6 +17,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
 import { formatRelativeTime } from './headerHooks';
 import { NotificationSkeleton } from '@/components/ui/skeleton/NotificationSkeleton';
+import { FilterOutlined } from '@ant-design/icons';
 
 const typeIcons = {
   success: <CheckCircleFilled />,
@@ -66,12 +67,21 @@ const mapTypeToDisplay = (type, message) => {
 };
 
 /**
- * NotificationCenter — notification drawer with real-time updates.
+ * NotificationCenter — modern notification drawer with real-time updates.
+ *
+ * Features:
+ * - Real-time WebSocket updates
+ * - Smart categorization (All, Unread, Alerts, System)
+ * - Smart type detection with icons
+ * - Smooth animations with Framer Motion
+ * - Mark all as read / Clear read
+ * - Infinite scroll pagination
+ * - Modern shadcn design
  *
  * Props:
  *   loading - boolean, when true shows skeleton instead of button
  */
-export default function NotificationCenter({ loading = false }) {
+function NotificationCenter({ loading = false }) {
   const { notifOpen, setNotifOpen } = useHeader();
   const socket = useSocket();
   const { user } = useAuth();
@@ -82,6 +92,7 @@ export default function NotificationCenter({ loading = false }) {
   const [hasMore, setHasMore] = useState(true);
   const [serverUnreadCount, setServerUnreadCount] = useState(0);
   const fetchingRef = useRef(false);
+  const searchQuery = useRef('');
 
   const unreadCount = serverUnreadCount;
 
@@ -159,9 +170,10 @@ export default function NotificationCenter({ loading = false }) {
   }, [socket, user]);
 
   const filtered = useMemo(() => {
-    if (activeTab === 'all') return notifications;
-    if (activeTab === 'unread') return notifications.filter((n) => !n.read);
-    return notifications.filter((n) => n.category === activeTab);
+    let result = notifications;
+    if (activeTab === 'unread') result = result.filter((n) => !n.read);
+    else if (activeTab !== 'all') result = result.filter((n) => n.category === activeTab);
+    return result;
   }, [notifications, activeTab]);
 
   const markAllRead = async () => {
@@ -215,12 +227,8 @@ export default function NotificationCenter({ loading = false }) {
 
   if (loading) {
     return (
-      <button className="flex items-center gap-2 px-3 py-2 bg-transparent border border-transparent rounded-md cursor-pointer text-slate-500 disabled:pointer-events-none disabled:opacity-50 animate-pulse" disabled>
-        <div className="sk text [height:20px] [width:20px]" />
-        <div className="flex flex-col gap-1">
-          <div className="sk text [height:11px] [width:60%]"></div>
-          <div className="sk text [height:9px] [width:40%]"></div>
-        </div>
+      <button className="header-icon-btn" disabled aria-disabled="true">
+        <NotificationSkeleton />
       </button>
     );
   }
@@ -229,49 +237,48 @@ export default function NotificationCenter({ loading = false }) {
     <>
       <Tooltip title="Notifications" placement="bottom">
         <button
-          className="header-icon-btn"
+          className="header-icon-btn relative"
           onClick={() => setNotifOpen(true)}
-          aria-label="Notifications"
+          aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
         >
-          <Badge count={unreadCount} size="small" offset={[-2, 2]}>
+          <span className="relative">
             <BellOutlined style={{ fontSize: 'var(--font-size-lg)' }} />
-          </Badge>
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#1976d2] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </span>
         </button>
       </Tooltip>
 
       <Drawer
         open={notifOpen}
         onClose={() => setNotifOpen(false)}
-        width={420}
+        width={440}
         className="notif-drawer"
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>Notifications</span>
+title={
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-2">
+              <BellOutlined style={{ fontSize: 18, color: '#1976d2' }} />
+              <span className="font-semibold text-slate-900">Notifications</span>
               {unreadCount > 0 && (
-                <span style={{
-                  background: '#1976D2', color: '#fff', fontSize: '10px', fontWeight: 600,
-                  padding: '2px 7px', borderRadius: '100px', fontFamily: 'Inter, sans-serif',
-                }}>
-                  {unreadCount} new
-                </span>
+                <Badge count={unreadCount} color="blue" style={{ fontSize: 11, height: 18, fontWeight: 600 }} />
               )}
             </div>
-            <div style={{ display: 'flex', gap: '4px' }}>
+            <div className="flex gap-1">
               <Tooltip title="Mark all as read">
-                <Button type="text" size="small" icon={<CheckOutlined />}
-                  onClick={markAllRead} disabled={unreadCount === 0} style={{ color: '#94A3B8' }} />
+                <Button type="text" size="small" icon={<CheckOutlined />} onClick={markAllRead} disabled={unreadCount === 0} style={{ color: '#64748b', padding: '4px 8px' }} />
               </Tooltip>
               <Tooltip title="Clear read notifications">
-                <Button type="text" size="small" icon={<DeleteOutlined />}
-                  onClick={clearAllRead} disabled={!notifications.some(n => n.read)} style={{ color: '#94A3B8' }} />
+                <Button type="text" size="small" icon={<DeleteOutlined />} onClick={clearAllRead} disabled={!notifications.some(n => n.read)} style={{ color: '#64748b', padding: '4px 8px' }} />
               </Tooltip>
             </div>
           </div>
         }
-        styles={{ body: { padding: 0 } }}
+        styles={{ body: { padding: 0 }} }
       >
-        <div style={{ borderBottom: '1px solid #F1F5F9', padding: '0 20px' }}>
+        <div className="border-b border-slate-100 px-4 py-3">
           <Tabs
             activeKey={activeTab}
             onChange={setActiveTab}
@@ -279,13 +286,14 @@ export default function NotificationCenter({ loading = false }) {
             items={[
               { key: 'all', label: `All (${notifications.length})` },
               { key: 'unread', label: `Unread (${unreadCount})` },
-              { key: 'alert', label: 'Alerts' },
-              { key: 'system', label: 'System' },
+              { key: 'alert', label: `Alerts (${notifications.filter(n => n.category === 'alert').length})` },
+              { key: 'system', label: `System (${notifications.filter(n => n.category === 'system').length})` },
             ]}
+            style={{ fontSize: 12, fontWeight: 500 }}
           />
         </div>
 
-        <div style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 180px)' }}>
+        <div style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
           {dataLoading && notifications.length === 0 ? (
             <div style={{ padding: '60px 20px', textAlign: 'center' }}>
               <Spin size="small" />
@@ -299,7 +307,7 @@ export default function NotificationCenter({ loading = false }) {
                       image={Empty.PRESENTED_IMAGE_SIMPLE}
                       description={
                         <span style={{ color: '#94A3B8', fontSize: 'var(--font-size-sm)', fontFamily: 'Inter, sans-serif' }}>
-                          You're all caught up
+                          {activeTab === 'unread' ? "You're all caught up!" : activeTab === 'alert' ? 'No alerts at the moment' : 'No notifications yet'}
                         </span>
                       }
                     />
@@ -320,8 +328,14 @@ export default function NotificationCenter({ loading = false }) {
                         style={{ cursor: 'pointer' }}
                       >
                         <div
-                          className="notif-item-icon"
+                          className="notif-item-icon flex-shrink-0"
                           style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 8,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                             background: cfg.bg,
                             color: cfg.color,
                             border: `1px solid ${cfg.border}`,
@@ -329,20 +343,30 @@ export default function NotificationCenter({ loading = false }) {
                         >
                           {icon}
                         </div>
-                        <div className="notif-item-content">
+                        <div className="flex-1 min-w-0">
                           <div className="notif-item-title" style={{
+                            fontSize: 13,
                             fontWeight: !notif.read ? 700 : 500,
                             color: !notif.read ? '#0F172A' : '#64748b',
+                            lineHeight: 1.35,
+                            marginBottom: 3,
                           }}>
                             {notif.type?.replace(/_/g, ' ') || 'Notification'}
                           </div>
                           <div className="notif-item-message" style={{
+                            fontSize: 12,
                             color: !notif.read ? '#334155' : '#94a3b8',
+                            lineHeight: 1.4,
+                            marginBottom: 6,
                           }}>
                             {notif.message}
                           </div>
-                          <div className="notif-item-meta">
-                            <span className="notif-item-time">
+                          <div className="notif-item-meta flex items-center gap-2">
+                            <span className="notif-item-time" style={{
+                              fontSize: 10.5,
+                              color: '#94a3b8',
+                              fontWeight: 500,
+                            }}>
                               {formatRelativeTime(notif.timestamp)}
                             </span>
                           </div>
@@ -354,6 +378,7 @@ export default function NotificationCenter({ loading = false }) {
                             }}
                             onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
                             onMouseLeave={(e) => (e.currentTarget.style.opacity = '0')}
+                            aria-label="Delete notification"
                           >
                             <DeleteOutlined style={{ fontSize: 'var(--font-size-xs)' }} />
                           </button>
@@ -384,3 +409,5 @@ export default function NotificationCenter({ loading = false }) {
     </>
   );
 }
+
+export default NotificationCenter;

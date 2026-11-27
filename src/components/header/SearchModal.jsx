@@ -81,7 +81,7 @@ function NoResults({ query }) {
   );
 }
 
-export default function SearchModal() {
+function SearchModal() {
   const { hasPermission } = useAuth();
   const { cmdOpen, setCmdOpen } = useHeader();
   const navigate = useNavigate();
@@ -110,7 +110,7 @@ export default function SearchModal() {
     const q = query.toLowerCase();
     return NAVIGATION_ITEMS
       .filter(item => !item.permission || hasPermission(item.permission))
-      .filter(item => 
+      .filter(item =>
         item.title.toLowerCase().includes(q) ||
         (item.hint?.toLowerCase().includes(q) ?? false) ||
         (item.keywords?.some(k => k.toLowerCase().includes(q)) ?? false)
@@ -121,7 +121,7 @@ export default function SearchModal() {
   const filteredRecent = useMemo(() => {
     if (!query.trim()) return recentSearches;
     const q = query.toLowerCase();
-    return recentSearches.filter(r => 
+    return recentSearches.filter(r =>
       r.title.toLowerCase().includes(q) ||
       (r.hint?.toLowerCase().includes(q) ?? false)
     );
@@ -315,3 +315,5 @@ export default function SearchModal() {
     </div>
   );
 }
+
+export default SearchModal;
