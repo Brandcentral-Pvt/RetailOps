@@ -2,9 +2,10 @@ const { getPool } = require('./db');
 const migration = require('../migrations/091_gms_import_jobs');
 const nullableSeller = require('../migrations/092_gms_nullable_seller');
 const issueReports = require('../migrations/093_gms_import_issue_reports');
+const reportTitle = require('../migrations/095_gms_report_product_title');
 
 const required = {
-  GmsDailyPerformance: ['Id','Asin','Date','SellerId','Brand','StoreCode','OrderedRevenue','OrderedUnits','ShippedRevenue','ShippedCOGS','ShippedUnits','CustomerReturns','CreatedAt','UpdatedAt'],
+  GmsDailyPerformance: ['Id','Asin','Date','SellerId','Brand','StoreCode','OrderedRevenue','OrderedUnits','ShippedRevenue','ShippedCOGS','ShippedUnits','CustomerReturns','ReportProductTitle','CreatedAt','UpdatedAt'],
   GmsImportJobs: ['Id','OwnerId','FileName','Status','RowsJson','SummaryJson','IssueReportJson','SnapshotHash','CreatedAt','ExpiresAt','CompletedAt'],
 };
 async function inspectGmsSchema(pool) {
@@ -44,6 +45,7 @@ async function ensureGmsSchema({ apply = false, pool } = {}) {
     await migration.up(pool);
     await nullableSeller.up(pool);
     await issueReports.up(pool);
+    await reportTitle.up(pool);
     state = await inspectGmsSchema(pool);
   }
   return state;
