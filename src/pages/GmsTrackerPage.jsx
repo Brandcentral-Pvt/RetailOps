@@ -19,6 +19,7 @@ import {
   Tooltip,
   message,
   Select,
+  Segmented,
   Radio,
 } from "antd";
 import {
