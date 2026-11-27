@@ -1426,7 +1426,7 @@ exports.startGmsExport = async (req, res) => {
 async function processGmsExportJob(downloadId, params, userId, signal) {
     ensureActive(signal);
     const pool = await getPool();
-    await updateDownloadStatus(pool, downloadId, 'processing', 10);
+    await updateDownloadStatus(pool, downloadId, 'processing', 10, null, userId);
 
     const {
         exportLevel = 'asin',
@@ -1452,7 +1452,7 @@ async function processGmsExportJob(downloadId, params, userId, signal) {
     if (!access.permissions.includes('*') && !access.permissions.includes('gms_tracker_export')) {
         throw new Error('Export permission is no longer available');
     }
-    await updateDownloadStatus(pool, downloadId, 'processing', 20);
+    await updateDownloadStatus(pool, downloadId, 'processing', 20, null, userId);
 
     const window = exportWindow(params);
     // Current clients send the exact ID/search selection used on screen.
@@ -1470,7 +1470,7 @@ async function processGmsExportJob(downloadId, params, userId, signal) {
     const {report,complete}=exportFileType==='csv'?buildDailyExport(facts,{window}):buildCompleteExport(facts,{window,level:exportLevel});
     ensureActive(signal);
     const {monthGroups}=report;
-    await updateDownloadStatus(pool, downloadId, 'processing', 60);
+    await updateDownloadStatus(pool, downloadId, 'processing', 60, null, userId);
 
     // Build column definitions
     const columnDef = [];
@@ -1512,7 +1512,7 @@ async function processGmsExportJob(downloadId, params, userId, signal) {
         }
     });
 
-    await updateDownloadStatus(pool, downloadId, 'processing', 70);
+    await updateDownloadStatus(pool, downloadId, 'processing', 70, null, userId);
 
     // Write output incrementally; no sheetRows array or XLSX ZIP buffer.
     const fileExt=exportFileType==='csv'?'csv':'xlsx';
@@ -1523,7 +1523,7 @@ async function processGmsExportJob(downloadId, params, userId, signal) {
     let published=false;
     try {
     const stats=await writeGmsExport({filePath,format:fileExt,report,complete,columns:columnDef,matrixFixedCount:exportLevel==='seller'?6:7,signal,onProgress:async(done,total)=>{
-        await updateDownloadStatus(pool,downloadId,'processing',Math.min(95,70+Math.round(done/Math.max(total,1)*25)));
+        await updateDownloadStatus(pool,downloadId,'processing',Math.min(95,70+Math.round(done/Math.max(total,1)*25)),null,userId);
     }});
     published=true;
     ensureActive(signal);
@@ -1541,7 +1541,7 @@ async function processGmsExportJob(downloadId, params, userId, signal) {
       if(published)await fs.promises.unlink(filePath).catch(()=>{});
       throw err;
     }
-    try { SocketService.emitExportUpdate(downloadId, { status: 'completed', progress: 100, filePath: `/exports/${downloadId}_${fileName}` }); }
+    try { SocketService.emitExportUpdate(downloadId, { status: 'completed', progress: 100, userId }); }
     catch(err){console.error('GMS export completion notification failed:',err.message);}
 }
 
