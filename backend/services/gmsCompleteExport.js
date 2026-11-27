@@ -162,6 +162,10 @@ function executiveRows(report,complete){
   }
   return data;
 }
+function buildDailyExport(facts,{window}){
+  const current=facts.filter(r=>inWindow(r,window));
+  return {report:{matrixRows:[],monthGroups:{}},complete:{raw:rawSheet('Complete Data',current),selectedCount:current.length,sheets:[]}};
+}
 function buildCompleteExport(facts,{window,level='asin'}){
   const current=facts.filter(r=>inWindow(r,window));
   const prior=priorWindow(window),previous=prior?facts.filter(r=>inWindow(r,prior)):[];
@@ -184,4 +188,4 @@ function buildCompleteExport(facts,{window,level='asin'}){
   if(prior)complete.sheets.push(rawSheet('Prior Period Data',previous));
   return {report,complete};
 }
-module.exports={buildCompleteExport,rawColumns,rawRow,excelAmount,comparisonRow,METRICS};
+module.exports={buildCompleteExport,buildDailyExport,rawColumns,rawRow,excelAmount,comparisonRow,METRICS};
