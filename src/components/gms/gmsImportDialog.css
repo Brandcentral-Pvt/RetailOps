@@ -1,0 +1,220 @@
+/* Scoped to the portalled GMS import dialog, not other RetailOps modals. */
+.gms-import-modal-root .ant-modal-wrap {
+  overflow:hidden;
+  overscroll-behavior:contain;
+}
+.gms-import-modal.ant-modal {
+  --gms-import-gutter:24px;
+  --gms-import-height:min(740px, calc(100vh - 32px));
+  --gms-import-height:min(740px, calc(100dvh - 32px));
+  top:0;
+  padding-bottom:0;
+  max-width:calc(100vw - 32px);
+}
+.gms-import-modal :is(.ant-modal-container,.ant-modal-content) {
+  display:flex;
+  flex-direction:column;
+  height:var(--gms-import-height);
+  max-height:var(--gms-import-height);
+  min-width:0;
+  padding:0;
+  overflow:hidden;
+  border-radius:16px;
+  box-sizing:border-box;
+}
+.gms-import-modal .ant-modal-header {
+  flex:0 0 auto;
+  padding:18px var(--gms-import-gutter) 10px;
+  margin:0;
+}
+.gms-import-modal .ant-modal-title {
+  font-size:17px;
+  font-weight:650;
+  line-height:1.4;
+  padding-inline-end:28px;
+}
+.gms-import-modal .ant-modal-close {
+  top:12px;
+  inset-inline-end:16px;
+}
+.gms-import-modal .ant-modal-body {
+  display:flex;
+  flex-direction:column;
+  flex:1 1 0;
+  min-width:0;
+  min-height:0;
+  padding:0;
+  overflow:hidden;
+}
+.gms-import-tabs.ant-tabs {
+  display:flex;
+  flex-direction:column;
+  flex:1 1 0;
+  min-width:0;
+  min-height:0;
+  overflow:hidden;
+}
+.gms-import-tabs > .ant-tabs-nav {
+  flex:0 0 auto;
+  margin:0;
+  padding-inline:var(--gms-import-gutter);
+}
+.gms-import-tabs > .ant-tabs-nav .ant-tabs-tab {
+  font-weight:600;
+  padding-block:10px;
+}
+.gms-import-tabs > .ant-tabs-content-holder {
+  display:flex;
+  flex-direction:column;
+  flex:1 1 0;
+  min-width:0;
+  min-height:0;
+  overflow:hidden;
+}
+.gms-import-tabs > .ant-tabs-content-holder > .ant-tabs-content {
+  display:flex;
+  flex:1 1 0;
+  min-height:0;
+  height:100%;
+  width:100%;
+}
+.gms-import-tabs .ant-tabs-tabpane-active {
+  display:flex;
+  flex:1 1 0;
+  flex-direction:column;
+  min-height:0;
+  min-width:0;
+  overflow:hidden;
+}
+.gms-import-scroll {
+  flex:1 1 0;
+  min-height:0;
+  min-width:0;
+  width:100%;
+  overflow-x:hidden;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+  padding:18px var(--gms-import-gutter);
+  box-sizing:border-box;
+}
+.gms-import-scroll:focus-visible {
+  outline:2px solid var(--ant-color-primary,#1976d2);
+  outline-offset:-2px;
+}
+.gms-import-scroll .ant-card,
+.gms-import-scroll .ant-card-body,
+.gms-import-scroll .ant-col,
+.gms-import-scroll .ant-flex {
+  min-width:0;
+}
+.gms-import-scroll .ant-alert-description,
+.gms-import-scroll .ant-typography {
+  overflow-wrap:anywhere;
+}
+.gms-import-scroll .ant-card-head-title {
+  min-width:0;
+  white-space:normal;
+}
+.gms-import-result-title > .ant-typography {
+  max-width:100%;
+}
+.gms-import-history-toolbar > div {
+  flex:1 1 260px;
+  min-width:0;
+}
+.gms-import-history-toolbar .ant-typography-secondary {
+  display:block;
+  margin-top:4px;
+  line-height:1.5;
+}
+.gms-import-history-table {
+  min-width:0;
+  max-width:100%;
+}
+.gms-import-history-table .ant-table-container {
+  border:1px solid var(--ant-color-border,#e5e7eb);
+  border-radius:8px;
+  overflow:hidden;
+}
+.gms-import-history-table .ant-table-thead > tr > th {
+  text-transform:none;
+  font-size:12px;
+  font-weight:650;
+}
+.gms-import-history-table .ant-table-tbody > tr > td {
+  padding-block:10px;
+  font-variant-numeric:tabular-nums;
+  vertical-align:middle;
+}
+.gms-import-history-table .ant-pagination {
+  margin-bottom:0;
+  flex-wrap:wrap;
+  row-gap:6px;
+}
+.gms-import-file-name {
+  display:block;
+  width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-weight:550;
+}
+.gms-import-modal .ant-modal-footer {
+  flex:0 0 auto;
+  margin:0;
+  padding:12px var(--gms-import-gutter);
+  border-top:1px solid var(--ant-color-border,#e5e7eb);
+  background:var(--ant-color-bg-container,#fff);
+}
+.gms-import-footer-bar {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  min-width:0;
+}
+.gms-import-footer-note {
+  flex:1 1 auto;
+  min-width:0;
+  font-size:12px;
+  text-align:left;
+}
+.gms-import-footer-actions {
+  display:flex;
+  flex:0 0 auto;
+  align-items:center;
+  justify-content:flex-end;
+  flex-wrap:wrap;
+  gap:8px;
+  max-width:100%;
+}
+.gms-import-footer-actions .ant-btn {
+  margin-inline-start:0;
+}
+@media(max-width:640px) {
+  .gms-import-modal.ant-modal {
+    --gms-import-gutter:14px;
+    --gms-import-height:calc(100vh - 16px);
+    --gms-import-height:calc(100dvh - 16px);
+    max-width:calc(100vw - 16px);
+  }
+  .gms-import-modal :is(.ant-modal-container,.ant-modal-content) {border-radius:12px;}
+  .gms-import-modal .ant-modal-header {padding-top:14px;}
+  .gms-import-modal .ant-modal-close {top:8px;inset-inline-end:8px;}
+  .gms-import-scroll {padding-block:12px;}
+  .gms-import-footer-bar {justify-content:flex-end;}
+  .gms-import-footer-note {display:none;}
+  .gms-import-footer-actions {flex-shrink:1;}
+}
+@media(max-height:420px) {
+  .gms-import-modal.ant-modal {
+    --gms-import-height:calc(100vh - 12px);
+    --gms-import-height:calc(100dvh - 12px);
+  }
+  .gms-import-modal .ant-modal-header {padding-block:8px;}
+  .gms-import-modal .ant-modal-close {top:4px;}
+  .gms-import-tabs > .ant-tabs-nav .ant-tabs-tab {padding-block:6px;}
+  .gms-import-modal .ant-modal-footer {padding-block:8px;}
+  .gms-import-footer-note {display:none;}
+}
