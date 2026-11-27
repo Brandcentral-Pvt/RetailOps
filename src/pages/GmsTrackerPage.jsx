@@ -112,7 +112,7 @@ export default function GmsTrackerPage() {
   const can = (permission) => effectivePermissions.includes('*') || effectivePermissions.includes(permission);
   const canClear = can('gms_tracker_delete') && user?.scope === 'global';
   const { setPageMeta } = useHeader();
-  const [analytics, setAnalytics] = useState(null);
+  const [storedAnalytics, setAnalytics] = useState(null);
   const [requestLoading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -142,11 +142,16 @@ export default function GmsTrackerPage() {
   const [tablePageSize, setTablePageSize] = useState(50);
   const [tableSort, setTableSort] = useState({key:'orderedRevenue',direction:'desc'});
   const filterKey = JSON.stringify([selectedBrands,selectedManagers,debouncedSearch,viewLevel,startDate,endDate]);
+  const analytics=storedAnalytics?.clientFilterKey===filterKey?storedAnalytics:null;
+  const reportLoading=searchQuery!==debouncedSearch || (!analytics && requestLoading);
   const [pageFilterKey,setPageFilterKey]=useState(filterKey);
   const effectivePage=pageFilterKey===filterKey?tablePage:1;
   // An old period column is not a meaningful sort after a date change.
   const effectiveSort=pageFilterKey===filterKey?tableSort:{key:'orderedRevenue',direction:'desc'};
   const sortKey=effectiveSort.key, sortDirection=effectiveSort.direction;
+  useEffect(()=>{
+    if(pageFilterKey!==filterKey){setPageFilterKey(filterKey);setTablePage(1);setTableSort({key:'orderedRevenue',direction:'desc'});}
+  },[filterKey,pageFilterKey]);
 
   // Database Sellers / Brands / Managers
   const [dbSellers, setDbSellers] = useState([]);
@@ -171,7 +176,7 @@ export default function GmsTrackerPage() {
     const isCurrent = () => loadMountedRef.current && requestId === loadRequestRef.current && !controller.signal.aborted;
     setLoading(true);
     setError(null);
-    setAnalytics(null);
+    if(refreshMetadata)setAnalytics(null);
     try {
       let sellers = dbSellersRef.current;
       let managers = dbManagersRef.current;
@@ -202,7 +207,7 @@ export default function GmsTrackerPage() {
       }, { signal: controller.signal });
       if (!isCurrent()) return false;
       if (!gmsRes?.success || !Array.isArray(gmsRes.data?.matrixRows) || !gmsRes.data?.meta || !gmsRes.data?.pagination) throw new Error(gmsRes?.message || "Invalid GMS analytics response.");
-      setAnalytics(gmsRes.data);
+      setAnalytics({...gmsRes.data,clientFilterKey:filterKey});
       setLastLoadedAt(Date.now());
       return true;
     } catch (err) {
@@ -214,7 +219,7 @@ export default function GmsTrackerPage() {
     } finally {
       if (isCurrent()) setLoading(false);
     }
-  }, [startDate, endDate, selectedBrands, selectedManagers, debouncedSearch, viewLevel, effectivePage, tablePageSize, sortKey, sortDirection]);
+  }, [startDate, endDate, selectedBrands, selectedManagers, debouncedSearch, viewLevel, effectivePage, tablePageSize, sortKey, sortDirection, filterKey]);
 
   useEffect(() => {
     loadMountedRef.current = true;
@@ -999,7 +1004,7 @@ export default function GmsTrackerPage() {
         </div>
 
         {/* ── Row 3: dataset metadata strip (not KPI cards) ── */}
-        {windowMeta && !loading && (
+        {windowMeta && !reportLoading && (
           <div className="gms-cmd__meta" role="note" aria-label="Dataset summary">
             <span className="gms-cmd__window ops-num">
               {startDate ? dayjs(startDate).format("DD MMM YYYY") : "Earliest"}
@@ -1048,12 +1053,12 @@ export default function GmsTrackerPage() {
 
       {/* KPI STRIP + TREND + MATRIX */}
       {!error && <div className="ops-grid">
-        {!loading && percentageChanges.window && (
+        {!reportLoading && percentageChanges.window && (
           <div className="gms-kpi-note">
             Selected period vs <em>{prior.from} to {prior.to}</em> ({prior.days} days). Coverage: {comparison.currentCoverage?.observedDays ?? 0}/{comparison.currentCoverage?.expectedDays ?? 0} current days, {comparison.previousCoverage?.observedDays ?? 0}/{prior.days} prior days. {(!comparison.currentCoverage?.complete || !comparison.previousCoverage?.complete) && "Incomplete date coverage; comparisons unavailable."}
           </div>
         )}
-        {loading ? (
+        {reportLoading ? (
           <div className="ads-kpis">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="ops-panel ads-kpi">
@@ -1187,7 +1192,7 @@ export default function GmsTrackerPage() {
           </div>
         )}
 
-        {(windowMeta?.records || 0) > 0 && (
+        {!reportLoading && (windowMeta?.records || 0) > 0 && (
           <Panel
             id="panel-trend"
             span={12}
