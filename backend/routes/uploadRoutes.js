@@ -79,6 +79,7 @@ router.post('/upload/upload-gms', authenticate, importPermission, (_req,res) =>
   res.status(409).json({success:false,message:'GMS uploads now require validation and explicit confirmation. Update the application.'}));
 router.post('/upload/gms-imports', authenticate, importPermission, receiveGms, gmsImport.preview);
 router.get('/upload/gms-imports', authenticate, importPermission, gmsImport.list);
+router.get('/upload/gms-imports/:id/errors', authenticate, importPermission, gmsImport.downloadIssues);
 router.get('/upload/gms-imports/:id', authenticate, importPermission, gmsImport.get);
 router.post('/upload/gms-imports/:id/confirm', authenticate, importPermission, gmsImport.confirm);
 router.post('/upload/gms-imports/:id/cancel', authenticate, importPermission, gmsImport.cancel);
