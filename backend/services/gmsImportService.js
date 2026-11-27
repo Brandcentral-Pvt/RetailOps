@@ -41,7 +41,7 @@ function parseInWorker(file) {
     worker.once('message', data => {
       if (data.ok) finish(null, data.result);
       else {
-        const safe = /^(No worksheet|Report exceeds|Formula cells)/.test(data.message || '');
+        const safe = /^(No worksheet|Report exceeds|Report must|Formula cells)/.test(data.message || '');
         finish(new Error(safe ? data.message : 'Unable to parse report; check the file format'));
       }
     });
@@ -157,7 +157,7 @@ function publicJob(row) {
     summary: JSON.parse(row.SummaryJson),
   };
 }
-const jobColumns = 'Id, FileName, Status, SummaryJson, CreatedAt, ExpiresAt, CompletedAt';
+const jobColumns = "Id, FileName, Status, SummaryJson, CONVERT(varchar(33),CreatedAt,126)+'Z' AS CreatedAt, CONVERT(varchar(33),ExpiresAt,126)+'Z' AS ExpiresAt, CONVERT(varchar(33),CompletedAt,126)+'Z' AS CompletedAt";
 async function getJob(ownerId, id, db = null) {
   db = db || await getPool();
   const result = await db.request().input('id', sql.VarChar, id).input('owner', sql.VarChar, ownerId)
