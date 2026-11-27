@@ -4,7 +4,7 @@ const user = { Id: 'u-test', id: 'u-test', firstName: 'Test', role: { name: 'adm
 
 async function setup(page) {
   let reads = 0, uploads = 0, commits = 0, fail = false, reject = false, status = 'READY';
-  const batch = () => ({ id:'batch1',fileName:'report.csv',status,createdAt:'2026-11-27T10:00:00Z',summary:{total:1,inserted:1,updated:0,unchanged:0,duplicates:0,invalid:reject?1:0,issues:reject?[{row:2,code:'INVALID_ROW',message:'Missing monetary value'}]:[],sample:[],committed:status==='COMPLETED'?1:0} });
+  const batch = () => ({ id:'batch1',fileName:'report.csv',status,createdAt:'2026-11-27T10:00:00Z',summary:{total:1,inserted:1,updated:0,unchanged:0,duplicates:0,invalid:reject?1:0,issues:reject?[{row:2,asin:'B000000001',date:'2026-11-27',column:'Ordered Revenue',code:'INVALID_ROW',message:'Invalid monetary value',remarks:'Enter a valid amount in Ordered Revenue, such as 1250.50 or -250.00.'}]:[],reportIssueCount:reject?1:0,reportComplete:true,sample:[],committed:status==='COMPLETED'?1:0} });
   await page.route('**/api/**', route => {
     const path = new URL(route.request().url()).pathname;
     const send = (data, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(data) });
@@ -18,6 +18,10 @@ async function setup(page) {
       uploads++;
       status=reject?'REJECTED':'READY';
       return send({success:true,data:batch()},201);
+    }
+    if (path.endsWith('/upload/gms-imports/batch1/errors')) {
+      const format=new URL(route.request().url()).searchParams.get('format');
+      return route.fulfill({status:200,headers:{'content-type':format==='csv'?'text/csv':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','content-disposition':'attachment; filename="report_error_report.'+format+'"'},body:'Excel Row,ASIN,Remarks\n2,B000000001,Enter a valid amount'});
     }
     if (path.endsWith('/upload/gms-imports/batch1/confirm')) {
       commits++;
@@ -77,7 +81,14 @@ test('invalid preview displays issues and cannot be confirmed', async ({page}) =
   await page.locator('input[type=file]').setInputFiles({name:'invalid.csv',mimeType:'text/csv',buffer:Buffer.from('ASIN,Date\nB000000001,2026-11-27')});
   await page.getByRole('button',{name:'Validate report'}).click();
   await expect(page.getByText('Report rejected',{exact:true})).toBeVisible();
-  await expect(page.getByText('Missing monetary value',{exact:true})).toBeVisible();
+  await expect(page.getByText('Enter a valid amount in Ordered Revenue, such as 1250.50 or -250.00.',{exact:true})).toBeVisible();
+  await expect(page.getByText('B000000001',{exact:true})).toBeVisible();
+  await expect(page.getByText('INVALID_ROW',{exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Download Excel'})).toBeVisible();
+  const downloadPromise=page.waitForEvent('download');
+  await page.getByRole('button',{name:'Download CSV'}).click();
+  const download=await downloadPromise;
+  expect(download.suggestedFilename()).toBe('report_error_report.csv');
   await expect(page.getByRole('button',{name:'Confirm import'})).toHaveCount(0);
   expect(state.commits()).toBe(0);
 });
