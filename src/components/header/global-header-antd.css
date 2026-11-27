@@ -44,7 +44,9 @@
   .ro-header-search-mobile.ant-btn { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; }
 }
 @media (max-width:700px) {
-  .ro-header-date, .ro-header-date-divider { display:none !important; }
+  .ro-header-date-divider { display:none !important; }
+  .ro-header-date .date-range-trigger { width:36px; min-height:36px; padding:0; justify-content:center; }
+  .ro-header-date .date-range-trigger > div, .ro-header-date .date-range-trigger > .anticon-down { display:none; }
   .ro-header-account-divider { display:none; }
   .ro-header-breadcrumb { display:none; }
   .ro-header-title.ant-typography { max-width:clamp(90px, 28vw, 200px); }
