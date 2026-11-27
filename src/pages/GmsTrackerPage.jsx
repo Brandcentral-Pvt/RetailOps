@@ -276,7 +276,7 @@ export default function GmsTrackerPage() {
       };
 
       message.loading({
-        content: "Initiating GMS matrix export...",
+        content: "Initiating complete GMS export...",
         key: "gms-export",
         duration: 2,
       });
@@ -1321,7 +1321,7 @@ export default function GmsTrackerPage() {
                   marginTop: 1,
                 }}
               >
-                Configure and download GMS matrix spreadsheets
+                Download complete financial data and analytical reports
               </span>
             </div>
           </div>
@@ -1334,177 +1334,32 @@ export default function GmsTrackerPage() {
         width={520}
       >
         <div style={{ padding: "12px 0 4px 0" }}>
-          {/* Level Switcher Option */}
-          <div style={{ marginBottom: 16 }}>
-            <div
-              style={{
-                fontSize: 10.5,
-                fontWeight: 600,
-                color: "#1349c6",
-                marginBottom: 8,
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                letterSpacing: "0.05em",
-              }}
-            >
-              <span
-                style={{
-                  background: "#e8eefb",
-                  padding: "2px 6px",
-                  borderRadius: "var(--radius-sm)",
-                  fontSize: 9,
-                }}
-              >
-                01
-              </span>
-              EXPORT LEVEL
-            </div>
-            <Segmented
-              value={exportLevel}
-              onChange={(value) => setExportLevel(value)}
-              options={[
-                { label: "ASIN Wise Matrix", value: "asin" },
-                { label: "Seller Wise Matrix", value: "seller" },
-              ]}
-              block
-              className="gms-view-toggle"
-              style={{ fontWeight: 600 }}
-            />
-          </div>
-
-          {/* Data Type */}
-          <div style={{ marginBottom: 16 }}>
-            <div
-              style={{
-                fontSize: 10.5,
-                fontWeight: 600,
-                color: "#1349c6",
-                marginBottom: 8,
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                letterSpacing: "0.05em",
-              }}
-            >
-              <span
-                style={{
-                  background: "#e8eefb",
-                  padding: "2px 6px",
-                  borderRadius: "var(--radius-sm)",
-                  fontSize: 9,
-                }}
-              >
-                02
-              </span>
-              DATA GRANULARITY
-            </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr",
-                gap: 8,
-              }}
-            >
-              {[
-                { key: "daily", label: "Daily", desc: "Day-by-day revenue" },
-                { key: "weekly", label: "Weekly", desc: "Week totals + WoW" },
-                {
-                  key: "monthly",
-                  label: "Monthly",
-                  desc: "Month totals + MoM",
-                },
-              ].map((opt) => (
-                <div
-                  key={opt.key}
-                  onClick={() => setExportDataType(opt.key)}
-                  style={{
-                    padding: "8px 10px",
-                    borderRadius: "var(--radius-md)",
-                    cursor: "pointer",
-                    border: `1.5px solid ${exportDataType === opt.key ? "#1349c6" : "#e5e7eb"}`,
-                    background: exportDataType === opt.key ? "#eff6ff" : "#fff",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: "var(--font-size-sm)",
-                      fontWeight: 600,
-                      color: exportDataType === opt.key ? "#1349c6" : "#1e293b",
-                    }}
-                  >
-                    {opt.label}
-                  </div>
-                  <div style={{ fontSize: 10, color: "#64748b" }}>
-                    {opt.desc}
-                  </div>
-                </div>
-              ))}
+          <div style={{marginBottom:16}}>
+            <Typography.Text strong>Export format</Typography.Text>
+            <Segmented block value={exportFileType} onChange={setExportFileType}
+              options={[{label:"Excel: complete workbook",value:"xlsx"},{label:"CSV: complete daily data",value:"csv"}]}
+              style={{marginTop:8}} />
+            <div style={{marginTop:10,padding:12,border:"1px solid #e5e7eb",borderRadius:8,background:"#f8fafc"}}>
+              <Typography.Text strong>{exportFileType==="xlsx"?"Complete financial workbook":"Complete daily records"}</Typography.Text>
+              <p style={{margin:"6px 0 0",fontSize:12,color:"#475569"}}>
+                {exportFileType==="xlsx"
+                  ?"Includes every matching daily record, executive summary, ASIN and seller analytics, daily/weekly/monthly comparisons and the revenue matrix. Prior period detail is included for selected date ranges."
+                  :"Includes every matching ASIN/date record with all six uploaded financial metrics, original report title, catalog title and seller mapping. Use Excel for multi-sheet comparisons and analytics."}
+              </p>
+              <p style={{margin:"6px 0 0",fontSize:12,color:"#475569"}}>Exports all matching records, not just the visible table page. Date and seller filters below still apply.</p>
             </div>
           </div>
-
-          {/* File Format */}
-          <div style={{ marginBottom: 16 }}>
-            <div
-              style={{
-                fontSize: 10.5,
-                fontWeight: 600,
-                color: "#1349c6",
-                marginBottom: 8,
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                letterSpacing: "0.05em",
-              }}
-            >
-              <span
-                style={{
-                  background: "#e8eefb",
-                  padding: "2px 6px",
-                  borderRadius: "var(--radius-sm)",
-                  fontSize: 9,
-                }}
-              >
-                03
-              </span>
-              FILE FORMAT
+          {exportFileType==="xlsx"&&(
+            <div style={{marginBottom:16}}>
+              <Typography.Text strong>Revenue matrix grouping</Typography.Text>
+              <Segmented block value={exportLevel} onChange={setExportLevel}
+                options={[{label:"ASIN wise",value:"asin"},{label:"Seller wise",value:"seller"}]} style={{margin:"8px 0 12px"}}/>
+              <Typography.Text strong>Revenue matrix detail</Typography.Text>
+              <Segmented block value={exportDataType} onChange={setExportDataType}
+                options={[{label:"Daily",value:"daily"},{label:"Weekly",value:"weekly"},{label:"Monthly",value:"monthly"}]} style={{marginTop:8}}/>
+              <Typography.Text type="secondary" style={{fontSize:12}}>These options change the matrix only. Complete Data and all analytics sheets are always included.</Typography.Text>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              {[
-                { key: "xlsx", label: "XLSX", desc: "Excel spreadsheet" },
-                { key: "csv", label: "CSV", desc: "Plain text data" },
-              ].map((opt) => (
-                <div
-                  key={opt.key}
-                  onClick={() => setExportFileType(opt.key)}
-                  style={{
-                    flex: 1,
-                    padding: "8px 10px",
-                    borderRadius: "var(--radius-md)",
-                    cursor: "pointer",
-                    textAlign: "center",
-                    border: `1.5px solid ${exportFileType === opt.key ? "#1349c6" : "#e5e7eb"}`,
-                    background: exportFileType === opt.key ? "#eff6ff" : "#fff",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: "var(--font-size-sm)",
-                      fontWeight: 600,
-                      color: exportFileType === opt.key ? "#1349c6" : "#1e293b",
-                    }}
-                  >
-                    {opt.label}
-                  </div>
-                  <div style={{ fontSize: 10, color: "#64748b" }}>
-                    {opt.desc}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
 
           {/* Date Filtering Options */}
           <div style={{ marginBottom: 16 }}>
@@ -1817,7 +1672,7 @@ export default function GmsTrackerPage() {
                 height: 34,
               }}
             >
-              Export to {exportFileType === "csv" ? "CSV" : "Excel"}
+              Export {exportFileType === "csv" ? "complete CSV" : "complete Excel"}
             </Button>
           </div>
         </div>
