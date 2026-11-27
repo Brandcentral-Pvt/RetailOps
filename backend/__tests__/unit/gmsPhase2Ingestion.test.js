@@ -6,6 +6,8 @@ const { MAX_ROWS, MAX_FILE_BYTES, money, units, reportDate, validateRows, parseF
 const { makeFakePool } = require('../../testUtils/fakePool');
 jest.mock('../../database/db', () => ({ sql: require('../../testUtils/fakePool').FAKE_SQL }));
 const { inspect } = require('../../services/gmsImportService');
+const { presentIssue } = require('../../services/gmsImportIssueDetails');
+const { writeIssueReport, csvCell, reportFileName } = require('../../services/gmsImportIssueReport');
 const headers = ['ASIN','Date','Brand','StoreCode','Ordered Revenue','Ordered Units','Shipped Revenue','Shipped COGS','Shipped Units','Customer Returns'];
 const base = ['B000000001','2026-11-27','Brand A','IN','1,23,456.78','20','1000.10','500.20','10','0'];
 const row = (changes = {}) => base.map((v,i) => Object.prototype.hasOwnProperty.call(changes,i)?changes[i]:v);
@@ -103,9 +105,51 @@ describe('strict GMS report validation', () => {
       ws.E2 = {t:'n',v:100,f:'1+99'};
       XLSX.utils.book_append_sheet(wb,ws,'Report');
       const xlsx = path.join(dir,'report.xlsx'); XLSX.writeFile(wb,xlsx);
-      expect(() => parseFile(xlsx,'report.xlsx')).toThrow(/Formula/);
+      const rejected = parseFile(xlsx,'report.xlsx');
+      expect(rejected.invalid).toBe(1);
+      expect(rejected.allIssues[0]).toMatchObject({row:2,asin:'B000000001',code:'FORMULA_CELL',column:'E (Ordered Revenue)'});
     } finally { fs.rmSync(dir,{recursive:true,force:true}); }
   });
+});
+
+describe('readable downloadable GMS error reports', () => {
+  test('retain every issue, source ASIN and row even when preview is capped', () => {
+    const result=validateRows([headers,...Array.from({length:251},(_,i)=>row({0:'B'+String(i).padStart(9,'0'),4:'not a number'}))]);
+    expect(result.invalid).toBe(251);
+    expect(result.issues).toHaveLength(200);
+    expect(result.allIssues).toHaveLength(251);
+    expect(result.allIssues[250]).toMatchObject({row:252,asin:'B000000250',date:'2026-11-27',brand:'Brand A'});
+    expect(presentIssue(result.allIssues[250])).toMatchObject({column:'Ordered Revenue',remarks:expect.stringContaining('Enter a valid amount')});
+  });
+  test('reports missing ASIN and file headings without inventing identifiers', () => {
+    const result=validateRows([headers,row({0:''})]);
+    expect(presentIssue(result.allIssues[0])).toMatchObject({row:2,asin:'',column:'ASIN',remarks:expect.stringContaining('10-character')});
+    const header=validateRows([headers.slice(0,-1),row()]);
+    expect(presentIssue(header.allIssues[0])).toMatchObject({row:1,column:'Customer Returns',remarks:expect.stringContaining('missing or appears more than once')});
+    expect(header.allIssues[0].asin).toBeUndefined();
+  });
+  test('actual XLSX and CSV include all errors, plain remarks and safe text', async () => {
+    const dir=fs.mkdtempSync(path.join(os.tmpdir(),'gms-issue-report-'));
+    try {
+      const result=validateRows([headers,...Array.from({length:201},(_,i)=>row({0:'B'+String(i).padStart(9,'0'),2:'=2+2',4:'invalid'}))]);
+      const report={issues:result.allIssues,legacy:false};
+      const xlsx=path.join(dir,'report.xlsx'),csv=path.join(dir,'report.csv');
+      await writeIssueReport(report,'xlsx',xlsx);
+      const sheet=XLSX.readFile(xlsx).Sheets['GMS Error Report'];
+      const rows=XLSX.utils.sheet_to_json(sheet,{header:1,raw:true});
+      expect(rows[0]).toEqual(['Excel Row','ASIN','Date','Brand (Sheet)','Affected Column','Remarks']);
+      expect(rows).toHaveLength(202);
+      expect(rows[201]).toEqual([202,'B000000200','2026-11-27','=2+2','Ordered Revenue',expect.stringContaining('Enter a valid amount')]);
+      expect(sheet.D2.f).toBeUndefined();
+      await writeIssueReport(report,'csv',csv);
+      const csvText=fs.readFileSync(csv,'utf8');
+      expect(csvText).toContain('B000000200');
+      expect(csvText).toContain('"\'=2+2"');
+      expect(csvText.trim().split(/\r?\n/)).toHaveLength(202);
+      expect(csvCell('=HYPERLINK("x")')).toBe('"\'=HYPERLINK(""x"")"');
+      expect(reportFileName('101-gms.xlsx','xlsx')).toBe('101-gms_error_report.xlsx');
+    } finally { fs.rmSync(dir,{recursive:true,force:true}); }
+  },30000);
 });
 
 describe('seller mapping and legacy fact conflicts', () => {
