@@ -3,6 +3,9 @@ const fsp=require('node:fs/promises');
 const os=require('node:os');
 const path=require('node:path');
 const ExcelJS=require('exceljs');
+const unzipper=require('unzipper');
+const XLSX=require('xlsx');
+const {writeIssueReport}=require('../../services/gmsImportIssueReport');
 const {verifyXlsx,checkFileEnvelope,safeExportName}=require('../../services/exportFileIntegrity');
 const {writeGmsExport}=require('../../services/gmsExportWriter');
 const {buildCompleteExport}=require('../../services/gmsCompleteExport');
@@ -51,6 +54,17 @@ describe('export file integrity',()=>{
     const bad=path.join(dir,'crc.xlsx');await fsp.writeFile(bad,bytes);
     await expect(verifyXlsx(bad)).rejects.toThrow(/CRC/);
   });
+  test('Excel import error downloads also use the verified streaming writer',async()=>{
+    const file=path.join(dir,'errors.xlsx');
+    const issues=Array.from({length:251},(_,i)=>({row:i+2,asin:'B'+String(i).padStart(9,'0'),date:'2026-11-27',brand:'Brand ₹',code:'INVALID_ROW',message:'orderedRevenue: Invalid monetary value'}));
+    await writeIssueReport({issues,legacy:false},'xlsx',file);
+    const verified=await verifyXlsx(file,{expectedSheets:new Map([['GMS Error Report',252]])});
+    expect(verified.sheets.get('GMS Error Report')).toBe(252);
+    const rows=XLSX.utils.sheet_to_json(XLSX.readFile(file).Sheets['GMS Error Report']);
+    expect(rows).toHaveLength(251);
+    expect(rows[250].ASIN).toBe('B000000250');
+    expect(rows[250].Remarks).toContain('Enter a valid amount');
+  });
   test('uses only a safe exact export name with matching extension',()=>{
     expect(safeExportName({Id:'abc123',FileName:'gms_export_asin_2026-11-27.xlsx',Format:'xlsx'})).toEqual({name:'gms_export_asin_2026-11-27.xlsx',diskName:'abc123_gms_export_asin_2026-11-27.xlsx',format:'xlsx'});
     expect(()=>safeExportName({Id:'abc',FileName:'../private.xlsx',Format:'xlsx'})).toThrow();
@@ -72,6 +86,12 @@ describe('export file integrity',()=>{
     await writeGmsExport({filePath:big,format:'xlsx',report,complete:{...complete,sheets:[...complete.sheets,wide]},columns,matrixFixedCount:2});
     const actual=(await verifyXlsx(big)).sheets;
     expect(actual.size).toBe(10);expect(actual.get('Scale Fixture')).toBe(1001);
+    const entries=(await unzipper.Open.file(big)).files;
+    expect(entries.find(e=>e.path==='xl/workbook.xml').compressionMethod).toBe(0);
+    expect(entries.find(e=>e.path==='xl/worksheets/sheet1.xml').compressionMethod).toBe(8);
+    const readback=XLSX.readFile(big);
+    expect(readback.Sheets['Complete Data'].D2.v).toBe(-125.5);
+    expect(readback.Sheets['Scale Fixture'].EU1001.v).toBe('999');
     for(const [name,count] of expected)if(name!=='Executive Summary')expect(actual.get(name)).toBe(count);
     expect(fs.existsSync(big+'.partial')).toBe(false);
   },120000);
