@@ -65,7 +65,7 @@ const gmsUpload = multer({
 }).single('file');
 const receiveGms = (req,res,next) => gmsUpload(req,res,err => {
   if (err) return res.status(err.code==='LIMIT_FILE_SIZE'?413:400).json({
-    success:false,message:err.code==='LIMIT_FILE_SIZE'?'Report exceeds 25 MB; split it into smaller reports':'Invalid report upload'
+    success:false,message:err.code==='LIMIT_FILE_SIZE'?'Report exceeds 100 MB; split it into smaller reports':'Invalid report upload'
   });
   next();
 });
