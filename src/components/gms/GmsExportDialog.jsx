@@ -1,5 +1,5 @@
-import React,{useState,useRef} from 'react';
-import {Alert,Button,DatePicker,Drawer,Flex,Form,Radio,Segmented,Select,Space,Typography} from 'antd';
+import React,{useState,useRef,useEffect} from 'react';
+import {Alert,Button,DatePicker,Drawer,Flex,Form,Radio,Segmented,Select,Typography} from 'antd';
 import {DownloadOutlined} from '@ant-design/icons';
 import dayjs from 'dayjs';
 const {Text}=Typography;
@@ -11,6 +11,7 @@ export default function GmsExportDialog({open,onClose,onSubmit,level,startDate,e
   const dateMode=Form.useWatch('exportDateType',form)||'current';
   const sellerMode=Form.useWatch('exportBrandType',form)||'current';
   const defaults={exportFileType:'xlsx',exportLevel:level,exportDataType:'daily',exportDateType:'current',exportBrandType:'current',exportCustomBrands:[]};
+  useEffect(()=>{if(open){setError('');form.resetFields();form.setFieldValue('exportLevel',level);}},[open,level,form]);
   const range=dayjs(startDate||dayjs().startOf('month')).format('DD MMM YYYY')+' to '+dayjs(endDate||dayjs().endOf('month')).format('DD MMM YYYY');
   async function submit(values){
     if(lock.current||disabled)return;
@@ -23,8 +24,7 @@ export default function GmsExportDialog({open,onClose,onSubmit,level,startDate,e
     }catch(e){setError(e.message||'Export could not be started. Try again.');}
     finally{lock.current=false;setBusy(false);}
   }
-  return <Drawer open={open} title="Export GMS report" width={560} onClose={()=>{if(!busy)onClose();}} mask={{closable:!busy}} keyboard={!busy}
-    afterOpenChange={visible=>{if(visible){setError('');form.resetFields();form.setFieldValue('exportLevel',level);}}}
+  return <Drawer open={open} title="Export GMS report" width="min(560px, 100vw)" forceRender onClose={()=>{if(!busy)onClose();}} mask={{closable:!busy}} keyboard={!busy}
     footer={<Flex justify="flex-end" gap={8}><Button disabled={busy} onClick={onClose}>Cancel</Button><Button type="primary" icon={<DownloadOutlined/>} loading={busy} disabled={disabled} onClick={()=>form.submit()}>Export {format==='csv'?'complete CSV':'complete Excel'}</Button></Flex>}>
     <Form form={form} layout="vertical" initialValues={defaults} onFinish={submit} requiredMark={false} className="gms-export-form">
       {error&&<Alert type="error" showIcon title={error} style={{marginBottom:16}}/>}
