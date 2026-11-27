@@ -27,6 +27,12 @@ on:
       - 'tests/gms-phase1.spec.js'
       - '.github/workflows/gms-phase2.yml'
   workflow_dispatch:
+    inputs:
+      gms_scale_rows:
+        description: 'Optional disposable SQL scale fixture'
+        type: choice
+        options: ['0', '100000', '500000']
+        default: '0'
 
 permissions:
   contents: read
@@ -94,6 +100,7 @@ jobs:
         working-directory: backend
         env:
           GMS_SQLSERVER_SMOKE: '1'
+          GMS_SQL_SCALE_ROWS: ${{ inputs.gms_scale_rows || '0' }}
           GMS_TEST_SQLSERVER_HOST: '127.0.0.1'
           GMS_TEST_SQLSERVER_PASSWORD: 'GmsDisposable#2026!'
           GMS_TEST_MSSQL_MODULE: '/tmp/gms-test-sql/node_modules/mssql'
