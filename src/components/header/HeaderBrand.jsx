@@ -1,64 +1,22 @@
 import React from 'react';
+import { Breadcrumb, Skeleton, Typography } from 'antd';
 import { Link } from 'react-router-dom';
 import { useHeader } from '../../contexts/HeaderContext';
-import { Separator } from '@/components/ui/separator';
-import { Skeleton } from '@/components/ui/skeleton/Skeleton';
-import { HeaderSkeleton } from '@/components/ui/skeleton/HeaderSkeleton';
 
-/**
- * HeaderBrand — breadcrumb + accessible page heading.
- *
- * Breadcrumbs come from RoutePageMeta (populated via HeaderContext.pageMeta).
- * The final breadcrumb is the current page (non-linkable); prior crumbs link
- * back to their route. A shadcn Separator divides crumbs.
- *
- * Props:
- *   loading - boolean, when true shows skeleton instead of content
- */
 export default function HeaderBrand({ loading = false }) {
   const { pageMeta } = useHeader();
-  const { breadcrumbs = [], title } = pageMeta;
-
-  if (loading) {
-    return <HeaderSkeleton />;
-  }
+  const { breadcrumbs = [], title = 'Workspace' } = pageMeta || {};
+  if (loading) return <Skeleton.Input active size="small" style={{ width: 160 }} />;
+  const items = breadcrumbs.map((bc, index) => ({
+    title: bc.path && index < breadcrumbs.length - 1
+      ? <Link to={bc.path}>{bc.label}</Link>
+      : <span>{bc.label}</span>,
+  }));
 
   return (
-    <div className="flex flex-col gap-1 min-w-0">
-      {breadcrumbs.length > 0 && (
-        <nav
-          aria-label="Breadcrumb"
-          className="flex flex-wrap items-center gap-1 text-[11px] font-medium text-slate-500"
-        >
-          {breadcrumbs.map((bc, i) => {
-            const isLast = i === breadcrumbs.length - 1;
-            return (
-              <React.Fragment key={bc.label ?? String(i)}>
-                {bc.path && !isLast ? (
-                  <Link
-                    to={bc.path}
-                    className="text-[#1976d2] hover:underline transition-colors"
-                  >
-                    {bc.label}
-                  </Link>
-                ) : (
-                  <span className="text-slate-900">{bc.label}</span>
-                )}
-                {!isLast && (
-                  <Separator
-                    orientation="vertical"
-                    className="h-3.5 w-[1px] mx-1 border-border"
-                    aria-hidden="true"
-                  />
-                )}
-              </React.Fragment>
-            );
-          })}
-        </nav>
-      )}
-      <h1 className="text-sm font-semibold text-slate-900 leading-none">
-        {title}
-      </h1>
+    <div className="ro-header-page" aria-label="Current page">
+      {items.length > 0 && <Breadcrumb className="ro-header-breadcrumb" items={items} />}
+      <Typography.Text className="ro-header-title" strong title={title}>{title}</Typography.Text>
     </div>
   );
 }
