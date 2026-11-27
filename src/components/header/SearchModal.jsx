@@ -3,9 +3,7 @@ import { X, Search, ArrowRight, Clock, TrendingUp, Package, CheckSquare, Zap, Ba
 import { useAuth } from '../../contexts/AuthContext';
 import { useHeader } from '../../contexts/HeaderContext';
 import { useNavigate } from 'react-router-dom';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
+import { Input, Button, Divider, Modal } from 'antd';
 import { cn } from '@/lib/utils';
 import { usePlatform, useKeyboardShortcut } from './headerHooks.js';
 
@@ -24,9 +22,9 @@ const NAVIGATION_ITEMS = [
   { id: 'nav-asin-tracker', title: 'ASIN Tracker', hint: 'Browse all tracked products', icon: Package, url: '/asin-tracker', permission: 'asinmanager_view', keywords: ['asin', 'product', 'catalog', 'tracker'] },
   { id: 'nav-gms', title: 'GMS Analytics', hint: 'Revenue & performance reports', icon: BarChart, url: '/gms-tracker', permission: 'gms_tracker_view', keywords: ['gms', 'analytics', 'revenue', 'report'] },
   { id: 'nav-tasks', title: 'My Day / Tasks', hint: 'Pending actions & workflows', icon: CheckSquare, url: '/tasks/my-day', permission: 'tasks_view', keywords: ['tasks', 'actions', 'workflow', 'myday'] },
-  { id: 'nav-inventory', title: 'Inventory', hint: 'Stock levels & availability', icon: Package, url: '/inventory', permission: 'inventory_view', keywords: ['inventory', 'stock', 'availability'] },
-  { id: 'nav-pnl', title: 'P&L Reports', hint: 'Profit & loss analysis', icon: BarChart, url: '/profit-loss', permission: 'profit_loss_view', keywords: ['pnl', 'profit', 'loss', 'financial'] },
-  { id: 'nav-sellers', title: 'Sellers', hint: 'Manage seller accounts', icon: TrendingUp, url: '/sellers', permission: 'sellers_view', keywords: ['sellers', 'accounts', 'marketplace'] },
+  { id: 'nav-inventory', title: 'Inventory', hint: 'Stock levels & availability', icon: Package, url: '/inventory', permission: 'inventoryreport_view', keywords: ['inventory', 'stock', 'availability'] },
+  { id: 'nav-pnl', title: 'P&L Reports', hint: 'Profit & loss analysis', icon: BarChart, url: '/profit-loss', permission: 'pnlreport_view', keywords: ['pnl', 'profit', 'loss', 'financial'] },
+  { id: 'nav-sellers', title: 'Sellers', hint: 'Manage seller accounts', icon: TrendingUp, url: '/sellers', permission: 'seller_view', keywords: ['sellers', 'accounts', 'marketplace'] },
   { id: 'nav-profile', title: 'Profile', hint: 'Account & preferences', icon: Users, url: '/profile', permission: 'dashboard_view', keywords: ['profile', 'account', 'settings'] },
   { id: 'nav-settings', title: 'Workspace Settings', hint: 'Team & integrations', icon: Settings, url: '/settings', permission: 'settings_manage', keywords: ['workspace', 'team', 'integrations', 'admin'] },
 ];
@@ -91,16 +89,16 @@ function SearchModal() {
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [recentSearches, setRecentSearches] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem('search_recent') || '[]');
+      const stored = JSON.parse(localStorage.getItem('search_recent') || '[]');
+      return Array.isArray(stored) ? stored : [];
     } catch { return []; }
   });
-  const [showRecent, setShowRecent] = useState(false);
 
   const addToRecent = useCallback((searchItem) => {
     setRecentSearches(prev => {
       const filtered = prev.filter(r => r.id !== searchItem.id);
       const updated = [searchItem, ...filtered].slice(0, 5);
-      localStorage.setItem('search_recent', JSON.stringify(updated));
+      try { localStorage.setItem('search_recent', JSON.stringify(updated)); } catch { /* storage unavailable */ }
       return updated;
     });
   }, []);
@@ -118,14 +116,18 @@ function SearchModal() {
       .map(item => ({ ...item, section: 'navigation' }));
   }, [query, hasPermission]);
 
+  const allowedRecent = useMemo(() => recentSearches
+    .map(r => NAVIGATION_ITEMS.find(item => item.id === r?.id))
+    .filter(item => item && (!item.permission || hasPermission(item.permission))),
+    [recentSearches, hasPermission]);
   const filteredRecent = useMemo(() => {
-    if (!query.trim()) return recentSearches;
+    if (!query.trim()) return allowedRecent;
     const q = query.toLowerCase();
-    return recentSearches.filter(r =>
+    return allowedRecent.filter(r =>
       r.title.toLowerCase().includes(q) ||
       (r.hint?.toLowerCase().includes(q) ?? false)
     );
-  }, [query, recentSearches]);
+  }, [query, allowedRecent]);
 
   const allResults = useMemo(() => {
     const results = [];
@@ -148,10 +150,10 @@ function SearchModal() {
 
   useEffect(() => {
     if (cmdOpen) {
-      setTimeout(() => inputRef.current?.focus(), 0);
-      setShowRecent(!query.trim());
+      const timer = setTimeout(() => inputRef.current?.focus(), 0);
+      return () => clearTimeout(timer);
     }
-  }, [cmdOpen, query]);
+  }, [cmdOpen]);
 
   useKeyboardShortcut(
     ['k'],
@@ -188,20 +190,20 @@ function SearchModal() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [cmdOpen, flatResults, highlightedIndex, navigate, addToRecent, setCmdOpen]);
 
-  if (!cmdOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 px-4">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setCmdOpen(false)} />
-      <div className="relative w-full max-w-2xl bg-background shadow-xl rounded-xl border border-border overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150">
+    <Modal open={cmdOpen} title="Search and navigate" onCancel={() => setCmdOpen(false)}
+      footer={null} width={640} style={{ top: 64 }} destroyOnHidden
+      afterOpenChange={visible => { if (visible) inputRef.current?.focus(); }}
+      className="ro-header-command-modal">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
           <Search size={18} className="text-muted-foreground shrink-0" />
           <Input
             ref={inputRef}
-            className="flex-1 bg-transparent p-0 text-base placeholder:text-muted-foreground"
+            style={{ flex: 1, minWidth: 0 }}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search pages, ASINs, sellers, tasks..."
+            placeholder="Search pages and commands..."
+            aria-label="Search pages and commands"
             autoFocus
             onKeyDown={(e) => {
               if (e.key === 'Escape') setCmdOpen(false);
@@ -253,7 +255,7 @@ function SearchModal() {
                           />
                         );
                       })}
-                      {gi < allResults.length - 1 && <Separator className="my-2" />}
+                      {gi < allResults.length - 1 && <Divider style={{ margin: '8px 0' }} />}
                     </React.Fragment>
                   ))}
                 </>
@@ -262,10 +264,10 @@ function SearchModal() {
               )
             ) : (
               <div className="space-y-4">
-                {recentSearches.length > 0 && (
+                {allowedRecent.length > 0 && (
                   <>
                     <SectionHeader title="Recent Searches" icon={Clock} count={recentSearches.length} />
-                    {recentSearches.map((item, i) => (
+                    {allowedRecent.map(item => (
                       <SearchResultItem
                         key={item.id}
                         item={item}
@@ -280,7 +282,7 @@ function SearchModal() {
                         }}
                       />
                     ))}
-                    <Separator className="my-2" />
+                    <Divider style={{ margin: '8px 0' }} />
                   </>
                 )}
                 <SectionHeader title="Quick Navigation" icon={Zap} />
@@ -309,10 +311,9 @@ function SearchModal() {
 
         <div className="px-4 py-3 border-t border-border bg-muted/50 flex items-center justify-between text-xs text-muted-foreground">
           <span>{modKey}K to open • ↑↓ to navigate • Enter to select • Esc to close</span>
-          <Button variant="ghost" size="sm" onClick={() => setCmdOpen(false)}>Close</Button>
+          <Button type="text" size="small" onClick={() => setCmdOpen(false)}>Close</Button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 

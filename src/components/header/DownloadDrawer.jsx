@@ -3,7 +3,7 @@ import { Download, FileText, Clock, CheckCircle, AlertCircle } from 'lucide-reac
 import { useHeader } from '../../contexts/HeaderContext';
 import { exportApi } from '../../services/api';
 import DownloadsDrawer from '../common/DownloadsDrawer';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Badge, Button, Tooltip } from 'antd';
 
 const DownloadDrawer = () => {
   const { downloadOpen, setDownloadOpen } = useHeader();
@@ -98,30 +98,10 @@ const DownloadDrawer = () => {
 
   return (
     <>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            className="header-icon-btn relative"
-            onClick={handleOpen}
-            aria-label={`Downloads${hasNew ? ', new files ready' : ''}`}
-            style={{ position: 'relative' }}
-          >
-            <Download style={{ fontSize: 'var(--font-size-lg)' }} />
-            {hasNew && (
-              <span
-                className="absolute -top-1 -right-1 w-4 h-4 bg-[#1976d2] text-white text-[9px] font-bold rounded-full flex items-center justify-center animate-pulse"
-              >
-                <span className="w-1.5 h-1.5 bg-white rounded-full" />
-              </span>
-            )}
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" align="end">
-          <div className="flex items-center gap-1 text-xs text-slate-500">
-            <span>Downloads</span>
-            {hasNew && <span className="text-blue-500 font-medium">● New</span>}
-          </div>
-        </TooltipContent>
+      <Tooltip title={hasNew ? 'Downloads: new files ready' : 'Downloads'}>
+        <Button type="text" className="ro-header-icon" onClick={handleOpen}
+          aria-label={`Downloads${hasNew ? ', new files ready' : ''}`} aria-expanded={downloadOpen}
+          icon={<Badge dot={hasNew}><Download size={18} /></Badge>} />
       </Tooltip>
 
       <DownloadsDrawer
