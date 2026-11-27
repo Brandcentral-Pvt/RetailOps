@@ -3,6 +3,7 @@ const fsp=require('node:fs/promises');
 const { Readable }=require('node:stream');
 const { pipeline,finished }=require('node:stream/promises');
 const ExcelJS=require('exceljs');
+const {createStreamingWorkbook}=require('./streamingWorkbook');
 const {verifyXlsx,checkFileEnvelope}=require('./exportFileIntegrity');
 
 const EXCEL_ROWS=1048576,EXCEL_COLS=16384;
@@ -169,7 +170,7 @@ async function writeGmsExport({filePath,format,report,columns,complete=null,matr
       streamFailure.catch(()=>{}); // handle early disk errors before commit
       abortOutput=()=>output.destroy(new Error('GMS export cancelled'));
       signal?.addEventListener('abort',abortOutput,{once:true});
-      const book=new ExcelJS.stream.xlsx.WorkbookWriter({stream:output,useStyles:Boolean(complete),useSharedStrings:false});
+      const book=createStreamingWorkbook({stream:output,useStyles:Boolean(complete),useSharedStrings:false});
       if(complete){
         let total=descriptors.reduce((n,x)=>n+x.rowCount,0),done=0;
         for(const descriptor of descriptors){
