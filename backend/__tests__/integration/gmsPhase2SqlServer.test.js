@@ -31,16 +31,23 @@ const { inspectGmsSchema, ensureGmsSchema } = require('../../database/gmsSchema'
 const migration = require('../../migrations/091_gms_import_jobs');
 const nullableMigration = require('../../migrations/092_gms_nullable_seller');
 const { gmsCatalogApplySql } = require('../../utils/gmsPhase1');
-const { loadAnalytics } = require('../../services/gmsAnalyticsService');
+const { loadAnalytics,queryFacts } = require('../../services/gmsAnalyticsService');
+const { buildCompleteExport }=require('../../services/gmsCompleteExport');
+const { writeGmsExport }=require('../../services/gmsExportWriter');
+const XLSX=require('xlsx');
+const { loadPagedAnalytics } = require('../../services/gmsAnalyticsPageService');
+const analyticsIndex=require('../../migrations/094_gms_analytics_date_index');
 const service = require('../../services/gmsImportService');
 const real = process.env.GMS_SQLSERVER_SMOKE === '1' ? test : test.skip;
+const scaleRows=Number(process.env.GMS_SQL_SCALE_ROWS||0);
+if(![0,100000,500000].includes(scaleRows))throw new Error('Unsupported disposable GMS scale fixture size');
 async function connect() {
   if (process.env.GMS_TEST_SQLSERVER_HOST !== '127.0.0.1' || !process.env.GMS_TEST_SQLSERVER_PASSWORD) {
     throw new Error('Disposable local SQL Server configuration required');
   }
   const config = { server:'127.0.0.1',port:1433,user:'sa',
     password:process.env.GMS_TEST_SQLSERVER_PASSWORD,database:'tempdb',
-    options:{encrypt:false,trustServerCertificate:true},connectionTimeout:4000,requestTimeout:20000 };
+    options:{encrypt:false,trustServerCertificate:true},connectionTimeout:4000,requestTimeout:scaleRows?240000:20000 };
   for(let i=0;i<40;i++) {
     const p=new sql.ConnectionPool(config);
     try { await p.connect(); return p; }
@@ -86,9 +93,9 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
       "INSERT INTO UserSellers VALUES('U1','S1');"
     );
     const user={id:'U1',role:{name:'brand_manager'},assignedSellers:['S1'],permissions:['gms_tracker_import']};
-    const preview=async revenue=>{
+    const preview=async (revenue,title)=>{
       const file=path.join(dir,'report-'+mockSequence);
-      fs.writeFileSync(file,'ASIN,Date,Brand,StoreCode,Ordered Revenue,Ordered Units,Shipped Revenue,Shipped COGS,Shipped Units,Customer Returns\nB000000001,2026-11-27,Brand A,IN,'+revenue+',1,100,50,1,0');
+      fs.writeFileSync(file,'ASIN,Date,Brand,StoreCode,Ordered Revenue,Ordered Units,Shipped Revenue,Shipped COGS,Shipped Units,Customer Returns'+(title?',Product Title':'')+'\nB000000001,2026-11-27,Brand A,IN,'+revenue+',1,100,50,1,0'+(title?','+title:''));
       return service.createPreview(user,{path:file,originalname:'report.csv'});
     };
     const facts=async()=> (await mockPool.request().query('SELECT SellerId,OrderedRevenue FROM GmsDailyPerformance WHERE Asin=\'B000000001\'')).recordset;
@@ -105,7 +112,7 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
     expect(completeReport.issues).toHaveLength(205);
     expect(completeReport.issues[204]).toMatchObject({row:206,asin:'B000000204'});
     expect(await facts()).toHaveLength(0);
-    const first=await preview('123.45');
+    const first=await preview('123.45','Original title from report');
     expect(first.status).toBe('READY');
     expect(first.summary.inserted).toBe(1);
     expect(await facts()).toHaveLength(0);
@@ -127,6 +134,8 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
     expect(correction.summary.updated).toBe(1);
     await service.confirm('U1',correction.id); await service.processNext();
     expect(await facts()).toEqual([{SellerId:'S1',OrderedRevenue:150.25}]);
+    const savedTitle=await mockPool.request().query("SELECT ReportProductTitle FROM GmsDailyPerformance WHERE Asin='B000000001'");
+    expect(savedTitle.recordset[0].ReportProductTitle).toBe('Original title from report');
     const stale=await preview('160.00');
     await mockPool.request().query('UPDATE GmsDailyPerformance SET OrderedRevenue=155.00');
     await service.confirm('U1',stale.id); await service.processNext();
@@ -170,6 +179,45 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
     const scoped=await loadAnalytics(mockPool,user,{startDate:'2026-11-27',endDate:'2026-11-27',level:'seller',sellerIds:['S1']});
     expect(scoped.matrixRows).toHaveLength(1);
     expect(scoped.kpis.orderedRevenue).toBe(29.5);
+    await analyticsIndex.up(mockPool);
+    await analyticsIndex.up(mockPool);
+    const index=await mockPool.request().query("SELECT name FROM sys.indexes WHERE object_id=OBJECT_ID('dbo.GmsDailyPerformance') AND name='IX_GmsDailyPerformance_Date_Asin_Analytics'");
+    expect(index.recordset).toHaveLength(1);
+    const options={startDate:'2026-11-27',endDate:'2026-11-27',level:'asin',pageSize:1};
+    const firstPage=await loadPagedAnalytics(mockPool,global,{...options,page:1});
+    const secondPage=await loadPagedAnalytics(mockPool,global,{...options,page:2});
+    expect(firstPage.pagination).toEqual({page:1,pageSize:1,totalRows:2});
+    expect(secondPage.pagination).toEqual({page:2,pageSize:1,totalRows:2});
+    expect(firstPage.kpis).toEqual(unified.kpis);
+    expect(secondPage.kpis).toEqual(unified.kpis);
+    expect(firstPage.matrixRows[0]).toMatchObject({asin:'B000000001',orderedRevenue:155});
+    expect(secondPage.matrixRows[0]).toMatchObject({asin:'B000000002',orderedRevenue:-125.5,dbBrand:'Seller A'});
+    expect(secondPage.monthGroups).toEqual(firstPage.monthGroups);
+    const ascending=await loadPagedAnalytics(mockPool,global,{...options,page:1,sort:{key:'day-2026-11-27',direction:'asc'}});
+    expect(ascending.matrixRows[0].asin).toBe('B000000002');
+    const scopedPage=await loadPagedAnalytics(mockPool,user,{...options,level:'seller',sellerIds:['S1']});
+    expect(scopedPage.kpis).toEqual(scoped.kpis);
+    expect(scopedPage.matrixRows[0].orderedRevenue).toBe(29.5);
+    // Verify export uses the complete scoped daily facts, not the one-row page.
+    const allFacts=await queryFacts(mockPool,global,{from:'2026-11-27',to:'2026-11-27'});
+    const completeExport=buildCompleteExport(allFacts,{window:{from:'2026-11-27',to:'2026-11-27'},level:'seller'});
+    expect(completeExport.complete.selectedCount).toBe(2);
+    expect(completeExport.report.kpis).toEqual(unified.kpis);
+    const reportFile=path.join(dir,'full-report.xlsx');
+    const written=await writeGmsExport({filePath:reportFile,format:'xlsx',...completeExport,columns:[{label:'Seller (DB)',getValue:r=>r.dbBrand},{label:'Period Revenue',getValue:r=>r.orderedRevenue}],matrixFixedCount:2});
+    expect(written.rowCount).toBe(2);
+    const actual=XLSX.utils.sheet_to_json(XLSX.readFile(reportFile).Sheets['Complete Data'],{raw:true,defval:null});
+    expect(actual).toHaveLength(2);
+    expect(actual.find(r=>r.ASIN==='B000000001')).toMatchObject({'Product Title':'Original title from report','Ordered Revenue':155,'Shipped COGS':50});
+    expect(actual.find(r=>r.ASIN==='B000000002')).toMatchObject({'Ordered Revenue':-125.5,'Ordered Units':-2,'Customer Returns':0});
+
+    const none=await loadPagedAnalytics(mockPool,user,{...options,sellerIds:['S2']});
+    expect(none.pagination.totalRows).toBe(0);
+    expect(none.meta.records).toBe(0);
+    const literal=await loadPagedAnalytics(mockPool,global,{...options,search:'%'});
+    expect(literal.meta.records).toBe(0);
+    const clamped=await loadPagedAnalytics(mockPool,global,{...options,page:100});
+    expect(clamped.pagination.page).toBe(2);
     // Existing mapped fact test below is scoped to its original ASIN.
     const revoked=await preview('170.00');
     await service.confirm('U1',revoked.id);
@@ -177,8 +225,36 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
     await service.processNext();
     expect((await service.getJob('U1',revoked.id)).status).toBe('FAILED');
     expect(await facts()).toEqual([{SellerId:'S1',OrderedRevenue:155}]);
+    // Optional manual scale exercise: exclusively the disposable local SQL
+    // Server above. Report elapsed times without asserting hardware-dependent SLAs.
+    if(scaleRows){
+      await mockPool.request().input('rows',sql.Int,scaleRows).query(`
+        WITH digits AS (SELECT n FROM (VALUES(0),(1),(2),(3),(4),(5),(6),(7),(8),(9)) d(n)),
+        seq AS (SELECT TOP (@rows) ROW_NUMBER() OVER(ORDER BY (SELECT NULL)) AS n FROM digits a CROSS JOIN digits b CROSS JOIN digits c CROSS JOIN digits d CROSS JOIN digits e CROSS JOIN digits f)
+        INSERT INTO GmsDailyPerformance(Id,Asin,Date,SellerId,Brand,StoreCode,OrderedRevenue,OrderedUnits,ShippedRevenue,ShippedCOGS,ShippedUnits,CustomerReturns,CreatedAt,UpdatedAt)
+        SELECT 'scale-'+CONVERT(varchar(20),n),'F'+RIGHT('000000000'+CONVERT(varchar(20),(n-1)/30+1),9),
+          DATEADD(day,CONVERT(int,(n-1)%30),CONVERT(date,'2026-10-01')),NULL,'Load Test','IN',
+          CASE WHEN n%7=0 THEN -1.25 ELSE 1.25 END,1,1.25,0.50,1,0,SYSUTCDATETIME(),SYSUTCDATETIME()
+        FROM seq;
+      `);
+      const scaleOptions={startDate:'2026-10-01',endDate:'2026-10-30',level:'asin',pageSize:100};
+      const before=Date.now();
+      const large=await loadPagedAnalytics(mockPool,global,{...scaleOptions,page:1});
+      const firstMs=Date.now()-before;
+      const nextStarted=Date.now();
+      const next=await loadPagedAnalytics(mockPool,global,{...scaleOptions,page:2});
+      const nextMs=Date.now()-nextStarted;
+      expect(large.meta.records).toBe(scaleRows);
+      expect(large.kpis.orderedRevenue).toBe((scaleRows-2*Math.floor(scaleRows/7))*1.25);
+      expect(large.pagination.totalRows).toBe(Math.ceil(scaleRows/30));
+      expect(large.matrixRows).toHaveLength(100);
+      expect(next.matrixRows).toHaveLength(100);
+      expect(next.kpis).toEqual(large.kpis);
+      expect(new Set([...large.matrixRows,...next.matrixRows].map(r=>r.key)).size).toBe(200);
+      console.log('GMS disposable scale result',JSON.stringify({facts:scaleRows,entities:large.pagination.totalRows,pageRows:100,firstMs,nextMs,responseBytes:Buffer.byteLength(JSON.stringify(large))}));
+    }
   } finally {
     fs.rmSync(dir,{recursive:true,force:true});
     await mockPool.close();
   }
-}, 180000);
+}, scaleRows?600000:180000);

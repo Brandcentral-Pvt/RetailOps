@@ -61,11 +61,14 @@ function canonicalFact(f) {
   return {
     id: f.id, asin: f.asin, date: f.date, sellerId: f.sellerId == null ? null : String(f.sellerId),
     storeCode: f.storeCode, brand: f.brand,
+    ...(f.reportProductTitle!=null?{reportProductTitle:String(f.reportProductTitle)}:{}),
     ...Object.fromEntries(metricFields.map(k => [k, f[k] == null ? null : String(f[k])])),
   };
 }
 
 function sameMetrics(existing, row) {
+  // Missing optional title is not an instruction to erase a saved title.
+  if(row.reportProductTitle!=null&&row.reportProductTitle!==existing.reportProductTitle)return false;
   if (String(existing.brand ?? '') !== row.brand || normalizeStore(existing.storeCode) !== row.storeCode) return false;
   try {
     return metricFields.every(k => {
@@ -93,7 +96,7 @@ async function inspectChunk(db, rows, scope, { lock = false } = {}) {
   );
   const facts = await db.request().input('payload', sql.NVarChar(sql.MAX), payload).query(
     'SELECT g.Id AS id, g.Asin AS asin, CONVERT(char(10),g.Date,23) AS date, g.SellerId AS sellerId, ' +
-    'g.Brand AS brand, g.StoreCode AS storeCode, CONVERT(varchar(50),g.OrderedRevenue) AS orderedRevenue, ' +
+    'g.Brand AS brand, g.StoreCode AS storeCode, g.ReportProductTitle AS reportProductTitle, CONVERT(varchar(50),g.OrderedRevenue) AS orderedRevenue, ' +
     'g.OrderedUnits AS orderedUnits, CONVERT(varchar(50),g.ShippedRevenue) AS shippedRevenue, ' +
     'CONVERT(varchar(50),g.ShippedCOGS) AS shippedCOGS, g.ShippedUnits AS shippedUnits, g.CustomerReturns AS customerReturns ' +
     'FROM GmsDailyPerformance g' + hint + ' WHERE EXISTS (SELECT 1 FROM ' + keysJson +
@@ -305,17 +308,17 @@ async function commitRows(tx, rows) {
   if (!writes.length) return;
   // All actions were verified under the same transaction and locks. Never
   // invent owner IDs, infer missing values, or change the legacy date key.
-  const source = "OPENJSON(@payload) WITH (asin NVARCHAR(30) '$.asin', [date] DATE '$.date', sellerId VARCHAR(50) '$.sellerId', brand NVARCHAR(255) '$.brand', storeCode NVARCHAR(50) '$.storeCode', orderedRevenue DECIMAL(18,2) '$.orderedRevenue', orderedUnits INT '$.orderedUnits', shippedRevenue DECIMAL(18,2) '$.shippedRevenue', shippedCOGS DECIMAL(18,2) '$.shippedCOGS', shippedUnits INT '$.shippedUnits', customerReturns INT '$.customerReturns', [action] VARCHAR(20) '$.action')";
+  const source = "OPENJSON(@payload) WITH (asin NVARCHAR(30) '$.asin', [date] DATE '$.date', sellerId VARCHAR(50) '$.sellerId', brand NVARCHAR(255) '$.brand', reportProductTitle NVARCHAR(MAX) '$.reportProductTitle', storeCode NVARCHAR(50) '$.storeCode', orderedRevenue DECIMAL(18,2) '$.orderedRevenue', orderedUnits INT '$.orderedUnits', shippedRevenue DECIMAL(18,2) '$.shippedRevenue', shippedCOGS DECIMAL(18,2) '$.shippedCOGS', shippedUnits INT '$.shippedUnits', customerReturns INT '$.customerReturns', [action] VARCHAR(20) '$.action')";
   for (let offset=0; offset<writes.length; offset+=SQL_BATCH_ROWS) {
     const batch = writes.slice(offset,offset+SQL_BATCH_ROWS);
     const result = await tx.request().input('payload',sql.NVarChar(sql.MAX),JSON.stringify(batch)).query(
     'MERGE GmsDailyPerformance WITH (HOLDLOCK) AS g USING ' + source + ' AS s ' +
     'ON g.Asin=s.asin AND g.Date>=s.date AND g.Date<DATEADD(day,1,s.date) ' +
     "WHEN MATCHED AND s.action='updated' AND (g.SellerId=s.sellerId OR g.SellerId IS NULL) THEN UPDATE SET " +
-    'g.SellerId=s.sellerId,g.Brand=s.brand,g.StoreCode=s.storeCode,g.OrderedRevenue=s.orderedRevenue,g.OrderedUnits=s.orderedUnits,' +
+    'g.SellerId=s.sellerId,g.Brand=s.brand,g.ReportProductTitle=COALESCE(s.reportProductTitle,g.ReportProductTitle),g.StoreCode=s.storeCode,g.OrderedRevenue=s.orderedRevenue,g.OrderedUnits=s.orderedUnits,' +
     'g.ShippedRevenue=s.shippedRevenue,g.ShippedCOGS=s.shippedCOGS,g.ShippedUnits=s.shippedUnits,g.CustomerReturns=s.customerReturns,g.UpdatedAt=dbo.GetEnvDate() ' +
-    "WHEN NOT MATCHED BY TARGET AND s.action='inserted' THEN INSERT (Id,Asin,Date,SellerId,Brand,StoreCode,OrderedRevenue,OrderedUnits,ShippedRevenue,ShippedCOGS,ShippedUnits,CustomerReturns,CreatedAt,UpdatedAt) " +
-    "VALUES (SUBSTRING(LOWER(REPLACE(CAST(NEWID() AS VARCHAR(36)),'-','')),1,24),s.asin,s.date,s.sellerId,s.brand,s.storeCode,s.orderedRevenue,s.orderedUnits,s.shippedRevenue,s.shippedCOGS,s.shippedUnits,s.customerReturns,dbo.GetEnvDate(),dbo.GetEnvDate());"
+    "WHEN NOT MATCHED BY TARGET AND s.action='inserted' THEN INSERT (Id,Asin,Date,SellerId,Brand,ReportProductTitle,StoreCode,OrderedRevenue,OrderedUnits,ShippedRevenue,ShippedCOGS,ShippedUnits,CustomerReturns,CreatedAt,UpdatedAt) " +
+    "VALUES (SUBSTRING(LOWER(REPLACE(CAST(NEWID() AS VARCHAR(36)),'-','')),1,24),s.asin,s.date,s.sellerId,s.brand,s.reportProductTitle,s.storeCode,s.orderedRevenue,s.orderedUnits,s.shippedRevenue,s.shippedCOGS,s.shippedUnits,s.customerReturns,dbo.GetEnvDate(),dbo.GetEnvDate());"
   );
     if (result.rowsAffected?.[0] !== batch.length) throw new Error('Fact write count did not match validated rows');
   }

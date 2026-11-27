@@ -95,7 +95,7 @@ All require `auth`.
 | POST | `/api/upload/gms-imports/:id/confirm` | `gms_tracker_import` | `gmsImportController.confirm` | Queue validated batch |
 | POST | `/api/upload/gms-imports/:id/cancel` | `gms_tracker_import` | `gmsImportController.cancel` | Cancel pending batch |
 | GET | `/api/upload/gms-data` | `gms_tracker_view` | `uploadController.getGmsData` | Legacy raw GMS data |
-| POST | `/api/upload/gms-analytics` | `gms_tracker_view` | `gmsAnalyticsController.overview` | Unified KPI, prior comparison, daily trends and matrix; date range, grouping, seller IDs and search |
+| POST | `/api/upload/gms-analytics` | `gms_tracker_view` | `gmsAnalyticsController.overview` | Unified full-filter KPI, prior comparison, daily trends and paginated matrix; date range, grouping, seller IDs, search, page, pageSize and sort |
 | GET | `/api/upload/gms-asins` | `gms_tracker_view` | `uploadController.getGmsAsins` | Get GMS ASINs |
 | POST | `/api/upload/gms-clear` | `gms_tracker_delete`, global scope | Maintenance gate | 409 during staged import rollout |
 

@@ -5,7 +5,9 @@ on:
     branches: [main]
     paths:
       - 'backend/services/gmsImport*.js'
-      - 'backend/services/gmsAnalyticsService.js'
+      - 'backend/services/gmsAnalytics*.js'
+      - 'backend/services/gmsExportWriter.js'
+      - 'backend/services/gmsCompleteExport.js'
       - 'backend/controllers/gmsAnalyticsController.js'
       - 'backend/controllers/gmsImportController.js'
       - 'backend/controllers/uploadController.js'
@@ -17,6 +19,8 @@ on:
       - 'backend/migrations/091_gms_import_jobs.js'
       - 'backend/migrations/092_gms_nullable_seller.js'
       - 'backend/migrations/093_gms_import_issue_reports.js'
+      - 'backend/migrations/094_gms_analytics_date_index.js'
+      - 'backend/migrations/095_gms_report_product_title.js'
       - 'backend/utils/gmsPhase1.js'
       - 'backend/__tests__/**/gmsPhase*.test.js'
       - 'src/components/gms/**'
@@ -25,6 +29,12 @@ on:
       - 'tests/gms-phase1.spec.js'
       - '.github/workflows/gms-phase2.yml'
   workflow_dispatch:
+    inputs:
+      gms_scale_rows:
+        description: 'Optional disposable SQL scale fixture'
+        type: choice
+        options: ['0', '100000', '500000']
+        default: '0'
 
 permissions:
   contents: read
@@ -48,6 +58,11 @@ jobs:
           node --check services/gmsImportParser.js
           node --check services/gmsImportService.js
           node --check services/gmsAnalyticsService.js
+          node --check services/gmsAnalyticsPageService.js
+          node --check services/gmsExportWriter.js
+          node --check services/gmsCompleteExport.js
+          node --check migrations/095_gms_report_product_title.js
+          node --check migrations/094_gms_analytics_date_index.js
           node --check controllers/gmsAnalyticsController.js
           node --check controllers/gmsImportController.js
           node --check routes/uploadRoutes.js
@@ -61,7 +76,7 @@ jobs:
           node --check scripts/repairGmsSchema.js
       - name: Validation and route security regression
         working-directory: backend
-        run: npm test -- --runInBand __tests__/unit/gmsPhase2Ingestion.test.js __tests__/unit/gmsPhase3Analytics.test.js __tests__/routes/gmsPhase1.test.js
+        run: npm test -- --runInBand __tests__/unit/gmsPhase2Ingestion.test.js __tests__/unit/gmsPhase3Analytics.test.js __tests__/unit/gmsPhase4Scalability.test.js __tests__/unit/gmsPhase4CompleteExport.test.js __tests__/routes/gmsPhase1.test.js
   sql:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -89,6 +104,7 @@ jobs:
         working-directory: backend
         env:
           GMS_SQLSERVER_SMOKE: '1'
+          GMS_SQL_SCALE_ROWS: ${{ inputs.gms_scale_rows || '0' }}
           GMS_TEST_SQLSERVER_HOST: '127.0.0.1'
           GMS_TEST_SQLSERVER_PASSWORD: 'GmsDisposable#2026!'
           GMS_TEST_MSSQL_MODULE: '/tmp/gms-test-sql/node_modules/mssql'

@@ -7,7 +7,9 @@ const SocketService = require('../services/socketService');
 const { buildInClause } = require('../utils/sqlHelpers');
 const { resolveAccessProfile } = require('../services/accessProfileService');
 const { exportWindow } = require('../utils/gmsPhase1');
-const { filterSpec, queryFacts, buildAnalytics, loadAnalytics } = require('../services/gmsAnalyticsService');
+const { filterSpec, queryFacts, selectFacts, historyWindow } = require('../services/gmsAnalyticsService');
+const { buildCompleteExport,buildDailyExport } = require('../services/gmsCompleteExport');
+const { writeGmsExport,ensureActive } = require('../services/gmsExportWriter');
 
 const EXPORTS_DIR = path.join(__dirname, '../uploads/exports');
 
@@ -1311,7 +1313,9 @@ exports.cleanExpiredDownloads = async () => {
  * Start a GMS performance matrix export job
  * POST /api/export/start-gms
  */
+let activeGmsExports=0;
 exports.startGmsExport = async (req, res) => {
+    let reserved=false;
     try {
         const {
             exportLevel = 'asin',
@@ -1345,6 +1349,8 @@ exports.startGmsExport = async (req, res) => {
             return res.status(400).json({ success: false, message: error.message });
         }
 
+        if(activeGmsExports>=2)return res.status(429).json({success:false,message:'Two GMS exports are already running on this worker. Try again shortly.'});
+        activeGmsExports++;reserved=true;
         const userId = (req.user?._id || req.user?.id || '').toString();
         const pool = await getPool();
 
@@ -1353,7 +1359,8 @@ exports.startGmsExport = async (req, res) => {
         const now = new Date();
         const istTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
         const dateStr = istTime.toISOString().slice(0, 19).replace(/[:T]/g, '-');
-        const fileName = `gms_export_${exportLevel}_${dateStr}.xlsx`;
+        const format=req.body.exportFileType==='csv'?'csv':'xlsx';
+        const fileName = `gms_export_${exportLevel}_${dateStr}.${format}`;
         const filePath = path.join(EXPORTS_DIR, `${downloadId}_${fileName}`);
 
         await pool.request()
@@ -1361,7 +1368,7 @@ exports.startGmsExport = async (req, res) => {
             .input('userId', sql.VarChar, userId)
             .input('fileName', sql.NVarChar, fileName)
             .input('filePath', sql.NVarChar, filePath)
-            .input('format', sql.NVarChar, 'xlsx')
+            .input('format', sql.NVarChar, format)
             .input('status', sql.NVarChar, 'pending')
             .input('params', sql.NVarChar, JSON.stringify(req.body))
             .query(`
@@ -1377,27 +1384,27 @@ exports.startGmsExport = async (req, res) => {
             fileName
         });
 
-        // Run background job with 5-minute timeout
-        const EXPORT_TIMEOUT_MS = 5 * 60 * 1000;
-        const exportTimeout = setTimeout(() => {
-            updateDownloadStatus(pool, downloadId, 'failed', 0, 'Export timed out after 5 minutes', userId).catch(console.error);
-        }, EXPORT_TIMEOUT_MS);
-
-        processGmsExportJob(downloadId, req.body, userId)
-            .then(() => clearTimeout(exportTimeout))
-            .catch(err => {
-                clearTimeout(exportTimeout);
-                console.error(`GMS Export job ${downloadId} failed:`, err);
-                updateDownloadStatus(pool, downloadId, 'failed', 0, err.message, userId).catch(console.error);
-            });
+        // One terminal status writer: a timeout aborts work, rather than racing
+        // with a later success update.
+        const controller=new AbortController();
+        const exportTimeout=setTimeout(()=>controller.abort(),10*60*1000);
+        reserved=false; // background job now owns the reservation
+        processGmsExportJob(downloadId,req.body,userId,controller.signal)
+            .catch(async err=>{
+                console.error('GMS export failed:',err.message);
+                await updateDownloadStatus(pool,downloadId,'failed',0,controller.signal.aborted?'GMS export timed out. Try a shorter range.':'Could not generate GMS report. Try again or narrow the range.',userId).catch(console.error);
+            })
+            .finally(()=>{clearTimeout(exportTimeout);activeGmsExports--;});
 
     } catch (error) {
+        if(reserved)activeGmsExports--;
         console.error('Start GMS Export Error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 };
 
-async function processGmsExportJob(downloadId, params, userId) {
+async function processGmsExportJob(downloadId, params, userId, signal) {
+    ensureActive(signal);
     const pool = await getPool();
     await updateDownloadStatus(pool, downloadId, 'processing', 10);
 
@@ -1432,18 +1439,17 @@ async function processGmsExportJob(downloadId, params, userId) {
     // Keep legacy name filters for older clients, but never widen RBAC.
     const modern = Object.prototype.hasOwnProperty.call(params,'sellerIds');
     const filters = filterSpec({sellerIds:modern?params.sellerIds:null,search:params.search});
-    let report;
-    if (modern && window.from && window.to) {
-        report = await loadAnalytics(pool,access,{startDate:window.from,endDate:window.to,level:exportLevel,...filters});
-    } else {
-        let facts = await queryFacts(pool,access,modern?window:{from:null,to:window.to},filters);
-        if (!modern) {
-            const names = exportBrandType==='current'?selectedBrands:exportBrandType==='custom'?exportCustomBrands:[];
-            if (names.length) facts = facts.filter(d=>names.includes(d.dbBrand)||names.includes(d.brand));
-        }
-        report = buildAnalytics(facts,{window,filters,level:exportLevel});
+    // Load current and required comparison history once. Never call the
+    // interactive paginated API for an export. All sheets use these same facts.
+    let facts = selectFacts(await queryFacts(pool,access,exportFileType==='csv'?window:historyWindow(window),filters,{signal}),filters);
+    if (!modern) {
+        const names = exportBrandType==='current'?selectedBrands:exportBrandType==='custom'?exportCustomBrands:[];
+        if (names.length) facts = facts.filter(d=>names.includes(d.dbBrand)||names.includes(d.brand));
     }
-    const {matrixRows,monthGroups}=report;
+    ensureActive(signal);
+    const {report,complete}=exportFileType==='csv'?buildDailyExport(facts,{window}):buildCompleteExport(facts,{window,level:exportLevel});
+    ensureActive(signal);
+    const {monthGroups}=report;
     await updateDownloadStatus(pool, downloadId, 'processing', 60);
 
     // Build column definitions
@@ -1462,6 +1468,7 @@ async function processGmsExportJob(downloadId, params, userId) {
     }
 
     columnDef.push({ label: 'Ordered Units', getValue:r=>r.orderedUnits ?? '-' });
+    columnDef.push({ label: 'Period Revenue', getValue:r=>r.orderedRevenue ?? '-' });
     Object.values(monthGroups).forEach(month => {
         if (exportDataType === 'daily' || exportDataType === 'weekly') {
             Object.values(month.weeks).forEach(week => {
@@ -1487,78 +1494,34 @@ async function processGmsExportJob(downloadId, params, userId) {
 
     await updateDownloadStatus(pool, downloadId, 'processing', 70);
 
-    // Build sheet data
-    const sheetHeaders = columnDef.map(c => c.label);
-    const sheetRows = [];
-    for (let i = 0; i < matrixRows.length; i++) {
-        sheetRows.push(columnDef.map(c => c.getValue(matrixRows[i])));
-        if (i % 10000 === 0 && i > 0) {
-            await updateDownloadStatus(pool, downloadId, 'processing', Math.min(85, 70 + Math.round(i / matrixRows.length * 15)));
-        }
-    }
-
-    await updateDownloadStatus(pool, downloadId, 'processing', 85);
-
-    // Get file path — use correct extension based on format
-    const fileExt = exportFileType === 'csv' ? 'csv' : 'xlsx';
-    const gmsFileResult = await pool.request().input('id', sql.VarChar, downloadId)
-        .query('SELECT FileName FROM Downloads WHERE Id = @id');
-    const baseFileName = gmsFileResult.recordset[0]?.FileName || `gms_export_${exportLevel}_${downloadId}.xlsx`;
-    const fileName = baseFileName.replace(/\.\w+$/, `.${fileExt}`);
-    const filePath = path.join(EXPORTS_DIR, `${downloadId}_${fileName}`);
-
-    // Generate file based on format
-    if (exportFileType === 'csv') {
-        // CSV — always fast, always works
-        try {
-            const csvContent = [sheetHeaders.map(cell=>'"'+String(cell).replace(/"/g,'""')+'"').join(','), ...sheetRows.map(row =>
-                row.map(cell => `"${String(typeof cell === 'string' && cell !== '-' && /^[\s\u0000-\u001f]*[=+\-@]/.test(cell) ? "'" + cell : cell).replace(/"/g, '""')}"`).join(',')
-            )].join('\n');
-            fs.writeFileSync(filePath, '\ufeff' + csvContent, 'utf8'); // BOM for Excel compatibility
-        } catch (csvErr) {
-            throw new Error(`CSV export failed: ${csvErr.message}`);
-        }
-    } else {
-        // A failed XLSX must fail the job, never masquerade as a CSV.
-        if (columnDef.length > 16384 || sheetRows.length + 1 > 1048576) throw new Error('Matrix exceeds Excel limits; narrow the report or select CSV');
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.aoa_to_sheet([sheetHeaders, ...sheetRows]);
-        XLSX.utils.book_append_sheet(wb, ws, 'GMS Matrix');
-        const summaryRows = [
-            ['Selected start',report.selectedWindow.from||'All time'],
-            ['Selected end',report.selectedWindow.to||'All time'],
-            ['Current records',report.meta.records],
-            ['Unmatched records',report.meta.unmatchedRecords],
-            ['Prior start',report.comparison.window?.from||'-'],
-            ['Prior end',report.comparison.window?.to||'-'],
-            ['Current observed days',report.comparison.currentCoverage.observedDays],
-            ['Current expected days',report.comparison.currentCoverage.expectedDays??'-'],
-            ['Prior observed days',report.comparison.previousCoverage?.observedDays??'-'],
-            [],
-            ['Metric','Current','Prior','Change (% or percentage points for ratios)'],
-            ...Object.keys(report.kpis).map(k=>[k,report.kpis[k]??'-',report.comparison.baseline[k]??'-',report.comparison.changes[k]??'-']),
-        ];
-        XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(summaryRows),'Summary');
-        const wbout = XLSX.write(wb,{bookType:'xlsx',type:'buffer'});
-        fs.writeFileSync(filePath,wbout);
-    }
-
-    // Verify file
-    if (!fs.existsSync(filePath) || fs.statSync(filePath).size === 0) {
-        throw new Error('Export file is empty or missing');
-    }
-
-    const stats = fs.statSync(filePath);
+    // Write output incrementally; no sheetRows array or XLSX ZIP buffer.
+    const fileExt=exportFileType==='csv'?'csv':'xlsx';
+    const gmsFileResult=await pool.request().input('id',sql.VarChar,downloadId)
+        .query('SELECT FileName FROM Downloads WHERE Id=@id');
+    const fileName=gmsFileResult.recordset[0]?.FileName || `gms_export_${exportLevel}_${downloadId}.${fileExt}`;
+    const filePath=path.join(EXPORTS_DIR,`${downloadId}_${fileName}`);
+    let published=false;
+    try {
+    const stats=await writeGmsExport({filePath,format:fileExt,report,complete,columns:columnDef,matrixFixedCount:exportLevel==='seller'?6:7,signal,onProgress:async(done,total)=>{
+        await updateDownloadStatus(pool,downloadId,'processing',Math.min(95,70+Math.round(done/Math.max(total,1)*25)));
+    }});
+    published=true;
+    ensureActive(signal);
 
     await pool.request()
         .input('id', sql.VarChar, downloadId)
-        .input('fileSize', sql.BigInt, stats.size)
-        .input('rowCount', sql.Int, sheetRows.length)
+        .input('fileSize', sql.BigInt, stats.fileSize)
+        .input('rowCount', sql.Int, stats.rowCount)
         .input('filePath', sql.VarChar, `/exports/${downloadId}_${fileName}`)
         .input('actualName',sql.NVarChar,fileName)
         .input('actualFormat',sql.NVarChar,fileExt)
         .query(`UPDATE Downloads SET Status = 'completed', Progress = 100, FileName=@actualName, Format=@actualFormat, FileSize = @fileSize, [RowCount] = @rowCount, FilePath = @filePath, CompletedAt = dbo.GetEnvDate(), ExpiresAt = DATEADD(HOUR, 24, dbo.GetEnvDate()) WHERE Id = @id`);
 
-    SocketService.emitExportUpdate(downloadId, { status: 'completed', progress: 100, filePath: `/exports/${downloadId}_${fileName}` });
+    } catch(err){
+      if(published)await fs.promises.unlink(filePath).catch(()=>{});
+      throw err;
+    }
+    try { SocketService.emitExportUpdate(downloadId, { status: 'completed', progress: 100, filePath: `/exports/${downloadId}_${fileName}` }); }
+    catch(err){console.error('GMS export completion notification failed:',err.message);}
 }
 
