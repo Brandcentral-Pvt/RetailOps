@@ -153,11 +153,11 @@ export default function GmsImportDialog({ open, onClose, onCommitted }) {
             <Space wrap size={[8,8]}>
               {[
                 ['Source rows',summary.total],['New',summary.inserted],['Updates',summary.updated],
-                ['Unchanged',summary.unchanged],['Identical duplicates',summary.duplicates],['Validation issues',summary.invalid]
+                ['Unchanged',summary.unchanged],['Matched ASINs',summary.matched],['Unmatched ASINs',summary.unmatched],['Identical duplicates',summary.duplicates],['Validation issues',summary.invalid]
               ].map(([label,value])=><Tag key={label}>{label}: {count(value)}</Tag>)}
             </Space>
             {job.status==='READY' && <Alert type={summary.updated?'warning':'success'} showIcon title="Validation passed"
-              description={summary.updated ? 'Confirmation will replace existing records only where verified seller and store match. Changes since preview will block the import.' : 'No conflicts found. Confirm to queue the import.'}/>}
+              description={summary.unmatched ? 'Unmatched ASIN revenue will be retained with Seller (DB) shown as a dash and the original sheet brand. Changes since preview will block the import.' : summary.updated ? 'Confirmation will update existing records under the validated ASIN/date and owner. Changes since preview will block the import.' : 'No conflicts found. Confirm to queue the import.'}/>}
             {job.status==='REJECTED' && <Alert type="error" showIcon title="Report rejected" description="Correct the listed issues and upload a new file. No records were changed." />}
             {job.status==='QUEUED' && <Alert type="info" showIcon title="Import queued or committing" description="The server rechecks permissions and the validated snapshot. You may close this window and reopen import history later." />}
             {job.status==='COMPLETED' && <Alert type="success" showIcon title="Import completed" description={count(summary.committed)+' records inserted or updated; '+count(summary.unchanged)+' unchanged.'}/>}
@@ -166,7 +166,7 @@ export default function GmsImportDialog({ open, onClose, onCommitted }) {
               <Table size="small" rowKey="row" pagination={false} scroll={{x:650,y:180}} dataSource={summary.sample}
                 columns={[
                   {title:'Row',dataIndex:'row'}, {title:'ASIN',dataIndex:'asin'}, {title:'Date',dataIndex:'date'},
-                  {title:'Store',dataIndex:'storeCode'}, {title:'Ordered revenue',dataIndex:'orderedRevenue'}, {title:'Units',dataIndex:'orderedUnits'}, {title:'Action',dataIndex:'action'}
+                  {title:'Brand (Sheet)',dataIndex:'brand'}, {title:'Mapping',dataIndex:'mappingStatus'}, {title:'Store',dataIndex:'storeCode'}, {title:'Ordered revenue',dataIndex:'orderedRevenue'}, {title:'Units',dataIndex:'orderedUnits'}, {title:'Action',dataIndex:'action'}
                 ]}/>
             )}
             {summary.issues?.length>0 && (
