@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const XLSX = require('xlsx');
-const { money, units, reportDate, validateRows, parseFile } = require('../../services/gmsImportParser');
+const { MAX_ROWS, MAX_FILE_BYTES, money, units, reportDate, validateRows, parseFile } = require('../../services/gmsImportParser');
 const { makeFakePool } = require('../../testUtils/fakePool');
 jest.mock('../../database/db', () => ({ sql: require('../../testUtils/fakePool').FAKE_SQL }));
 const { inspect } = require('../../services/gmsImportService');
@@ -20,10 +20,10 @@ describe('strict GMS report validation', () => {
     expect(money('-10.25')).toBe('-10.25');
     expect(units('0')).toBe(0);
   });
-  test.each(['','1x00','10.123','NaN','1,2','1e3'])('rejects invalid monetary value %p', value => {
+  test.each(['1x00','10.123','NaN','1,2','1e3','(--10)','₹abc'])('rejects invalid monetary value %p', value => {
     expect(() => money(value)).toThrow();
   });
-  test.each(['','-1','2.5','2.0','2147483648'])('rejects invalid units %p', value => {
+  test.each(['2.5','2.0','2147483648','-2147483649','invalid'])('rejects invalid units %p', value => {
     expect(() => units(value)).toThrow();
   });
   test('dates are calendar days, not rollover dates', () => {
@@ -40,11 +40,45 @@ describe('strict GMS report validation', () => {
     expect(result.invalid).toBe(1);
     expect(result.issues[0].code).toBe('CONFLICTING_DUPLICATE');
   });
-  test('missing headers, blank metrics and unknown marketplaces are not defaulted', () => {
+  test('blank metrics default to zero but missing required headers, invalid identity and unsupported stores fail', () => {
     expect(validateRows([headers.slice(0,-1),row()]).invalid).toBeGreaterThan(0);
-    expect(validateRows([headers,row({4:''})]).invalid).toBe(1);
+    const blank=validateRows([headers,row({2:'',3:' ',4:'',5:null,6:undefined,7:' ',8:'',9:null})]);
+    expect(blank).toMatchObject({invalid:0,defaultedCells:6,defaultedRows:1,negativeRows:0});
+    expect(blank.rows[0]).toMatchObject({brand:'-',storeCode:'IN',orderedRevenue:'0.00',orderedUnits:0,shippedRevenue:'0.00',shippedCOGS:'0.00',shippedUnits:0,customerReturns:0});
+    expect(validateRows([headers,row({0:''})]).invalid).toBe(1);
+    expect(validateRows([headers,row({1:''})]).invalid).toBe(1);
     expect(validateRows([headers,row({3:'US'})]).invalid).toBe(1);
+    expect(validateRows([headers,row({4:'abc'})]).invalid).toBe(1);
+    expect(validateRows([headers,Array(10).fill(null),row()]).total).toBe(1);
   });
+  test('signed values, accounting parentheses and Excel binary noise retain their intended values', () => {
+    expect(money(null)).toBe('0.00');
+    expect(units(' ')).toBe(0);
+    expect(money('(₹1,234.50)')).toBe('-1234.50');
+    expect(money('-₹1,234.50')).toBe('-1234.50');
+    expect(money(-0.1-0.2)).toBe('-0.30');
+    expect(money(855.2399999999999)).toBe('855.24');
+    expect(()=>money(10.123)).toThrow();
+    expect(units('-2147483648')).toBe(-2147483648);
+    expect(units('(1,200)')).toBe(-1200);
+    const signed=validateRows([headers,row({4:'-125.50',5:'-2',6:'(25.00)',7:'-5',8:'-1',9:'-1'})]);
+    expect(signed).toMatchObject({invalid:0,negativeRows:1});
+    expect(signed.rows[0]).toMatchObject({orderedRevenue:'-125.50',orderedUnits:-2,shippedRevenue:'-25.00',shippedCOGS:'-5.00',shippedUnits:-1,customerReturns:-1});
+  });
+  test('parses a CSV above the old 100,000-row ceiling without losing its last row', () => {
+    const dir=fs.mkdtempSync(path.join(os.tmpdir(),'gms-large-csv-'));
+    try {
+      const csv=path.join(dir,'large.csv'), n=100001;
+      const data=Array.from({length:n},(_,i)=>'B'+String(i).padStart(9,'0')+',2026-11-27,Brand A,IN,-1.25,-1,0,0,0,');
+      fs.writeFileSync(csv,headers.join(',')+'\n'+data.join('\n'));
+      const result=parseFile(csv,'large.csv');
+      expect(MAX_ROWS).toBe(500000);
+      expect(MAX_FILE_BYTES).toBe(100*1024*1024);
+      expect(result).toMatchObject({total:n,invalid:0,duplicates:0,defaultedCells:n,negativeRows:n});
+      expect(result.rows).toHaveLength(n);
+      expect(result.rows[n-1]).toMatchObject({asin:'B000100000',orderedRevenue:'-1.25',customerReturns:0});
+    } finally { fs.rmSync(dir,{recursive:true,force:true}); }
+  },120000);
   test('reads an actual CSV and rejects Excel formula cells', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(),'gms-parser-'));
     try {
@@ -127,6 +161,17 @@ describe('seller mapping and legacy fact conflicts', () => {
       expect((await inspect(pool([seller],facts),[valid()],scope)).summary.invalid).toBe(1);
     }
   });
+  test('large catalog inspection uses bounded SQL chunks and stable file-wide snapshot', async () => {
+    const rows=Array.from({length:10001},(_,i)=>({...valid(),asin:'B'+String(i).padStart(9,'0'),line:i+2}));
+    const db=pool([]);
+    const global={isGlobal:true,allowed:[]};
+    const first=await inspect(db,rows,global);
+    expect(first.summary).toMatchObject({inserted:10001,unmatched:10001,invalid:0});
+    expect(db.calls).toHaveLength(4);
+    expect(db.calls.every(c=>JSON.parse(c.inputs.payload).length<=10000)).toBe(true);
+    const second=await inspect(pool([]),[...rows].reverse(),global);
+    expect(second.snapshotHash).toBe(first.snapshotHash);
+  },30000);
   test('snapshot changes when existing records change', async () => {
     const a=await inspect(pool(),[valid()],scope);
     const b=await inspect(pool([seller],[old]),[valid()],scope);
