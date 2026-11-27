@@ -76,7 +76,7 @@ function sameMetrics(existing, row) {
 // Inputs are already validated. All SQL is static and payloads are bound.
 const keysJson = "OPENJSON(@payload) WITH (asin NVARCHAR(30) '$.asin', [date] DATE '$.date')";
 async function inspect(db, rows, scope, { lock = false } = {}) {
-  const summary = { invalid: 0, issues: [], inserted: 0, updated: 0, unchanged: 0, sample: [] };
+  const summary = { invalid: 0, issues: [], inserted: 0, updated: 0, unchanged: 0, matched: 0, unmatched: 0, sample: [] };
   if (!rows.length) return { summary, rows: [], snapshotHash: sha([]) };
   const payload = JSON.stringify(rows.map(({asin,date}) => ({asin,date})));
   const hint = lock ? ' WITH (UPDLOCK,HOLDLOCK)' : '';
@@ -110,27 +110,18 @@ async function inspect(db, rows, scope, { lock = false } = {}) {
   const prepared = [], snapshot = [];
   for (const row of rows) {
     const matches = byAsin.get(row.asin) || [];
-    if (!matches.length) {
-      addIssue(summary, row.line, 'ASIN_NOT_FOUND', 'ASIN is not present in the RetailOps ASIN catalog');
-      continue;
-    }
     const owners = matches.map(c => String(c.sellerId ?? '').trim());
     const sellerIds = [...new Set(owners.filter(Boolean))];
-    if (!sellerIds.length || owners.some(id => !id)) {
-      addIssue(summary, row.line, 'ASIN_UNASSIGNED', 'RetailOps ASIN has a missing seller assignment');
-      continue;
-    }
     if (sellerIds.length > 1) {
-      // Legacy facts have an ASIN/date key. Never pick an arbitrary owner when
-      // the catalog itself contains genuinely conflicting assignments.
       addIssue(summary, row.line, 'ASIN_AMBIGUOUS', 'RetailOps contains this ASIN under multiple seller IDs');
       continue;
     }
-    const sellerId = sellerIds[0];
-    // Permission is a separate check AFTER the canonical ASIN lookup.
-    // Neither spreadsheet brand nor seller status/marketplace selects an owner.
-    if (!scope.isGlobal && !allowed.has(sellerId)) {
-      addIssue(summary, row.line, 'ASIN_FORBIDDEN', 'Your account cannot import this RetailOps ASIN');
+    // Missing/unassigned catalog ASINs are valid GMS facts. Never create
+    // catalog entries or substitute the report brand for a seller identity.
+    const sellerId = sellerIds.length === 1 && owners.every(Boolean) ? sellerIds[0] : null;
+    if (!scope.isGlobal && (!sellerId || !allowed.has(sellerId))) {
+      addIssue(summary, row.line, sellerId ? 'ASIN_FORBIDDEN' : 'UNMATCHED_IMPORT_FORBIDDEN',
+        sellerId ? 'Your account cannot import this RetailOps ASIN' : 'Unmatched ASINs require a global-scope importer');
       continue;
     }
     const existing = byKey.get(keyOf(row)) || [];
@@ -146,20 +137,21 @@ async function inspect(db, rows, scope, { lock = false } = {}) {
         addIssue(summary, row.line, 'FACT_CONFLICT', 'Existing record has conflicting seller or store identity');
         continue;
       }
-      if (sameMetrics(old, row)) action = 'unchanged';
-      else if (oldSeller === sellerId) action = 'updated';
+      if (sameMetrics(old, row)) action = oldSeller === null && sellerId !== null && scope.isGlobal ? 'updated' : 'unchanged';
+      else if (oldSeller === sellerId || (oldSeller === null && scope.isGlobal)) action = 'updated';
       else {
         addIssue(summary, row.line, 'LEGACY_OWNER_UNKNOWN', 'Existing record has no verified historical owner; replacement is blocked');
         continue;
       }
     }
     summary[action]++;
+    summary[sellerId === null ? 'unmatched' : 'matched']++;
     const next = { ...row, sellerId, action };
     prepared.push(next);
     snapshot.push({ key: keyOf(row), sellerId, existing: existing.map(canonicalFact) });
     if (summary.sample.length < 20) {
       summary.sample.push({ row: row.line, asin: row.asin, date: row.date, storeCode: row.storeCode,
-        orderedRevenue: row.orderedRevenue, orderedUnits: row.orderedUnits, action });
+        orderedRevenue: row.orderedRevenue, orderedUnits: row.orderedUnits, brand: row.brand, mappingStatus: sellerId === null ? 'UNMATCHED' : 'MATCHED', action });
     }
   }
   snapshot.sort((a,b) => a.key.localeCompare(b.key));
@@ -250,8 +242,8 @@ async function commitRows(tx, rows) {
   const result = await tx.request().input('payload',sql.NVarChar(sql.MAX),JSON.stringify(writes)).query(
     'MERGE GmsDailyPerformance WITH (HOLDLOCK) AS g USING ' + source + ' AS s ' +
     'ON g.Asin=s.asin AND g.Date>=s.date AND g.Date<DATEADD(day,1,s.date) ' +
-    "WHEN MATCHED AND s.action='updated' AND g.SellerId=s.sellerId THEN UPDATE SET " +
-    'g.Brand=s.brand,g.StoreCode=s.storeCode,g.OrderedRevenue=s.orderedRevenue,g.OrderedUnits=s.orderedUnits,' +
+    "WHEN MATCHED AND s.action='updated' AND (g.SellerId=s.sellerId OR g.SellerId IS NULL) THEN UPDATE SET " +
+    'g.SellerId=s.sellerId,g.Brand=s.brand,g.StoreCode=s.storeCode,g.OrderedRevenue=s.orderedRevenue,g.OrderedUnits=s.orderedUnits,' +
     'g.ShippedRevenue=s.shippedRevenue,g.ShippedCOGS=s.shippedCOGS,g.ShippedUnits=s.shippedUnits,g.CustomerReturns=s.customerReturns,g.UpdatedAt=dbo.GetEnvDate() ' +
     "WHEN NOT MATCHED BY TARGET AND s.action='inserted' THEN INSERT (Id,Asin,Date,SellerId,Brand,StoreCode,OrderedRevenue,OrderedUnits,ShippedRevenue,ShippedCOGS,ShippedUnits,CustomerReturns,CreatedAt,UpdatedAt) " +
     "VALUES (SUBSTRING(LOWER(REPLACE(CAST(NEWID() AS VARCHAR(36)),'-','')),1,24),s.asin,s.date,s.sellerId,s.brand,s.storeCode,s.orderedRevenue,s.orderedUnits,s.shippedRevenue,s.shippedCOGS,s.shippedUnits,s.customerReturns,dbo.GetEnvDate(),dbo.GetEnvDate());"
