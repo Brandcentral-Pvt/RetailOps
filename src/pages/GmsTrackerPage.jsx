@@ -140,6 +140,13 @@ export default function GmsTrackerPage() {
   const [exportFileType, setExportFileType] = useState("xlsx");
   const [tablePage, setTablePage] = useState(1);
   const [tablePageSize, setTablePageSize] = useState(50);
+  const [tableSort, setTableSort] = useState({key:'orderedRevenue',direction:'desc'});
+  const filterKey = JSON.stringify([selectedBrands,selectedManagers,debouncedSearch,viewLevel,startDate,endDate]);
+  const [pageFilterKey,setPageFilterKey]=useState(filterKey);
+  const effectivePage=pageFilterKey===filterKey?tablePage:1;
+  // An old period column is not a meaningful sort after a date change.
+  const effectiveSort=pageFilterKey===filterKey?tableSort:{key:'orderedRevenue',direction:'desc'};
+  const sortKey=effectiveSort.key, sortDirection=effectiveSort.direction;
 
   // Database Sellers / Brands / Managers
   const [dbSellers, setDbSellers] = useState([]);
@@ -191,9 +198,10 @@ export default function GmsTrackerPage() {
         endDate: dayjs(endDate || dayjs().endOf("month")).format("YYYY-MM-DD"),
         sellerIds: selectedSellerIds(selectedBrands, selectedManagers, managers),
         search: debouncedSearch, level: viewLevel,
+        page:effectivePage,pageSize:tablePageSize,sort:{key:sortKey,direction:sortDirection},
       }, { signal: controller.signal });
       if (!isCurrent()) return false;
-      if (!gmsRes?.success || !Array.isArray(gmsRes.data?.matrixRows) || !gmsRes.data?.meta) throw new Error(gmsRes?.message || "Invalid GMS analytics response.");
+      if (!gmsRes?.success || !Array.isArray(gmsRes.data?.matrixRows) || !gmsRes.data?.meta || !gmsRes.data?.pagination) throw new Error(gmsRes?.message || "Invalid GMS analytics response.");
       setAnalytics(gmsRes.data);
       setLastLoadedAt(Date.now());
       return true;
@@ -206,7 +214,7 @@ export default function GmsTrackerPage() {
     } finally {
       if (isCurrent()) setLoading(false);
     }
-  }, [startDate, endDate, selectedBrands, selectedManagers, debouncedSearch, viewLevel]);
+  }, [startDate, endDate, selectedBrands, selectedManagers, debouncedSearch, viewLevel, effectivePage, tablePageSize, sortKey, sortDirection]);
 
   useEffect(() => {
     loadMountedRef.current = true;
@@ -296,12 +304,6 @@ export default function GmsTrackerPage() {
     label:s.name, value:String(s._id || s.id),
   })).filter(s=>s.label&&s.value!=='undefined').sort((a,b)=>a.label.localeCompare(b.label)),[dbSellers]);
 
-  // Reset table pagination when filters change
-  useEffect(() => {
-    const timer = setTimeout(() => setTablePage(1), 0);
-    return () => clearTimeout(timer);
-  }, [selectedBrands, selectedManagers, searchQuery, viewLevel, startDate, endDate]);
-
   const kpiMetrics = analytics?.kpis || {};
   const comparison = analytics?.comparison;
   const prior = comparison?.window;
@@ -312,6 +314,8 @@ export default function GmsTrackerPage() {
 
   // Matrix rows, values and dates are computed by the shared backend engine.
   const tableDataSource = analytics?.matrixRows || [];
+  const pageInfo=analytics?.pagination;
+  const totalRows=pageInfo?.totalRows ?? 0;
   const monthGroups = useMemo(() => analytics?.monthGroups || {}, [analytics]);
   const fixedCols = useMemo(() => [
     {title:'Seller (DB)',dataIndex:'dbBrand',key:'dbBrand',width:140, sorter:(a,b)=>(a.dbBrand||'').localeCompare(b.dbBrand||''),
@@ -319,7 +323,8 @@ export default function GmsTrackerPage() {
     {title:'ASIN',dataIndex:'asin',key:'asin',width:120,render:v=><Text strong style={{fontFamily:'monospace'}}>{v}</Text>,sorter:(a,b)=>a.asin.localeCompare(b.asin)},
     {title:'Brand (Sheet)',dataIndex:'brand',key:'brand',width:120,sorter:(a,b)=>a.brand.localeCompare(b.brand)},
     {title:'Store Code',dataIndex:'storeCode',key:'storeCode',width:90,sorter:(a,b)=>a.storeCode.localeCompare(b.storeCode)},
-    {title:'Ordered Units',dataIndex:'orderedUnits',key:'orderedUnits',width:100,align:'right',render:v=>v==null?'-':v.toLocaleString('en-IN'),sorter:(a,b)=>(a.orderedUnits??0)-(b.orderedUnits??0)},
+    {title:'Ordered Units',dataIndex:'orderedUnits',key:'orderedUnits',width:100,align:'right',render:v=>v==null?'-':v.toLocaleString('en-IN'),sorter:true},
+    {title:'Period Revenue',dataIndex:'orderedRevenue',key:'orderedRevenue',width:145,align:'right',render:v=>v==null?'-':`₹${v.toLocaleString("en-IN",{maximumFractionDigits:2})}`,sorter:true},
   ], []);
 
   const tableColumns = useMemo(() => {
@@ -655,8 +660,18 @@ export default function GmsTrackerPage() {
       };
     });
 
-    return [...fixedCols, ...dynamicCols];
-  }, [fixedCols, monthGroups, expandedMonths, expandedWeeks]);
+    function serverColumns(columns){
+      return columns.map(col=>{
+        if(col.children)return {...col,children:serverColumns(col.children)};
+        const key=String(col.key||'');
+        const trend=/^(mom-trend|wow-trend|dod-trend)-/.test(key);
+        if(trend){const {sorter,...rest}=col;return rest;}
+        if(!col.sorter)return col;
+        return {...col,sorter:true,sortOrder:key===sortKey?(sortDirection==='asc'?'ascend':'descend'):null};
+      });
+    }
+    return serverColumns([...fixedCols, ...dynamicCols]);
+  }, [fixedCols, monthGroups, expandedMonths, expandedWeeks, sortKey, sortDirection]);
 
   // Chart configuration — Area chart: Revenue + Orders + Returns
   const chartSeries = useMemo(() => {
@@ -1193,33 +1208,43 @@ export default function GmsTrackerPage() {
           span={12}
           className="gms-matrix-panel"
           kicker="Spreadsheet matrix"
-          meta={`${tableDataSource.length} rows · ${viewLevel === "seller" ? "Seller" : "ASIN"} view`}
+          meta={`${totalRows.toLocaleString("en-IN")} rows · ${viewLevel === "seller" ? "Seller" : "ASIN"} view`}
           actions={
-            <Tooltip title="Horizontal breakdown of Ordered Revenue by Month, Week, and Day. Click a month or week header to collapse; click again to expand days.">
+            <Tooltip title="Horizontal breakdown of Ordered Revenue by Month, Week, and Day. Click a month or week header to expand or collapse. Revenue and identifier columns sort across all matching rows, not just the current page.">
               <InfoCircleOutlined
                 style={{ color: "#8896ab", fontSize: "var(--font-size-sm)" }}
               />
             </Tooltip>
           }
         >
-          {tableDataSource.length > 0 ? (
+          {tableDataSource.length > 0 || loading ? (
             <div className="gms-matrix">
               <Table
                 columns={tableColumns}
                 dataSource={tableDataSource}
                 loading={loading || isFilterPending}
-                pagination={{
-                  current: tablePage,
-                  pageSize: tablePageSize,
-                  showSizeChanger: true,
-                  pageSizeOptions: ["25", "50", "100"],
-                  size: "small",
-                  onChange: (page, size) => {
-                    setTablePage(page);
+                rowKey="key"
+                onChange={(pagination,_filters,sorter,extra)=>{
+                  const next=Array.isArray(sorter)?sorter[0]:sorter;
+                  setPageFilterKey(filterKey);
+                  if(extra.action==='sort'){
+                    setTableSort(next?.order?{key:String(next.columnKey),direction:next.order==='ascend'?'asc':'desc'}:{key:'orderedRevenue',direction:'desc'});
+                    setTablePage(1);
+                  }else if(extra.action==='paginate'){
+                    const size=Number(pagination.pageSize||50);
+                    setTablePage(size===tablePageSize?Number(pagination.current||1):1);
                     setTablePageSize(size);
-                  },
-                  total: tableDataSource.length,
-                  showTotal: (total) => `${total} rows`,
+                    setTableSort({key:sortKey,direction:sortDirection});
+                  }
+                }}
+                pagination={{
+                  current:pageInfo?.page ?? effectivePage,
+                  pageSize:tablePageSize,
+                  showSizeChanger:true,
+                  pageSizeOptions:["25","50","100"],
+                  size:"small",
+                  total:totalRows,
+                  showTotal:(total,range)=>`${range[0]}–${range[1]} of ${total.toLocaleString("en-IN")} rows`,
                 }}
                 size="small"
                 scroll={{ x: "max-content" }}
