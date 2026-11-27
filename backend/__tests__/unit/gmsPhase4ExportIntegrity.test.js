@@ -37,6 +37,20 @@ describe('export file integrity',()=>{
     await expect(checkFileEnvelope(file,'xlsx',bytes.length+1)).rejects.toThrow();
     await expect(checkFileEnvelope(file,'csv')).rejects.toThrow();
   });
+  test('rejects a ZIP whose central directory CRC was altered',async()=>{
+    const file=path.join(dir,'valid.xlsx');await workbook(file);
+    const bytes=await fsp.readFile(file);
+    const signature=Buffer.from([0x50,0x4b,0x01,0x02]);
+    let at=bytes.indexOf(signature),changed=false;
+    while(at>=0){
+      const length=bytes.readUInt16LE(at+28),name=bytes.subarray(at+46,at+46+length).toString('utf8');
+      if(name==='xl/worksheets/sheet1.xml'){bytes.writeUInt32LE((bytes.readUInt32LE(at+16)^1)>>>0,at+16);changed=true;break;}
+      at=bytes.indexOf(signature,at+46+length);
+    }
+    expect(changed).toBe(true);
+    const bad=path.join(dir,'crc.xlsx');await fsp.writeFile(bad,bytes);
+    await expect(verifyXlsx(bad)).rejects.toThrow(/CRC/);
+  });
   test('uses only a safe exact export name with matching extension',()=>{
     expect(safeExportName({Id:'abc123',FileName:'gms_export_asin_2026-11-27.xlsx',Format:'xlsx'})).toEqual({name:'gms_export_asin_2026-11-27.xlsx',diskName:'abc123_gms_export_asin_2026-11-27.xlsx',format:'xlsx'});
     expect(()=>safeExportName({Id:'abc',FileName:'../private.xlsx',Format:'xlsx'})).toThrow();
