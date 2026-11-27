@@ -48,7 +48,7 @@ function pageSpec(input={}){
   const sort=input.sort??{key:'orderedRevenue',direction:'desc'};
   if(!sort||typeof sort.key!=='string'||!['asc','desc'].includes(sort.direction))throw new Error('Invalid sort');
   const fixed={
-    dbBrand:"MIN(COALESCE(DbBrand,N'-'))",
+    dbBrand:"MIN(CASE WHEN MetadataRank=1 THEN COALESCE(DbBrand,N'-') END)",
     asin:"MIN(Asin)",
     brand:"MIN(COALESCE(NULLIF(Brand,N''),N'-'))",
     storeCode:"MIN(COALESCE(NULLIF(StoreCode,N''),N'-'))",
@@ -104,7 +104,7 @@ function buildPageQuery(q,user,spec){
   'SELECT CONVERT(char(10),ReportDate,23) AS date,COUNT_BIG(*) AS recordCount,'+aggregateMetrics+' FROM #GmsFacts GROUP BY ReportDate ORDER BY ReportDate;\n'+
   // Result set 1: exact selected-range fact/entity counts, not just the page.
   'SELECT COUNT_BIG(*) AS records,COUNT_BIG(DISTINCT Asin) AS asins,COUNT_BIG(DISTINCT SellerId) AS sellers,COUNT_BIG(CASE WHEN SellerId IS NULL THEN 1 END) AS unmatchedRecords FROM #GmsFacts WHERE '+current+';\n'+
-  'SELECT EntityKey,'+sortSql.expr+' AS SortValue INTO #GmsGroups FROM #GmsFacts WHERE '+current+' GROUP BY EntityKey;\n'+
+  'SELECT EntityKey,'+sortSql.expr+' AS SortValue INTO #GmsGroups FROM '+(spec.sort.key==='dbBrand'?'(SELECT *,ROW_NUMBER() OVER(PARTITION BY EntityKey ORDER BY ReportDate DESC,Asin,FactId) AS MetadataRank FROM #GmsFacts WHERE '+current+') f':'#GmsFacts')+' WHERE '+current+' GROUP BY EntityKey;\n'+
   'DECLARE @totalRows bigint=(SELECT COUNT_BIG(*) FROM #GmsGroups); DECLARE @actualPage int=CASE WHEN @totalRows=0 THEN 1 WHEN @requestedPage>((@totalRows+@pageSize-1)/@pageSize) THEN CONVERT(int,(@totalRows+@pageSize-1)/@pageSize) ELSE @requestedPage END;\n'+
   'SELECT EntityKey,ROW_NUMBER() OVER(ORDER BY CASE WHEN SortValue IS NULL THEN 1 ELSE 0 END,SortValue '+sortSql.direction+',EntityKey ASC) AS Ordinal INTO #GmsOrder FROM #GmsGroups;\n'+
   'SELECT EntityKey,Ordinal INTO #GmsPage FROM #GmsOrder WHERE Ordinal>CONVERT(bigint,@actualPage-1)*@pageSize AND Ordinal<=CONVERT(bigint,@actualPage)*@pageSize;\n'+
