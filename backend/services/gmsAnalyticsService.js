@@ -1,5 +1,5 @@
 const { dateWindow, gmsCatalogApplySql, unambiguousSellerSql } = require('../utils/gmsPhase1');
-const { resolveSellerScope, bindSellerFilter } = require('../utils/sellerScope');
+const { resolveSellerScope } = require('../utils/sellerScope');
 const { sql } = require('../database/db');
 
 const MONEY=['orderedRevenue','shippedRevenue','shippedCOGS'];
@@ -33,6 +33,11 @@ function filterSpec(input={}){
   if(ids!=null&&(!Array.isArray(ids)||ids.length>10000||ids.some(v=>typeof v!=='string'||!v.trim()||v.length>100))) throw new Error('Invalid seller filter');
   if(input.search!=null&&(typeof input.search!=='string'||input.search.length>200)) throw new Error('Invalid search filter');
   return {sellerIds:ids==null?null:[...new Set(ids)],search:(input.search||'').trim().toLowerCase()};
+}
+// Shared SQL text-search predicate; all field expressions are authored by
+// trusted callers and the search value is a bound parameter.
+function literalSearchSql(fields){
+  return '('+fields.map(f=>"CHARINDEX(@search,LOWER(CONVERT(nvarchar(max),COALESCE("+f+",N''))) COLLATE Latin1_General_100_BIN2)>0").join(' OR ')+')';
 }
 function selectFacts(rows,filters={}){
   const spec=filterSpec(filters), sellers=spec.sellerIds===null?null:new Set(spec.sellerIds);
@@ -223,7 +228,8 @@ async function queryFacts(pool,user,window,filters={}, {signal}={}){
   if(scope.empty||spec.sellerIds?.length===0)return [];
   const q=pool.request();let where='WHERE 1=1';
   if(!scope.isGlobal){
-    where+=bindSellerFilter(q,scope,{alias:'a',prefix:'gmsAnalytics'});
+    q.input('allowedSellerIds',sql.NVarChar(sql.MAX),JSON.stringify(scope.allowed));
+    where+=' AND EXISTS (SELECT 1 FROM OPENJSON(@allowedSellerIds) j WHERE j.value=a.SellerId)';
     where+=' AND '+unambiguousSellerSql('a');
   }
   if(window.from){q.input('fromDate',sql.Date,window.from);where+=' AND g.Date>=@fromDate';}
@@ -231,6 +237,10 @@ async function queryFacts(pool,user,window,filters={}, {signal}={}){
   if(spec.sellerIds!==null){
     q.input('sellerIds',sql.NVarChar(sql.MAX),JSON.stringify(spec.sellerIds));
     where+=' AND EXISTS (SELECT 1 FROM OPENJSON(@sellerIds) j WHERE j.value=COALESCE(g.SellerId,a.SellerId))';
+  }
+  if(spec.search){
+    q.input('search',sql.NVarChar(200),spec.search);
+    where+=' AND '+literalSearchSql(['g.Asin','COALESCE(g.ReportProductTitle,a.Title)','g.Brand','s.Name','g.StoreCode']);
   }
   // Money is read as exact decimal text, not an imprecise JS float.
   const cancel=()=>{try{q.cancel?.();}catch(_){}};
@@ -250,6 +260,6 @@ async function loadAnalytics(pool,user,options,requestOptions={}){
   const window=dateWindow(options.startDate,options.endDate,{required:true});
   const filters=filterSpec(options);
   const facts=await queryFacts(pool,user,historyWindow(window),filters,requestOptions);
-  return buildAnalytics(facts,{window,filters,level:options.level??'asin'});
+  return buildAnalytics(facts,{window,level:options.level??'asin'});
 }
-module.exports={filterSpec,selectFacts,priorWindow,isoWeek,weekKey,buildGroups,buildOverview,buildAnalytics,queryFacts,loadAnalytics,pct,summarizeMetrics,historyWindow};
+module.exports={filterSpec,selectFacts,literalSearchSql,priorWindow,isoWeek,weekKey,buildGroups,buildOverview,buildAnalytics,queryFacts,loadAnalytics,pct,summarizeMetrics,historyWindow};
