@@ -74,14 +74,16 @@ function buildPageQuery(q,user,spec){
   const from=[prior.from,monthOffset(window.from,-1),shift(window.from,-7)].sort()[0];
   q.input('historyFrom',sql.Date,from).input('currentFrom',sql.Date,window.from).input('currentTo',sql.Date,window.to)
     .input('requestedPage',sql.Int,spec.page).input('pageSize',sql.Int,spec.pageSize);
-  let mappingWhere='WHERE 1=1',factWhere='WHERE 1=1';
+  let mappingWhere='WHERE 1=1',factWhere='WHERE 1=1',sourceWhere='';
   if(!scope.isGlobal){
     q.input('allowedSellerIds',sql.NVarChar(sql.MAX),JSON.stringify(scope.allowed||[]));
     mappingWhere+=' AND EXISTS (SELECT 1 FROM OPENJSON(@allowedSellerIds) j WHERE j.value=a.SellerId) AND '+unambiguousSellerSql('a');
+    sourceWhere+=' AND (g.SellerId IS NULL OR EXISTS (SELECT 1 FROM OPENJSON(@allowedSellerIds) j WHERE j.value=g.SellerId))';
   }
   if(filters.sellerIds!==null){
     q.input('selectedSellerIds',sql.NVarChar(sql.MAX),JSON.stringify(filters.sellerIds));
     mappingWhere+=' AND EXISTS (SELECT 1 FROM OPENJSON(@selectedSellerIds) j WHERE j.value=COALESCE(g.SellerId,a.SellerId))';
+    sourceWhere+=' AND (g.SellerId IS NULL OR EXISTS (SELECT 1 FROM OPENJSON(@selectedSellerIds) j WHERE j.value=g.SellerId))';
   }
   if(filters.search){
     q.input('search',sql.NVarChar(200),filters.search);
@@ -95,7 +97,7 @@ function buildPageQuery(q,user,spec){
   // fact. All output derives from a single materialized, permission-scoped
   // dataset in this batch; no pagination or date filter changes the KPIs.
   return 'SET NOCOUNT ON;\n'+
-  'SELECT g.Id AS FactId,g.Asin,g.SellerId,CONVERT(date,g.Date) AS ReportDate,g.Brand,g.StoreCode,g.OrderedRevenue,g.OrderedUnits,g.ShippedRevenue,g.ShippedCOGS,g.ShippedUnits,g.CustomerReturns INTO #GmsSource FROM GmsDailyPerformance g WHERE g.Date>=@historyFrom AND g.Date<DATEADD(day,1,@currentTo);\n'+
+  'SELECT g.Id AS FactId,g.Asin,g.SellerId,CONVERT(date,g.Date) AS ReportDate,g.Brand,g.StoreCode,g.OrderedRevenue,g.OrderedUnits,g.ShippedRevenue,g.ShippedCOGS,g.ShippedUnits,g.CustomerReturns INTO #GmsSource FROM GmsDailyPerformance g WHERE g.Date>=@historyFrom AND g.Date<DATEADD(day,1,@currentTo)'+sourceWhere+';\n'+
   'SELECT DISTINCT Asin,SellerId INTO #GmsKeys FROM #GmsSource;\n'+
   'SELECT g.Asin,g.SellerId AS StoredSellerId,COALESCE(g.SellerId,a.SellerId) AS SellerId,s.Name AS DbBrand,a.Title AS ProductTitle INTO #GmsMap FROM #GmsKeys g '+gmsCatalogApplySql+' LEFT JOIN Sellers s ON COALESCE(g.SellerId,a.SellerId)=s.Id '+mappingWhere+';\n'+
   'SELECT '+entity+' COLLATE Latin1_General_100_BIN2 AS EntityKey,g.FactId,g.Asin,m.SellerId,m.DbBrand,m.ProductTitle,g.Brand,g.StoreCode,g.ReportDate,g.OrderedRevenue,g.OrderedUnits,g.ShippedRevenue,g.ShippedCOGS,g.ShippedUnits,g.CustomerReturns INTO #GmsFacts FROM #GmsSource g JOIN #GmsMap m ON g.Asin=m.Asin AND (g.SellerId=m.StoredSellerId OR (g.SellerId IS NULL AND m.StoredSellerId IS NULL)) '+factWhere+';\n'+
