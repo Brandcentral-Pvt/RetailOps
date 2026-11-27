@@ -135,7 +135,7 @@ test('metric focus and matrix granularity are presentation-only',async({page})=>
   await expect(page.locator('.gms-trend-chart')).toHaveCount(0);
   await page.getByRole('tab',{name:'Revenue matrix',exact:true}).click();
   await page.getByRole('radiogroup',{name:'Matrix granularity'}).getByText('Daily',{exact:true}).click();
-  await expect(page.getByLabel('Matrix month')).toBeVisible();
+  await expect(page.getByRole('combobox',{name:'Matrix month',exact:true})).toBeVisible();
   await expect(page.getByRole('columnheader',{name:'27 Nov',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Hide comparisons'}).click();
   await expect(page.getByRole('columnheader',{name:'DoD',exact:true})).toHaveCount(0);
@@ -184,7 +184,7 @@ test('row detail contains the same server-sourced financial metrics and missing 
   await page.getByRole('button',{name:'View ASIN B000000001 details',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'ASIN financial details'});
   await expect(dialog.getByText('Example product',{exact:true})).toBeVisible();
-  const row=dialog.getByRole('row').filter({has:dialog.getByRole('rowheader',{name:'Gross Profit',exact:true})});
+  const row=dialog.getByRole('row').filter({has:page.getByRole('rowheader',{name:'Gross Profit',exact:true})});
   await expect(row).toContainText('-₹15.00');
   await expect(row).toContainText('N/A');
 });
