@@ -236,26 +236,16 @@ function NotificationCenter({ loading = false }) {
   return (
     <>
       <Tooltip title="Notifications" placement="bottom">
-        <button
-          className="header-icon-btn relative"
-          onClick={() => setNotifOpen(true)}
-          aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
-        >
-          <span className="relative">
-            <BellOutlined style={{ fontSize: 'var(--font-size-lg)' }} />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#1976d2] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
-          </span>
-        </button>
+        <Button type="text" className="ro-header-icon"
+          aria-label={`Notifications${unreadCount ? ', ' + unreadCount + ' unread' : ''}`}
+          aria-expanded={notifOpen} onClick={() => setNotifOpen(true)}
+          icon={<Badge count={unreadCount} size="small" overflowCount={99}><BellOutlined style={{ fontSize: 18 }} /></Badge>} />
       </Tooltip>
 
       <Drawer
         open={notifOpen}
         onClose={() => setNotifOpen(false)}
-        width={440}
+        width="min(440px, 100vw)"
         className="notif-drawer"
 title={
           <div className="flex items-center justify-between w-full">
