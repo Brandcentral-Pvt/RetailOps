@@ -88,7 +88,7 @@ function buildPageQuery(q,user,spec){
   if(filters.search){
     q.input('search',sql.NVarChar(200),filters.search);
     // CHARINDEX treats %, _ and brackets literally, just like JS includes.
-    const fields=['g.Asin','m.ProductTitle','g.Brand','m.DbBrand','g.StoreCode'];
+    const fields=['g.Asin','COALESCE(g.ReportProductTitle,m.ProductTitle)','g.Brand','m.DbBrand','g.StoreCode'];
     factWhere+=' AND ('+fields.map(f=>"CHARINDEX(@search,LOWER(CONVERT(nvarchar(max),COALESCE("+f+",N''))) COLLATE Latin1_General_100_BIN2)>0").join(' OR ')+')';
   }
   if(sortSql.range)q.input('sortFrom',sql.Date,sortSql.range.from).input('sortTo',sql.Date,sortSql.range.to);
@@ -97,7 +97,7 @@ function buildPageQuery(q,user,spec){
   // fact. All output derives from a single materialized, permission-scoped
   // dataset in this batch; no pagination or date filter changes the KPIs.
   return 'SET NOCOUNT ON;\n'+
-  'SELECT g.Id AS FactId,g.Asin,g.SellerId,CONVERT(date,g.Date) AS ReportDate,g.Brand,g.StoreCode,g.OrderedRevenue,g.OrderedUnits,g.ShippedRevenue,g.ShippedCOGS,g.ShippedUnits,g.CustomerReturns INTO #GmsSource FROM GmsDailyPerformance g WHERE g.Date>=@historyFrom AND g.Date<DATEADD(day,1,@currentTo)'+sourceWhere+';\n'+
+  'SELECT g.Id AS FactId,g.Asin,g.SellerId,CONVERT(date,g.Date) AS ReportDate,g.Brand,g.ReportProductTitle,g.StoreCode,g.OrderedRevenue,g.OrderedUnits,g.ShippedRevenue,g.ShippedCOGS,g.ShippedUnits,g.CustomerReturns INTO #GmsSource FROM GmsDailyPerformance g WHERE g.Date>=@historyFrom AND g.Date<DATEADD(day,1,@currentTo)'+sourceWhere+';\n'+
   'SELECT DISTINCT Asin,SellerId INTO #GmsKeys FROM #GmsSource;\n'+
   'SELECT g.Asin,g.SellerId AS StoredSellerId,COALESCE(g.SellerId,a.SellerId) AS SellerId,s.Name AS DbBrand,a.Title AS ProductTitle INTO #GmsMap FROM #GmsKeys g '+gmsCatalogApplySql+' LEFT JOIN Sellers s ON COALESCE(g.SellerId,a.SellerId)=s.Id '+mappingWhere+';\n'+
   'SELECT '+entity+' COLLATE Latin1_General_100_BIN2 AS EntityKey,g.FactId,g.Asin,m.SellerId,m.DbBrand,m.ProductTitle,g.Brand,g.StoreCode,g.ReportDate,g.OrderedRevenue,g.OrderedUnits,g.ShippedRevenue,g.ShippedCOGS,g.ShippedUnits,g.CustomerReturns INTO #GmsFacts FROM #GmsSource g JOIN #GmsMap m ON g.Asin=m.Asin AND (g.SellerId=m.StoredSellerId OR (g.SellerId IS NULL AND m.StoredSellerId IS NULL)) '+factWhere+';\n'+
