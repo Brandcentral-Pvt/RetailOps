@@ -89,10 +89,11 @@ jobs:
 
           echo "📦 Installing backend dependencies..."
           cd backend
-          npm ci --omit=dev 2>&1 | tail -3
+          npm ci --omit=dev
 
           echo "🔄 Running database migrations..."
-          npm run migrate 2>&1 | tail -10 || echo "⚠️ No migrate script or migration failed"
+          npm run migrate
+          node scripts/repairGmsSchema.js --check
 
           echo "📁 Ensuring directories..."
           mkdir -p logs uploads/exports uploads/temp
@@ -117,7 +118,7 @@ jobs:
           echo "⏳ Waiting for server..."
           for i in 1 2 3 4 5 6; do
             sleep 5
-            if curl -sf --max-time 10 "$HEALTH_URL" 2>/dev/null; then
+            if curl -sf --max-time 10 "$HEALTH_URL" 2>/dev/null && curl -sf --max-time 10 "$HEALTH_URL/gms" 2>/dev/null; then
               echo "✅ Health check passed"
               exit 0
             fi
