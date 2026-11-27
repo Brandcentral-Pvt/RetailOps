@@ -1,5 +1,5 @@
 /* Scoped to the portalled GMS import dialog, not other RetailOps modals. */
-.gms-import-modal-root .ant-modal-wrap {
+.gms-import-modal-root .gms-import-wrap {
   overflow:hidden;
   overscroll-behavior:contain;
 }
@@ -11,7 +11,7 @@
   padding-bottom:0;
   max-width:calc(100vw - 32px);
 }
-.gms-import-modal :is(.ant-modal-container,.ant-modal-content) {
+.gms-import-modal .gms-import-shell {
   display:flex;
   flex-direction:column;
   height:var(--gms-import-height);
@@ -22,7 +22,7 @@
   border-radius:16px;
   box-sizing:border-box;
 }
-.gms-import-modal .ant-modal-header {
+.gms-import-modal .gms-import-header {
   flex:0 0 auto;
   padding:18px var(--gms-import-gutter) 10px;
   margin:0;
@@ -37,66 +37,76 @@
   top:12px;
   inset-inline-end:16px;
 }
-.gms-import-modal .ant-modal-body {
-  display:flex;
-  flex-direction:column;
+/* Grid defines a real height boundary without relying on Ant Tabs internals.
+   The second row may shrink below its content's natural height. The content
+   region itself is the only vertically scrollable element. */
+.gms-import-modal .gms-import-body {
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr);
   flex:1 1 0;
   min-width:0;
   min-height:0;
   padding:0;
   overflow:hidden;
 }
-.gms-import-tabs.ant-tabs {
+.gms-import-tabs {
   display:flex;
-  flex-direction:column;
-  flex:1 1 0;
+  align-items:stretch;
+  gap:24px;
   min-width:0;
-  min-height:0;
-  overflow:hidden;
-}
-.gms-import-tabs > .ant-tabs-nav {
-  flex:0 0 auto;
-  margin:0;
   padding-inline:var(--gms-import-gutter);
+  border-bottom:1px solid var(--ant-color-border-secondary,#e5e7eb);
 }
-.gms-import-tabs > .ant-tabs-nav .ant-tabs-tab {
+.gms-import-tab {
+  appearance:none;
+  border:0;
+  border-bottom:2px solid transparent;
+  margin:0 0 -1px;
+  padding:11px 2px;
+  background:transparent;
+  font:inherit;
   font-weight:600;
-  padding-block:10px;
+  color:var(--ant-color-text-secondary,#4b5563);
+  cursor:pointer;
+  text-align:left;
 }
-.gms-import-tabs > .ant-tabs-content-holder {
-  display:flex;
-  flex-direction:column;
-  flex:1 1 0;
+.gms-import-tab[aria-selected="true"] {
+  color:var(--ant-color-primary,#1976d2);
+  border-bottom-color:var(--ant-color-primary,#1976d2);
+}
+.gms-import-tab:focus-visible {
+  outline:2px solid var(--ant-color-primary,#1976d2);
+  outline-offset:-3px;
+}
+.gms-import-tab:disabled {opacity:.5;cursor:not-allowed;}
+.gms-import-panel {
+  display:grid;
+  grid-template-rows:minmax(0,1fr);
   min-width:0;
   min-height:0;
   overflow:hidden;
 }
-.gms-import-tabs > .ant-tabs-content-holder > .ant-tabs-content {
-  display:flex;
-  flex:1 1 0;
-  min-height:0;
-  height:100%;
-  width:100%;
-}
-.gms-import-tabs .ant-tabs-tabpane-active {
-  display:flex;
-  flex:1 1 0;
-  flex-direction:column;
-  min-height:0;
-  min-width:0;
-  overflow:hidden;
-}
+.gms-import-panel[hidden] {display:none!important;}
 .gms-import-scroll {
-  flex:1 1 0;
   min-height:0;
   min-width:0;
   width:100%;
+  height:100%;
   overflow-x:hidden;
   overflow-y:auto;
-  overscroll-behavior:contain;
+  overscroll-behavior-y:contain;
   scrollbar-gutter:stable;
+  scrollbar-width:auto;
+  touch-action:pan-x pan-y;
   padding:18px var(--gms-import-gutter);
   box-sizing:border-box;
+}
+/* Tables retain their own horizontal scrolling; vertical wheel and touch
+   gestures can reach the parent report region. */
+.gms-import-scroll .ant-table-content {
+  overflow-x:auto;
+  overflow-y:hidden;
+  touch-action:pan-x pan-y;
 }
 .gms-import-scroll:focus-visible {
   outline:2px solid var(--ant-color-primary,#1976d2);
@@ -160,7 +170,7 @@
   white-space:nowrap;
   font-weight:550;
 }
-.gms-import-modal .ant-modal-footer {
+.gms-import-modal .gms-import-footer {
   flex:0 0 auto;
   margin:0;
   padding:12px var(--gms-import-gutter);
@@ -199,10 +209,11 @@
     --gms-import-height:calc(100dvh - 16px);
     max-width:calc(100vw - 16px);
   }
-  .gms-import-modal :is(.ant-modal-container,.ant-modal-content) {border-radius:12px;}
-  .gms-import-modal .ant-modal-header {padding-top:14px;}
+  .gms-import-modal .gms-import-shell {border-radius:12px;}
+  .gms-import-modal .gms-import-header {padding-top:14px;}
   .gms-import-modal .ant-modal-close {top:8px;inset-inline-end:8px;}
   .gms-import-scroll {padding-block:12px;}
+  .gms-import-tabs {gap:16px;}
   .gms-import-footer-bar {justify-content:flex-end;}
   .gms-import-footer-note {display:none;}
   .gms-import-footer-actions {flex-shrink:1;}
@@ -212,9 +223,9 @@
     --gms-import-height:calc(100vh - 12px);
     --gms-import-height:calc(100dvh - 12px);
   }
-  .gms-import-modal .ant-modal-header {padding-block:8px;}
+  .gms-import-modal .gms-import-header {padding-block:8px;}
   .gms-import-modal .ant-modal-close {top:4px;}
-  .gms-import-tabs > .ant-tabs-nav .ant-tabs-tab {padding-block:6px;}
-  .gms-import-modal .ant-modal-footer {padding-block:8px;}
+  .gms-import-tab {padding-block:6px;}
+  .gms-import-modal .gms-import-footer {padding-block:8px;}
   .gms-import-footer-note {display:none;}
 }
