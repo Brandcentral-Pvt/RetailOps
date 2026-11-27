@@ -11,6 +11,10 @@
   padding:2px 0 20px;
 }
 .gms-workspace > * {min-width:0;max-width:100%;}
+.gms-workspace .ant-row {min-width:0;}
+.gms-workspace .ant-col {min-width:0;}
+.gms-workspace .ant-picker-range {min-width:0;}
+.gms-workspace .ant-picker-input {min-width:0;}
 .gms-section-title.ant-typography {margin:0 0 3px;}
 .gms-field-label {display:block;margin-bottom:6px;font-weight:600;font-size:12px;}
 .gms-toolbar-actions {max-width:100%;}
