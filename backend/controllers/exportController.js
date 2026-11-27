@@ -7,7 +7,8 @@ const SocketService = require('../services/socketService');
 const { buildInClause } = require('../utils/sqlHelpers');
 const { resolveAccessProfile } = require('../services/accessProfileService');
 const { resolveSellerScope, bindSellerFilter } = require('../utils/sellerScope');
-const { exportWindow, unambiguousSellerSql, gmsCatalogApplySql } = require('../utils/gmsPhase1');
+const { exportWindow } = require('../utils/gmsPhase1');
+const { filterSpec, queryFacts, buildAnalytics, loadAnalytics } = require('../services/gmsAnalyticsService');
 
 const EXPORTS_DIR = path.join(__dirname, '../uploads/exports');
 
@@ -1326,6 +1327,7 @@ exports.startGmsExport = async (req, res) => {
 
         try {
             exportWindow(req.body || {});
+            filterSpec(req.body || {});
             for (const [key, allowed] of Object.entries({
                 exportLevel: ['asin', 'seller'],
                 exportBrandType: ['all', 'current', 'custom'],
@@ -1339,7 +1341,7 @@ exports.startGmsExport = async (req, res) => {
                     throw new Error('Invalid ' + key);
                 }
             }
-            if (exportBrandType === 'custom' && exportCustomBrands.length === 0) throw new Error('Select at least one seller');
+            if (exportBrandType === 'custom' && (req.body.sellerIds == null ? exportCustomBrands.length === 0 : req.body.sellerIds.length === 0)) throw new Error('Select at least one seller');
         } catch (error) {
             return res.status(400).json({ success: false, message: error.message });
         }
@@ -1396,84 +1398,6 @@ exports.startGmsExport = async (req, res) => {
     }
 };
 
-const getISOWeek = (date) => {
-    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    const dayNum = d.getUTCDay() || 7;
-    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-    return {
-        year: d.getUTCFullYear(),
-        week: weekNo
-    };
-};
-
-const getWeekRangeLabel = (year, week) => {
-    const simple = new Date(year, 0, 1 + (week - 1) * 7);
-    const dow = simple.getDay();
-    const ISOweekStart = simple;
-    if (dow <= 4) {
-        ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
-    } else {
-        ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
-    }
-    const Monday = new Date(ISOweekStart);
-    const Sunday = new Date(ISOweekStart);
-    Sunday.setDate(Monday.getDate() + 6);
-
-    const options = { day: '2-digit', month: 'short' };
-    const startStr = Monday.toLocaleDateString('en-IN', options);
-    const endStr = Sunday.toLocaleDateString('en-IN', options);
-    return `Week ${week} (${startStr} - ${endStr})`;
-};
-
-/**
- * Compute period-over-period trend for a specific period key.
- * @param {object} row - aggregated row with dailyRev/weeklyRev/monthlyRev
- * @param {'month'|'week'|'day'} type - period type
- * @param {object} rawGmsMap - full dataset lookup (includes prior periods not in export range)
- * @param {'asin'|'seller'} level - grouping level
- * @param {string} periodKey - the specific period to compute trend for (e.g. '2024-06', '2024-W23')
- */
-const getGmsTrend = (row, type, rawGmsMap, level = 'asin', periodKey) => {
-    const entityKey = level === 'seller' ? row.dbBrand : row.asin;
-    const entityData = rawGmsMap[entityKey];
-    if (!entityData || !periodKey) return null;
-
-    let currentVal = 0;
-    let previousVal = 0;
-
-    if (type === 'month') {
-        currentVal = row.monthlyRev[periodKey] || 0;
-        const [year, month] = periodKey.split('-').map(Number);
-        const prevMonthDate = new Date(year, month - 2, 1);
-        const prevMonthStr = prevMonthDate.toISOString().slice(0, 7);
-        previousVal = entityData.monthly[prevMonthStr] || 0;
-    } else if (type === 'week') {
-        currentVal = row.weeklyRev[periodKey] || 0;
-        const [yearStr, weekStr] = periodKey.split('-W');
-        const yVal = parseInt(yearStr);
-        const wVal = parseInt(weekStr);
-        let prevW = wVal - 1;
-        let prevY = yVal;
-        if (prevW === 0) {
-            prevY -= 1;
-            const d = new Date(prevY, 11, 28);
-            prevW = getISOWeek(d).week;
-        }
-        const prevWeekKey = `${prevY}-W${String(prevW).padStart(2, '0')}`;
-        previousVal = entityData.weekly[prevWeekKey] || 0;
-    } else if (type === 'day') {
-        currentVal = row.dailyRev[periodKey] || 0;
-        const prevDayDate = new Date(new Date(periodKey).getTime() - 86400000);
-        const prevDayStr = prevDayDate.toISOString().split('T')[0];
-        previousVal = entityData.daily[prevDayStr] || 0;
-    }
-
-    if (!previousVal) return null;
-    return ((currentVal - previousVal) / previousVal) * 100;
-};
-
 async function processGmsExportJob(downloadId, params, userId) {
     const pool = await getPool();
     await updateDownloadStatus(pool, downloadId, 'processing', 10);
@@ -1502,106 +1426,25 @@ async function processGmsExportJob(downloadId, params, userId) {
     if (!access.permissions.includes('*') && !access.permissions.includes('gms_tracker_export')) {
         throw new Error('Export permission is no longer available');
     }
-    const scope = resolveSellerScope(access);
-    const gmsRequest = pool.request();
-    let whereClause = 'WHERE 1=1';
-    if (!scope.isGlobal) {
-        whereClause += bindSellerFilter(gmsRequest, scope, { alias: 'a', prefix: 'gmsExport' });
-        whereClause += ' AND ' + unambiguousSellerSql('a');
-    }
     await updateDownloadStatus(pool, downloadId, 'processing', 20);
 
     const window = exportWindow(params);
-    if (window.from) {
-        gmsRequest.input('gmsStartDate', sql.Date, window.from);
-        whereClause += ' AND g.Date >= @gmsStartDate';
-    }
-    if (window.to) {
-        gmsRequest.input('gmsEndDate', sql.Date, window.to);
-        whereClause += ' AND g.Date < DATEADD(day, 1, @gmsEndDate)';
-    }
-
-    // Fetch all GMS data
-    const result = await gmsRequest.query(`
-      SELECT CONVERT(char(10), g.Date, 23) as date, g.Asin as asin, g.Brand as brand, g.StoreCode as storeCode,
-        g.OrderedRevenue as orderedRevenue, g.OrderedUnits as orderedUnits,
-        g.ShippedRevenue as shippedRevenue, g.ShippedCOGS as shippedCOGS,
-        g.ShippedUnits as shippedUnits, g.CustomerReturns as customerReturns,
-        COALESCE(g.SellerId, a.SellerId) as sellerId, s.Name as dbBrand, a.Title as productTitle
-      FROM GmsDailyPerformance g
-      ${gmsCatalogApplySql}
-      LEFT JOIN Sellers s ON COALESCE(g.SellerId, a.SellerId) = s.Id
-      ${whereClause}
-      ORDER BY g.Date DESC
-    `);
-
-    const rawGmsData = result.recordset.filter(row => row.date).map(row => ({
-        ...row, resolvedDbBrand: row.dbBrand || '-'
-    }));
-
-    // Apply brand/seller filtering
-    let filteredData = rawGmsData;
-    if (exportBrandType === 'current' && selectedBrands.length > 0) {
-        filteredData = rawGmsData.filter(d =>
-            selectedBrands.includes(d.dbBrand) || selectedBrands.includes(d.brand) || selectedBrands.includes(d.resolvedDbBrand)
-        );
-    } else if (exportBrandType === 'custom' && exportCustomBrands.length > 0) {
-        filteredData = rawGmsData.filter(d =>
-            exportCustomBrands.includes(d.brand) || exportCustomBrands.includes(d.dbBrand) || exportCustomBrands.includes(d.resolvedDbBrand)
-        );
-    }
-
-    await updateDownloadStatus(pool, downloadId, 'processing', 35);
-
-    // Build matrix map from filtered data
-    const matrixMap = {};
-    filteredData.forEach(d => {
-        const isUnmatched = !d.resolvedDbBrand || d.resolvedDbBrand === '-';
-        const key = exportLevel === 'seller' ? (isUnmatched ? 'unmatched:' + (d.brand || '-') : 'seller:' + (d.sellerId || d.resolvedDbBrand)) : d.asin;
-        if (!matrixMap[key]) {
-            matrixMap[key] = exportLevel === 'seller'
-                ? { dbBrand: d.resolvedDbBrand || '-', isUnmatched, asins: new Set(), brands: new Set(), storeCodes: new Set(), dailyRev: {}, weeklyRev: {}, monthlyRev: {} }
-                : { asin: d.asin, productTitle: d.productTitle || '-', dbBrand: d.resolvedDbBrand || '-', brand: d.brand || 'Generic', storeCode: d.storeCode || 'IN', dailyRev: {}, weeklyRev: {}, monthlyRev: {} };
+    // Current clients send the exact ID/search selection used on screen.
+    // Keep legacy name filters for older clients, but never widen RBAC.
+    const modern = Object.prototype.hasOwnProperty.call(params,'sellerIds');
+    const filters = filterSpec({sellerIds:modern?params.sellerIds:null,search:params.search});
+    let report;
+    if (modern && window.from && window.to) {
+        report = await loadAnalytics(pool,access,{startDate:window.from,endDate:window.to,level:exportLevel,...filters});
+    } else {
+        let facts = await queryFacts(pool,access,modern?window:{from:null,to:window.to},filters);
+        if (!modern) {
+            const names = exportBrandType==='current'?selectedBrands:exportBrandType==='custom'?exportCustomBrands:[];
+            if (names.length) facts = facts.filter(d=>names.includes(d.dbBrand)||names.includes(d.brand));
         }
-        const row = matrixMap[key];
-        if (exportLevel === 'seller') {
-            if (d.asin) row.asins.add(d.asin);
-            if (d.brand) row.brands.add(d.brand);
-            if (d.storeCode) row.storeCodes.add(d.storeCode);
-        }
-        const monthKey = d.date.slice(0, 7);
-        const { year: wYear, week: wWeek } = getISOWeek(new Date(d.date));
-        const weekKey = `${wYear}-W${String(wWeek).padStart(2, '0')}`;
-        if (!row.dailyRev[d.date]) row.dailyRev[d.date] = 0;
-        row.dailyRev[d.date] += d.orderedRevenue || 0;
-        if (!row.weeklyRev[weekKey]) row.weeklyRev[weekKey] = 0;
-        row.weeklyRev[weekKey] += d.orderedRevenue || 0;
-        if (!row.monthlyRev[monthKey]) row.monthlyRev[monthKey] = 0;
-        row.monthlyRev[monthKey] += d.orderedRevenue || 0;
-    });
-
-    await updateDownloadStatus(pool, downloadId, 'processing', 50);
-
-    const matrixRows = Object.values(matrixMap).map(r => {
-        if (exportLevel === 'seller') {
-            return { ...r, asinsList: Array.from(r.asins), brandsList: Array.from(r.brands), storeCodesList: Array.from(r.storeCodes) };
-        }
-        return r;
-    });
-
-    const dates = [...new Set(rawGmsData.map(d => d.date))].sort();
-    const monthGroups = {};
-    dates.forEach(dateStr => {
-        const monthKey = dateStr.slice(0, 7);
-        const monthLabel = new Date(dateStr).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-        const { year: wYear, week: wWeek } = getISOWeek(new Date(dateStr));
-        const weekKey = `${wYear}-W${String(wWeek).padStart(2, '0')}`;
-        const weekLabel = getWeekRangeLabel(wYear, wWeek);
-        if (!monthGroups[monthKey]) monthGroups[monthKey] = { label: monthLabel, key: monthKey, weeks: {} };
-        if (!monthGroups[monthKey].weeks[weekKey]) monthGroups[monthKey].weeks[weekKey] = { label: weekLabel, key: weekKey, days: [] };
-        monthGroups[monthKey].weeks[weekKey].days.push(dateStr);
-    });
-
+        report = buildAnalytics(facts,{window,filters,level:exportLevel});
+    }
+    const {matrixRows,monthGroups}=report;
     await updateDownloadStatus(pool, downloadId, 'processing', 60);
 
     // Build column definitions
@@ -1619,24 +1462,27 @@ async function processGmsExportJob(downloadId, params, userId) {
         columnDef.push({ label: 'Store Code', getValue: r => r.storeCode });
     }
 
+    columnDef.push({ label: 'Ordered Units', getValue:r=>r.orderedUnits });
     Object.values(monthGroups).forEach(month => {
         if (exportDataType === 'daily' || exportDataType === 'weekly') {
             Object.values(month.weeks).forEach(week => {
                 if (exportDataType === 'daily') {
                     const sortedDays = [...week.days].sort();
                     sortedDays.forEach((dayStr) => {
-                        columnDef.push({ label: new Date(dayStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }), getValue: r => r.dailyRev[dayStr] || 0 });
+                        const label = new Date(dayStr+'T00:00:00Z').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone:'UTC' });
+                        columnDef.push({ label, getValue: r => r.dailyRev[dayStr] ?? '-' });
+                        columnDef.push({ label: label+' DoD (%)',getValue:r=>r._dodTrends[dayStr]==null?'-':Number(r._dodTrends[dayStr].toFixed(1)) });
                     });
                 }
-                columnDef.push({ label: `${week.label} Total`, getValue: r => r.weeklyRev[week.key] || 0 });
+                columnDef.push({ label: `${week.label} Total`, getValue: r => r.weeklyRev[week.key] ?? '-' });
                 if (exportDataType !== 'monthly') {
-                    columnDef.push({ label: `${week.label} WoW`, getValue: r => { const t = getGmsTrend(r, 'week', {}, exportLevel, week.key); return t === null ? '-' : `${t.toFixed(1)}%`; } });
+                    columnDef.push({ label: `${week.label} WoW (%)`, getValue: r => { const t = r._wowTrends[week.key]; return t == null ? '-' : Number(t.toFixed(1)); } });
                 }
             });
         }
-        columnDef.push({ label: `${month.label} Total`, getValue: r => r.monthlyRev[month.key] || 0 });
-        if (exportDataType === 'monthly') {
-            columnDef.push({ label: `${month.label} MoM`, getValue: r => { const t = getGmsTrend(r, 'month', {}, exportLevel, month.key); return t === null ? '-' : `${t.toFixed(1)}%`; } });
+        columnDef.push({ label: `${month.label} Total`, getValue: r => r.monthlyRev[month.key] ?? '-' });
+        {
+            columnDef.push({ label: `${month.label} MoM (%)`, getValue: r => { const t = r._momTrends[month.key]; return t == null ? '-' : Number(t.toFixed(1)); } });
         }
     });
 
@@ -1646,11 +1492,7 @@ async function processGmsExportJob(downloadId, params, userId) {
     const sheetHeaders = columnDef.map(c => c.label);
     const sheetRows = [];
     for (let i = 0; i < matrixRows.length; i++) {
-        try {
-            sheetRows.push(columnDef.map(c => c.getValue(matrixRows[i])));
-        } catch (e) {
-            sheetRows.push(columnDef.map(() => '-'));
-        }
+        sheetRows.push(columnDef.map(c => c.getValue(matrixRows[i])));
         if (i % 10000 === 0 && i > 0) {
             await updateDownloadStatus(pool, downloadId, 'processing', Math.min(85, 70 + Math.round(i / matrixRows.length * 15)));
         }
@@ -1670,7 +1512,7 @@ async function processGmsExportJob(downloadId, params, userId) {
     if (exportFileType === 'csv') {
         // CSV — always fast, always works
         try {
-            const csvContent = [sheetHeaders.join(','), ...sheetRows.map(row =>
+            const csvContent = [sheetHeaders.map(cell=>'"'+String(cell).replace(/"/g,'""')+'"').join(','), ...sheetRows.map(row =>
                 row.map(cell => `"${String(typeof cell === 'string' && /^[\s\u0000-\u001f]*[=+\-@]/.test(cell) ? "'" + cell : cell).replace(/"/g, '""')}"`).join(',')
             )].join('\n');
             fs.writeFileSync(filePath, '\ufeff' + csvContent, 'utf8'); // BOM for Excel compatibility
@@ -1678,28 +1520,28 @@ async function processGmsExportJob(downloadId, params, userId) {
             throw new Error(`CSV export failed: ${csvErr.message}`);
         }
     } else {
-        // XLSX — bulletproof with fallback
-        try {
-            const wb = XLSX.utils.book_new();
-            const ws = XLSX.utils.aoa_to_sheet([sheetHeaders, ...sheetRows]);
-            XLSX.utils.book_append_sheet(wb, ws, 'GMS Matrix');
-            const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
-            fs.writeFileSync(filePath, wbout);
-        } catch (xlsxErr) {
-            console.error(`XLSX write failed for ${downloadId}:`, xlsxErr.message);
-            // Fallback: write as CSV then copy to xlsx path
-            try {
-                const csvContent = [sheetHeaders.join(','), ...sheetRows.map(row =>
-                    row.map(cell => `"${String(typeof cell === 'string' && /^[\s\u0000-\u001f]*[=+\-@]/.test(cell) ? "'" + cell : cell).replace(/"/g, '""')}"`).join(',')
-                )].join('\n');
-                const csvPath = filePath.replace('.xlsx', '.csv');
-                fs.writeFileSync(csvPath, csvContent, 'utf8');
-                fs.copyFileSync(csvPath, filePath);
-                fs.unlinkSync(csvPath);
-            } catch (csvErr) {
-                throw new Error(`Export failed: ${csvErr.message}`);
-            }
-        }
+        // A failed XLSX must fail the job, never masquerade as a CSV.
+        if (columnDef.length > 16384 || sheetRows.length + 1 > 1048576) throw new Error('Matrix exceeds Excel limits; narrow the report or select CSV');
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet([sheetHeaders, ...sheetRows]);
+        XLSX.utils.book_append_sheet(wb, ws, 'GMS Matrix');
+        const summaryRows = [
+            ['Selected start',report.selectedWindow.from||'All time'],
+            ['Selected end',report.selectedWindow.to||'All time'],
+            ['Current records',report.meta.records],
+            ['Unmatched records',report.meta.unmatchedRecords],
+            ['Prior start',report.comparison.window?.from||'-'],
+            ['Prior end',report.comparison.window?.to||'-'],
+            ['Current observed days',report.comparison.currentCoverage.observedDays],
+            ['Current expected days',report.comparison.currentCoverage.expectedDays??'-'],
+            ['Prior observed days',report.comparison.previousCoverage?.observedDays??'-'],
+            [],
+            ['Metric','Current','Prior','Change (% or percentage points for ratios)'],
+            ...Object.keys(report.kpis).map(k=>[k,report.kpis[k]??'-',report.comparison.baseline[k]??'-',report.comparison.changes[k]??'-']),
+        ];
+        XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(summaryRows),'Summary');
+        const wbout = XLSX.write(wb,{bookType:'xlsx',type:'buffer'});
+        fs.writeFileSync(filePath,wbout);
     }
 
     // Verify file
@@ -1714,7 +1556,9 @@ async function processGmsExportJob(downloadId, params, userId) {
         .input('fileSize', sql.BigInt, stats.size)
         .input('rowCount', sql.Int, sheetRows.length)
         .input('filePath', sql.VarChar, `/exports/${downloadId}_${fileName}`)
-        .query(`UPDATE Downloads SET Status = 'completed', Progress = 100, FileSize = @fileSize, [RowCount] = @rowCount, FilePath = @filePath, CompletedAt = dbo.GetEnvDate(), ExpiresAt = DATEADD(HOUR, 24, dbo.GetEnvDate()) WHERE Id = @id`);
+        .input('actualName',sql.NVarChar,fileName)
+        .input('actualFormat',sql.NVarChar,fileExt)
+        .query(`UPDATE Downloads SET Status = 'completed', Progress = 100, FileName=@actualName, Format=@actualFormat, FileSize = @fileSize, [RowCount] = @rowCount, FilePath = @filePath, CompletedAt = dbo.GetEnvDate(), ExpiresAt = DATEADD(HOUR, 24, dbo.GetEnvDate()) WHERE Id = @id`);
 
     SocketService.emitExportUpdate(downloadId, { status: 'completed', progress: 100, filePath: `/exports/${downloadId}_${fileName}` });
 }
