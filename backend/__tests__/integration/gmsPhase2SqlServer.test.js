@@ -69,7 +69,7 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
     await migration.up(mockPool);
     expect((await inspectGmsSchema(mockPool)).ready).toBe(true);
     await mockPool.request().query(
-      "INSERT INTO Sellers VALUES('S1','amazon.in',1);" +
+      "INSERT INTO Sellers VALUES('S1','legacy-marketplace',0);" +
       "INSERT INTO Asins VALUES('A1','B000000001','S1');" +
       "INSERT INTO Roles VALUES('R1','brand_manager');" +
       "INSERT INTO Users VALUES('U1','R1',1);" +
