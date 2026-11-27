@@ -1,5 +1,9 @@
 const express = require('express');
 const request = require('supertest');
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const {randomUUID}=require('node:crypto');
+const ExcelJS=require('exceljs');
 const { makeFakePool } = require('../../testUtils/fakePool');
 const { dateOnly, dateWindow, exportWindow } = require('../../utils/gmsPhase1');
 
@@ -139,6 +143,39 @@ describe('GMS route security', () => {
     expect((await request(app).get('/api/upload/gms-data')).body.data).toEqual([]);
     expect(mockPool.calls).toHaveLength(0);
   });
+  test('completed GMS downloads deliver the exact workbook and reject invalid files',async()=>{
+    const id='gms-test-'+randomUUID(),name='gms_export_asin_test.xlsx',dir=path.resolve(__dirname,'../../uploads/exports');
+    const file=path.join(dir,id+'_'+name),decoy=path.join(dir,'000_'+id+'_other.xlsx');
+    await fs.mkdir(dir,{recursive:true});
+    try{
+      const book=new ExcelJS.Workbook(),sheet=book.addWorksheet('Complete Data');
+      sheet.addRow(['ASIN','Ordered Revenue']);sheet.addRow(['B000000001',-125.5]);
+      await book.xlsx.writeFile(file);
+      await fs.writeFile(decoy,'Not an Excel file');
+      const bytes=await fs.readFile(file);
+      const row={Id:id,UserId:'u1',FileName:name,Format:'xlsx',Status:'completed',FileSize:bytes.length};
+      mockPool=makeFakePool([{match:/SELECT \* FROM Downloads WHERE Id = @id AND UserId = @userId/,rows:[row]}]);
+      const download=()=>request(app).get('/api/export/download/'+id).buffer(true).parse((res,cb)=>{
+        const chunks=[];res.on('data',chunk=>chunks.push(chunk));res.on('end',()=>cb(null,Buffer.concat(chunks)));res.on('error',cb);
+      });
+      const res=await download();
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toContain('spreadsheetml.sheet');
+      expect(res.headers['x-export-file-size']).toBe(String(bytes.length));
+      expect(res.headers['content-disposition']).toContain(name);
+      expect(res.body.equals(bytes)).toBe(true);
+      // Same job but only a similarly named file remains: never deliver it.
+      await fs.unlink(file);
+      expect((await request(app).get('/api/export/download/'+id)).status).toBe(404);
+      await fs.writeFile(file,bytes.subarray(0,bytes.length-20));
+      const invalid=await request(app).get('/api/export/download/'+id);
+      expect(invalid.status).toBe(422);
+      expect(invalid.body.code).toBe('EXPORT_INVALID_FILE');
+      expect(mockPool.calls.filter(c=>c.sql.includes('DownloadCount = DownloadCount + 1'))).toHaveLength(1);
+    }finally{
+      await fs.unlink(file).catch(()=>{});await fs.unlink(decoy).catch(()=>{});
+    }
+  },30000);
   test('error report download requires import permission, owner and a valid format', async () => {
     expect((await request(app).get('/api/upload/gms-imports/foreign/errors?format=xlsx')).status).toBe(403);
     mockUser.permissions.push('gms_tracker_import');

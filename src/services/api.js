@@ -1,4 +1,5 @@
 import { cachedFetch, invalidateCachePattern } from './apiCache';
+import { exportResponseFormat,validateExportBlob } from './exportDownloadIntegrity.mjs';
 import { requestAuthentication, storeAuthSession } from './authRequest';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
@@ -1898,12 +1899,14 @@ export const exportApi = {
         if (!res.ok) throw new Error('Failed to fetch export status');
         return res.json();
     },
-    downloadFile: async (id) => {
-        const res = await fetch(`${API_BASE}/export/download/${id}`, {
-            headers: { ...getAuthHeader() }
+    downloadFile: async (id, {fileName,fileSize} = {}) => {
+        const res = await fetch(`${API_BASE}/export/download/${encodeURIComponent(id)}`, {
+            credentials:'include', cache:'no-store', headers: { ...getAuthHeader() }
         });
-        if (!res.ok) throw new Error('Download failed or file not ready');
-        return res.blob();
+        if (!res.ok) return handleResponse(res,'Download failed or file not ready');
+        const format=exportResponseFormat(res.headers,fileName);
+        const expectedSize=res.headers.get('x-export-file-size') || fileSize || (!res.headers.get('content-encoding')?res.headers.get('content-length'):null);
+        return validateExportBlob(await res.blob(),format,expectedSize);
     }
 };
 

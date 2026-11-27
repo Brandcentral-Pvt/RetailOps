@@ -27,6 +27,13 @@ on:
       - 'src/pages/GmsTrackerPage.jsx'
       - 'src/pages/gms.css'
       - 'src/services/api.js'
+      - 'src/services/exportDownloadIntegrity.mjs'
+      - 'src/services/__tests__/exportDownloadIntegrity.test.mjs'
+      - 'src/components/common/DownloadsDrawer.jsx'
+      - 'src/components/asins/ExportAsinModal.jsx'
+      - 'backend/services/exportFileIntegrity.js'
+      - 'backend/package.json'
+      - 'backend/package-lock.json'
       - 'tests/gms-phase1.spec.js'
       - '.github/workflows/gms-phase2.yml'
   workflow_dispatch:
@@ -61,6 +68,7 @@ jobs:
           node --check services/gmsAnalyticsService.js
           node --check services/gmsAnalyticsPageService.js
           node --check services/gmsExportWriter.js
+          node --check services/exportFileIntegrity.js
           node --check services/gmsCompleteExport.js
           node --check migrations/095_gms_report_product_title.js
           node --check migrations/094_gms_analytics_date_index.js
@@ -77,7 +85,7 @@ jobs:
           node --check scripts/repairGmsSchema.js
       - name: Validation and route security regression
         working-directory: backend
-        run: npm test -- --runInBand __tests__/unit/gmsPhase2Ingestion.test.js __tests__/unit/gmsPhase3Analytics.test.js __tests__/unit/gmsPhase4Scalability.test.js __tests__/unit/gmsPhase4CompleteExport.test.js __tests__/routes/gmsPhase1.test.js
+        run: npm test -- --runInBand __tests__/unit/gmsPhase2Ingestion.test.js __tests__/unit/gmsPhase3Analytics.test.js __tests__/unit/gmsPhase4Scalability.test.js __tests__/unit/gmsPhase4CompleteExport.test.js __tests__/unit/gmsPhase4ExportIntegrity.test.js __tests__/routes/gmsPhase1.test.js
   sql:
     runs-on: ubuntu-latest
     timeout-minutes: 20

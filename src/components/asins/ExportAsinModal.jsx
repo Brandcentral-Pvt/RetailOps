@@ -421,16 +421,16 @@ const ExportAsinModal = ({
               setTimeout(async () => {
                 if (pollCancelledRef.current) return;
                 try {
-                  const blob = await exportApi.downloadFile(downloadId);
+                  const blob = await exportApi.downloadFile(downloadId,{fileName:statusRes.data.FileName||`asin_export.${exportFormat}`});
                   const url = window.URL.createObjectURL(blob);
                   const a = document.createElement('a');
                   a.href = url;
                   a.download = statusRes.data.FileName || `asin_export_${new Date().toISOString().split('T')[0]}.${exportFormat}`;
                   document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                  window.URL.revokeObjectURL(url);
+                  setTimeout(()=>window.URL.revokeObjectURL(url),30000);
                   setExporting(false); setTimeout(onClose, 800);
-                } catch {
-                  setError('File ready but download failed. Check Downloads drawer.');
+                } catch (err) {
+                  setError(err.message || 'File ready but download failed. Check Downloads drawer.');
                   setStep(1); setExporting(false);
                 }
               }, 500);

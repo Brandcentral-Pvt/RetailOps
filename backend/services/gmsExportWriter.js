@@ -1,8 +1,9 @@
 const fs=require('node:fs');
 const fsp=require('node:fs/promises');
 const { Readable }=require('node:stream');
-const { pipeline }=require('node:stream/promises');
+const { pipeline,finished }=require('node:stream/promises');
 const ExcelJS=require('exceljs');
+const {verifyXlsx,checkFileEnvelope}=require('./exportFileIntegrity');
 
 const EXCEL_ROWS=1048576,EXCEL_COLS=16384;
 const yieldTurn=()=>new Promise(resolve=>setImmediate(resolve));
@@ -51,7 +52,9 @@ function matrixSheet(report,columns){
       kind:/\(%\)/.test(c.label)?'percent100':/Units/i.test(c.label)?'units':/Seller|ASIN|Title|Brand|Store/i.test(c.label)?'text':'money'})),
     rows:function*(){for(const r of report.matrixRows)yield columns.map(c=>c.getValue(r)??null);}};
 }
-async function writeTable(book,descriptor,signal,onProgress,checkError){
+async function writeTable(book,descriptor,signal,onProgress,checkError,{streaming,expectedSheets}){
+  const commitRow=row=>{if(streaming)row.commit();};
+  const commitSheet=sheet=>{if(streaming)sheet.commit();};
   const {columns}=descriptor;
   if(columns.length>EXCEL_COLS)throw new Error('Report exceeds Excel column limits; use weekly or monthly matrix granularity');
   if(descriptor.summary){
@@ -72,34 +75,37 @@ async function writeTable(book,descriptor,signal,onProgress,checkError){
         row.getCell(2).alignment={wrapText:true,vertical:'top'};
         row.height=Math.min(90,15*Math.ceil(values[1].length/45));
       }
-      row.commit();
+      commitRow(row);
     }
-    sheet.commit();
+    expectedSheets.set(descriptor.name,null); // Blank separator rows may be omitted.
+    commitSheet(sheet);
     return;
   }
   // Excel has a hard row limit. Split long tables without omitting records.
   const perSheet=EXCEL_ROWS-1;
   let count=0,sheet=null,part=0;
   function startSheet(){
-    if(sheet)sheet.commit();
+    if(sheet)commitSheet(sheet);
     part++;
     const suffix=part===1?'':' '+part;
-    sheet=book.addWorksheet(descriptor.name.slice(0,31-suffix.length)+suffix,{views:[{state:'frozen',ySplit:1,xSplit:Math.min(2,columns.length)}]});
+    const sheetName=descriptor.name.slice(0,31-suffix.length)+suffix;
+    sheet=book.addWorksheet(sheetName,{views:[{state:'frozen',ySplit:1,xSplit:Math.min(2,columns.length)}]});
     sheet.columns=columns.map(c=>({width:c.width||18,style:{numFmt:formats[c.kind]||'General'}}));
     const remaining=Math.min(perSheet,Math.max(0,descriptor.rowCount-count));
-    sheet.autoFilter={from:{row:1,column:1},to:{row:remaining+1,column:columns.length}};
-    const head=sheet.addRow(columns.map(c=>c.label));styleHeader(head);head.commit();
+    if(remaining)sheet.autoFilter={from:{row:1,column:1},to:{row:remaining+1,column:columns.length}};
+    expectedSheets.set(sheetName,remaining+1);
+    const head=sheet.addRow(columns.map(c=>c.label));styleHeader(head);commitRow(head);
   }
   startSheet();
   for(const values of descriptor.rows()){
     ensureActive(signal);checkError();
     if(count>0&&count%perSheet===0)startSheet();
     const row=sheet.addRow(values.map(v=>v??null));
-    row.commit();count++;
+    commitRow(row);count++;
     if(count%256===0)await yieldTurn();
     if(count%1000===0)await onProgress(count,descriptor.rowCount);
   }
-  sheet.commit();
+  commitSheet(sheet);
   if(count!==descriptor.rowCount)throw new Error('Report row-count reconciliation failed for '+descriptor.name);
 }
 // Split very wide historical matrices horizontally, retaining identity fields.
@@ -140,6 +146,22 @@ async function writeGmsExport({filePath,format,report,columns,complete=null,matr
       output=fs.createWriteStream(partial,{flags:'wx'});
       await pipeline(Readable.from(chunks()),output,{signal});
     }else{
+      const descriptors=complete?[...complete.sheets,...matrixParts(matrixSheet(report,columns),matrixFixedCount)]:null;
+      const expectedSheets=new Map();
+      const estimate=descriptors?.reduce((n,x)=>n+(x.rowCount+1)*x.columns.length,0)??Infinity;
+      // The conventional workbook writer is used for ordinary reports. Retain
+      // the streaming writer for large reports to avoid a large cell graph.
+      const streaming=!(complete&&estimate<=150000&&complete.selectedCount<=5000);
+      if(!streaming){
+        const book=new ExcelJS.Workbook();
+        let total=descriptors.reduce((n,x)=>n+x.rowCount,0),done=0;
+        for(const descriptor of descriptors){
+          await writeTable(book,descriptor,signal,n=>onProgress(done+n,total),()=>{}, {streaming:false,expectedSheets});
+          done+=descriptor.rowCount;await onProgress(done,total);
+        }
+        ensureActive(signal);
+        await book.xlsx.writeFile(partial);
+      }else{
       output=fs.createWriteStream(partial,{flags:'wx'});
       // Use the stream writer, rather than XLSX.write(... type:'buffer').
       let streamError;
@@ -149,10 +171,9 @@ async function writeGmsExport({filePath,format,report,columns,complete=null,matr
       signal?.addEventListener('abort',abortOutput,{once:true});
       const book=new ExcelJS.stream.xlsx.WorkbookWriter({stream:output,useStyles:Boolean(complete),useSharedStrings:false});
       if(complete){
-        const descriptors=[...complete.sheets,...matrixParts(matrixSheet(report,columns),matrixFixedCount)];
         let total=descriptors.reduce((n,x)=>n+x.rowCount,0),done=0;
         for(const descriptor of descriptors){
-          await writeTable(book,descriptor,signal,(n)=>onProgress(done+n,total),()=>{if(streamError)throw streamError;});
+          await writeTable(book,descriptor,signal,(n)=>onProgress(done+n,total),()=>{if(streamError)throw streamError;},{streaming:true,expectedSheets});
           done+=descriptor.rowCount;
           await onProgress(done,total);
         }
@@ -172,12 +193,20 @@ async function writeGmsExport({filePath,format,report,columns,complete=null,matr
       const summary=book.addWorksheet('Summary');
       for(const row of summaryRows(report))summary.addRow(row).commit();
       summary.commit();
+      expectedSheets.set('GMS Matrix',rows.length+1);
+      expectedSheets.set('Summary',null);
       }
       if(streamError)throw streamError;
       await Promise.race([book.commit(),streamFailure]);
+      await finished(output,{cleanup:true});
+      }
+      ensureActive(signal);
+      // Publish only a fully written, readable ZIP/XML workbook with every
+      // expected sheet and data row. A malformed file never becomes completed.
+      await verifyXlsx(partial,{signal,expectedSheets});
     }
     ensureActive(signal);
-    const stat=await fsp.stat(partial);
+    const stat=await checkFileEnvelope(partial,format);
     if(!stat.size)throw new Error('Export file is empty');
     await fsp.rename(partial,filePath);
     return {rowCount:complete?complete.selectedCount:rows.length,fileSize:stat.size};

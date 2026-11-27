@@ -214,7 +214,7 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
         message.loading({ content: `Preparing ${item.fileName}...`, key, duration: 0 });
 
         try {
-            const blob = await exportApi.downloadFile(item.id);
+            const blob = await exportApi.downloadFile(item.id,{fileName:item.fileName,fileSize:item.fileSize});
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
@@ -222,11 +222,11 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            window.URL.revokeObjectURL(url);
+            setTimeout(()=>window.URL.revokeObjectURL(url),30000);
             message.success({ content: '✨ Download complete!', key, duration: 2 });
         } catch (err) {
             console.error('Download failed:', err);
-            message.error({ content: 'Failed to download file', key, duration: 3 });
+            message.error({ content: err.message || 'Failed to download file', key, duration: 5 });
         }
     };
 
