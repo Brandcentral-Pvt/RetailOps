@@ -7,6 +7,7 @@ on:
       - 'backend/services/gmsImport*.js'
       - 'backend/services/gmsAnalytics*.js'
       - 'backend/services/gmsExportWriter.js'
+      - 'backend/services/streamingWorkbook.js'
       - 'backend/services/gmsCompleteExport.js'
       - 'backend/controllers/gmsAnalyticsController.js'
       - 'backend/controllers/gmsImportController.js'
@@ -69,6 +70,7 @@ jobs:
           node --check services/gmsAnalyticsService.js
           node --check services/gmsAnalyticsPageService.js
           node --check services/gmsExportWriter.js
+          node --check services/streamingWorkbook.js
           node --check services/exportFileIntegrity.js
           node --check middleware/privateExportFiles.js
           node --check services/gmsCompleteExport.js
@@ -90,7 +92,11 @@ jobs:
         run: npm test -- --runInBand __tests__/unit/gmsPhase2Ingestion.test.js __tests__/unit/gmsPhase3Analytics.test.js __tests__/unit/gmsPhase4Scalability.test.js __tests__/unit/gmsPhase4CompleteExport.test.js __tests__/unit/gmsPhase4ExportIntegrity.test.js __tests__/routes/gmsPhase1.test.js
   sql:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        scale_rows: [100000, 500000]
     services:
       sqlserver:
         image: mcr.microsoft.com/mssql/server:2022-latest
@@ -115,7 +121,7 @@ jobs:
         working-directory: backend
         env:
           GMS_SQLSERVER_SMOKE: '1'
-          GMS_SQL_SCALE_ROWS: ${{ inputs.gms_scale_rows || '0' }}
+          GMS_SQL_SCALE_ROWS: ${{ github.event_name == 'workflow_dispatch' && inputs.gms_scale_rows || matrix.scale_rows }}
           GMS_TEST_SQLSERVER_HOST: '127.0.0.1'
           GMS_TEST_SQLSERVER_PASSWORD: 'GmsDisposable#2026!'
           GMS_TEST_MSSQL_MODULE: '/tmp/gms-test-sql/node_modules/mssql'
