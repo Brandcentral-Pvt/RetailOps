@@ -31,7 +31,10 @@ const { inspectGmsSchema, ensureGmsSchema } = require('../../database/gmsSchema'
 const migration = require('../../migrations/091_gms_import_jobs');
 const nullableMigration = require('../../migrations/092_gms_nullable_seller');
 const { gmsCatalogApplySql } = require('../../utils/gmsPhase1');
-const { loadAnalytics } = require('../../services/gmsAnalyticsService');
+const { loadAnalytics,queryFacts } = require('../../services/gmsAnalyticsService');
+const { buildCompleteExport }=require('../../services/gmsCompleteExport');
+const { writeGmsExport }=require('../../services/gmsExportWriter');
+const XLSX=require('xlsx');
 const { loadPagedAnalytics } = require('../../services/gmsAnalyticsPageService');
 const analyticsIndex=require('../../migrations/094_gms_analytics_date_index');
 const service = require('../../services/gmsImportService');
@@ -90,9 +93,9 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
       "INSERT INTO UserSellers VALUES('U1','S1');"
     );
     const user={id:'U1',role:{name:'brand_manager'},assignedSellers:['S1'],permissions:['gms_tracker_import']};
-    const preview=async revenue=>{
+    const preview=async (revenue,title)=>{
       const file=path.join(dir,'report-'+mockSequence);
-      fs.writeFileSync(file,'ASIN,Date,Brand,StoreCode,Ordered Revenue,Ordered Units,Shipped Revenue,Shipped COGS,Shipped Units,Customer Returns\nB000000001,2026-11-27,Brand A,IN,'+revenue+',1,100,50,1,0');
+      fs.writeFileSync(file,'ASIN,Date,Brand,StoreCode,Ordered Revenue,Ordered Units,Shipped Revenue,Shipped COGS,Shipped Units,Customer Returns'+(title?',Product Title':'')+'\nB000000001,2026-11-27,Brand A,IN,'+revenue+',1,100,50,1,0'+(title?','+title:''));
       return service.createPreview(user,{path:file,originalname:'report.csv'});
     };
     const facts=async()=> (await mockPool.request().query('SELECT SellerId,OrderedRevenue FROM GmsDailyPerformance WHERE Asin=\'B000000001\'')).recordset;
@@ -109,7 +112,7 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
     expect(completeReport.issues).toHaveLength(205);
     expect(completeReport.issues[204]).toMatchObject({row:206,asin:'B000000204'});
     expect(await facts()).toHaveLength(0);
-    const first=await preview('123.45');
+    const first=await preview('123.45','Original title from report');
     expect(first.status).toBe('READY');
     expect(first.summary.inserted).toBe(1);
     expect(await facts()).toHaveLength(0);
@@ -131,6 +134,8 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
     expect(correction.summary.updated).toBe(1);
     await service.confirm('U1',correction.id); await service.processNext();
     expect(await facts()).toEqual([{SellerId:'S1',OrderedRevenue:150.25}]);
+    const savedTitle=await mockPool.request().query("SELECT ReportProductTitle FROM GmsDailyPerformance WHERE Asin='B000000001'");
+    expect(savedTitle.recordset[0].ReportProductTitle).toBe('Original title from report');
     const stale=await preview('160.00');
     await mockPool.request().query('UPDATE GmsDailyPerformance SET OrderedRevenue=155.00');
     await service.confirm('U1',stale.id); await service.processNext();
@@ -193,6 +198,19 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
     const scopedPage=await loadPagedAnalytics(mockPool,user,{...options,level:'seller',sellerIds:['S1']});
     expect(scopedPage.kpis).toEqual(scoped.kpis);
     expect(scopedPage.matrixRows[0].orderedRevenue).toBe(29.5);
+    // Verify export uses the complete scoped daily facts, not the one-row page.
+    const allFacts=await queryFacts(mockPool,global,{from:'2026-11-27',to:'2026-11-27'});
+    const completeExport=buildCompleteExport(allFacts,{window:{from:'2026-11-27',to:'2026-11-27'},level:'seller'});
+    expect(completeExport.complete.selectedCount).toBe(2);
+    expect(completeExport.report.kpis).toEqual(unified.kpis);
+    const reportFile=path.join(dir,'full-report.xlsx');
+    const written=await writeGmsExport({filePath:reportFile,format:'xlsx',...completeExport,columns:[{label:'Seller (DB)',getValue:r=>r.dbBrand},{label:'Period Revenue',getValue:r=>r.orderedRevenue}],matrixFixedCount:2});
+    expect(written.rowCount).toBe(2);
+    const actual=XLSX.utils.sheet_to_json(XLSX.readFile(reportFile).Sheets['Complete Data'],{raw:true,defval:null});
+    expect(actual).toHaveLength(2);
+    expect(actual.find(r=>r.ASIN==='B000000001')).toMatchObject({'Product Title':'Original title from report','Ordered Revenue':155,'Shipped COGS':50});
+    expect(actual.find(r=>r.ASIN==='B000000002')).toMatchObject({'Ordered Revenue':-125.5,'Ordered Units':-2,'Customer Returns':0});
+
     const none=await loadPagedAnalytics(mockPool,user,{...options,sellerIds:['S2']});
     expect(none.pagination.totalRows).toBe(0);
     expect(none.meta.records).toBe(0);
