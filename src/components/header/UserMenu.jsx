@@ -46,7 +46,7 @@ const getInitials = (user) => {
  *   loading - boolean, when true shows skeleton instead of user menu
  */
 export default function UserMenu({ loading = false }) {
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission } = useAuth();
   const { setCmdOpen } = useHeader();
   const navigate = useNavigate();
 
