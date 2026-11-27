@@ -46,9 +46,9 @@ export default function GmsImportDialog({ open, onClose, onCommitted }) {
   }, [open]);
 
   // SQL persists queued work across page closes or server restarts. Poll only
-  // while the dialog is visible; reopening the history resumes inspection.
+  // while this page is mounted; reopening history also resumes inspection.
   useEffect(() => {
-    if (!open || !job?.id || job.status !== 'QUEUED') return;
+    if (!job?.id || job.status !== 'QUEUED') return;
     const controller = new AbortController();
     let timer;
     async function poll() {
@@ -67,9 +67,9 @@ export default function GmsImportDialog({ open, onClose, onCommitted }) {
     }
     timer = setTimeout(poll, 1000);
     return () => { controller.abort(); clearTimeout(timer); };
-  }, [open, job?.id, job?.status]);
+  }, [job?.id, job?.status]);
   useEffect(() => {
-    if (!open || job?.status !== 'COMPLETED' || notified.current.has(job.id)) return;
+    if (job?.status !== 'COMPLETED' || notified.current.has(job.id)) return;
     notified.current.add(job.id);
     onCommittedRef.current?.();
   }, [open, job?.id, job?.status]);
@@ -129,7 +129,7 @@ export default function GmsImportDialog({ open, onClose, onCommitted }) {
   }
   const summary = job?.summary;
   return (
-    <Modal open={open} onCancel={onClose} title="GMS Report Import" width={900}
+    <Modal open={open} onCancel={() => { if (!busy) onClose(); }} keyboard={!busy} title="GMS Report Import" width={900}
       footer={<Button onClick={onClose} disabled={busy}>Close</Button>} closable={!busy} mask={{closable:!busy}}>
       <Space direction="vertical" size="middle" style={{ width:'100%' }}>
         <Alert type="info" showIcon title="Validate before importing"
@@ -172,7 +172,7 @@ export default function GmsImportDialog({ open, onClose, onCommitted }) {
             {summary.issues?.length>0 && (
               <>
                 <Space wrap><Typography.Text strong>Validation issues (first {summary.issues.length})</Typography.Text><Button size="small" icon={<DownloadOutlined/>} onClick={downloadIssues}>Download issue report</Button></Space>
-                <Table size="small" rowKey={(_,i)=>i} pagination={{pageSize:5,hideOnSinglePage:true}} dataSource={summary.issues}
+                <Table size="small" rowKey={row=>row.row+'-'+row.code+'-'+row.message} pagination={{pageSize:5,hideOnSinglePage:true}} dataSource={summary.issues}
                   columns={[{title:'Row',dataIndex:'row',width:70},{title:'Code',dataIndex:'code',width:180},{title:'Issue',dataIndex:'message'}]}/>
               </>
             )}
