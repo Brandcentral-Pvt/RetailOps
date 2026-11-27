@@ -5,6 +5,7 @@ const { sql, getPool, generateId, withTransaction } = require('../database/db');
 const { resolveAccessProfile } = require('./accessProfileService');
 const { resolveSellerScope } = require('../utils/sellerScope');
 const { MAX_ISSUES, normalizeStore, money } = require('./gmsImportParser');
+const { issue, presentIssue } = require('./gmsImportIssueDetails');
 
 const TERMINAL = new Set(['REJECTED','COMPLETED','FAILED','EXPIRED','CANCELLED']);
 const LOCK = 'retailops:gms-import-commit';
@@ -50,9 +51,11 @@ function parseInWorker(file) {
   });
 }
 
-function addIssue(summary, line, code, message) {
+function addIssue(summary, allIssues, row, code, message) {
   summary.invalid++;
-  if (summary.issues.length < MAX_ISSUES) summary.issues.push({ row: line, code, message });
+  const item=issue(row.line,code,message,row);
+  allIssues.push(item);
+  if(summary.issues.length<MAX_ISSUES)summary.issues.push(item);
 }
 function canonicalFact(f) {
   return {
@@ -77,7 +80,8 @@ function sameMetrics(existing, row) {
 const keysJson = "OPENJSON(@payload) WITH (asin NVARCHAR(30) '$.asin', [date] DATE '$.date')";
 async function inspectChunk(db, rows, scope, { lock = false } = {}) {
   const summary = { invalid: 0, issues: [], inserted: 0, updated: 0, unchanged: 0, matched: 0, unmatched: 0, sample: [] };
-  if (!rows.length) return { summary, rows: [], snapshot: [] };
+  const allIssues = [];
+  if (!rows.length) return { summary, rows: [], snapshot: [], allIssues };
   const payload = JSON.stringify(rows.map(({asin,date}) => ({asin,date})));
   const hint = lock ? ' WITH (UPDLOCK,HOLDLOCK)' : '';
   const catalog = await db.request().input('payload', sql.NVarChar(sql.MAX), payload).query(
@@ -113,20 +117,20 @@ async function inspectChunk(db, rows, scope, { lock = false } = {}) {
     const owners = matches.map(c => String(c.sellerId ?? '').trim());
     const sellerIds = [...new Set(owners.filter(Boolean))];
     if (sellerIds.length > 1) {
-      addIssue(summary, row.line, 'ASIN_AMBIGUOUS', 'RetailOps contains this ASIN under multiple seller IDs');
+      addIssue(summary, allIssues, row, 'ASIN_AMBIGUOUS', 'RetailOps contains this ASIN under multiple seller IDs');
       continue;
     }
     // Missing/unassigned catalog ASINs are valid GMS facts. Never create
     // catalog entries or substitute the report brand for a seller identity.
     const sellerId = sellerIds.length === 1 && owners.every(Boolean) ? sellerIds[0] : null;
     if (!scope.isGlobal && (!sellerId || !allowed.has(sellerId))) {
-      addIssue(summary, row.line, sellerId ? 'ASIN_FORBIDDEN' : 'UNMATCHED_IMPORT_FORBIDDEN',
+      addIssue(summary, allIssues, row, sellerId ? 'ASIN_FORBIDDEN' : 'UNMATCHED_IMPORT_FORBIDDEN',
         sellerId ? 'Your account cannot import this RetailOps ASIN' : 'Unmatched ASINs require a global-scope importer');
       continue;
     }
     const existing = byKey.get(keyOf(row)) || [];
     if (existing.length > 1) {
-      addIssue(summary, row.line, 'AMBIGUOUS_FACT', 'Multiple existing records for this ASIN/date; resolve before importing');
+      addIssue(summary, allIssues, row, 'AMBIGUOUS_FACT', 'Multiple existing records for this ASIN/date; resolve before importing');
       continue;
     }
     let action = 'inserted';
@@ -134,13 +138,13 @@ async function inspectChunk(db, rows, scope, { lock = false } = {}) {
       const old = existing[0];
       const oldSeller = old.sellerId == null ? null : String(old.sellerId);
       if ((oldSeller !== null && oldSeller !== sellerId) || normalizeStore(old.storeCode) !== row.storeCode) {
-        addIssue(summary, row.line, 'FACT_CONFLICT', 'Existing record has conflicting seller or store identity');
+        addIssue(summary, allIssues, row, 'FACT_CONFLICT', 'Existing record has conflicting seller or store identity');
         continue;
       }
       if (sameMetrics(old, row)) action = oldSeller === null && sellerId !== null && scope.isGlobal ? 'updated' : 'unchanged';
       else if (oldSeller === sellerId || (oldSeller === null && scope.isGlobal)) action = 'updated';
       else {
-        addIssue(summary, row.line, 'LEGACY_OWNER_UNKNOWN', 'Existing record has no verified historical owner; replacement is blocked');
+        addIssue(summary, allIssues, row, 'LEGACY_OWNER_UNKNOWN', 'Existing record has no verified historical owner; replacement is blocked');
         continue;
       }
     }
@@ -155,14 +159,14 @@ async function inspectChunk(db, rows, scope, { lock = false } = {}) {
     }
   }
   snapshot.sort((a,b) => a.key.localeCompare(b.key));
-  return { summary, rows: prepared, snapshot };
+  return { summary, rows: prepared, snapshot, allIssues };
 }
 
 // Limit SQL payloads and result sets while retaining a deterministic snapshot
 // over the whole file. The worker still commits all chunks in one transaction.
 async function inspect(db, rows, scope, options = {}) {
   const summary = { invalid: 0, issues: [], inserted: 0, updated: 0, unchanged: 0, matched: 0, unmatched: 0, sample: [] };
-  const prepared = [];
+  const prepared = [], allIssues = [];
   const sorted = [...rows].sort((a,b) => keyOf(a).localeCompare(keyOf(b)));
   const digest = crypto.createHash('sha256');
   digest.update('[');
@@ -173,6 +177,7 @@ async function inspect(db, rows, scope, options = {}) {
       summary[key] += chunk.summary[key];
     }
     summary.issues.push(...chunk.summary.issues.slice(0, MAX_ISSUES-summary.issues.length));
+    for (const item of chunk.allIssues) allIssues.push(item);
     summary.sample.push(...chunk.summary.sample.slice(0, 20-summary.sample.length));
     for (const row of chunk.rows) prepared.push(row);
     for (const fact of chunk.snapshot) {
@@ -182,15 +187,17 @@ async function inspect(db, rows, scope, options = {}) {
     }
   }
   digest.update(']');
-  return { summary, rows: prepared, snapshotHash: digest.digest('hex') };
+  return { summary, rows: prepared, snapshotHash: digest.digest('hex'), allIssues };
 }
 
 function publicJob(row) {
   if (!row) return null;
+  const summary=JSON.parse(row.SummaryJson);
+  summary.issues=(summary.issues||[]).map(presentIssue);
   return {
     id: row.Id, fileName: row.FileName, status: row.Status,
     createdAt: row.CreatedAt, expiresAt: row.ExpiresAt, completedAt: row.CompletedAt,
-    summary: JSON.parse(row.SummaryJson),
+    summary,
   };
 }
 const jobColumns = "Id, FileName, Status, SummaryJson, CONVERT(varchar(33),CreatedAt,126)+'Z' AS CreatedAt, CONVERT(varchar(33),ExpiresAt,126)+'Z' AS ExpiresAt, CONVERT(varchar(33),CompletedAt,126)+'Z' AS CompletedAt";
@@ -206,6 +213,21 @@ async function listJobs(ownerId) {
     .query('SELECT TOP (50) ' + jobColumns + ' FROM GmsImportJobs WHERE OwnerId=@owner ORDER BY CreatedAt DESC, Id DESC');
   return result.recordset.map(publicJob);
 }
+// The full payload is fetched only for an explicit owner-scoped download.
+async function getIssueReport(ownerId,id) {
+  const pool=await getPool();
+  const result=await pool.request().input('id',sql.VarChar,id).input('owner',sql.VarChar,ownerId)
+    .query('SELECT Id,FileName,Status,SummaryJson,IssueReportJson FROM GmsImportJobs WHERE Id=@id AND OwnerId=@owner');
+  const row=result.recordset[0];
+  if(!row)return null;
+  const summary=JSON.parse(row.SummaryJson);
+  let issues=row.IssueReportJson?JSON.parse(row.IssueReportJson):(summary.issues||[]);
+  const legacy=!row.IssueReportJson;
+  if(!issues.length&&row.Status==='FAILED'&&summary.failure)issues=[issue(null,'COMMIT_FAILED',summary.failure)];
+  if(!issues.length)return {fileName:row.FileName,issues:[],legacy};
+  return {fileName:row.FileName,issues,legacy,invalid:summary.invalid||0};
+}
+
 let activePreviews = 0;
 async function createPreview(user, file) {
   if (activePreviews >= 1) {
@@ -224,16 +246,19 @@ async function buildPreview(user, file) {
   try { parsed = await parseInWorker(file); }
   catch (err) {
     if (err.status === 429) throw err;
-    parsed = { rows: [], issues: [{ row: 1, code: 'FILE_VALIDATION', message: err.message }], invalid: 1, total: 0, duplicates: 0 };
+    parsed = { rows: [], issues: [issue(null,'FILE_VALIDATION',err.message)], invalid: 1, total: 0, duplicates: 0 };
   }
   const pool = await getPool();
   const inspected = await inspect(pool, parsed.rows, scope);
+  const allIssues = [...(parsed.allIssues || parsed.issues), ...inspected.allIssues].sort((a,b)=>(a.row??0)-(b.row??0));
   const summary = {
     total: parsed.total, duplicates: parsed.duplicates,
     defaultedCells: parsed.defaultedCells || 0, defaultedRows: parsed.defaultedRows || 0, negativeRows: parsed.negativeRows || 0,
     ...inspected.summary,
     invalid: parsed.invalid + inspected.summary.invalid,
-    issues: [...parsed.issues, ...inspected.summary.issues].slice(0, MAX_ISSUES),
+    issues: allIssues.slice(0,MAX_ISSUES),
+    reportIssueCount: allIssues.length,
+    reportComplete: true,
   };
   const ready = summary.invalid === 0 && inspected.rows.length > 0;
   const id = generateId();
@@ -244,8 +269,9 @@ async function buildPreview(user, file) {
     .input('rows', sql.NVarChar(sql.MAX), ready ? JSON.stringify(inspected.rows) : null)
     .input('summary', sql.NVarChar(sql.MAX), JSON.stringify(summary))
     .input('hash', sql.VarChar(64), ready ? inspected.snapshotHash : null)
-    .query('INSERT INTO GmsImportJobs(Id,OwnerId,FileName,Status,RowsJson,SummaryJson,SnapshotHash,ExpiresAt) ' +
-      'VALUES(@id,@owner,@name,@status,@rows,@summary,@hash,DATEADD(hour,24,SYSUTCDATETIME()))');
+    .input('issues',sql.NVarChar(sql.MAX),allIssues.length?JSON.stringify(allIssues):null)
+    .query('INSERT INTO GmsImportJobs(Id,OwnerId,FileName,Status,RowsJson,SummaryJson,SnapshotHash,IssueReportJson,ExpiresAt) ' +
+      'VALUES(@id,@owner,@name,@status,@rows,@summary,@hash,@issues,DATEADD(hour,24,SYSUTCDATETIME()))');
   return getJob(owner,id,pool);
 }
 async function confirm(owner, id) {
@@ -267,10 +293,12 @@ async function acquireCommitLock(tx, timeout = 0) {
     .query("DECLARE @result int; EXEC @result=sp_getapplock @Resource=@resource, @LockMode='Exclusive', @LockOwner='Transaction', @LockTimeout=@timeout; SELECT @result AS result");
   return Number(result.recordset[0]?.result) >= 0;
 }
-async function finish(tx, job, status, summary) {
+async function finish(tx, job, status, summary, reportIssues = []) {
+  if(reportIssues.length)summary={...summary,issues:reportIssues.slice(0,MAX_ISSUES),reportIssueCount:reportIssues.length,reportComplete:true};
   await tx.request().input('id',sql.VarChar,job.Id).input('status',sql.VarChar,status)
     .input('summary',sql.NVarChar(sql.MAX),JSON.stringify(summary))
-    .query('UPDATE GmsImportJobs SET Status=@status,RowsJson=NULL,SummaryJson=@summary,CompletedAt=SYSUTCDATETIME() WHERE Id=@id AND Status=\'QUEUED\'');
+    .input('issues',sql.NVarChar(sql.MAX),reportIssues.length?JSON.stringify(reportIssues):null)
+    .query('UPDATE GmsImportJobs SET Status=@status,RowsJson=NULL,SummaryJson=@summary,IssueReportJson=@issues,CompletedAt=SYSUTCDATETIME() WHERE Id=@id AND Status=\'QUEUED\'');
 }
 async function commitRows(tx, rows) {
   const writes = rows.filter(r => r.action !== 'unchanged');
@@ -308,12 +336,12 @@ async function processNext() {
       const user = u.recordset[0];
       const access = user ? await resolveAccessProfile(user, tx) : null;
       if (!access || (!access.permissions.includes('*') && !access.permissions.includes('gms_tracker_import'))) {
-        await finish(tx,job,'FAILED',{...old, failure:'Import permission is no longer available'});
+        await finish(tx,job,'FAILED',{...old, failure:'Your import permission changed. Ask your administrator to check your access.'},[issue(null,'ACCESS_CHANGED','Import permission changed')]);
         return true;
       }
       const checked = await inspect(tx, JSON.parse(job.RowsJson), resolveSellerScope(access), {lock:true});
       if (checked.summary.invalid || checked.snapshotHash !== job.SnapshotHash) {
-        await finish(tx,job,'FAILED',{...old, failure:'Seller mapping or stored data changed after preview. Upload and validate again.'});
+        await finish(tx,job,'FAILED',{...old, failure:'The ASIN assignment or saved GMS data changed. Upload and validate again.',invalid:checked.summary.invalid},checked.allIssues.length?checked.allIssues:[issue(null,'PREVIEW_CHANGED','Preview changed')]);
         return true;
       }
       await commitRows(tx,checked.rows);
@@ -328,7 +356,7 @@ async function processNext() {
       try {
         await withTransaction(async tx => {
           if (!await acquireCommitLock(tx,1000)) return;
-          await finish(tx,claimed,'FAILED',{...JSON.parse(claimed.SummaryJson),failure:'Import could not be committed. No partial writes were applied; validate a new batch.'});
+          await finish(tx,claimed,'FAILED',{...JSON.parse(claimed.SummaryJson),failure:'The report could not be saved. No partial records were saved; validate a new batch.'},[issue(null,'COMMIT_FAILED','Import could not be saved')]);
         });
       } catch (e) { console.error('GMS import failure recording failed:',e.message); }
     }
@@ -347,4 +375,4 @@ function startWorker() {
   timer=setTimeout(tick,1000);
   timer.unref?.();
 }
-module.exports = { createPreview, getJob, listJobs, confirm, cancel, processNext, startWorker, acquireCommitLock, inspect, sameMetrics, TERMINAL };
+module.exports = { createPreview, getJob, listJobs, getIssueReport, confirm, cancel, processNext, startWorker, acquireCommitLock, inspect, sameMetrics, TERMINAL };
