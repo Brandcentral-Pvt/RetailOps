@@ -184,7 +184,6 @@ export default function GmsTrackerPage() {
   const [error, setError] = useState(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [confirmUploadOpen, setConfirmUploadOpen] = useState(false);
-  const [uploadDate, setUploadDate] = useState(dayjs());
   const [fileList, setFileList] = useState([]);
   const [selectedBrands, setSelectedBrands] = useState([]);
   const [selectedManagers, setSelectedManagers] = useState([]);
@@ -412,7 +411,7 @@ export default function GmsTrackerPage() {
     setUploadStatus("Uploading and parsing...");
 
     try {
-      const res = await gmsApi.upload(pendingFile, uploadDate.toISOString());
+      const res = await gmsApi.upload(pendingFile);
 
       if (res.success) {
         message.success("GMS report uploaded successfully.");
@@ -1951,30 +1950,6 @@ export default function GmsTrackerPage() {
           </div>
         ) : (
           <div style={{ padding: "4px 0" }}>
-            <div style={{ marginBottom: 12 }}>
-              <div
-                style={{
-                  fontSize: "var(--font-size-xs)",
-                  fontWeight: 600,
-                  color: "#475569",
-                  marginBottom: 4,
-                }}
-              >
-                1. ASSOCIATE DATE / MONTH FOR REPORT
-              </div>
-              <DatePicker
-                value={uploadDate}
-                onChange={setUploadDate}
-                style={{ width: "100%", borderRadius: 6 }}
-                picker="date"
-                placeholder="Select date for this sheet"
-              />
-              <div style={{ fontSize: 10, color: "#64748b", marginTop: 4 }}>
-                Assigns the loaded metrics to the chosen date for MoM/WoW/DoD
-                trend comparison.
-              </div>
-            </div>
-
             <div style={{ marginBottom: 16 }}>
               <div
                 style={{
@@ -1984,7 +1959,10 @@ export default function GmsTrackerPage() {
                   marginBottom: 4,
                 }}
               >
-                2. SELECT FILE TO PARSE
+                SELECT GMS CSV/EXCEL REPORT
+              </div>
+              <div style={{ fontSize: 10, color: "#64748b", marginBottom: 8 }}>
+                Date values will be read per-row from the sheet's Date column.
               </div>
               <Upload.Dragger
                 accept=".csv,.xlsx,.xls"
@@ -2077,8 +2055,8 @@ export default function GmsTrackerPage() {
               }}
             >
               <div style={{ fontSize: 13, color: "#334155" }}>
-                The selected file will be uploaded and processed for the date:{" "}
-                <strong>{dayjs(uploadDate).format("DD MMM YYYY")}</strong>.
+                The selected file will be uploaded and processed. Date values will
+                be read per-row from the sheet's Date column.
               </div>
             </div>
           </div>
