@@ -1462,7 +1462,7 @@ async function processGmsExportJob(downloadId, params, userId) {
         columnDef.push({ label: 'Store Code', getValue: r => r.storeCode });
     }
 
-    columnDef.push({ label: 'Ordered Units', getValue:r=>r.orderedUnits });
+    columnDef.push({ label: 'Ordered Units', getValue:r=>r.orderedUnits ?? '-' });
     Object.values(monthGroups).forEach(month => {
         if (exportDataType === 'daily' || exportDataType === 'weekly') {
             Object.values(month.weeks).forEach(week => {
@@ -1513,7 +1513,7 @@ async function processGmsExportJob(downloadId, params, userId) {
         // CSV — always fast, always works
         try {
             const csvContent = [sheetHeaders.map(cell=>'"'+String(cell).replace(/"/g,'""')+'"').join(','), ...sheetRows.map(row =>
-                row.map(cell => `"${String(typeof cell === 'string' && /^[\s\u0000-\u001f]*[=+\-@]/.test(cell) ? "'" + cell : cell).replace(/"/g, '""')}"`).join(',')
+                row.map(cell => `"${String(typeof cell === 'string' && cell !== '-' && /^[\s\u0000-\u001f]*[=+\-@]/.test(cell) ? "'" + cell : cell).replace(/"/g, '""')}"`).join(',')
             )].join('\n');
             fs.writeFileSync(filePath, '\ufeff' + csvContent, 'utf8'); // BOM for Excel compatibility
         } catch (csvErr) {
