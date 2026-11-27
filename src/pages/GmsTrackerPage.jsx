@@ -46,64 +46,27 @@ import "./opsCenter/ops.css";
 import "./ads/ads.css";
 import "./gms.css";
 import dayjs from "dayjs";
-import weekOfYear from "dayjs/plugin/weekOfYear";
-import isoWeek from "dayjs/plugin/isoWeek";
-
-dayjs.extend(weekOfYear);
-dayjs.extend(isoWeek);
 
 const { RangePicker } = DatePicker;
 
 const { Text } = Typography;
 
-// Helper to pre-resolve seller names (resolvedDbBrand) for GMS records
-const resolveDbBrands = (data) => {
-  if (!Array.isArray(data)) return [];
-  // The server resolves the catalog assignment. Do not substitute the ASIN's
-  // brand or a client-side catalog guess when an owner is deliberately null.
-  return data.map(d => ({
-    ...d,
-    resolvedDbBrand: d.dbBrand || "-",
-    resolvedSellerId: d.sellerId ?? null,
-  }));
-};
-
-// Pre-compute MoM, WoW, DoD trends for all rows from grouped data — no gmsData scanning
-const precomputeTrends = (rows) => {
-  rows.forEach((row) => {
-    row._momTrends = {};
-    row._wowTrends = {};
-    row._dodTrends = {};
-
-    // MoM: current month vs previous month from row.monthlyRev
-    const months = Object.keys(row.monthlyRev).sort((a, b) =>
-      a.localeCompare(b),
-    );
-    for (let i = 1; i < months.length; i++) {
-      const curr = row.monthlyRev[months[i]] || 0;
-      const prev = row.monthlyRev[months[i - 1]] || 0;
-      row._momTrends[months[i]] =
-        prev !== 0 ? ((curr - prev) / Math.abs(prev)) * 100 : null;
+// Report filters select IDs, not names. A selected manager without matching
+// sellers is an explicit empty filter, not unrestricted access.
+function selectedSellerIds(sellers, managers, directory) {
+  const direct = sellers.length ? new Set(sellers.map(String)) : null;
+  if (!managers.length) return direct ? [...direct] : null;
+  const ids = new Set();
+  const chosen = new Set(managers.map(String));
+  for (const manager of directory) {
+    if (!chosen.has(String(manager._id || manager.id))) continue;
+    for (const seller of manager.assignedSellers || []) {
+      const id = typeof seller === "object" ? seller._id || seller.id || seller.SellerId || seller.Id : seller;
+      if (id != null) ids.add(String(id));
     }
-
-    // WoW: current week vs previous week from row.weeklyRev
-    const weeks = Object.keys(row.weeklyRev).sort((a, b) => a.localeCompare(b));
-    for (let i = 1; i < weeks.length; i++) {
-      const curr = row.weeklyRev[weeks[i]] || 0;
-      const prev = row.weeklyRev[weeks[i - 1]] || 0;
-      row._wowTrends[weeks[i]] = prev !== 0 ? ((curr - prev) / Math.abs(prev)) * 100 : null;
-    }
-
-    // DoD: each day vs previous day from row.dailyRev
-    const days = Object.keys(row.dailyRev).sort((a, b) => a.localeCompare(b));
-    for (let i = 1; i < days.length; i++) {
-      const curr = row.dailyRev[days[i]] || 0;
-      const prev = row.dailyRev[days[i - 1]] || 0;
-      row._dodTrends[days[i]] = prev !== 0 ? ((curr - prev) / Math.abs(prev)) * 100 : null;
-    }
-  });
-  return rows;
-};
+  }
+  return direct ? [...direct].filter(id => ids.has(id)) : [...ids];
+}
 
 // Get pre-computed trend for a record by period and key
 const getTrend = (record, period, key) => {
@@ -119,17 +82,18 @@ const getTrend = (record, period, key) => {
 
 // Compact INR for tight KPI tiles: ₹4.2Cr / ₹38.5L / ₹9,400 / ₹0
 const formatCompactINR = (value) => {
+  if (value == null) return 'N/A';
   const n = Number(value) || 0;
   const sign = n < 0 ? "-" : "";
   const abs = Math.abs(n);
   if (abs >= 1e7) return `${sign}₹${(abs / 1e7).toFixed(2)}Cr`;
-  if (abs >= 1e6) return `${sign}₹${(abs / 1e6).toFixed(2)}M`;
   if (abs >= 1e5) return `${sign}₹${(abs / 1e5).toFixed(1)}L`;
   if (abs >= 1e3) return `${sign}₹${(abs / 1e3).toFixed(1)}k`;
   return `${sign}₹${Math.round(abs).toLocaleString("en-IN")}`;
 };
 
 const formatCompactCount = (value) => {
+  if (value == null) return 'N/A';
   const n = Number(value) || 0;
   const abs = Math.abs(n);
   const sign = n < 0 ? "-" : "";
@@ -137,13 +101,6 @@ const formatCompactCount = (value) => {
   if (abs >= 1e5) return `${sign}${(abs / 1e5).toFixed(1)}L`;
   if (abs >= 1e4) return `${sign}${(abs / 1e3).toFixed(1)}k`;
   return `${sign}${Math.round(abs).toLocaleString("en-IN")}`;
-};
-
-// Short, human label for the comparison window (e.g. "vs prior 15d")
-const describeWindow = (from, to) => {
-  if (!from || !to) return null;
-  const days = Math.round((dayjs(to).diff(dayjs(from), "day") || 0) + 1);
-  return { text: `vs prior ${days}d`, title: `Compared against the ${days} days immediately before` };
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -156,7 +113,7 @@ export default function GmsTrackerPage() {
   const can = (permission) => effectivePermissions.includes('*') || effectivePermissions.includes(permission);
   const canClear = can('gms_tracker_delete') && user?.scope === 'global';
   const { setPageMeta } = useHeader();
-  const [gmsData, setGmsData] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -165,6 +122,11 @@ export default function GmsTrackerPage() {
   const { startDate, endDate } = useDateRange();
   const [lastLoadedAt, setLastLoadedAt] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   const [expandedMonths, setExpandedMonths] = useState({});
   const [expandedWeeks, setExpandedWeeks] = useState({});
   const [viewLevel, setViewLevel] = useState("asin"); // 'asin' or 'seller'
@@ -182,7 +144,7 @@ export default function GmsTrackerPage() {
   // Database Sellers / Brands / Managers
   const [dbSellers, setDbSellers] = useState([]);
   const [dbManagers, setDbManagers] = useState([]);
-  const dbAsinsRef = useRef([]);
+  const dbManagersRef = useRef([]);
   const dbSellersRef = useRef([]); // Cached for date-change refetch (avoids re-fetching static data)
   const staticLoadedRef = useRef(false);
 
@@ -204,44 +166,46 @@ export default function GmsTrackerPage() {
     setError(null);
     try {
       let sellers = dbSellersRef.current;
-      let asins = dbAsinsRef.current;
+      let managers = dbManagersRef.current;
       if (refreshMetadata || !staticLoadedRef.current) {
-        const [sellersRes, asinsRes, managersRes] = await Promise.all([
+        const [sellersRes, managersRes] = await Promise.all([
           sellerApi.getAll({ limit: 1000 }).catch(() => null),
-          gmsApi.getAsins({ signal: controller.signal }),
           userApi.getManagers().catch(() => null),
         ]);
         if (!isCurrent()) return false;
-        if (!asinsRes?.success || !Array.isArray(asinsRes.data)) throw new Error("Failed to load GMS catalog metadata.");
-        asins = asinsRes.data;
-        dbAsinsRef.current = asins;
         if (sellersRes?.success && Array.isArray(sellersRes.data?.sellers)) {
           sellers = sellersRes.data.sellers;
           dbSellersRef.current = sellers;
           setDbSellers(sellers);
         }
-        if (managersRes?.success && Array.isArray(managersRes.data)) setDbManagers(managersRes.data);
+        if (managersRes?.success && Array.isArray(managersRes.data)) {
+          managers = managersRes.data;
+          dbManagersRef.current = managers;
+          setDbManagers(managers);
+        } else if (selectedManagers.length && !managers.length) throw new Error('Manager filter metadata unavailable');
         staticLoadedRef.current = Boolean(sellersRes?.success && managersRes?.success);
       }
-      const gmsRes = await gmsApi.getAll({
+      const gmsRes = await gmsApi.analytics({
         startDate: dayjs(startDate || dayjs().startOf("month")).format("YYYY-MM-DD"),
         endDate: dayjs(endDate || dayjs().endOf("month")).format("YYYY-MM-DD"),
+        sellerIds: selectedSellerIds(selectedBrands, selectedManagers, managers),
+        search: debouncedSearch, level: viewLevel,
       }, { signal: controller.signal });
       if (!isCurrent()) return false;
-      if (!gmsRes?.success || !Array.isArray(gmsRes.data)) throw new Error(gmsRes?.message || "Invalid GMS data response.");
-      setGmsData(resolveDbBrands(gmsRes.data));
+      if (!gmsRes?.success || !Array.isArray(gmsRes.data?.matrixRows) || !gmsRes.data?.meta) throw new Error(gmsRes?.message || "Invalid GMS analytics response.");
+      setAnalytics(gmsRes.data);
       setLastLoadedAt(Date.now());
       return true;
     } catch (err) {
       if (!isCurrent()) return false;
       setError(err.message || "Failed to load GMS data. Please try again.");
-      setGmsData([]);
+      setAnalytics(null);
       setLastLoadedAt(null);
       return false;
     } finally {
       if (isCurrent()) setLoading(false);
     }
-  }, [startDate, endDate]);
+  }, [startDate, endDate, selectedBrands, selectedManagers, debouncedSearch, viewLevel]);
 
   useEffect(() => {
     loadMountedRef.current = true;
@@ -267,10 +231,6 @@ export default function GmsTrackerPage() {
   // Handle GMS spreadsheet matrix export via background job served in Downloads drawer
   const handleExport = async () => {
     try {
-      // selectedBrands holds seller IDs — resolve to names for export backend (which filters by name)
-      const resolvedSelectedBrands = selectedBrands
-        .map((id) => dbSellers.find((s) => (s._id || s.id) === id)?.name)
-        .filter(Boolean);
       const exportParams = {
         exportLevel,
         exportDateType,
@@ -285,7 +245,7 @@ export default function GmsTrackerPage() {
               ]
             : null,
         exportBrandType,
-        exportCustomBrands,
+        exportCustomBrands: [],
         exportDataType,
         exportFileType,
         startDate:
@@ -296,7 +256,8 @@ export default function GmsTrackerPage() {
           exportDateType === "current" && endDate
             ? dayjs(endDate).format("YYYY-MM-DD")
             : null,
-        selectedBrands: resolvedSelectedBrands,
+        sellerIds: exportBrandType === 'current' ? selectedSellerIds(selectedBrands, selectedManagers, dbManagersRef.current) : exportBrandType === 'custom' ? exportCustomBrands : null,
+        search: exportBrandType === 'current' ? searchQuery : '',
       };
 
       message.loading({
@@ -328,81 +289,10 @@ export default function GmsTrackerPage() {
     }
   };
 
-  // Extract unique brands from database sellers only
-  const uniqueBrands = useMemo(() => {
-    return dbSellers
-      .map((s) => s.name)
-      .filter(Boolean)
-      .sort((a, b) => String(a).localeCompare(String(b)));
-  }, [dbSellers]);
-
-  // Filter Data — pre-compute date boundaries to avoid per-item dayjs creation
-  const filteredData = useMemo(() => {
-    const startMs = startDate ? dayjs(startDate).startOf("day").valueOf() : 0;
-    const endMs = endDate ? dayjs(endDate).endOf("day").valueOf() : Infinity;
-    const hasDateFilter = !!startDate && !!endDate;
-    const sellerIdSet =
-      selectedBrands.length > 0 ? new Set(selectedBrands) : null;
-    const searchLower = searchQuery ? searchQuery.toLowerCase() : "";
-
-    // Resolve manager -> seller IDs filter
-    let managerSellerIds = null;
-    if (selectedManagers.length > 0) {
-      managerSellerIds = new Set();
-      dbManagers.forEach((m) => {
-        if (selectedManagers.includes(m._id || m.id)) {
-          (m.assignedSellers || []).forEach((s) =>
-            managerSellerIds.add(s._id || s.id || s.SellerId),
-          );
-        }
-      });
-    }
-
-    return gmsData.filter((item) => {
-      if (hasDateFilter) {
-        const itemMs = new Date(item.date).getTime();
-        if (itemMs < startMs || itemMs > endMs) return false;
-      }
-      if (sellerIdSet) {
-        const effectiveSellerId = item.sellerId ?? item.resolvedSellerId;
-        if (!effectiveSellerId || !sellerIdSet.has(effectiveSellerId))
-          return false;
-      }
-      if (managerSellerIds) {
-        const effectiveSellerId = item.sellerId ?? item.resolvedSellerId;
-        if (!effectiveSellerId || !managerSellerIds.has(effectiveSellerId))
-          return false;
-      }
-      if (searchLower) {
-        if (
-          !(item.asin && item.asin.toLowerCase().includes(searchLower)) &&
-          !(
-            item.productTitle &&
-            item.productTitle.toLowerCase().includes(searchLower)
-          ) &&
-          !(item.brand && item.brand.toLowerCase().includes(searchLower)) &&
-          !(item.dbBrand && item.dbBrand.toLowerCase().includes(searchLower)) &&
-          !(
-            item.resolvedDbBrand &&
-            item.resolvedDbBrand.toLowerCase().includes(searchLower)
-          ) &&
-          !(
-            item.storeCode && item.storeCode.toLowerCase().includes(searchLower)
-          )
-        )
-          return false;
-      }
-      return true;
-    });
-  }, [
-    gmsData,
-    startDate,
-    endDate,
-    selectedBrands,
-    selectedManagers,
-    searchQuery,
-    dbManagers,
-  ]);
+  // Export filter options retain the actual seller IDs.
+  const uniqueBrands = useMemo(() => dbSellers.map(s => ({
+    label:s.name, value:String(s._id || s.id),
+  })).filter(s=>s.label&&s.value!=='undefined').sort((a,b)=>a.label.localeCompare(b.label)),[dbSellers]);
 
   // Reset table pagination when filters change
   useEffect(() => {
@@ -410,412 +300,26 @@ export default function GmsTrackerPage() {
     return () => clearTimeout(timer);
   }, [selectedBrands, selectedManagers, searchQuery, viewLevel, startDate, endDate]);
 
-  // Aggregate Metrics for KPIs
-  const kpiMetrics = useMemo(() => {
-    let orderedRevenue = 0;
-    let orderedUnits = 0;
-    let shippedRevenue = 0;
-    let shippedCOGS = 0;
-    let shippedUnits = 0;
-    let customerReturns = 0;
+  const kpiMetrics = analytics?.kpis || {};
+  const comparison = analytics?.comparison;
+  const prior = comparison?.window;
+  const percentageChanges = {
+    changes: comparison?.changes,
+    window: prior ? { text: 'vs prior ' + prior.days + 'd', title: prior.from + ' to ' + prior.to } : null,
+  };
 
-    filteredData.forEach((d) => {
-      orderedRevenue += d.orderedRevenue;
-      orderedUnits += d.orderedUnits;
-      shippedRevenue += d.shippedRevenue;
-      shippedCOGS += d.shippedCOGS;
-      shippedUnits += d.shippedUnits;
-      customerReturns += d.customerReturns;
-    });
+  // Matrix rows, values and dates are computed by the shared backend engine.
+  const tableDataSource = analytics?.matrixRows || [];
+  const monthGroups = analytics?.monthGroups || {};
+  const fixedCols = useMemo(() => [
+    {title:'Seller (DB)',dataIndex:'dbBrand',key:'dbBrand',width:140, sorter:(a,b)=>(a.dbBrand||'').localeCompare(b.dbBrand||''),
+      render:(v,r)=><Space><Text strong={!r.isUnmatched}>{v||'-'}</Text>{r.isUnmatched&&<Tag color="orange">Unmatched</Tag>}</Space>},
+    {title:'ASIN',dataIndex:'asin',key:'asin',width:120,render:v=><Text strong style={{fontFamily:'monospace'}}>{v}</Text>,sorter:(a,b)=>a.asin.localeCompare(b.asin)},
+    {title:'Brand (Sheet)',dataIndex:'brand',key:'brand',width:120,sorter:(a,b)=>a.brand.localeCompare(b.brand)},
+    {title:'Store Code',dataIndex:'storeCode',key:'storeCode',width:90,sorter:(a,b)=>a.storeCode.localeCompare(b.storeCode)},
+    {title:'Ordered Units',dataIndex:'orderedUnits',key:'orderedUnits',width:100,align:'right',render:v=>v==null?'-':v.toLocaleString('en-IN'),sorter:(a,b)=>(a.orderedUnits??0)-(b.orderedUnits??0)},
+  ], []);
 
-    const profit = shippedRevenue - shippedCOGS;
-    const marginPct = shippedRevenue > 0 ? (profit / shippedRevenue) * 100 : null;
-    const returnRatio =
-      orderedUnits > 0 ? (customerReturns / orderedUnits) * 100 : null;
-
-    return {
-      orderedRevenue,
-      orderedUnits,
-      shippedRevenue,
-      shippedCOGS,
-      shippedUnits,
-      customerReturns,
-      profit,
-      marginPct,
-      returnRatio,
-    };
-  }, [filteredData]);
-
-  // Compute period-over-period change: the most recent half of the date
-  // range vs the equally-sized window immediately preceding it.
-  // Returns null for a metric when there is no prior period to compare against,
-  // so the UI can render "no prior period" instead of a misleading 0%.
-  const percentageChanges = useMemo(() => {
-    const sortedDates = [...new Set(filteredData.map((d) => d.date))].sort(
-      (a, b) => String(a).localeCompare(String(b)),
-    );
-
-    if (sortedDates.length < 2) {
-      return { changes: null, window: null };
-    }
-
-    const periodLen = Math.ceil(sortedDates.length / 2);
-    const currentDates = new Set(sortedDates.slice(-periodLen));
-    const priorDates = new Set(
-      sortedDates.slice(-periodLen * 2, -periodLen),
-    );
-
-    if (priorDates.size === 0) {
-      return { changes: null, window: null };
-    }
-
-    const window = describeWindow(
-      [...priorDates].sort()[0],
-      [...currentDates].sort().slice(-1)[0],
-    );
-
-    // Sum a numeric field across both windows
-    const sumIn = (dates, field) =>
-      filteredData.reduce(
-        (acc, d) => (dates.has(d.date) ? acc + (d[field] || 0) : acc),
-        0,
-      );
-
-    // Percent change; null when the baseline is zero (don't fake a 0%)
-    const pctChange = (current, prior) =>
-      current == null || prior == null || prior === 0 ? null : ((current - prior) / Math.abs(prior)) * 100;
-
-    const profitIn = (dates) =>
-      sumIn(dates, "shippedRevenue") - sumIn(dates, "shippedCOGS");
-
-    const ratioIn = (dates) => {
-      const units = sumIn(dates, "orderedUnits");
-      return units > 0 ? (sumIn(dates, "customerReturns") / units) * 100 : null;
-    };
-
-    const currentProfit = profitIn(currentDates);
-    const priorProfit = profitIn(priorDates);
-    const currentRatio = ratioIn(currentDates);
-    const priorRatio = ratioIn(priorDates);
-
-    return {
-      window,
-      changes: {
-        orderedRevenue: pctChange(
-          sumIn(currentDates, "orderedRevenue"),
-          sumIn(priorDates, "orderedRevenue"),
-        ),
-        orderedUnits: pctChange(
-          sumIn(currentDates, "orderedUnits"),
-          sumIn(priorDates, "orderedUnits"),
-        ),
-        shippedRevenue: pctChange(
-          sumIn(currentDates, "shippedRevenue"),
-          sumIn(priorDates, "shippedRevenue"),
-        ),
-        shippedCOGS: pctChange(
-          sumIn(currentDates, "shippedCOGS"),
-          sumIn(priorDates, "shippedCOGS"),
-        ),
-        shippedUnits: pctChange(
-          sumIn(currentDates, "shippedUnits"),
-          sumIn(priorDates, "shippedUnits"),
-        ),
-        customerReturns: pctChange(
-          sumIn(currentDates, "customerReturns"),
-          sumIn(priorDates, "customerReturns"),
-        ),
-        profit: pctChange(currentProfit, priorProfit),
-        returnRatio: pctChange(currentRatio, priorRatio),
-      },
-    };
-  }, [filteredData]);
-
-  // MEMO 1 — Build aggregated rows, fixed columns, and month/week/day groupings from filteredData
-  const { tableDataSource, fixedCols, monthGroups } = useMemo(() => {
-    if (filteredData.length === 0) {
-      return { tableDataSource: [], fixedCols: [], monthGroups: {} };
-    }
-
-    let rows;
-    let fixedCols;
-
-    if (viewLevel === "seller") {
-      const sellersMap = {};
-      filteredData.forEach((d) => {
-        const isUnmatched = !d.resolvedDbBrand || d.resolvedDbBrand === "-";
-        const sellerName = isUnmatched ? "-" : d.resolvedDbBrand;
-        const sellerKey = isUnmatched ? `unmatched:${d.brand || "-"}` : `seller:${d.resolvedSellerId || sellerName}`;
-        if (!sellersMap[sellerKey]) {
-          sellersMap[sellerKey] = {
-            key: sellerKey,
-            dbBrand: sellerName,
-            isUnmatched: isUnmatched,
-            asins: new Set(),
-            brands: new Set(),
-            storeCodes: new Set(),
-            orderedUnits: 0,
-            dailyRev: {},
-            weeklyRev: {},
-            monthlyRev: {},
-          };
-        }
-        const s = sellersMap[sellerKey];
-        if (d.asin) s.asins.add(d.asin);
-        if (d.brand) s.brands.add(d.brand);
-        if (d.storeCode) s.storeCodes.add(d.storeCode);
-        s.orderedUnits += d.orderedUnits || 0;
-
-        const dObj = dayjs(d.date);
-        const dateStr = d.date;
-        const monthKey = dObj.format("YYYY-MM");
-        const weekNum = dObj.isoWeek();
-        const weekKey = `${dObj.format("YYYY")}-W${String(weekNum).padStart(2, "0")}`;
-
-        // Day Revenue
-        if (!s.dailyRev[dateStr]) s.dailyRev[dateStr] = 0;
-        s.dailyRev[dateStr] += d.orderedRevenue;
-
-        // Week Revenue
-        if (!s.weeklyRev[weekKey]) s.weeklyRev[weekKey] = 0;
-        s.weeklyRev[weekKey] += d.orderedRevenue;
-
-        // Month Revenue
-        if (!s.monthlyRev[monthKey]) s.monthlyRev[monthKey] = 0;
-        s.monthlyRev[monthKey] += d.orderedRevenue;
-      });
-
-      rows = Object.values(sellersMap).map((s) => ({
-        ...s,
-        asinsList: Array.from(s.asins),
-        brandsList: Array.from(s.brands),
-        storeCodesList: Array.from(s.storeCodes),
-      }));
-
-      fixedCols = [
-        {
-          title: "Seller (DB)",
-          dataIndex: "dbBrand",
-          key: "dbBrand",
-          width: 140,
-          sorter: (a, b) => (a.dbBrand || "").localeCompare(b.dbBrand || ""),
-          render: (text, record) => {
-            if (record.isUnmatched) {
-              return (
-                <Space>
-                  <Text type="secondary">{text}</Text>
-                  <Tag
-                    color="orange"
-                    style={{
-                      border: "none",
-                      fontSize: 9,
-                      margin: 0,
-                      padding: "0 4px",
-                      lineHeight: "14px",
-                    }}
-                  >
-                    Unmatched
-                  </Tag>
-                </Space>
-              );
-            }
-            return <Text strong>{text}</Text>;
-          },
-        },
-        {
-          title: "ASIN",
-          dataIndex: "asin",
-          key: "asin",
-          width: 120,
-          render: () => "-",
-        },
-        {
-          title: "Brand (Sheet)",
-          dataIndex: "brand",
-          key: "brand",
-          width: 120,
-          render: (_text, record) =>
-            record.brandsList && record.brandsList.length > 0
-              ? record.brandsList.join(", ")
-              : "-",
-          sorter: (a, b) => (a.brand || "").localeCompare(b.brand || ""),
-        },
-        {
-          title: "Store Code",
-          dataIndex: "storeCode",
-          key: "storeCode",
-          width: 90,
-          render: (_text, record) =>
-            record.storeCodesList && record.storeCodesList.length > 0
-              ? record.storeCodesList.join(", ")
-              : "-",
-          sorter: (a, b) =>
-            (a.storeCode || "").localeCompare(b.storeCode || ""),
-        },
-        {
-          title: "Ordered Units",
-          dataIndex: "orderedUnits",
-          key: "orderedUnits",
-          width: 80,
-          align: "center",
-          render: (v) => (
-            <Text
-              style={{
-                fontSize: "var(--font-size-xs)",
-                fontWeight: 600,
-                color: "#1349c6",
-              }}
-            >
-              {(v || 0).toLocaleString()}
-            </Text>
-          ),
-          sorter: (a, b) => (a.orderedUnits || 0) - (b.orderedUnits || 0),
-        },
-      ];
-    } else {
-      // Group by ASIN to generate rows
-      const asinsMap = {};
-      filteredData.forEach((d) => {
-        if (!asinsMap[d.asin]) {
-          asinsMap[d.asin] = {
-            key: d.asin,
-            asin: d.asin,
-            productTitle: d.productTitle || "-",
-            dbBrand: d.resolvedDbBrand || "-",
-            brand: d.brand || "Generic",
-            storeCode: d.storeCode || "IN",
-            orderedUnits: 0,
-            dailyRev: {},
-            weeklyRev: {},
-            monthlyRev: {},
-          };
-        }
-        asinsMap[d.asin].orderedUnits += d.orderedUnits || 0;
-
-        const dObj = dayjs(d.date);
-        const dateStr = d.date;
-        const monthKey = dObj.format("YYYY-MM");
-        const weekNum = dObj.isoWeek();
-        const weekKey = `${dObj.format("YYYY")}-W${String(weekNum).padStart(2, "0")}`;
-
-        // Day Revenue
-        if (!asinsMap[d.asin].dailyRev[dateStr])
-          asinsMap[d.asin].dailyRev[dateStr] = 0;
-        asinsMap[d.asin].dailyRev[dateStr] += d.orderedRevenue;
-
-        // Week Revenue
-        if (!asinsMap[d.asin].weeklyRev[weekKey])
-          asinsMap[d.asin].weeklyRev[weekKey] = 0;
-        asinsMap[d.asin].weeklyRev[weekKey] += d.orderedRevenue;
-
-        // Month Revenue
-        if (!asinsMap[d.asin].monthlyRev[monthKey])
-          asinsMap[d.asin].monthlyRev[monthKey] = 0;
-        asinsMap[d.asin].monthlyRev[monthKey] += d.orderedRevenue;
-      });
-
-      rows = Object.values(asinsMap);
-
-      fixedCols = [
-        {
-          title: "Seller (DB)",
-          dataIndex: "dbBrand",
-          key: "dbBrand",
-          width: 140,
-          sorter: (a, b) => (a.dbBrand || "").localeCompare(b.dbBrand || ""),
-        },
-        {
-          title: "ASIN",
-          dataIndex: "asin",
-          key: "asin",
-          width: 120,
-          render: (text) => (
-            <Text strong style={{ fontFamily: "monospace" }}>
-              {text}
-            </Text>
-          ),
-          sorter: (a, b) => (a.asin || "").localeCompare(b.asin || ""),
-        },
-        {
-          title: "Brand (Sheet)",
-          dataIndex: "brand",
-          key: "brand",
-          width: 120,
-          sorter: (a, b) => (a.brand || "").localeCompare(b.brand || ""),
-        },
-        {
-          title: "Store Code",
-          dataIndex: "storeCode",
-          key: "storeCode",
-          width: 90,
-          sorter: (a, b) =>
-            (a.storeCode || "").localeCompare(b.storeCode || ""),
-        },
-        {
-          title: "Orders",
-          dataIndex: "orderedUnits",
-          key: "orderedUnits",
-          width: 80,
-          align: "center",
-          render: (v) => (
-            <Text
-              style={{
-                fontSize: "var(--font-size-xs)",
-                fontWeight: 600,
-                color: "#1349c6",
-              }}
-            >
-              {(v || 0).toLocaleString()}
-            </Text>
-          ),
-          sorter: (a, b) => (a.orderedUnits || 0) - (b.orderedUnits || 0),
-        },
-      ];
-    }
-
-    // Pre-compute all trends after rows are built — eliminates per-cell gmsData scans
-    precomputeTrends(rows);
-
-    // Gather and sort all unique dates from filteredData and build month/week/day groupings
-    const dates = [...new Set(filteredData.map((d) => d.date))].sort((a, b) =>
-      String(a).localeCompare(String(b)),
-    );
-    const monthGroups = {};
-
-    dates.forEach((dateStr) => {
-      const d = dayjs(dateStr);
-      const monthKey = d.format("YYYY-MM");
-      const monthLabel = d.format("MMMM YYYY");
-      const weekNum = d.isoWeek();
-      const weekKey = `${d.format("YYYY")}-W${String(weekNum).padStart(2, "0")}`;
-
-      const startOfWeek = d.startOf("isoWeek").format("DD MMM");
-      const endOfWeek = d.endOf("isoWeek").format("DD MMM");
-      const weekLabel = `Week ${weekNum} (${startOfWeek} - ${endOfWeek})`;
-
-      if (!monthGroups[monthKey]) {
-        monthGroups[monthKey] = {
-          label: monthLabel,
-          key: monthKey,
-          weeks: {},
-        };
-      }
-
-      if (!monthGroups[monthKey].weeks[weekKey]) {
-        monthGroups[monthKey].weeks[weekKey] = {
-          label: weekLabel,
-          key: weekKey,
-          days: [],
-        };
-      }
-
-      monthGroups[monthKey].weeks[weekKey].days.push(dateStr);
-    });
-
-    return { tableDataSource: rows, fixedCols, monthGroups };
-  }, [filteredData, viewLevel]);
-
-  // MEMO 2 — Build column definitions from fixedCols and monthGroups; re-runs only when expand state changes
   const tableColumns = useMemo(() => {
     if (fixedCols.length === 0 && Object.keys(monthGroups).length === 0) {
       return [];
@@ -857,8 +361,8 @@ export default function GmsTrackerPage() {
               align: "right",
               width: 130,
               render: (_, record) => {
-                const rev = record.monthlyRev[month.key] || 0;
-                return rev ? (
+                const rev = record.monthlyRev[month.key];
+                return rev != null ? (
                   <span style={{ fontWeight: 800, color: "#0f172a" }}>
                     ₹{rev.toLocaleString("en-IN")}
                   </span>
@@ -932,8 +436,8 @@ export default function GmsTrackerPage() {
                 align: "right",
                 width: 120,
                 render: (_, record) => {
-                  const rev = record.weeklyRev[week.key] || 0;
-                  return rev ? (
+                  const rev = record.weeklyRev[week.key];
+                  return rev != null ? (
                     <span style={{ fontWeight: 600, color: "#1349c6" }}>
                       ₹{rev.toLocaleString("en-IN")}
                     </span>
@@ -986,8 +490,8 @@ export default function GmsTrackerPage() {
             align: "right",
             width: 100,
             render: (_, record) => {
-              const rev = record.dailyRev[dayStr] || 0;
-              return rev ? `₹${rev.toLocaleString("en-IN")}` : "-";
+              const rev = record.dailyRev[dayStr];
+              return rev != null ? `₹${rev.toLocaleString("en-IN")}` : "-";
             },
             sorter: (a, b) =>
               (a.dailyRev[dayStr] || 0) - (b.dailyRev[dayStr] || 0),
@@ -1020,26 +524,9 @@ export default function GmsTrackerPage() {
               align: "center",
               width: 90,
               render: (_, record) => {
-                const prevRev = record.dailyRev[prevDayStr] || 0;
-                const currRev = record.dailyRev[currDayStr] || 0;
-
-                if (!prevRev && !currRev)
+                const change = getTrend(record, "day", currDayStr);
+                if (change === null || dayjs(currDayStr).diff(dayjs(prevDayStr), "day") !== 1)
                   return <span style={{ color: "#8896ab" }}>-</span>;
-                if (!prevRev)
-                  return (
-                    <Tag
-                      color="success"
-                      style={{
-                        border: "none",
-                        fontWeight: 600,
-                        fontSize: "var(--font-size-xs)",
-                      }}
-                    >
-                      NEW
-                    </Tag>
-                  );
-
-                const change = ((currRev - prevRev) / prevRev) * 100;
                 const isUp = change >= 0;
                 return (
                   <Tag
@@ -1056,12 +543,8 @@ export default function GmsTrackerPage() {
                 );
               },
               sorter: (a, b) => {
-                const aPrev = a.dailyRev[prevDayStr] || 0;
-                const aCurr = a.dailyRev[currDayStr] || 0;
-                const bPrev = b.dailyRev[prevDayStr] || 0;
-                const bCurr = b.dailyRev[currDayStr] || 0;
-                const aChange = aPrev ? ((aCurr - aPrev) / aPrev) * 100 : 0;
-                const bChange = bPrev ? ((bCurr - bPrev) / bPrev) * 100 : 0;
+                const aChange = getTrend(a, "day", currDayStr) ?? 0;
+                const bChange = getTrend(b, "day", currDayStr) ?? 0;
                 return aChange - bChange;
               },
             });
@@ -1075,8 +558,8 @@ export default function GmsTrackerPage() {
           align: "right",
           width: 120,
           render: (_, record) => {
-            const rev = record.weeklyRev[week.key] || 0;
-            return rev ? (
+            const rev = record.weeklyRev[week.key];
+            return rev != null ? (
               <span style={{ fontWeight: 600, color: "#1349c6" }}>
                 ₹{rev.toLocaleString("en-IN")}
               </span>
@@ -1126,8 +609,8 @@ export default function GmsTrackerPage() {
         align: "right",
         width: 130,
         render: (_, record) => {
-          const rev = record.monthlyRev[month.key] || 0;
-          return rev ? (
+          const rev = record.monthlyRev[month.key];
+          return rev != null ? (
             <span style={{ fontWeight: 800, color: "#0f172a" }}>
               ₹{rev.toLocaleString("en-IN")}
             </span>
@@ -1175,29 +658,8 @@ export default function GmsTrackerPage() {
 
   // Chart configuration — Area chart: Revenue + Orders + Returns
   const chartSeries = useMemo(() => {
-    const dailyData = {};
-    const dailyOrders = {};
-    const dailyReturns = {};
-    filteredData.forEach((d) => {
-      if (!Object.prototype.hasOwnProperty.call(dailyData, d.date)) {
-        dailyData[d.date] = 0;
-        dailyOrders[d.date] = 0;
-        dailyReturns[d.date] = 0;
-      }
-      dailyData[d.date] += d.orderedRevenue;
-      dailyOrders[d.date] += d.orderedUnits || 0;
-      dailyReturns[d.date] += d.customerReturns || 0;
-    });
-
-    Object.keys(dailyData).forEach((k) => {
-      dailyData[k] = Math.round(dailyData[k]);
-      dailyOrders[k] = Math.round(dailyOrders[k]);
-      dailyReturns[k] = Math.round(dailyReturns[k]);
-    });
-
-    const sortedDates = Object.keys(dailyData).sort((a, b) =>
-      String(a).localeCompare(String(b)),
-    );
+    const daily = analytics?.daily || [];
+    const sortedDates = daily.map(d=>d.date);
     return {
       options: {
         chart: {
@@ -1272,31 +734,14 @@ export default function GmsTrackerPage() {
         },
       },
       series: [
-        { name: "Revenue", data: sortedDates.map((d) => dailyData[d]) },
-        { name: "Orders", data: sortedDates.map((d) => dailyOrders[d]) },
-        { name: "Returns", data: sortedDates.map((d) => dailyReturns[d]) },
+        { name: "Revenue", data: daily.map(d=>d.orderedRevenue) },
+        { name: "Orders", data: daily.map(d=>d.orderedUnits) },
+        { name: "Returns", data: daily.map(d=>d.customerReturns) },
       ],
     };
-  }, [filteredData]);
+  }, [analytics]);
 
-  const windowMeta = useMemo(() => {
-    if (filteredData.length === 0) return null;
-    const asins = new Set(filteredData.map((d) => d.asin).filter(Boolean));
-    const sellers = new Set(
-      filteredData.map((d) => d.resolvedSellerId).filter(Boolean),
-    );
-    const dates = filteredData
-      .map((d) => d.date)
-      .filter(Boolean)
-      .sort();
-    return {
-      records: filteredData.length,
-      asins: asins.size,
-      sellers: sellers.size,
-      last: dates.length ? dates[dates.length - 1] : null,
-    };
-  }, [filteredData]);
-
+  const windowMeta = analytics?.meta || null;
   // Count of active filter dimensions for the "N active" summary
   const activeFilterCount =
     selectedBrands.length +
@@ -1312,7 +757,7 @@ export default function GmsTrackerPage() {
 
   return (
     <div className="ops ads-page gms-page">
-      {loading && gmsData.length > 0 && (
+      {loading && (windowMeta?.records || 0) > 0 && (
         <div
           style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 9999 }}
         >
@@ -1470,6 +915,7 @@ export default function GmsTrackerPage() {
 
             <Input.Search
               placeholder="Search ASIN, Title, Brand, Store..."
+              maxLength={200}
               size="small"
               allowClear
               className="gms-cmd__search"
@@ -1572,7 +1018,7 @@ export default function GmsTrackerPage() {
                   {windowMeta.records.toLocaleString("en-IN")}
                 </span>
                 <span className="gms-cmd__mlabel">
-                  of {gmsData.length.toLocaleString("en-IN")} shown
+                  matching filters
                 </span>
               </span>
             )}
@@ -1585,8 +1031,7 @@ export default function GmsTrackerPage() {
       {!error && <div className="ops-grid">
         {!loading && percentageChanges.window && (
           <div className="gms-kpi-note">
-            Deltas compare the most recent {percentageChanges.window.text.replace("vs prior ", "")} against the{" "}
-            <em>equally-sized preceding window</em>
+            Selected period vs <em>{prior.from} to {prior.to}</em> ({prior.days} days). Coverage: {comparison.currentCoverage?.observedDays ?? 0}/{comparison.currentCoverage?.expectedDays ?? 0} current days, {comparison.previousCoverage?.observedDays ?? 0}/{prior.days} prior days. {(!comparison.currentCoverage?.complete || !comparison.previousCoverage?.complete) && "Incomplete date coverage; comparisons unavailable."}
           </div>
         )}
         {loading ? (
@@ -1604,7 +1049,7 @@ export default function GmsTrackerPage() {
               </div>
             ))}
           </div>
-        ) : filteredData.length === 0 ? (
+        ) : !windowMeta?.records ? (
           <Panel id="panel-gms-empty" span={12} kicker="Key performance indicators">
             <MiniState tone="empty" title="No GMS records in this selection" note="Metrics are unavailable until data is loaded for these dates and filters." />
           </Panel>
@@ -1692,7 +1137,7 @@ export default function GmsTrackerPage() {
                         }
                       >
                         <span aria-hidden="true">{arrow}</span>{" "}
-                        {Math.abs(kpi.change).toFixed(1)}%
+                        {Math.abs(kpi.change).toFixed(1)}{kpi.label === 'Return Ratio' ? ' pp' : '%'}
                         <span className="sr-only">
                           {" "}
                           {direction} versus prior period
@@ -1701,7 +1146,7 @@ export default function GmsTrackerPage() {
                     ) : (
                       <span
                         className="ads-kpi__noprior"
-                        title="No prior period to compare against"
+                        title="No comparable prior period or zero baseline"
                       >
                         n/a
                       </span>
@@ -1723,7 +1168,7 @@ export default function GmsTrackerPage() {
           </div>
         )}
 
-        {filteredData.length > 0 && (
+        {(windowMeta?.records || 0) > 0 && (
           <Panel
             id="panel-trend"
             span={12}
@@ -2236,7 +1681,7 @@ export default function GmsTrackerPage() {
                         color: "#1e293b",
                       }}
                     >
-                      Currently Selected Page Brands
+                      Current Page Filters
                       {selectedBrands.length > 0 && (
                         <span
                           style={{
@@ -2253,8 +1698,7 @@ export default function GmsTrackerPage() {
                     <div
                       style={{ fontSize: 10.5, color: "#64748b", marginTop: 1 }}
                     >
-                      Export only records matching the currently active page
-                      brand filters
+                      Export the active seller, manager and search filters
                     </div>
                   </div>
                 </Radio>
@@ -2301,7 +1745,7 @@ export default function GmsTrackerPage() {
                       .toLowerCase()
                       .includes(input.toLowerCase())
                   }
-                  options={uniqueBrands.map((b) => ({ label: b, value: b }))}
+                  options={uniqueBrands}
                 />
               </div>
             )}
