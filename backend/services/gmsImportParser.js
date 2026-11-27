@@ -33,6 +33,7 @@ function isIndiaSeller(v) {
 // Allow signed currency adjustments; quantities must be whole nonnegative units.
 function money(value) {
   if (value === null || value === undefined || String(value).trim() === '') throw new Error('Missing monetary value');
+  if (typeof value === 'number' && (!Number.isFinite(value) || Math.abs(value) > Number.MAX_SAFE_INTEGER / 100)) throw new Error('Numeric precision exceeds Excel-safe range; use exact text values');
   let s = String(value).trim().replace(/^(?:INR\s*|₹\s*)/i, '');
   if (!/^[+-]?(?:\d+|\d{1,3}(?:,\d{3})+|\d{1,2}(?:,\d{2})*,\d{3})(?:\.\d{1,2})?$/.test(s)) throw new Error('Invalid monetary value');
   s = s.replace(/,/g, '');
@@ -119,8 +120,9 @@ function validateRows(matrix, date1904 = false) {
 }
 function parseFile(filePath, name) {
   const isCsv = /\.csv$/i.test(name);
-  const book = XLSX.readFile(filePath, { raw: isCsv, sheetRows: MAX_ROWS + 2, cellFormula: true });
+  const book = XLSX.readFile(filePath, { raw: isCsv, sheetRows: MAX_ROWS + 2, cellFormula: true, sheets: 0 });
   if (!book.SheetNames.length) throw new Error('No worksheet found');
+  if (book.SheetNames.length !== 1) throw new Error('Report must contain exactly one worksheet');
   const sheet = book.Sheets[book.SheetNames[0]];
   if (!sheet['!ref']) return validateRows([]);
   const range = XLSX.utils.decode_range(sheet['!fullref'] || sheet['!ref']);
