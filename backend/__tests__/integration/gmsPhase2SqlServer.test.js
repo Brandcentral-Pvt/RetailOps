@@ -29,6 +29,8 @@ jest.mock('../../database/db', () => {
 const sql = require(process.env.GMS_TEST_MSSQL_MODULE || 'mssql');
 const { inspectGmsSchema, ensureGmsSchema } = require('../../database/gmsSchema');
 const migration = require('../../migrations/091_gms_import_jobs');
+const nullableMigration = require('../../migrations/092_gms_nullable_seller');
+const { gmsCatalogApplySql } = require('../../utils/gmsPhase1');
 const service = require('../../services/gmsImportService');
 const real = process.env.GMS_SQLSERVER_SMOKE === '1' ? test : test.skip;
 async function connect() {
@@ -50,7 +52,7 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
   try {
     await mockPool.request().query(
       'CREATE TABLE dbo.Sellers (Id VARCHAR(50) PRIMARY KEY, Marketplace NVARCHAR(50), IsActive BIT);' +
-      'CREATE TABLE dbo.Asins (Id VARCHAR(50) PRIMARY KEY, AsinCode NVARCHAR(30), SellerId VARCHAR(50));' +
+      'CREATE TABLE dbo.Asins (Id VARCHAR(50) PRIMARY KEY, AsinCode NVARCHAR(30), SellerId VARCHAR(50), Title NVARCHAR(MAX));' +
       'CREATE TABLE dbo.GmsDailyPerformance (Id VARCHAR(50) PRIMARY KEY, Asin NVARCHAR(30), Date DATETIME2, OrderedRevenue DECIMAL(18,2), OrderedUnits INT, CreatedAt DATETIME2);' +
       'CREATE TABLE dbo.Roles (Id VARCHAR(50) PRIMARY KEY, Name NVARCHAR(50));' +
       'CREATE TABLE dbo.Users (Id VARCHAR(50) PRIMARY KEY, RoleId VARCHAR(50), IsActive BIT);' +
@@ -68,9 +70,14 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
     expect(repaired).toMatchObject({ready:true,missing:[]});
     await migration.up(mockPool);
     expect((await inspectGmsSchema(mockPool)).ready).toBe(true);
+    await mockPool.request().query('ALTER TABLE dbo.GmsDailyPerformance ALTER COLUMN SellerId VARCHAR(50) NOT NULL; CREATE INDEX IX_Test_Gms_Seller_Date ON dbo.GmsDailyPerformance(SellerId,Date)');
+    expect((await inspectGmsSchema(mockPool)).ready).toBe(false);
+    await nullableMigration.up(mockPool);
+    await nullableMigration.up(mockPool);
+    expect((await inspectGmsSchema(mockPool)).ready).toBe(true);
     await mockPool.request().query(
       "INSERT INTO Sellers VALUES('S1','legacy-marketplace',0);" +
-      "INSERT INTO Asins VALUES('A1','B000000001','S1');" +
+      "INSERT INTO Asins VALUES('A1','B000000001','S1',NULL);" +
       "INSERT INTO Roles VALUES('R1','brand_manager');" +
       "INSERT INTO Users VALUES('U1','R1',1);" +
       "INSERT INTO Permissions VALUES('P1','gms_tracker_import');" +
@@ -83,7 +90,7 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
       fs.writeFileSync(file,'ASIN,Date,Brand,StoreCode,Ordered Revenue,Ordered Units,Shipped Revenue,Shipped COGS,Shipped Units,Customer Returns\nB000000001,2026-11-27,Brand A,IN,'+revenue+',1,100,50,1,0');
       return service.createPreview(user,{path:file,originalname:'report.csv'});
     };
-    const facts=async()=> (await mockPool.request().query('SELECT SellerId,OrderedRevenue FROM GmsDailyPerformance')).recordset;
+    const facts=async()=> (await mockPool.request().query('SELECT SellerId,OrderedRevenue FROM GmsDailyPerformance WHERE Asin=\'B000000001\'')).recordset;
     const first=await preview('123.45');
     expect(first.status).toBe('READY');
     expect(first.summary.inserted).toBe(1);
@@ -111,6 +118,27 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
     await service.confirm('U1',stale.id); await service.processNext();
     expect((await service.getJob('U1',stale.id)).status).toBe('FAILED');
     expect(await facts()).toEqual([{SellerId:'S1',OrderedRevenue:155}]);
+    // A global importer can retain a missing catalog ASIN without a seller.
+    await mockPool.request().query("INSERT INTO Roles VALUES('RG','admin'); INSERT INTO Users VALUES('UG','RG',1); INSERT INTO RolePermissions VALUES('RG','P1')");
+    const global={id:'UG',role:{name:'admin'},permissions:['gms_tracker_import'],assignedSellers:[]};
+    const unmatchedPreview=async revenue=>{
+      const file=path.join(dir,'unmatched-'+mockSequence);
+      fs.writeFileSync(file,'ASIN,Date,Brand,StoreCode,Ordered Revenue,Ordered Units,Shipped Revenue,Shipped COGS,Shipped Units,Customer Returns\nB000000002,2026-11-27,Sheet Brand,IN,'+revenue+',1,0,0,0,0');
+      return service.createPreview(global,{path:file,originalname:'unmatched.csv'});
+    };
+    const missing=await unmatchedPreview('25.00');
+    expect(missing.status).toBe('READY');
+    expect(missing.summary).toMatchObject({unmatched:1,invalid:0});
+    await service.confirm('UG',missing.id); await service.processNext();
+    expect((await service.getJob('UG',missing.id)).status).toBe('COMPLETED');
+    const correctionMissing=await unmatchedPreview('26.00');
+    await service.confirm('UG',correctionMissing.id); await service.processNext();
+    const orphanFact=await mockPool.request().query("SELECT SellerId,Brand,OrderedRevenue FROM GmsDailyPerformance WHERE Asin='B000000002'");
+    expect(orphanFact.recordset).toEqual([{SellerId:null,Brand:'Sheet Brand',OrderedRevenue:26}]);
+    await mockPool.request().query("INSERT INTO Asins VALUES('A2','B000000002','S1',NULL),('A3','B000000002','S1',NULL)");
+    const mapped=await mockPool.request().query("SELECT COALESCE(g.SellerId,a.SellerId) AS sellerId,g.Brand FROM GmsDailyPerformance g "+gmsCatalogApplySql+" WHERE g.Asin='B000000002'");
+    expect(mapped.recordset).toEqual([{sellerId:'S1',Brand:'Sheet Brand'}]);
+    // Existing mapped fact test below is scoped to its original ASIN.
     const revoked=await preview('170.00');
     await service.confirm('U1',revoked.id);
     await mockPool.request().query("UPDATE Users SET IsActive=0 WHERE Id='U1'");
