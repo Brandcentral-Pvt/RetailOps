@@ -1,5 +1,5 @@
 import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import {Alert,App,Button,Flex} from 'antd';
+import {Alert,App,Button} from 'antd';
 import dayjs from 'dayjs';
 import {sellerApi,userApi,gmsApi,exportApi} from '../services/api';
 import {useDateRange} from '../contexts/DateRangeContext';
@@ -33,7 +33,7 @@ const optionsOf=(rows,label)=>rows.map(r=>({value:idOf(r),label:label(r)})).filt
 const day=(value,fallback)=>dayjs(value||fallback).format('YYYY-MM-DD');
 
 export default function GmsTrackerPage(){
-  const {user}=useAuth(),{message}=App.useApp();
+  const {user,loading:authLoading}=useAuth(),{message}=App.useApp();
   const {setPageMeta}=useHeader();
   const {startDate,endDate,updateDateRange}=useDateRange();
   const permissions=user?.permissions||[];
@@ -64,7 +64,7 @@ export default function GmsTrackerPage(){
   const sameFilter=stored?.filterKey===filterKey&&search===debouncedSearch;
   const analytics=sameFilter?stored.data:null;
   const loading=requestLoading||search!==debouncedSearch||(!error&&stored?.requestKey!==requestKey);
-  const reportLoading=search!==debouncedSearch||(!analytics&&!error);
+  const reportLoading=authLoading||search!==debouncedSearch||(!analytics&&!error);
 
   useEffect(()=>{
     const timer=setTimeout(()=>setDebouncedSearch(search),250);
@@ -76,7 +76,7 @@ export default function GmsTrackerPage(){
 
   const mounted=useRef(false),sequence=useRef(0),abortRef=useRef(null);
   const load=useCallback(async({refreshMetadata=false}={})=>{
-    if(!mounted.current)return false;
+    if(!mounted.current||authLoading||!userKey)return false;
     abortRef.current?.abort();
     const controller=new AbortController(),requestId=++sequence.current;
     abortRef.current=controller;
@@ -112,7 +112,7 @@ export default function GmsTrackerPage(){
     }finally{
       if(current()){setRequestLoading(false);setMetadataLoading(false);}
     }
-  },[userKey,from,to,selectedSellers,selectedManagers,debouncedSearch,level,page,pageSize,sortKey,sortDirection,filterKey,requestKey]);
+  },[authLoading,userKey,from,to,selectedSellers,selectedManagers,debouncedSearch,level,page,pageSize,sortKey,sortDirection,filterKey,requestKey]);
   useEffect(()=>{
     mounted.current=true;load();
     return ()=>{mounted.current=false;abortRef.current?.abort();sequence.current++;};
