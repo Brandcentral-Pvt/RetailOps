@@ -1,7 +1,7 @@
 const { sql }=require('../database/db');
 const { dateWindow,gmsCatalogApplySql,unambiguousSellerSql }=require('../utils/gmsPhase1');
 const { resolveSellerScope }=require('../utils/sellerScope');
-const { filterSpec,priorWindow,isoWeek,weekKey,buildGroups,buildOverview,buildAnalytics }=require('./gmsAnalyticsService');
+const { filterSpec,literalSearchSql,priorWindow,isoWeek,weekKey,buildGroups,buildOverview,buildAnalytics }=require('./gmsAnalyticsService');
 
 const MAX_PAGE_SIZE=100;
 const MAX_RANGE_DAYS=3660;
@@ -96,7 +96,7 @@ function buildPageQuery(q,user,spec){
     q.input('search',sql.NVarChar(200),filters.search);
     // CHARINDEX treats %, _ and brackets literally, just like JS includes.
     const fields=['g.Asin','COALESCE(g.ReportProductTitle,m.ProductTitle)','g.Brand','m.DbBrand','g.StoreCode'];
-    factWhere+=' AND ('+fields.map(f=>"CHARINDEX(@search,LOWER(CONVERT(nvarchar(max),COALESCE("+f+",N''))) COLLATE Latin1_General_100_BIN2)>0").join(' OR ')+')';
+    factWhere+=' AND '+literalSearchSql(fields);
   }
   if(sortSql.range)q.input('sortFrom',sql.Date,sortSql.range.from).input('sortTo',sql.Date,sortSql.range.to);
   const entity=level==='asin'?'CONVERT(nvarchar(300),g.Asin)':"CONVERT(nvarchar(300),CASE WHEN m.SellerId IS NOT NULL THEN N'seller:'+CONVERT(nvarchar(100),m.SellerId) ELSE N'unmatched:'+COALESCE(NULLIF(g.Brand,N''),N'-') END)";
