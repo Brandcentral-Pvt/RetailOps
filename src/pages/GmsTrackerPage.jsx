@@ -57,41 +57,15 @@ const { RangePicker } = DatePicker;
 const { Text } = Typography;
 
 // Helper to pre-resolve seller names (resolvedDbBrand) for GMS records
-const resolveDbBrands = (data, asins, sellers) => {
-  if (!data || !Array.isArray(data)) return [];
-  const asinMap = new Map();
-  asins.forEach((a) => {
-    asinMap.set((a.asinCode || "").toUpperCase(), a);
-  });
-  const sellerMap = new Map();
-  sellers.forEach((s) => {
-    sellerMap.set(s._id || s.id, s.name || "");
-  });
-
-  return data.map((d) => {
-    if (d.resolvedDbBrand) return d;
-    const matchedDbAsin = asinMap.get((d.asin || "").toUpperCase());
-    let dbBrandName = "";
-    if (matchedDbAsin) {
-      if (matchedDbAsin.brand) {
-        dbBrandName = matchedDbAsin.brand;
-      } else if (matchedDbAsin.sellerName) {
-        dbBrandName = matchedDbAsin.sellerName;
-      } else if (matchedDbAsin.sellerId) {
-        const matchedSellerName = sellerMap.get(matchedDbAsin.sellerId);
-        if (matchedSellerName) {
-          dbBrandName = matchedSellerName;
-        }
-      }
-    }
-    const resolvedSellerId =
-      d.sellerId != null ? d.sellerId : (matchedDbAsin?.sellerId ?? null);
-    return {
-      ...d,
-      resolvedDbBrand: d.dbBrand || dbBrandName || "-",
-      resolvedSellerId,
-    };
-  });
+const resolveDbBrands = (data) => {
+  if (!Array.isArray(data)) return [];
+  // The server resolves the catalog assignment. Do not substitute the ASIN's
+  // brand or a client-side catalog guess when an owner is deliberately null.
+  return data.map(d => ({
+    ...d,
+    resolvedDbBrand: d.dbBrand || "-",
+    resolvedSellerId: d.sellerId ?? null,
+  }));
 };
 
 // Pre-compute MoM, WoW, DoD trends for all rows from grouped data — no gmsData scanning
@@ -255,7 +229,7 @@ export default function GmsTrackerPage() {
       }, { signal: controller.signal });
       if (!isCurrent()) return false;
       if (!gmsRes?.success || !Array.isArray(gmsRes.data)) throw new Error(gmsRes?.message || "Invalid GMS data response.");
-      setGmsData(resolveDbBrands(gmsRes.data, asins, sellers));
+      setGmsData(resolveDbBrands(gmsRes.data));
       setLastLoadedAt(Date.now());
       return true;
     } catch (err) {
@@ -570,10 +544,11 @@ export default function GmsTrackerPage() {
       const sellersMap = {};
       filteredData.forEach((d) => {
         const isUnmatched = !d.resolvedDbBrand || d.resolvedDbBrand === "-";
-        const sellerName = !isUnmatched ? d.resolvedDbBrand : d.brand || "-";
-        if (!sellersMap[sellerName]) {
-          sellersMap[sellerName] = {
-            key: sellerName,
+        const sellerName = isUnmatched ? "-" : d.resolvedDbBrand;
+        const sellerKey = isUnmatched ? `unmatched:${d.brand || "-"}` : `seller:${d.resolvedSellerId || sellerName}`;
+        if (!sellersMap[sellerKey]) {
+          sellersMap[sellerKey] = {
+            key: sellerKey,
             dbBrand: sellerName,
             isUnmatched: isUnmatched,
             asins: new Set(),
@@ -585,7 +560,7 @@ export default function GmsTrackerPage() {
             monthlyRev: {},
           };
         }
-        const s = sellersMap[sellerName];
+        const s = sellersMap[sellerKey];
         if (d.asin) s.asins.add(d.asin);
         if (d.brand) s.brands.add(d.brand);
         if (d.storeCode) s.storeCodes.add(d.storeCode);
@@ -1308,7 +1283,7 @@ export default function GmsTrackerPage() {
     if (filteredData.length === 0) return null;
     const asins = new Set(filteredData.map((d) => d.asin).filter(Boolean));
     const sellers = new Set(
-      filteredData.map((d) => d.resolvedDbBrand).filter(Boolean),
+      filteredData.map((d) => d.resolvedSellerId).filter(Boolean),
     );
     const dates = filteredData
       .map((d) => d.date)

@@ -37,4 +37,19 @@ function exportWindow(params) {
 const unambiguousSellerSql = (alias = 'a') =>
   `NOT EXISTS (SELECT 1 FROM Asins other WHERE other.AsinCode = ${alias}.AsinCode AND (other.SellerId IS NULL OR other.SellerId <> ${alias}.SellerId))`;
 
-module.exports = { dateOnly, dateWindow, exportWindow, unambiguousSellerSql };
+// Resolve at most one catalog row per fact. NULL-owned facts automatically
+// obtain the current unique catalog assignment; conflicting mappings stay
+// unmatched. Verified stored owners are never silently reassigned.
+const gmsCatalogApplySql = `OUTER APPLY (
+  SELECT TOP (1) c.AsinCode, c.SellerId, c.Title
+  FROM Asins c
+  WHERE UPPER(LTRIM(RTRIM(c.AsinCode))) = UPPER(LTRIM(RTRIM(g.Asin)))
+    AND NULLIF(LTRIM(RTRIM(c.SellerId)), '') IS NOT NULL
+    AND (g.SellerId = c.SellerId OR (g.SellerId IS NULL AND NOT EXISTS (
+      SELECT 1 FROM Asins other
+      WHERE UPPER(LTRIM(RTRIM(other.AsinCode))) = UPPER(LTRIM(RTRIM(c.AsinCode)))
+        AND (NULLIF(LTRIM(RTRIM(other.SellerId)), '') IS NULL OR other.SellerId <> c.SellerId)
+    )))
+  ORDER BY c.Id
+) a`;
+module.exports = { dateOnly, dateWindow, exportWindow, unambiguousSellerSql, gmsCatalogApplySql };

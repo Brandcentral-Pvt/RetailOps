@@ -7,7 +7,7 @@ const SocketService = require('../services/socketService');
 const { buildInClause } = require('../utils/sqlHelpers');
 const { resolveAccessProfile } = require('../services/accessProfileService');
 const { resolveSellerScope, bindSellerFilter } = require('../utils/sellerScope');
-const { exportWindow, unambiguousSellerSql } = require('../utils/gmsPhase1');
+const { exportWindow, unambiguousSellerSql, gmsCatalogApplySql } = require('../utils/gmsPhase1');
 
 const EXPORTS_DIR = path.join(__dirname, '../uploads/exports');
 
@@ -1527,9 +1527,9 @@ async function processGmsExportJob(downloadId, params, userId) {
         g.OrderedRevenue as orderedRevenue, g.OrderedUnits as orderedUnits,
         g.ShippedRevenue as shippedRevenue, g.ShippedCOGS as shippedCOGS,
         g.ShippedUnits as shippedUnits, g.CustomerReturns as customerReturns,
-        s.Name as dbBrand, a.Title as productTitle
+        COALESCE(g.SellerId, a.SellerId) as sellerId, s.Name as dbBrand, a.Title as productTitle
       FROM GmsDailyPerformance g
-      LEFT JOIN Asins a ON g.Asin = a.AsinCode AND (g.SellerId IS NULL OR a.SellerId = g.SellerId)
+      ${gmsCatalogApplySql}
       LEFT JOIN Sellers s ON COALESCE(g.SellerId, a.SellerId) = s.Id
       ${whereClause}
       ORDER BY g.Date DESC
@@ -1557,10 +1557,10 @@ async function processGmsExportJob(downloadId, params, userId) {
     const matrixMap = {};
     filteredData.forEach(d => {
         const isUnmatched = !d.resolvedDbBrand || d.resolvedDbBrand === '-';
-        const key = exportLevel === 'seller' ? (!isUnmatched ? d.resolvedDbBrand : (d.brand || '-')) : d.asin;
+        const key = exportLevel === 'seller' ? (isUnmatched ? 'unmatched:' + (d.brand || '-') : 'seller:' + (d.sellerId || d.resolvedDbBrand)) : d.asin;
         if (!matrixMap[key]) {
             matrixMap[key] = exportLevel === 'seller'
-                ? { dbBrand: key, isUnmatched, asins: new Set(), brands: new Set(), storeCodes: new Set(), dailyRev: {}, weeklyRev: {}, monthlyRev: {} }
+                ? { dbBrand: d.resolvedDbBrand || '-', isUnmatched, asins: new Set(), brands: new Set(), storeCodes: new Set(), dailyRev: {}, weeklyRev: {}, monthlyRev: {} }
                 : { asin: d.asin, productTitle: d.productTitle || '-', dbBrand: d.resolvedDbBrand || '-', brand: d.brand || 'Generic', storeCode: d.storeCode || 'IN', dailyRev: {}, weeklyRev: {}, monthlyRev: {} };
         }
         const row = matrixMap[key];

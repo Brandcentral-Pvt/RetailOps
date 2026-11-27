@@ -88,10 +88,28 @@ describe('seller mapping and legacy fact conflicts', () => {
     expect(result.rows[0].sellerId).toBe('S1');
   });
   test('unmapped, unassigned, conflicting and inaccessible ASINs have separate diagnostics', async () => {
-    expect((await inspect(pool([]),[valid()],scope)).summary.issues[0].code).toBe('ASIN_NOT_FOUND');
-    expect((await inspect(pool([{...seller,sellerId:null}]),[valid()],scope)).summary.issues[0].code).toBe('ASIN_UNASSIGNED');
+    expect((await inspect(pool([]),[valid()],scope)).summary.issues[0].code).toBe('UNMATCHED_IMPORT_FORBIDDEN');
+    expect((await inspect(pool([{...seller,sellerId:null}]),[valid()],scope)).summary.issues[0].code).toBe('UNMATCHED_IMPORT_FORBIDDEN');
     expect((await inspect(pool([seller,{...seller,sellerId:'S2'}]),[valid()],scope)).summary.issues[0].code).toBe('ASIN_AMBIGUOUS');
     expect((await inspect(pool([{...seller,sellerId:'S2'}]),[valid()],scope)).summary.issues[0].code).toBe('ASIN_FORBIDDEN');
+  });
+  test('global import retains missing or unassigned ASINs with sheet brand and null owner', async () => {
+    const global={isGlobal:true,allowed:[]};
+    for (const catalog of [[],[{...seller,sellerId:null}]]) {
+      const result=await inspect(pool(catalog),[valid()],global);
+      expect(result.summary).toMatchObject({inserted:1,matched:0,unmatched:1,invalid:0});
+      expect(result.rows[0]).toMatchObject({sellerId:null,brand:'Brand A',action:'inserted'});
+      expect(result.summary.sample[0]).toMatchObject({mappingStatus:'UNMATCHED',brand:'Brand A'});
+    }
+  });
+  test('global repeat and correction of an unmatched fact are idempotent', async () => {
+    const global={isGlobal:true,allowed:[]};
+    const orphan={...old,sellerId:null};
+    expect((await inspect(pool([],[orphan]),[valid()],global)).summary.unchanged).toBe(1);
+    const corrected=await inspect(pool([],[orphan]),[{...valid(),orderedRevenue:'12.34'}],global);
+    expect(corrected.rows[0]).toMatchObject({action:'updated',sellerId:null});
+    const mapped=await inspect(pool([seller],[orphan]),[valid()],global);
+    expect(mapped.rows[0]).toMatchObject({action:'updated',sellerId:'S1'});
   });
   test('out-of-scope or ambiguous ASIN is rejected even if one match is authorized', async () => {
     expect((await inspect(pool([{...seller,sellerId:'S2'}]),[valid()],scope)).summary.invalid).toBe(1);
