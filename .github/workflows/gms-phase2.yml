@@ -1,0 +1,99 @@
+name: GMS Phase 2 Ingestion
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/services/gmsImport*.js'
+      - 'backend/controllers/gmsImportController.js'
+      - 'backend/controllers/uploadController.js'
+      - 'backend/controllers/exportController.js'
+      - 'backend/routes/uploadRoutes.js'
+      - 'backend/server.js'
+      - 'backend/migrations/091_gms_import_jobs.js'
+      - 'backend/__tests__/**/gmsPhase*.test.js'
+      - 'src/components/gms/**'
+      - 'src/pages/GmsTrackerPage.jsx'
+      - 'src/services/api.js'
+      - 'tests/gms-phase1.spec.js'
+      - '.github/workflows/gms-phase2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ingestion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - name: Check GMS source syntax
+        working-directory: backend
+        run: |
+          node --check services/gmsImportParser.js
+          node --check services/gmsImportService.js
+          node --check controllers/gmsImportController.js
+          node --check routes/uploadRoutes.js
+          node --check migrations/091_gms_import_jobs.js
+          node --check server.js
+      - name: Validation and route security regression
+        working-directory: backend
+        run: npm test -- --runInBand __tests__/unit/gmsPhase2Ingestion.test.js __tests__/routes/gmsPhase1.test.js
+  sql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_PID: Developer
+          MSSQL_SA_PASSWORD: 'GmsDisposable#2026!'
+        ports:
+          - 1433:1433
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - name: Install isolated SQL driver
+        run: npm install --prefix /tmp/gms-test-sql --ignore-scripts --no-audit --no-fund mssql@12.7.11
+      - name: Disposable SQL Server integration
+        working-directory: backend
+        env:
+          GMS_SQLSERVER_SMOKE: '1'
+          GMS_TEST_SQLSERVER_HOST: '127.0.0.1'
+          GMS_TEST_SQLSERVER_PASSWORD: 'GmsDisposable#2026!'
+          GMS_TEST_MSSQL_MODULE: '/tmp/gms-test-sql/node_modules/mssql'
+        run: npm test -- --runInBand __tests__/integration/gmsPhase2SqlServer.test.js
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test tests/gms-phase1.spec.js
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gms-phase2-playwright
+          path: test-results/
+          if-no-files-found: ignore
