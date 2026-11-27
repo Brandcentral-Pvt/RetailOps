@@ -290,28 +290,6 @@ export default function GmsTrackerPage() {
   const latestLoad = useRef(loadAllData);
   useEffect(() => { latestLoad.current = loadAllData; }, [loadAllData]);
 
-  const clearAllData = useCallback(() => {
-    Modal.confirm({
-      title: "Are you sure you want to clear all GMS Tracker data?",
-      content:
-        "This will delete all uploaded GMS records permanently from the database.",
-      okText: "Clear Data",
-      okType: "danger",
-      cancelText: "Cancel",
-      async onOk() {
-        try {
-          const res = await gmsApi.clearAll();
-          if (!res.success) throw new Error(res.message || 'Clear failed');
-          setGmsData([]);
-          await latestLoad.current({ refreshMetadata: true });
-          message.success(`GMS data cleared. ${res.deleted ?? 0} records deleted.`);
-        } catch (err) {
-          message.error("Failed to clear GMS data: " + err.message);
-        }
-      },
-    });
-  }, []);
-
   // Handle GMS spreadsheet matrix export via background job served in Downloads drawer
   const handleExport = async () => {
     try {
@@ -1446,16 +1424,18 @@ export default function GmsTrackerPage() {
             )}
 
             {canClear && (
-              <Tooltip title="Permanently delete all uploaded GMS records">
+              <Tooltip title="Global clear is paused during staged-import rollout">
+                <span>
                 <Button
                   danger
                   icon={<DeleteOutlined />}
                   size="small"
                   className="gms-cmd__btn gms-cmd__btn--danger"
-                  onClick={clearAllData}
+                  disabled
                 >
                   Clear Data
                 </Button>
+                </span>
               </Tooltip>
             )}
           </div>
