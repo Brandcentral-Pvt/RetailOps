@@ -2,7 +2,8 @@ const fs=require('node:fs');
 const fsp=require('node:fs/promises');
 const { Readable }=require('node:stream');
 const { pipeline }=require('node:stream/promises');
-const ExcelJS=require('exceljs');
+const {createStreamingWorkbook}=require('./streamingWorkbook');
+const {verifyXlsx}=require('./exportFileIntegrity');
 const { presentIssue }=require('./gmsImportIssueDetails');
 
 const headers=['Excel Row','ASIN','Date','Brand (Sheet)','Affected Column','Remarks'];
@@ -37,7 +38,7 @@ async function writeIssueReport(report,format,filePath){
     return;
   }
   if(format!=='xlsx')throw new Error('Unsupported error report format');
-  const workbook=new ExcelJS.stream.xlsx.WorkbookWriter({filename:filePath,useStyles:true,useSharedStrings:false});
+  const workbook=createStreamingWorkbook({filename:filePath,useStyles:true,useSharedStrings:false});
   const sheet=workbook.addWorksheet('GMS Error Report',{views:[{state:'frozen',ySplit:1}]});
   const widths=[14,20,18,30,27,100];
   sheet.columns=widths.map(width=>({width}));
@@ -46,15 +47,17 @@ async function writeIssueReport(report,format,filePath){
   head.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF243B53'}};
   head.height=23;
   head.commit();
+  let written=1;
   for(const values of reportRows(report)){
     // ExcelJS writes strings as text, not formulas. Row numbers are numbers.
     const row=sheet.addRow(values);
     row.getCell(6).alignment={wrapText:true,vertical:'top'};
     row.height=Math.max(18,Math.min(60,15*Math.ceil(String(values[5]).length/95)));
-    row.commit();
+    row.commit();written++;
   }
   sheet.commit();
   await workbook.commit();
+  await verifyXlsx(filePath,{expectedSheets:new Map([['GMS Error Report',written]])});
 }
 function reportFileName(fileName,format){
   const base=String(fileName||'gms-report').replace(/\.[^.]+$/,'').replace(/[^a-z0-9_-]+/gi,'_').slice(0,100)||'gms-report';
