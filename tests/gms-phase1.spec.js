@@ -2,16 +2,23 @@ import { test, expect } from '@playwright/test';
 
 const user = { Id: 'u-test', id: 'u-test', firstName: 'Test', role: { name: 'admin' }, scope: 'global', permissions: ['*'] };
 
-async function setup(page) {
+async function setup(page, nonempty=false) {
   let reads = 0, uploads = 0, commits = 0, fail = false, reject = false, status = 'READY';
   const batch = () => ({ id:'batch1',fileName:'report.csv',status,createdAt:'2026-11-27T10:00:00Z',summary:{total:1,inserted:1,updated:0,unchanged:0,duplicates:0,invalid:reject?1:0,issues:reject?[{row:2,code:'INVALID_ROW',message:'Missing monetary value'}]:[],sample:[],committed:status==='COMPLETED'?1:0} });
   await page.route('**/api/**', route => {
     const path = new URL(route.request().url()).pathname;
     const send = (data, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(data) });
     if (path.endsWith('/auth/me')) return send({ success: true, data: user });
-    if (path.endsWith('/upload/gms-data')) {
+    if (path.endsWith('/upload/gms-analytics')) {
       reads++;
-      return fail ? send({ success: false, message: 'Failed' }, 500) : send({ success: true, data: [] });
+      const data=nonempty?{
+        matrixRows:[{key:'B000000001',asin:'B000000001',dbBrand:'-',brand:'Sheet Brand',storeCode:'IN',isUnmatched:true,orderedUnits:2,dailyRev:{'2026-11-27':0},weeklyRev:{'2026-11|2026-W48':0},monthlyRev:{'2026-11':0},_momTrends:{},_wowTrends:{},_dodTrends:{}}],
+        monthGroups:{'2026-11':{key:'2026-11',label:'November 2026',weeks:{'2026-11|2026-W48':{key:'2026-11|2026-W48',label:'Week 48 (27 Nov - 27 Nov)',days:['2026-11-27']}}}},
+        kpis:{orderedRevenue:0,orderedUnits:2,shippedRevenue:-10,shippedCOGS:5,shippedUnits:1,customerReturns:0,profit:-15,marginPct:null,returnRatio:0},
+        comparison:{window:{from:'2026-11-26',to:'2026-11-26',days:1},changes:{orderedRevenue:null,returnRatio:0},currentCoverage:{observedDays:1,expectedDays:1,complete:true},previousCoverage:{observedDays:1,complete:true}},
+        daily:[{date:'2026-11-27',orderedRevenue:0,orderedUnits:2,customerReturns:0}],meta:{records:1,asins:1,sellers:0,unmatchedRecords:1,last:'2026-11-27'}
+      }:{matrixRows:[],monthGroups:{},kpis:{},comparison:{window:null},daily:[],meta:{records:0,asins:0,sellers:0,unmatchedRecords:0,last:null}};
+      return fail ? send({ success:false,message:'Failed' },500) : send({success:true,data});
     }
     if (path.endsWith('/upload/gms-imports') && route.request().method()==='GET') return send({success:true,data:[]});
     if (path.endsWith('/upload/gms-imports') && route.request().method()==='POST') {
@@ -32,7 +39,7 @@ async function setup(page) {
     return send({ success: true, data: [] });
   });
   await page.goto('/tests/fixtures/gms-phase1.html');
-  await expect(page.getByText('No GMS records in this selection')).toBeVisible({ timeout: 15000 });
+  await expect(nonempty?page.getByLabel('Key performance indicators',{exact:true}):page.getByText('No GMS records in this selection')).toBeVisible({ timeout:15000 });
   return { reads: () => reads, uploads: () => uploads, commits: () => commits, setFailure: () => { fail = true; }, reject: () => { reject = true; } };
 }
 
@@ -80,4 +87,12 @@ test('invalid preview displays issues and cannot be confirmed', async ({page}) =
   await expect(page.getByText('Missing monetary value',{exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Confirm import'})).toHaveCount(0);
   expect(state.commits()).toBe(0);
+});
+
+ test('server matrix shows actual zero and unmatched brand while ratios remain unavailable', async ({page}) => {
+  await setup(page,true);
+  await expect(page.getByText('B000000001',{exact:true})).toBeVisible();
+  await expect(page.getByText('Sheet Brand',{exact:true})).toBeVisible();
+  await expect(page.getByText('Margin unavailable',{exact:true})).toBeVisible();
+  await expect(page.getByText('₹0',{exact:true}).first()).toBeVisible();
 });
