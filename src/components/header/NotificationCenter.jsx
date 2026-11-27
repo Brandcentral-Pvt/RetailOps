@@ -300,7 +300,7 @@ export default function NotificationCenter({ loading = false }) {
                       <span style={{ color: '#94A3B8', fontSize: 'var(--font-size-sm)', fontFamily: 'Inter, sans-serif' }}>
                         You're all caught up
                       </span>
-                    />
+                    }
                   />
                 </div>
               ) : (

@@ -19,7 +19,7 @@ const generateTokens = (userId, fingerprint) => {
 const AUTH_COOKIE_BASE = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'Strict',
+  sameSite: 'Lax',
 };
 const ACCESS_COOKIE_MAX_AGE = 2 * 60 * 60 * 1000;
 const REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;

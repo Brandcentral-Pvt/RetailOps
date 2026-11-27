@@ -54,7 +54,7 @@ export const authApi = {
     const res = await fetch(`${API_BASE}${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
+      credentials: 'include',
       body: JSON.stringify(body),
     });
     const data = await res.json();
@@ -81,7 +81,7 @@ export const authApi = {
     const res = await fetch(`${API_BASE}/auth/logout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
+      credentials: 'include',
     });
     localStorage.removeItem('authToken');
     localStorage.removeItem('refreshToken');
@@ -92,7 +92,7 @@ export const authApi = {
   getMe: async () => {
     const res = await fetch(`${API_BASE}/auth/me`, {
       headers: { ...getAuthHeader() },
-      credentials: 'same-origin',
+      credentials: 'include',
     });
     if (!res.ok) throw new Error('Failed to get user info');
     return res.json();
@@ -188,7 +188,7 @@ export const authApi = {
     const res = await fetch(`${API_BASE}/auth/refresh-token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
+      credentials: 'include',
     });
     if (!res.ok) throw new Error('Failed to refresh token');
 
