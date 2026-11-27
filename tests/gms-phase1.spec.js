@@ -2,9 +2,14 @@ import { test, expect } from '@playwright/test';
 
 const user = { Id: 'u-test', id: 'u-test', firstName: 'Test', role: { name: 'admin' }, scope: 'global', permissions: ['*'] };
 
-async function setup(page, nonempty=false) {
+async function setup(page, nonempty=false, {historyCount=0,issueCount=1}={}) {
   let reads = 0, uploads = 0, commits = 0, fail = false, reject = false, status = 'READY', lastRequest=null, lastExport=null;
   const batch = () => ({ id:'batch1',fileName:'report.csv',status,createdAt:'2026-11-27T10:00:00Z',summary:{total:1,inserted:1,updated:0,unchanged:0,duplicates:0,invalid:reject?1:0,issues:reject?[{row:2,asin:'B000000001',date:'2026-11-27',column:'Ordered Revenue',code:'INVALID_ROW',message:'Invalid monetary value',remarks:'Enter a valid amount in Ordered Revenue, such as 1250.50 or -250.00.'}]:[],reportIssueCount:reject?1:0,reportComplete:true,sample:[],committed:status==='COMPLETED'?1:0} });
+  const historyFixture=Array.from({length:historyCount},(_,i)=>({
+    ...batch(),id:i===0?'batch1':'history-'+i,fileName:'report-history-'+String(i+1).padStart(2,'0')+'.xlsx',
+    status:i===0?'READY':i%3===0?'REJECTED':'COMPLETED',
+    createdAt:'2026-11-27T10:00:00Z',summary:{...batch().summary,total:1052+i}
+  }));
   await page.route('**/api/**', route => {
     const path = new URL(route.request().url()).pathname;
     const send = (data, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(data) });
@@ -24,11 +29,13 @@ async function setup(page, nonempty=false) {
       return fail ? send({ success:false,message:'Failed' },500) : send({success:true,data});
     }
     if(path.endsWith('/export/start-gms')){lastExport=route.request().postDataJSON();return send({success:true,downloadId:'test-export',fileName:'gms.xlsx'});}
-    if (path.endsWith('/upload/gms-imports') && route.request().method()==='GET') return send({success:true,data:[]});
+    if (path.endsWith('/upload/gms-imports') && route.request().method()==='GET') return send({success:true,data:historyFixture});
     if (path.endsWith('/upload/gms-imports') && route.request().method()==='POST') {
       uploads++;
       status=reject?'REJECTED':'READY';
-      return send({success:true,data:batch()},201);
+      const result=batch();
+      if(reject&&issueCount>1){result.summary.invalid=issueCount;result.summary.reportIssueCount=issueCount;result.summary.issues=Array.from({length:issueCount},(_,i)=>({...result.summary.issues[0],row:i+2,asin:'B'+String(i+1).padStart(9,'0')}));}
+      return send({success:true,data:result},201);
     }
     if (path.endsWith('/upload/gms-imports/batch1/errors')) {
       const format=new URL(route.request().url()).searchParams.get('format');
@@ -195,4 +202,91 @@ test('latest observed reporting date is an explicit date-range action',async({pa
   await page.getByRole('button',{name:'View 27 Nov only',exact:true}).click();
   await expect.poll(()=>state.lastRequest()?.startDate).toBe('2026-11-27');
   expect(state.lastRequest().endDate).toBe('2026-11-27');
+});
+
+async function modalGeometry(modal){
+  return modal.evaluate(el=>{
+    const bounds=node=>{const r=node.getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,height:r.height};};
+    const shell=el.querySelector('.ant-modal-container,.ant-modal-content');
+    const content=el.querySelector('.ant-tabs-tabpane-active .gms-import-scroll');
+    return {
+      shell:bounds(shell),header:bounds(el.querySelector('.ant-modal-header')),
+      tabs:bounds(el.querySelector('.ant-tabs-nav')),footer:bounds(el.querySelector('.ant-modal-footer')),
+      scroll:{client:content.clientHeight,height:content.scrollHeight,top:content.scrollTop},
+      viewport:{width:window.innerWidth,height:window.innerHeight},
+      wrapScroll:el.closest('.ant-modal-wrap').scrollTop
+    };
+  });
+}
+function expectContained(g){
+  expect(g.shell.top).toBeGreaterThanOrEqual(0);
+  expect(g.shell.bottom).toBeLessThanOrEqual(g.viewport.height+1);
+  expect(g.shell.left).toBeGreaterThanOrEqual(0);
+  expect(g.shell.right).toBeLessThanOrEqual(g.viewport.width+1);
+  expect(g.footer.bottom).toBeLessThanOrEqual(g.shell.bottom+1);
+  expect(g.header.top).toBeGreaterThanOrEqual(g.shell.top-1);
+  expect(g.wrapScroll).toBe(0);
+}
+test('import modal remains fixed while history and validation content scroll',async({page})=>{
+  await page.setViewportSize({width:1280,height:620});
+  const state=await setup(page,false,{historyCount:23});
+  await page.getByRole('button',{name:'Import history',exact:true}).click();
+  const modal=page.getByRole('dialog',{name:'GMS Report Import'});
+  const history=modal.getByRole('region',{name:'Import history content'});
+  await expect(history.getByText('report-history-01.xlsx',{exact:true})).toBeVisible();
+  await expect(history.getByText('1-10 of 23 batches',{exact:true})).toBeVisible();
+  // Wait for the modal entrance animation before measuring layout.
+  await expect.poll(async()=>{const g=await modalGeometry(modal);return g.shell.top>=0&&g.shell.bottom<=g.viewport.height+1;}).toBe(true);
+  const first=await modalGeometry(modal);
+  expectContained(first);
+  expect(first.scroll.height).toBeGreaterThan(first.scroll.client);
+  await history.evaluate(el=>{el.scrollTop=el.scrollHeight;});
+  await expect.poll(async()=>(await modalGeometry(modal)).scroll.top).toBeGreaterThan(0);
+  const scrolled=await modalGeometry(modal);
+  expectContained(scrolled);
+  expect(Math.abs(scrolled.header.top-first.header.top)).toBeLessThan(2);
+  expect(Math.abs(scrolled.tabs.top-first.tabs.top)).toBeLessThan(2);
+  expect(Math.abs(scrolled.footer.bottom-first.footer.bottom)).toBeLessThan(2);
+  await expect(modal.getByRole('button',{name:'Close',exact:true}).last()).toBeInViewport();
+  await history.evaluate(el=>{el.scrollTop=0;});
+  await history.getByRole('button',{name:/View import report-history-01.xlsx/}).click();
+  await expect(modal.getByText('Validation passed',{exact:true})).toBeVisible();
+  await expect(modal.getByRole('button',{name:'Confirm import',exact:true})).toBeInViewport();
+  const review=await modalGeometry(modal);
+  expectContained(review);
+  expect(Math.abs(review.shell.height-first.shell.height)).toBeLessThan(2);
+  expect(Math.abs(review.footer.bottom-first.footer.bottom)).toBeLessThan(2);
+  expect(state.commits()).toBe(0);
+  await modal.getByRole('button',{name:'New report',exact:true}).click();
+  await expect(modal.getByRole('button',{name:'Validate report',exact:true})).toBeInViewport();
+  await expect(modal.getByRole('button',{name:'Validate report',exact:true})).toBeDisabled();
+  expect(state.uploads()).toBe(0);
+});
+test('mobile import dialog keeps footer and tabs accessible with long error reports',async({page})=>{
+  await page.setViewportSize({width:390,height:640});
+  const state=await setup(page,false,{historyCount:23,issueCount:20});
+  state.reject();
+  await page.getByRole('button',{name:'Upload Data',exact:true}).click();
+  const modal=page.getByRole('dialog',{name:'GMS Report Import'});
+  await expect(modal.getByRole('button',{name:'Validate report',exact:true})).toBeInViewport();
+  await modal.locator('input[type=file]').setInputFiles({name:'invalid.csv',mimeType:'text/csv',buffer:Buffer.from('ASIN,Date\nB000000001,2026-11-27')});
+  await modal.getByRole('button',{name:'Validate report',exact:true}).click();
+  const content=modal.getByRole('region',{name:'Import report content'});
+  await expect(content.getByText('Report rejected',{exact:true})).toBeVisible();
+  await expect.poll(async()=>(await modalGeometry(modal)).scroll.height>(await modalGeometry(modal)).scroll.client).toBe(true);
+  const initial=await modalGeometry(modal);
+  await content.evaluate(el=>{el.scrollTop=el.scrollHeight;});
+  await expect.poll(async()=>(await modalGeometry(modal)).scroll.top).toBeGreaterThan(0);
+  const after=await modalGeometry(modal);
+  expectContained(after);
+  expect(Math.abs(after.header.top-initial.header.top)).toBeLessThan(2);
+  expect(Math.abs(after.footer.bottom-initial.footer.bottom)).toBeLessThan(2);
+  await expect(modal.getByRole('button',{name:'New report',exact:true})).toBeInViewport();
+  await expect(modal.getByRole('button',{name:'Confirm import',exact:true})).toHaveCount(0);
+  await modal.getByRole('tab',{name:'My import history',exact:true}).click();
+  await expect(modal.getByRole('region',{name:'Import history content'})).toBeVisible();
+  expectContained(await modalGeometry(modal));
+  expect(state.commits()).toBe(0);
+  await modal.getByRole('button',{name:'Close',exact:true}).last().click();
+  await expect(modal).not.toBeVisible();
 });
