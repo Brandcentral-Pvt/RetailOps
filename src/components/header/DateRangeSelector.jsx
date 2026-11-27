@@ -1,152 +1,81 @@
 import React, { useState } from 'react';
-import { Popover, DatePicker } from 'antd';
+import { Button, DatePicker, Popover, Typography } from 'antd';
 import { CalendarOutlined, DownOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useDateRange } from '../../contexts/DateRangeContext';
 
-const { RangePicker } = DatePicker;
-
 const PRESETS = [
-  { key: 'today', label: 'Today', getRange: () => [dayjs(), dayjs()] },
-  { key: 'yesterday', label: 'Yesterday', getRange: () => [dayjs().subtract(1, 'day'), dayjs().subtract(1, 'day')] },
-  { key: 'last7', label: 'Last 7 days', getRange: () => [dayjs().subtract(6, 'day'), dayjs()] },
-  { key: 'last30', label: 'Last 30 days', getRange: () => [dayjs().subtract(29, 'day'), dayjs()] },
-  { key: 'mtd', label: 'Month to date', getRange: () => [dayjs().startOf('month'), dayjs()] },
-  { key: 'lastMonth', label: 'Last month', getRange: () => [dayjs().subtract(1, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')] },
-  { key: 'qtd', label: 'Quarter to date', getRange: () => [dayjs().startOf('quarter'), dayjs()] },
-  { key: 'ytd', label: 'Year to date', getRange: () => [dayjs().startOf('year'), dayjs()] },
+  { key: 'today', label: 'Today', range: n => [n, n] },
+  { key: 'yesterday', label: 'Yesterday', range: n => [n.subtract(1, 'day'), n.subtract(1, 'day')] },
+  { key: 'last7', label: 'Last 7 days', range: n => [n.subtract(6, 'day'), n] },
+  { key: 'last30', label: 'Last 30 days', range: n => [n.subtract(29, 'day'), n] },
+  { key: 'mtd', label: 'Month to date', range: n => [n.startOf('month'), n] },
+  { key: 'lastMonth', label: 'Last month', range: n => [n.subtract(1, 'month').startOf('month'), n.subtract(1, 'month').endOf('month')] },
+  { key: 'qtd', label: 'Quarter to date', range: n => [n.startOf('month').subtract(n.month() % 3, 'month'), n] },
+  { key: 'ytd', label: 'Year to date', range: n => [n.startOf('year'), n] },
 ];
 
-/**
- * DateRangeSelector — date range selector for filtering data.
- *
- * Props:
- *   loading - boolean, when true shows skeleton instead of button
- */
 export default function DateRangeSelector({ loading = false }) {
   const { startDate, endDate, updateDateRange } = useDateRange();
   const [open, setOpen] = useState(false);
-
-  if (loading) {
-    return (
-      <button className="flex items-center gap-2 px-3 py-2 bg-transparent border border-transparent rounded-md cursor-pointer text-slate-500 disabled:pointer-events-none disabled:opacity-50 animate-pulse" disabled>
-        <div className="sk text [height:20px] [width:20px]" />
-        <div className="flex flex-col gap-1">
-          <div className="sk text [height:11px] [width:60%]"></div>
-          <div className="sk text [height:9px] [width:40%]"></div>
-        </div>
-      </button>
-    );
-  }
-
-  const currentPreset = PRESETS.find((p) => {
-    const [s, e] = p.getRange();
-    return dayjs(startDate).isSame(s, 'day') && dayjs(endDate).isSame(e, 'day');
+  const [from, setFrom] = useState(null);
+  const [to, setTo] = useState(null);
+  const start = dayjs(startDate);
+  const end = dayjs(endDate);
+  const preset = PRESETS.find(p => {
+    const [s, e] = p.range(dayjs());
+    return start.isSame(s, 'day') && end.isSame(e, 'day');
   });
-
-  const formatRange = () => {
-    const s = dayjs(startDate);
-    const e = dayjs(endDate);
-    if (s.isSame(e, 'day')) return s.format('DD MMM YYYY');
-    if (s.year() === e.year()) {
-      return `${s.format('DD MMM')} – ${e.format('DD MMM YYYY')}`;
-    }
-    return `${s.format('DD MMM YY')} – ${e.format('DD MMM YY')}`;
-  };
-
-  const handlePreset = (preset) => {
-    const [s, e] = p.getRange();
-    updateDateRange({ startDate: s.toDate(), endDate: e.toDate(), rangeType: preset.key });
+  const label = preset?.label || 'Custom';
+  const formatted = start.isSame(end, 'day')
+    ? start.format('DD MMM YYYY')
+    : start.format(start.year() === end.year() ? 'DD MMM' : 'DD MMM YYYY') + ' – ' + end.format('DD MMM YYYY');
+  const apply = (s, e, rangeType) => {
+    if (!s?.isValid() || !e?.isValid() || e.isBefore(s, 'day')) return;
+    updateDateRange({ startDate: s.startOf('day').toDate(), endDate: e.endOf('day').toDate(), rangeType });
     setOpen(false);
   };
-
+  const changeOpen = (next) => {
+    if (next) { setFrom(start); setTo(end); }
+    setOpen(next);
+  };
+  const valid = from?.isValid() && to?.isValid() && !to.isBefore(from, 'day');
   const content = (
-    <div style={{ width: 340, fontFamily: 'Inter, sans-serif' }}>
-      <div style={{ padding: '12px 14px 8px', borderBottom: '1px solid #f4f5f7' }}>
-        <div style={{ fontSize: 10, fontWeight: 600, color: '#8c8e8f', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-          Quick ranges
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-          {PRESETS.map((preset) => {
-            const [s, e] = preset.getRange();
-            const isActive = dayjs(startDate).isSame(s, 'day') && dayjs(endDate).isSame(e, 'day');
-            return (
-              <button
-                key={preset.key}
-                onClick={() => handlePreset(preset)}
-                style={{
-                  padding: '6px 10px',
-                  borderRadius: 6,
-                  border: '1px solid',
-                  borderColor: isActive ? '#1976D2' : 'transparent',
-                  background: isActive ? '#EAF3FD' : 'transparent',
-                  color: isActive ? '#1976D2' : '#545657',
-                  fontSize: 'var(--font-size-sm)',
-                  fontWeight: isActive ? 600 : 500,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  fontFamily: 'Inter, sans-serif',
-                  transition: 'all 0.12s',
-                }}
-                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = '#f4f5f7'; }}
-                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
-              >
-                {preset.label}
-              </button>
-            );
-          })}
-        </div>
+    <div className="ro-header-date-content" onKeyDown={e => { if (e.key === 'Escape') setOpen(false); }}>
+      <Typography.Text strong>Quick ranges</Typography.Text>
+      <div className="ro-header-date-presets">
+        {PRESETS.map(p => (
+          <Button key={p.key} type={preset?.key === p.key ? 'primary' : 'text'} size="small"
+            onClick={() => { const [s, e] = p.range(dayjs()); apply(s, e, p.key); }}>
+            {p.label}
+          </Button>
+        ))}
       </div>
-      <div style={{ padding: '12px 14px' }}>
-        <div style={{ fontSize: 10, fontWeight: 600, color: '#8c8e8f', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-          Custom range
-        </div>
-          <RangePicker
-            value={[dayjs(startDate), dayjs(endDate)]}
-            onChange={(dates) => {
-              if (dates && dates[0] && dates[1]) {
-                updateDateRange({
-                  startDate: dates[0].toDate(),
-                  endDate: dates[1].toDate(),
-                  rangeType: 'custom',
-                });
-                setOpen(false);
-              }
-            }}
-            getPopupContainer={() => document.body}
-            style={{ width: '100%' }}
-            size="small"
-            separator={<span style={{ color: '#8c8e8f', padding: '0 2px' }}>–</span>}
-          />
+      <Typography.Text strong>Custom range</Typography.Text>
+      <div className="ro-header-date-fields">
+        <label>From<DatePicker value={from} onChange={setFrom} format="DD MMM YYYY"
+          disabledDate={d => Boolean(to && d.isAfter(to, 'day'))}
+          getPopupContainer={trigger => trigger.parentElement} /></label>
+        <label>To<DatePicker value={to} onChange={setTo} format="DD MMM YYYY"
+          disabledDate={d => Boolean(from && d.isBefore(from, 'day'))}
+          getPopupContainer={trigger => trigger.parentElement} /></label>
       </div>
+      <Button type="primary" block disabled={!valid} onClick={() => apply(from, to, 'custom')}>Apply range</Button>
     </div>
   );
 
   return (
-    <Popover
-      content={content}
-      trigger="click"
-      open={open}
-      onOpenChange={setOpen}
-      placement="bottomRight"
-      arrow={false}
-      overlayClassName="date-range-popover"
-      styles={{
-        container: {
-          padding: 0,
-          borderRadius: "var(--radius-lg)",
-          boxShadow: '0 12px 40px -8px rgba(18,27,30,0.18)',
-        }
-      }}
-    >
-      <button className="date-range-trigger">
-        <CalendarOutlined className="date-range-icon" />
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0 }}>
-          <span className="date-range-preset-label">{currentPreset ? currentPreset.label : 'Custom'}</span>
-          <span style={{ lineHeight: 1.2, fontSize: 11 }}>{formatRange()}</span>
-        </div>
-        <DownOutlined style={{ fontSize: 9, color: '#8c8e8f' }} />
-      </button>
+    <Popover content={content} trigger="click" open={open} onOpenChange={changeOpen}
+      placement="bottomRight" arrow={false}>
+      <Button className="ro-header-date-trigger" loading={loading}
+        icon={<CalendarOutlined />} aria-label={`Date range: ${formatted}`} aria-expanded={open}
+        title={formatted}>
+        <span className="ro-header-date-label">
+          <span className="ro-header-date-preset">{label}</span>
+          <span className="ro-header-date-range">{formatted}</span>
+        </span>
+        <DownOutlined className="ro-header-date-chevron" />
+      </Button>
     </Popover>
   );
 }
