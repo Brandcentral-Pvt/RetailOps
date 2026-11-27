@@ -1,75 +1,93 @@
 import React,{useMemo,useState} from 'react';
-import {Alert,Button,Card,Col,Empty,Flex,Row,Segmented,Select,Skeleton,Space,Statistic,Tag,Tooltip,Typography,theme} from 'antd';
+import {Alert,Button,Card,Empty,Flex,Segmented,Select,Skeleton,Space,Tag,Tooltip,Typography,theme} from 'antd';
 import {InfoCircleOutlined,LineChartOutlined} from '@ant-design/icons';
 import Chart from 'react-apexcharts';
 import dayjs from 'dayjs';
 import {METRICS,metricValue,changeLabel,changeTone,dailySeries,isKnown} from './gmsPresentation.mjs';
 
 const {Text}=Typography;
-export function GmsFinancialSummary({analytics,loading,metric,onMetricChange}){
-  const {token}=theme.useToken();
-  const comparison=analytics?.comparison, prior=comparison?.window;
-  const incomplete=prior&&(!comparison.currentCoverage?.complete||!comparison.previousCoverage?.complete);
-  const kpis=analytics?.kpis||{};
-  if(!loading&&!analytics?.meta?.records)return <Card size="small"><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<Space direction="vertical" size={4}><Text strong>No GMS records in this selection</Text><Text type="secondary">Change the report dates or filters, or import an Amazon India GMS report.</Text></Space>}/></Card>;
+const primary=['orderedRevenue','orderedUnits','shippedRevenue','profit','returnRatio'];
+const secondary=['shippedUnits','shippedCOGS','marginPct','customerReturns'];
+const byKey=key=>METRICS.find(m=>m.key===key);
+
+function Metric({definition,value,change,selected,onSelect,small=false}){
+  const label=changeLabel(definition,change);
+  return <button type="button" className={'gms-metric'+(small?' gms-metric--small':'')+(selected?' gms-metric--selected':'')}
+    aria-label={'Show '+definition.label+' trend'} aria-pressed={selected} onClick={onSelect}>
+    <span className="gms-metric-label">{definition.label}<LineChartOutlined aria-hidden="true"/></span>
+    <span className={'gms-metric-value'+(isKnown(value)&&value<0?' gms-number--negative':'')} title={metricValue(definition,value)}>{metricValue(definition,value,{compact:true})}</span>
+    {label!=null&&<span className="gms-metric-change"><Tag color={changeTone(definition,change)}>{label}</Tag></span>}
+  </button>;
+}
+export function GmsFinancialSummary({analytics,loading,metric,onMetricChange,onUseLatest}){
+  const c=analytics?.comparison,prior=c?.window,current=c?.currentCoverage,previous=c?.previousCoverage;
+  const kpis=analytics?.kpis||{},partial=prior&&(!current?.complete||!previous?.complete);
+  const observed=current?.observedDays??0;
+  if(!loading&&!analytics?.meta?.records)return <Card size="small"><Empty image={Empty.PRESENTED_IMAGE_SIMPLE}
+    description={<Space direction="vertical" size={4}><Text strong>No GMS records in this selection</Text><Text type="secondary">Change the dates or filters, or import an Amazon India GMS report.</Text></Space>}/></Card>;
   return <section aria-label={loading?'Loading financial summary':'Key performance indicators'} className="gms-summary">
-    <Flex align="center" justify="space-between" wrap gap={8}>
-      <div><Typography.Title level={5} className="gms-section-title">Financial overview</Typography.Title><Text type="secondary">Full filtered dataset, not just the current table page.</Text></div>
-      {prior&&<Tag color={incomplete?'warning':'default'}>Prior: {prior.from} to {prior.to}</Tag>}
-    </Flex>
-    {!loading&&prior&&<Alert showIcon type={incomplete?'warning':'info'} title={incomplete?'Comparison coverage is incomplete':'Period comparison'} description={<span>Current: {comparison.currentCoverage?.observedDays??0}/{comparison.currentCoverage?.expectedDays??0} observed days. Prior: {comparison.previousCoverage?.observedDays??0}/{prior.days} observed days. {incomplete?'Changes are unavailable when date coverage is incomplete.':'Changes compare the preceding equal-length period. Ratios use percentage points.'}</span>}/>}
-    <Row gutter={[12,12]}>
-      {METRICS.map(m=>{
-        const value=kpis[m.key],change=comparison?.changes?.[m.key],selected=metric===m.key;
-        const delta=changeLabel(m,change);
-        return <Col key={m.key} xs={12} sm={8} xl={6} xxl={4}>
-          <Card size="small" className={'gms-stat-card'+(selected?' gms-stat-card--selected':'')} style={selected?{borderColor:token.colorPrimary}:undefined}>
-            {loading?<Skeleton active title={{width:'75%'}} paragraph={{rows:1,width:'90%'}}/>:
-              <>
-                <Flex justify="space-between" align="center" gap={4}>
-                  <Text type="secondary" className="gms-stat-label">{m.label}</Text>
-                  <Tooltip title={'Show '+m.label+' daily trend'}><Button size="small" type="text" icon={<LineChartOutlined/>} aria-label={'Show '+m.label+' trend'} aria-pressed={selected} onClick={()=>onMetricChange(m.key)}/></Tooltip>
-                </Flex>
-                <Tooltip title={metricValue(m,value)}>
-                  <Statistic value={isKnown(value)?value:0} formatter={()=>metricValue(m,value,{compact:true})} valueStyle={{fontSize:22,fontWeight:650,color:isKnown(value)&&value<0?token.colorError:token.colorText}}/>
-                </Tooltip>
-                <Flex wrap gap={4} align="center" className="gms-stat-delta">
-                  {delta!==null?<Tag color={changeTone(m,change)}>{delta}</Tag>:<Text type="secondary">No comparison</Text>}
-                </Flex>
-                {m.key==='profit'&&<Text type="secondary" className="gms-stat-note">{isKnown(kpis.marginPct)?'Margin '+kpis.marginPct.toFixed(2)+'%':'Margin unavailable'}</Text>}
-              </>}
-          </Card>
-        </Col>;
-      })}
-    </Row>
+    <Card size="small" className="gms-summary-card">
+      <Flex align="center" justify="space-between" wrap gap={8} className="gms-summary-heading">
+        <Flex align="center" wrap gap={8}>
+          <Typography.Title level={5} className="gms-section-title">Financial overview</Typography.Title>
+          <Text type="secondary">Entire filtered report</Text>
+        </Flex>
+        {!loading&&prior&&<Tooltip title={'Current '+(current?.observedDays??0)+' of '+(current?.expectedDays??0)+' days; prior '+(previous?.observedDays??0)+' of '+prior.days+' days. Observed dates do not prove every ASIN was reported.'}>
+          <Tag color={partial?'warning':'success'}>{partial?'Comparison unavailable':'Comparable period'}</Tag>
+        </Tooltip>}
+      </Flex>
+      {loading?<Skeleton active title={false} paragraph={{rows:2}}/>:<>
+        <div className="gms-primary-metrics">{primary.map(key=><Metric key={key} definition={byKey(key)} value={kpis[key]} change={c?.changes?.[key]} selected={metric===key} onSelect={()=>onMetricChange(key)}/>)}</div>
+        <div className="gms-secondary-metrics">{secondary.map(key=><Metric key={key} definition={byKey(key)} value={kpis[key]} change={c?.changes?.[key]} selected={metric===key} onSelect={()=>onMetricChange(key)} small/>)}</div>
+        <Flex align="center" wrap gap={8} className="gms-coverage-line">
+          {current&&<Text type={partial?'warning':'secondary'}>{observed}/{current.expectedDays??observed} reporting days available{prior?' · prior '+(previous?.observedDays??0)+'/'+prior.days:''}</Text>}
+          {partial&&<Tooltip title={'Prior range: '+prior.from+' to '+prior.to+'. Missing dates are not counted as zero. Changes remain unavailable until both ranges have observed data on each day.'}><InfoCircleOutlined aria-label="Comparison coverage details"/></Tooltip>}
+          {observed===1&&current?.expectedDays>1&&analytics?.meta?.last&&<Button size="small" type="link" onClick={()=>onUseLatest?.(analytics.meta.last)}>View {dayjs(analytics.meta.last).format('DD MMM')} only</Button>}
+          {!isKnown(kpis.marginPct)&&<Text type="secondary">Margin unavailable</Text>}
+        </Flex>
+      </>}
+    </Card>
   </section>;
 }
 export function GmsTrend({analytics,loading,metric,onMetricChange}){
   const {token}=theme.useToken();
-  const [chartType,setChartType]=useState('area');
-  const selected=METRICS.find(m=>m.key===metric)||METRICS[0];
-  const series=useMemo(()=>[{name:selected.label,data:dailySeries(analytics?.daily,selected.key,analytics?.selectedWindow)}],[analytics?.daily,analytics?.selectedWindow,selected]);
+  const [chartType,setChartType]=useState('line');
+  const selected=byKey(metric)||METRICS[0];
+  const data=useMemo(()=>dailySeries(analytics?.daily,selected.key,analytics?.selectedWindow),[analytics?.daily,analytics?.selectedWindow,selected]);
+  const observed=useMemo(()=>data.filter(p=>p.y!==null),[data]);
+  const series=useMemo(()=>[{name:selected.label,data}],[selected,data]);
   const options=useMemo(()=>({
     chart:{type:chartType,toolbar:{show:false},animations:{enabled:false},zoom:{enabled:false},parentHeightOffset:0},
-    colors:[token.colorPrimary],
-    stroke:{curve:'straight',width:2.4},
-    dataLabels:{enabled:false},
-    markers:{size:series[0].data.length<=31?3:0},
-    fill:{type:chartType==='area'?'gradient':'solid',gradient:{opacityFrom:.22,opacityTo:.03}},
+    colors:[token.colorPrimary],stroke:{curve:'straight',width:2.4},dataLabels:{enabled:false},
+    markers:{size:observed.length<=31?3:0},fill:{type:chartType==='area'?'gradient':'solid',gradient:{opacityFrom:.22,opacityTo:.03}},
     grid:{borderColor:token.colorBorderSecondary,strokeDashArray:3},
     xaxis:{type:'datetime',labels:{datetimeUTC:true,format:'dd MMM'}},
     yaxis:{labels:{formatter:v=>metricValue(selected,v,{compact:true})}},
-    tooltip:{x:{format:'dd MMM yyyy'},y:{formatter:v=>metricValue(selected,v)}},
-    noData:{text:'No observed values'},
-    legend:{show:false},
-  }),[chartType,selected,series,token.colorPrimary,token.colorBorderSecondary]);
+    tooltip:{x:{format:'dd MMM yyyy'},y:{formatter:v=>metricValue(selected,v)}},legend:{show:false},
+  }),[chartType,selected,observed.length,token.colorPrimary,token.colorBorderSecondary]);
   if(!loading&&!analytics?.meta?.records)return null;
-  return <Card size="small" title="Daily performance" extra={<Tooltip title="Missing days and unavailable values are shown as gaps, not zero."><InfoCircleOutlined/></Tooltip>}>
+  const single=observed.length===1?observed[0]:null;
+  return <Card size="small" title="Daily performance" extra={<Tooltip title="A missing reporting day is not zero. The chart displays gaps and never invents a trend."><InfoCircleOutlined/></Tooltip>}>
     <Flex align="center" wrap gap={8} className="gms-trend-controls">
       <Select aria-label="Chart metric" value={selected.key} onChange={onMetricChange} options={METRICS.map(m=>({label:m.label,value:m.key}))} style={{minWidth:190}}/>
-      <Segmented aria-label="Chart style" value={chartType} onChange={setChartType} options={[{label:'Area',value:'area'},{label:'Line',value:'line'}]}/>
-      <Text type="secondary">{analytics?.selectedWindow?.from?dayjs(analytics.selectedWindow.from).format('DD MMM YYYY')+' to '+dayjs(analytics.selectedWindow.to).format('DD MMM YYYY'):'Selected report dates'}</Text>
+      {observed.length>1&&<Segmented aria-label="Chart style" value={chartType} onChange={setChartType} options={[{label:'Area',value:'area'},{label:'Line',value:'line'}]}/>}
+      <Text type="secondary">{observed.length} observed {observed.length===1?'day':'days'}</Text>
     </Flex>
-    {loading?<Skeleton active paragraph={{rows:5}}/>:series[0].data.some(p=>p.y!==null)?<div className="gms-trend-chart" aria-label={selected.label+' daily chart'}><Chart key={chartType+selected.key} options={options} series={series} type={chartType} height={260}/></div>:<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No observed values for this metric"/>}
+    {loading?<Skeleton active paragraph={{rows:4}}/>:single?<div className="gms-single-day" role="status">
+      <Text type="secondary">{new Date(single.x).toISOString().slice(0,10)}</Text>
+      <Typography.Title level={3} style={{margin:0}}>{metricValue(selected,single.y)}</Typography.Title>
+      <Text strong>Only one observed reporting day</Text><Text type="secondary">At least two observed values are needed for a meaningful trend.</Text>
+    </div>:observed.length>1?<div className="gms-trend-chart" aria-label={selected.label+' daily chart'}><Chart key={chartType+selected.key} options={options} series={series} type={chartType} height={280}/></div>:<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No observed values for this metric"/>}
+  </Card>;
+}
+export function GmsComparisonTable({analytics}){
+  const c=analytics?.comparison;
+  if(!analytics?.meta?.records)return null;
+  return <Card size="small" title="Selected period comparison">
+    <Text type="secondary">{c?.window?'Prior: '+c.window.from+' to '+c.window.to:'No equal-length prior period available'}. Values compare the full filtered dataset.</Text>
+    <div className="gms-compare-scroll"><table className="gms-compare-table"><thead><tr><th>Metric</th><th>Current</th><th>Prior</th><th>Change</th></tr></thead><tbody>
+      {METRICS.map(m=><tr key={m.key}><th>{m.label}</th><td>{metricValue(m,analytics.kpis?.[m.key])}</td><td>{metricValue(m,c?.baseline?.[m.key])}</td><td>{changeLabel(m,c?.changes?.[m.key])??'N/A'}</td></tr>)}
+    </tbody></table></div>
+    {(!c?.currentCoverage?.complete||!c?.previousCoverage?.complete)&&<Text type="secondary">Comparisons are unavailable where the date coverage is incomplete or the baseline is zero.</Text>}
   </Card>;
 }
