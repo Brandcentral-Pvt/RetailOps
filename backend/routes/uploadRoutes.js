@@ -7,6 +7,7 @@ const { MAX_FILE_BYTES } = require('../services/gmsImportParser');
 const { randomUUID } = require('node:crypto');
 const os = require('node:os');
 const { authenticate, requirePermission } = require('../middleware/auth');
+const { resolveSellerScope } = require('../utils/sellerScope');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'uploads'),
@@ -79,6 +80,11 @@ router.post('/upload/gms-imports/:id/confirm', authenticate, importPermission, g
 router.post('/upload/gms-imports/:id/cancel', authenticate, importPermission, gmsImport.cancel);
     router.get('/upload/gms-data', authenticate, requirePermission('gms_tracker_view'), uploadController.getGmsData);
     router.get('/upload/gms-asins', authenticate, requirePermission('gms_tracker_view'), uploadController.getGmsAsins);
-    router.post('/upload/gms-clear', authenticate, requirePermission('gms_tracker_delete'), uploadController.clearGmsData);
+    router.post('/upload/gms-clear', authenticate, requirePermission('gms_tracker_delete'), (req,res) => {
+      if (!resolveSellerScope(req.user).isGlobal) return res.status(403).json({success:false,message:'Global scope is required'});
+      // The legacy administrative action is unavailable until it can be
+      // coordinated transactionally with durable queued batches and recovery.
+      return res.status(409).json({success:false,message:'Global GMS clear is paused during staged-import rollout; use batch cancellation for pending imports.'});
+    });
 
 module.exports = router;
