@@ -61,6 +61,14 @@ describe('GMS calendar dates', () => {
 });
 
 describe('GMS route security', () => {
+  test('generated export files cannot be fetched through the public upload mount',async()=>{
+    const staticApp=express();
+    staticApp.use('/uploads',require('../../middleware/privateExportFiles'),(_req,res)=>res.sendStatus(200));
+    expect((await request(staticApp).get('/uploads/exports/report.xlsx')).status).toBe(404);
+    expect((await request(staticApp).get('/uploads/%65xports/report.xlsx')).status).toBe(404);
+    expect((await request(staticApp).get('/uploads/public/%2e%2e/exports/report.xlsx')).status).toBe(404);
+    expect((await request(staticApp).get('/uploads/images/product.png')).status).toBe(200);
+  });
   test('unauthenticated users cannot read metadata', async () => {
     mockUser = null;
     expect((await request(app).get('/api/upload/gms-asins')).status).toBe(401);
