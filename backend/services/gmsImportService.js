@@ -41,7 +41,7 @@ function parseInWorker(file) {
     worker.once('message', data => {
       if (data.ok) finish(null, data.result);
       else {
-        const safe = /^(No worksheet|Report exceeds|Report must|Formula cells)/.test(data.message || '');
+        const safe = /^(No worksheet|Report exceeds|Report must|Formula cells|Excel error cells)/.test(data.message || '');
         finish(new Error(safe ? data.message : 'Unable to parse report; check the file format'));
       }
     });
@@ -206,7 +206,18 @@ async function listJobs(ownerId) {
     .query('SELECT TOP (50) ' + jobColumns + ' FROM GmsImportJobs WHERE OwnerId=@owner ORDER BY CreatedAt DESC, Id DESC');
   return result.recordset.map(publicJob);
 }
+let activePreviews = 0;
 async function createPreview(user, file) {
+  if (activePreviews >= 1) {
+    const error = new Error('Another GMS preview is in progress on this server; try again shortly');
+    error.status = 429;
+    throw error;
+  }
+  activePreviews++;
+  try { return await buildPreview(user, file); }
+  finally { activePreviews--; }
+}
+async function buildPreview(user, file) {
   const scope = resolveSellerScope(user);
   if (scope.empty) { const e = new Error('No assigned sellers'); e.status = 403; throw e; }
   let parsed;
