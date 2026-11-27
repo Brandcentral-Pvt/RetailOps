@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Card, Col, Collapse, Flex, Modal, Progress, Row, Space, Statistic, Steps, Table, Tabs, Tag, Tooltip, Typography, Upload } from 'antd';
+import React, { useEffect, useId, useRef, useState } from 'react';
+import { Alert, Button, Card, Col, Collapse, Flex, Modal, Progress, Row, Space, Statistic, Steps, Table, Tag, Tooltip, Typography, Upload } from 'antd';
 import { UploadOutlined, ReloadOutlined, DownloadOutlined } from '@ant-design/icons';
 import { gmsApi } from '../../services/api';
 import './gmsImportDialog.css';
@@ -21,7 +21,9 @@ export default function GmsImportDialog({ open, initialTab='upload', onClose, on
   const [progress, setProgress] = useState(null);
   const [downloading, setDownloading] = useState(null);
   const lock = useRef(false);
-  const uploadScrollRef=useRef(null),historyScrollRef=useRef(null);
+  const scrollRef=useRef(null);
+  const tabListRef=useRef(null);
+  const tabsId=useId();
   const onCommittedRef = useRef(onCommitted);
   const notified = useRef(new Set());
   useEffect(() => { onCommittedRef.current = onCommitted; }, [onCommitted]);
@@ -143,10 +145,10 @@ export default function GmsImportDialog({ open, initialTab='upload', onClose, on
     finally { setDownloading(null); }
   }
   useEffect(()=>{
-    if(open) (tab==='history'?historyScrollRef.current:uploadScrollRef.current)?.scrollTo({top:0,left:0});
+    if(open) scrollRef.current?.scrollTo({top:0,left:0});
   },[open,tab,job?.id]);
   useEffect(()=>{
-    if(open&&error) (tab==='history'?historyScrollRef.current:uploadScrollRef.current)?.scrollTo({top:0});
+    if(open&&error) scrollRef.current?.scrollTo({top:0});
   },[open,tab,error]);
 
   const summary=job?.summary;
@@ -258,11 +260,32 @@ export default function GmsImportDialog({ open, initialTab='upload', onClose, on
       </>}
     </div>
   </div>;
-  return <Modal open={open} centered rootClassName="gms-import-modal-root" className="gms-import-modal" onCancel={()=>{if(!busy)onClose();}} keyboard={!busy}
+  // Keep the tab bar outside the scrolling panel. Own the layout rather
+  // than relying on Ant Tabs' internal content/active-pane class names.
+  const tabs=[{key:'upload',label:'Import report'},{key:'history',label:'My import history'}];
+  function onTabKeyDown(event){
+    if(busy||!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
+    event.preventDefault();
+    const next=event.key==='Home'?'upload':event.key==='End'?'history':tab==='upload'?'history':'upload';
+    setTab(next);
+    tabListRef.current?.querySelector('[data-tab="'+next+'"]')?.focus();
+  }
+  return <Modal open={open} centered rootClassName="gms-import-modal-root" className="gms-import-modal"
+    classNames={{wrapper:'gms-import-wrap',container:'gms-import-shell',header:'gms-import-header',body:'gms-import-body',footer:'gms-import-footer'}}
+    onCancel={()=>{if(!busy)onClose();}} keyboard={!busy}
     title="GMS Report Import" width={1040} footer={footer} closable={!busy} mask={{closable:false}}>
-    <Tabs className="gms-import-tabs" activeKey={tab} onChange={setTab} items={[
-      {key:'upload',label:'Import report',children:<section ref={uploadScrollRef} className="gms-import-scroll" role="region" aria-label="Import report content" tabIndex={0}>{workflow}</section>},
-      {key:'history',label:'My import history',disabled:busy,children:<section ref={historyScrollRef} className="gms-import-scroll" role="region" aria-label="Import history content" tabIndex={0}>{historyContent}</section>}
-    ]}/>
+    <div ref={tabListRef} role="tablist" aria-label="GMS import sections" className="gms-import-tabs" onKeyDown={onTabKeyDown}>
+      {tabs.map(item=><button type="button" key={item.key} id={tabsId+'-'+item.key+'-tab'} data-tab={item.key}
+        role="tab" aria-selected={tab===item.key} aria-controls={tabsId+'-'+item.key+'-panel'}
+        tabIndex={tab===item.key?0:-1} disabled={busy&&tab!==item.key} onClick={()=>{if(!busy)setTab(item.key);}}
+        className="gms-import-tab">{item.label}</button>)}
+    </div>
+    {tabs.map(item=><section key={item.key} id={tabsId+'-'+item.key+'-panel'} role="tabpanel" aria-labelledby={tabsId+'-'+item.key+'-tab'}
+      hidden={tab!==item.key} className="gms-import-panel">
+      {tab===item.key&&<div ref={scrollRef} className="gms-import-scroll" role="region"
+        aria-label={item.key==='upload'?'Import report content':'Import history content'} tabIndex={0}>
+        {item.key==='upload'?workflow:historyContent}
+      </div>}
+    </section>)}
   </Modal>;
 }
