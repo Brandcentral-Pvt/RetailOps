@@ -79,6 +79,20 @@ describe('strict GMS report validation', () => {
       expect(result.rows[n-1]).toMatchObject({asin:'B000100000',orderedRevenue:'-1.25',customerReturns:0});
     } finally { fs.rmSync(dir,{recursive:true,force:true}); }
   },120000);
+  test('parses an XLSX with more than 100,000 rows and preserves negative values', () => {
+    const dir=fs.mkdtempSync(path.join(os.tmpdir(),'gms-large-xlsx-'));
+    try {
+      const file=path.join(dir,'large.xlsx'), n=100001;
+      const data=[headers,...Array.from({length:n},(_,i)=>['B'+String(i).padStart(9,'0'),'2026-11-27','Brand A','IN',-1.25,-1,0,0,0,null])];
+      const book=XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(book,XLSX.utils.aoa_to_sheet(data,{dense:true}),'GMS');
+      XLSX.writeFile(book,file,{compression:true});
+      const result=parseFile(file,'large.xlsx');
+      expect(result).toMatchObject({total:n,invalid:0,defaultedCells:n,negativeRows:n});
+      expect(result.rows).toHaveLength(n);
+      expect(result.rows[n-1]).toMatchObject({asin:'B000100000',orderedRevenue:'-1.25',customerReturns:0});
+    } finally { fs.rmSync(dir,{recursive:true,force:true}); }
+  },120000);
   test('reads an actual CSV and rejects Excel formula cells', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(),'gms-parser-'));
     try {
