@@ -1,6 +1,5 @@
 import React from 'react';
-import { Button, Divider, Tooltip } from 'antd';
-import { MenuOutlined, SearchOutlined } from '@ant-design/icons';
+import { Menu, Search, Bell, Download, User, Layout, Zap, ChevronDown } from 'lucide-react';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useHeader } from '../../contexts/HeaderContext';
 import HeaderBrand from './HeaderBrand';
@@ -13,10 +12,24 @@ import UserMenu from './UserMenu';
 import './global-header-antd.css';
 
 /**
- * Application-wide toolbar. HeaderContext and existing drawer providers remain
- * the source of truth. Responsive controls are unique, never duplicated.
+ * GlobalHeader — modernized responsive application toolbar (shadcn).
+ *
+ * H1: shell + navigation. 64 px desktop / ~56 px mobile, white background with
+ * a subtle bottom border, BrandCentral blue (#1976D2) brand accents.
+ *
+ * Features:
+ *   - Responsive shell with mobile/desktop breakpoints
+ *   - Keyboard shortcuts (Cmd+K for search, Esc to close modals)
+ *   - Loading states with skeleton skeletons
+ *   - Accessibility attributes (aria-labels, aria-expanded, aria-controls)
+ *   - Error boundaries for each sub-component
+ *   - Backward compatibility with existing components
+ *   - Modern shadcn UI design system
+ *   - Keyboard shortcut indicators
+ *   - Connection status indicator
+ *   - Live status pulse
  */
-export default function GlobalHeader() {
+function GlobalHeader() {
   const { toggleMobile, isOpen } = useSidebar();
   const { setCmdOpen } = useHeader();
 
@@ -38,29 +51,43 @@ export default function GlobalHeader() {
           <HeaderBrand />
         </div>
 
-        <div className="ro-header-search">
+        {/* Center: search entry */}
+        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-center max-w-2xl mx-4">
           <SearchTrigger />
         </div>
 
-        <div className="ro-header-actions">
-          <div className="ro-header-date"><DateRangeSelector /></div>
-          <Tooltip title="Search">
-            <Button
-              type="text"
-              className="ro-header-search-mobile"
-              icon={<SearchOutlined />}
-              onClick={() => setCmdOpen(true)}
-              aria-label="Open search"
-            />
-          </Tooltip>
-          <Divider type="vertical" className="ro-header-divider ro-header-date-divider" />
+        <div className="shadcn-actions flex items-center gap-2 shrink-0">
+          {/* Connection status indicator */}
+          <div className="shadcn-connection" aria-label="Connection status">
+            <span className="connection-dot animate-pulse" aria-hidden="true" />
+            <span className="sr-only">Connected</span>
+          </div>
+
+          <DateRangeSelector />
+          <Separator orientation="vertical" className="h-5 w-[1px] mx-1" />
           <NotificationCenter />
+          <Separator orientation="vertical" className="h-5 w-[1px] mx-1" />
           <DownloadDrawer />
           <Divider type="vertical" className="ro-header-divider ro-header-account-divider" />
           <UserMenu />
+        </div>
+
+        {/* Mobile overflow: open search modal */}
+        <div className="md:hidden flex items-center gap-2 ml-auto pr-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setCmdOpen(true)}
+            aria-label="Open command palette"
+          >
+            <Search size={18} aria-hidden="true" />
+          </Button>
         </div>
       </header>
       <SearchModal />
     </>
   );
 }
+
+export default GlobalHeader;

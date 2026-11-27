@@ -183,6 +183,7 @@ export default function GmsTrackerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [confirmUploadOpen, setConfirmUploadOpen] = useState(false);
   const [fileList, setFileList] = useState([]);
   const [selectedBrands, setSelectedBrands] = useState([]);
