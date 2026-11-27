@@ -120,6 +120,16 @@ function rangeDates(from,to){
   return out;
 }
 // Shared summary computation accepts raw facts or lossless SQL day aggregates.
+function summarizeMetrics(facts){
+  const acc=accumulator();
+  for(const row of facts)add(acc,row);
+  return metrics(acc);
+}
+function historyWindow(window){
+  if(!window.from||!window.to)return {from:null,to:window.to};
+  const prior=priorWindow(window);
+  return {from:[prior.from,monthOffset(window.from,-1),shift(window.from,-7)].sort()[0],to:window.to};
+}
 function buildOverview(facts,window){
   const prior=priorWindow(window);
   const current=facts.filter(r=>inWindow(r,window));
@@ -222,7 +232,7 @@ async function queryFacts(pool,user,window,filters={}, {signal}={}){
     'SELECT CONVERT(char(10),g.Date,23) AS date,g.Asin AS asin,g.Brand AS brand,g.StoreCode AS storeCode,'+
     'CONVERT(varchar(50),g.OrderedRevenue) AS orderedRevenue,g.OrderedUnits AS orderedUnits,'+
     'CONVERT(varchar(50),g.ShippedRevenue) AS shippedRevenue,CONVERT(varchar(50),g.ShippedCOGS) AS shippedCOGS,'+
-    'g.ShippedUnits AS shippedUnits,g.CustomerReturns AS customerReturns,COALESCE(g.SellerId,a.SellerId) AS sellerId,s.Name AS dbBrand,a.Title AS productTitle '+
+    'g.ShippedUnits AS shippedUnits,g.CustomerReturns AS customerReturns,COALESCE(g.SellerId,a.SellerId) AS sellerId,s.Name AS dbBrand,g.ReportProductTitle AS reportProductTitle,a.Title AS catalogProductTitle,COALESCE(g.ReportProductTitle,a.Title) AS productTitle '+
     'FROM GmsDailyPerformance g '+gmsCatalogApplySql+' LEFT JOIN Sellers s ON COALESCE(g.SellerId,a.SellerId)=s.Id '+where+' ORDER BY g.Date DESC,g.Asin,g.Id'
   );
   return result.recordset.filter(r=>r.date);
@@ -230,11 +240,8 @@ async function queryFacts(pool,user,window,filters={}, {signal}={}){
 }
 async function loadAnalytics(pool,user,options,requestOptions={}){
   const window=dateWindow(options.startDate,options.endDate,{required:true});
-  const prior=priorWindow(window);
-  // Include history needed by an entire prior month and exact previous days.
-  const from=[prior.from,monthOffset(window.from,-1),shift(window.from,-7)].sort()[0];
   const filters=filterSpec(options);
-  const facts=await queryFacts(pool,user,{from,to:window.to},filters,requestOptions);
+  const facts=await queryFacts(pool,user,historyWindow(window),filters,requestOptions);
   return buildAnalytics(facts,{window,filters,level:options.level??'asin'});
 }
-module.exports={filterSpec,selectFacts,priorWindow,isoWeek,weekKey,buildGroups,buildOverview,buildAnalytics,queryFacts,loadAnalytics,pct};
+module.exports={filterSpec,selectFacts,priorWindow,isoWeek,weekKey,buildGroups,buildOverview,buildAnalytics,queryFacts,loadAnalytics,pct,summarizeMetrics,historyWindow};
