@@ -1,0 +1,113 @@
+const express = require('express');
+const request = require('supertest');
+const { makeFakePool } = require('../../testUtils/fakePool');
+const { dateOnly, dateWindow, exportWindow } = require('../../utils/gmsPhase1');
+
+let mockUser;
+let mockPool;
+jest.mock('../../database/db', () => ({
+  sql: require('../../testUtils/fakePool').FAKE_SQL,
+  getPool: async () => mockPool,
+  generateId: () => 'test-id',
+  executeWithRetry: async fn => fn(),
+}));
+jest.mock('../../services/marketDataSyncService', () => ({}));
+jest.mock('../../services/SystemLogService', () => ({}));
+jest.mock('../../services/socketService', () => ({}));
+jest.mock('../../controllers/exportAdsController', () => ({ startAdsExport: (_req, res) => res.sendStatus(200) }));
+jest.mock('../../middleware/auth', () => {
+  const authenticate = (req, res, next) => {
+    if (!mockUser) return res.sendStatus(401);
+    req.user = mockUser;
+    next();
+  };
+  return {
+    authenticate, auth: authenticate,
+    requirePermission: permission => (req, res, next) => {
+      if (!(req.user.permissions.includes('*') || req.user.permissions.includes(permission))) return res.sendStatus(403);
+      next();
+    },
+  };
+});
+const app = express();
+app.use(express.json());
+app.use('/api', require('../../routes/uploadRoutes'));
+app.use('/api/export', require('../../routes/exportRoutes'));
+
+beforeEach(() => {
+  mockUser = { id: 'u1', role: { name: 'brand_manager' }, assignedSellers: ['S1'], permissions: ['gms_tracker_view'] };
+  mockPool = makeFakePool();
+});
+
+describe('GMS calendar dates', () => {
+  test('valid calendar dates and legacy ISO values', () => {
+    expect(dateOnly('2024-02-29')).toBe('2024-02-29');
+    expect(dateOnly('2026-11-27T00:00:00.000Z')).toBe('2026-11-27');
+    expect(exportWindow({ exportDateType: 'all' })).toEqual({ from: null, to: null });
+    expect(exportWindow({ exportDateType: 'custom', exportCustomDates: ['2026-11-01', '2026-11-27'] })).toEqual({ from: '2026-11-01', to: '2026-11-27' });
+  });
+  test.each(['2026-02-29', '2026-11-31', '2026-13-01', '27/11/2026', 'invalid', ['2026-11-27']])('rejects malformed date %p', value => {
+    expect(() => dateOnly(value)).toThrow();
+  });
+  test('rejects reversed and incomplete export windows', () => {
+    expect(() => dateWindow('2026-11-27', '2026-11-01')).toThrow();
+    expect(() => exportWindow({ exportDateType: 'current', startDate: '2026-11-01' })).toThrow();
+    expect(() => exportWindow({ exportDateType: 'custom', exportCustomDates: ['2026-11-01'] })).toThrow();
+  });
+});
+
+describe('GMS route security', () => {
+  test('unauthenticated users cannot read metadata', async () => {
+    mockUser = null;
+    expect((await request(app).get('/api/upload/gms-asins')).status).toBe(401);
+  });
+  test('view permission alone cannot export or delete', async () => {
+    expect((await request(app).post('/api/export/start-gms').send({})).status).toBe(403);
+    expect((await request(app).post('/api/upload/gms-clear')).status).toBe(403);
+    expect(mockPool.calls).toHaveLength(0);
+  });
+  test('export permission does not grant deletion even to a global user', async () => {
+    mockUser.role.name = 'operational_manager';
+    mockUser.permissions.push('gms_tracker_export');
+    expect((await request(app).post('/api/upload/gms-clear')).status).toBe(403);
+    expect(mockPool.calls).toHaveLength(0);
+  });
+  test('a scoped user cannot globally delete even with explicit permission', async () => {
+    mockUser.permissions.push('gms_tracker_delete');
+    expect((await request(app).post('/api/upload/gms-clear')).status).toBe(403);
+    expect(mockPool.calls).toHaveLength(0);
+  });
+  test('a wildcard global user can clear data', async () => {
+    mockUser.role.name = 'admin';
+    mockUser.permissions = ['*'];
+    expect((await request(app).post('/api/upload/gms-clear')).status).toBe(200);
+    expect(mockPool.calls[0].sql).toBe('DELETE FROM GmsDailyPerformance');
+  });
+  test('metadata query is seller scoped and excludes ambiguous owners', async () => {
+    expect((await request(app).get('/api/upload/gms-asins')).status).toBe(200);
+    expect(mockPool.calls[0].inputs.gmsMeta_0).toBe('S1');
+    expect(mockPool.calls[0].sql).toContain('NOT EXISTS');
+    expect(mockPool.calls[0].sql).toContain('other.SellerId <> a.SellerId');
+  });
+  test('GMS reads use bound dates and seller scope', async () => {
+    expect((await request(app).get('/api/upload/gms-data').query({ startDate: '2026-11-01', endDate: '2026-11-27' })).status).toBe(200);
+    expect(mockPool.calls[0].inputs).toMatchObject({ gmsRead_0: 'S1', startDate: '2026-11-01', endDate: '2026-11-27' });
+    expect(mockPool.calls[0].sql).toContain('g.Date < DATEADD(day, 1, @endDate)');
+    expect(mockPool.calls[0].sql).toContain('NOT EXISTS');
+  });
+  test('no assigned sellers fails closed without querying the database', async () => {
+    mockUser.assignedSellers = [];
+    expect((await request(app).get('/api/upload/gms-asins')).body.data).toEqual([]);
+    expect((await request(app).get('/api/upload/gms-data')).body.data).toEqual([]);
+    expect(mockPool.calls).toHaveLength(0);
+  });
+  test('invalid export date rejected before job creation', async () => {
+    mockUser.permissions.push('gms_tracker_export');
+    expect((await request(app).post('/api/export/start-gms').send({ exportDateType: 'current', startDate: 'invalid', endDate: '2026-11-27' })).status).toBe(400);
+    expect(mockPool.calls).toHaveLength(0);
+  });
+  test('invalid read date rejected before database access', async () => {
+    expect((await request(app).get('/api/upload/gms-data').query({ startDate: '2026-11-31' })).status).toBe(400);
+    expect(mockPool.calls).toHaveLength(0);
+  });
+});

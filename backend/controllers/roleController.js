@@ -365,7 +365,8 @@ const defaultPermissions = [
   { name: 'targets_export', displayName: 'Targets: Export Data', description: 'Export sales targets and achievements', category: 'Targets', action: 'export' },
   { name: 'gms_tracker_view', displayName: 'GMS Tracker: View', description: 'View GMS Performance Tracker data', category: 'GMS Tracker', action: 'view' },
   { name: 'gms_tracker_import', displayName: 'GMS Tracker: Import', description: 'Upload CSV/Excel sheets into GMS Tracker', category: 'GMS Tracker', action: 'import' },
-  { name: 'gms_tracker_export', displayName: 'GMS Tracker: Export', description: 'Export or clear GMS Tracker data', category: 'GMS Tracker', action: 'export' },
+  { name: 'gms_tracker_export', displayName: 'GMS Tracker: Export', description: 'Export GMS Tracker data', category: 'GMS Tracker', action: 'export' },
+  { name: 'gms_tracker_delete', displayName: 'GMS Tracker: Delete', description: 'Clear all GMS data (global scope only)', category: 'GMS Tracker', action: 'delete' },
 ];
 
 const defaultRoles = [

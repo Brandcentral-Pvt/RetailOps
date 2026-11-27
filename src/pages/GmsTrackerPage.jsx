@@ -22,6 +22,7 @@ import {
   Select,
   Segmented,
   Radio,
+  Upload,
 } from "antd";
 import {
   UploadOutlined,
@@ -41,7 +42,6 @@ import { useHeader } from "../contexts/HeaderContext";
 
 import { LoadError } from "@/components/LoadError";
 import { GmsTrackerSkeleton } from "@/components/ui/PageSkeletons";
-import Upload from "antd/es/upload/Upload";
 import { Panel, MiniState, timeAgo, useNow } from "./opsCenter/primitives";
 import "./opsCenter/ops.css";
 import "./ads/ads.css";
@@ -177,7 +177,11 @@ const describeWindow = (from, to) => {
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
 export default function GmsTrackerPage() {
-  const { isAdmin, isGlobalUser, hasPermission } = useAuth();
+  const { user } = useAuth();
+  // Match server effective permissions rather than legacy role-based UI bypasses.
+  const effectivePermissions = user?.permissions || [];
+  const can = (permission) => effectivePermissions.includes('*') || effectivePermissions.includes(permission);
+  const canClear = can('gms_tracker_delete') && user?.scope === 'global';
   const { setPageMeta } = useHeader();
   const [gmsData, setGmsData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -215,72 +219,67 @@ export default function GmsTrackerPage() {
   // Deferred filter transition for smooth UX during heavy filter recomputation
   const [isFilterPending, startFilterTransition] = useTransition();
 
-  const loadMountedRef = useRef(true);
-// Fetch Brands/Sellers, ASINs & GMS data — only static data once, GMS data on every date change
-  const loadAllData = useCallback(async () => {
-    if (!loadMountedRef.current) return;
+  const loadMountedRef = useRef(false);
+  const loadRequestRef = useRef(0);
+  const abortRef = useRef(null);
+  // Cancel obsolete loads and only publish the latest successful response.
+  const loadAllData = useCallback(async ({ refreshMetadata = false } = {}) => {
+    if (!loadMountedRef.current) return false;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const requestId = ++loadRequestRef.current;
+    const isCurrent = () => loadMountedRef.current && requestId === loadRequestRef.current && !controller.signal.aborted;
     setLoading(true);
     setError(null);
     try {
       let sellers = dbSellersRef.current;
       let asins = dbAsinsRef.current;
-
-      // Only fetch sellers/asins/managers on the first load
-      if (!staticLoadedRef.current) {
+      if (refreshMetadata || !staticLoadedRef.current) {
         const [sellersRes, asinsRes, managersRes] = await Promise.all([
           sellerApi.getAll({ limit: 1000 }).catch(() => null),
-          gmsApi.getAsins().catch(() => null),
+          gmsApi.getAsins({ signal: controller.signal }),
           userApi.getManagers().catch(() => null),
         ]);
-
-        if (sellersRes?.success && sellersRes.data?.sellers) {
+        if (!isCurrent()) return false;
+        if (!asinsRes?.success || !Array.isArray(asinsRes.data)) throw new Error("Failed to load GMS catalog metadata.");
+        asins = asinsRes.data;
+        dbAsinsRef.current = asins;
+        if (sellersRes?.success && Array.isArray(sellersRes.data?.sellers)) {
           sellers = sellersRes.data.sellers;
           dbSellersRef.current = sellers;
           setDbSellers(sellers);
         }
-        if (asinsRes?.success && asinsRes.data) {
-          asins = asinsRes.data || [];
-          dbAsinsRef.current = asins;
-        }
-        if (managersRes?.success && managersRes.data) {
-          setDbManagers(managersRes.data);
-        }
-        staticLoadedRef.current = true;
+        if (managersRes?.success && Array.isArray(managersRes.data)) setDbManagers(managersRes.data);
+        staticLoadedRef.current = Boolean(sellersRes?.success && managersRes?.success);
       }
-
-      // Always re-fetch GMS data when date range changes
-      const effectiveStart =
-        startDate || dayjs().startOf("month").format("YYYY-MM-DD");
-      const effectiveEnd =
-        endDate || dayjs().endOf("month").format("YYYY-MM-DD");
-      const gmsRes = await gmsApi
-        .getAll({
-          startDate: effectiveStart,
-          endDate: effectiveEnd,
-        })
-        .catch(() => null);
-
-      if (gmsRes?.success && gmsRes.data) {
-        const resolved = resolveDbBrands(gmsRes.data, asins, sellers);
-        setGmsData(resolved);
-      }
+      const gmsRes = await gmsApi.getAll({
+        startDate: dayjs(startDate || dayjs().startOf("month")).format("YYYY-MM-DD"),
+        endDate: dayjs(endDate || dayjs().endOf("month")).format("YYYY-MM-DD"),
+      }, { signal: controller.signal });
+      if (!isCurrent()) return false;
+      if (!gmsRes?.success || !Array.isArray(gmsRes.data)) throw new Error(gmsRes?.message || "Invalid GMS data response.");
+      setGmsData(resolveDbBrands(gmsRes.data, asins, sellers));
       setLastLoadedAt(Date.now());
+      return true;
     } catch (err) {
-      console.error("Failed to load GMS data:", err);
-      setError("Failed to load GMS data. Please try again.");
+      if (!isCurrent()) return false;
+      setError(err.message || "Failed to load GMS data. Please try again.");
+      setGmsData([]);
+      setLastLoadedAt(null);
+      return false;
     } finally {
-      if (loadMountedRef.current) setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   }, [startDate, endDate]);
 
   useEffect(() => {
     loadMountedRef.current = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- loadAllData is async; initial data fetch is standard pattern
-    loadAllData().finally(() => {
-      loadMountedRef.current = false;
-    });
+    loadAllData();
     return () => {
       loadMountedRef.current = false;
+      abortRef.current?.abort();
+      loadRequestRef.current++;
     };
   }, [loadAllData]);
 
@@ -291,6 +290,9 @@ export default function GmsTrackerPage() {
       breadcrumbs: [{ label: 'Workspace' }, { label: 'GMS Tracker' }],
     });
   }, [setPageMeta]);
+
+  const latestLoad = useRef(loadAllData);
+  useEffect(() => { latestLoad.current = loadAllData; }, [loadAllData]);
 
   const clearAllData = useCallback(() => {
     Modal.confirm({
@@ -303,10 +305,10 @@ export default function GmsTrackerPage() {
       async onOk() {
         try {
           const res = await gmsApi.clearAll();
-          if (res.success) {
-            setGmsData([]);
-            message.success("GMS Tracker cleared successfully.");
-          }
+          if (!res.success) throw new Error(res.message || 'Clear failed');
+          setGmsData([]);
+          await latestLoad.current({ refreshMetadata: true });
+          message.success(`GMS data cleared. ${res.deleted ?? 0} records deleted.`);
         } catch (err) {
           message.error("Failed to clear GMS data: " + err.message);
         }
@@ -330,8 +332,8 @@ export default function GmsTrackerPage() {
           exportCustomDates[0] &&
           exportCustomDates[1]
             ? [
-                exportCustomDates[0].toISOString(),
-                exportCustomDates[1].toISOString(),
+                exportCustomDates[0].format("YYYY-MM-DD"),
+                exportCustomDates[1].format("YYYY-MM-DD"),
               ]
             : null,
         exportBrandType,
@@ -391,64 +393,54 @@ export default function GmsTrackerPage() {
   const [uploadStatus, setUploadStatus] = useState("");
 
   // Handle file selection — store for confirmation, don't auto-upload
-  const handleFileSelect = (info) => {
-    if (info.file.status !== "uploading") return;
-    const file = info.file.originFileObj;
-    if (!file) return;
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const uploadingRef = useRef(false);
 
-    // Store the file and show confirmation modal
+  // Ant Design beforeUpload receives the file itself. Always return false
+  // for a valid file so the component cannot issue its own HTTP request.
+  const handleFileSelect = (file) => {
+    if (uploadingRef.current) return Upload.LIST_IGNORE;
+    if (!/\.(csv|xlsx|xls)$/i.test(file.name || "") || !file.size || file.size > 200 * 1024 * 1024) {
+      message.error("Choose a non-empty CSV or Excel report up to 200 MB.");
+      return Upload.LIST_IGNORE;
+    }
     setPendingFile(file);
+    setFileList([file]);
     setConfirmUploadOpen(true);
-    // Return a file object that won't actually upload (we'll handle it manually)
-    setFileList((prev) => [...prev, { ...info.file, status: "ready" }]);
-    return false; // Prevent default upload behavior
+    return false;
   };
 
-  // Execute the upload after confirmation
+  const resetUpload = () => {
+    setConfirmUploadOpen(false);
+    setPendingFile(null);
+    setFileList([]);
+  };
+
   const processUpload = async () => {
-    if (!pendingFile) return;
+    if (!pendingFile || uploadingRef.current) return;
+    uploadingRef.current = true;
     setConfirmUploadOpen(false);
     setIsUploading(true);
-    setUploadStatus("Uploading and parsing...");
-
+    setUploadProgress(0);
+    setUploadStatus("Uploading file...");
     try {
-      const res = await gmsApi.upload(pendingFile);
-
-      if (res.success) {
-        message.success("GMS report uploaded successfully.");
-        setFileList([]);
-        setPendingFile(null);
-        setIsUploadOpen(false);
-        setIsUploading(false);
-        setUploadStatus("");
-        // Refresh GMS data after upload completes
-        const effectiveStart =
-          startDate || dayjs().startOf("month").format("YYYY-MM-DD");
-        const effectiveEnd =
-          endDate || dayjs().endOf("month").format("YYYY-MM-DD");
-        const freshGms = await gmsApi.getAll({
-          startDate: effectiveStart,
-          endDate: effectiveEnd,
-        });
-        if (freshGms.success && freshGms.data) {
-          const resolved = resolveDbBrands(
-            freshGms.data,
-            dbAsinsRef.current,
-            dbSellersRef.current,
-          );
-          setGmsData(resolved);
-        }
-        setLastLoadedAt(Date.now());
-      } else {
-        throw new Error(res.message || "Upload failed");
-      }
+      const res = await gmsApi.upload(pendingFile, (percent) => {
+        setUploadProgress(percent);
+        setUploadStatus(percent === 100 ? "Processing report on server..." : "Uploading file...");
+      });
+      if (!res?.success || !(res.processed > 0)) throw new Error(res?.message || "No records were imported.");
+      message.success(`Imported ${res.processed} records; ${res.skipped || 0} skipped; ${res.duplicatesCondensed || 0} duplicates condensed.`);
+      resetUpload();
+      setIsUploadOpen(false);
+      if (!await latestLoad.current({ refreshMetadata: true })) message.warning("Import completed. Refresh GMS data to see the latest records.");
     } catch (err) {
-      console.error("GMS upload error:", err);
       message.error("Upload failed: " + err.message);
-      setFileList([]);
-      setPendingFile(null);
+      resetUpload();
+    } finally {
+      uploadingRef.current = false;
       setIsUploading(false);
       setUploadStatus("");
+      setUploadProgress(0);
     }
   };
 
@@ -524,7 +516,7 @@ export default function GmsTrackerPage() {
   useEffect(() => {
     const timer = setTimeout(() => setTablePage(1), 0);
     return () => clearTimeout(timer);
-  }, [selectedBrands, selectedManagers, searchQuery, viewLevel]);
+  }, [selectedBrands, selectedManagers, searchQuery, viewLevel, startDate, endDate]);
 
   // Aggregate Metrics for KPIs
   const kpiMetrics = useMemo(() => {
@@ -768,7 +760,7 @@ export default function GmsTrackerPage() {
             (a.storeCode || "").localeCompare(b.storeCode || ""),
         },
         {
-          title: "Orders",
+          title: "Ordered Units",
           dataIndex: "orderedUnits",
           key: "orderedUnits",
           width: 80,
@@ -1442,7 +1434,7 @@ export default function GmsTrackerPage() {
           <LoadingIndicator type="line-simple" size="sm" />
         </div>
       )}
-      {error && !loading && <LoadError message={error} onRetry={loadAllData} />}
+      {error && !loading && <LoadError message={error} onRetry={() => loadAllData({ refreshMetadata: true })} />}
 
       {/* ══ GMS COMMAND HEADER ══════════════════════════════════════
           One cohesive surface: title/actions → filters → dataset strip.
@@ -1485,9 +1477,7 @@ export default function GmsTrackerPage() {
 
             <span className="gms-cmd__spacer" />
 
-            {(isAdmin ||
-              isGlobalUser ||
-              hasPermission("gms_tracker_export")) && (
+            {can("gms_tracker_export") && (
               <Tooltip title="Export this dataset">
                 <Button
                   icon={<DownloadOutlined />}
@@ -1503,9 +1493,7 @@ export default function GmsTrackerPage() {
               </Tooltip>
             )}
 
-            {(isAdmin ||
-              isGlobalUser ||
-              hasPermission("gms_tracker_import")) && (
+            {can("gms_tracker_import") && (
               <Button
                 type="primary"
                 icon={<UploadOutlined />}
@@ -1517,9 +1505,7 @@ export default function GmsTrackerPage() {
               </Button>
             )}
 
-            {(isAdmin ||
-              isGlobalUser ||
-              hasPermission("gms_tracker_export")) && (
+            {canClear && (
               <Tooltip title="Permanently delete all uploaded GMS records">
                 <Button
                   danger
@@ -1589,7 +1575,7 @@ export default function GmsTrackerPage() {
             />
 
             <Input.Search
-              placeholder="Search ASIN, SKU, Parent, Title, Brand..."
+              placeholder="Search ASIN, Title, Brand, Store..."
               size="small"
               allowClear
               className="gms-cmd__search"
@@ -1639,13 +1625,13 @@ export default function GmsTrackerPage() {
               }
             >
               <span className="gms-cmd__freshdot" />
-              {lastLoadedAt ? `Synced ${timeAgo(lastLoadedAt)}` : "Syncing…"}
+              {error ? "Sync failed" : loading ? "Syncing…" : lastLoadedAt ? `Synced ${timeAgo(lastLoadedAt)}` : "Not synced"}
             </span>
             <Tooltip title="Refresh data">
               <Button
                 size="small"
                 loading={loading}
-                onClick={loadAllData}
+                onClick={() => loadAllData({ refreshMetadata: true })}
                 aria-label="Refresh data"
                 icon={<ReloadOutlined />}
                 className="gms-cmd__refresh"
@@ -1702,7 +1688,7 @@ export default function GmsTrackerPage() {
 
 
       {/* KPI STRIP + TREND + MATRIX */}
-      <div className="ops-grid">
+      {!error && <div className="ops-grid">
         {!loading && percentageChanges.window && (
           <div className="gms-kpi-note">
             Deltas compare the most recent {percentageChanges.window.text.replace("vs prior ", "")} against the{" "}
@@ -1724,6 +1710,10 @@ export default function GmsTrackerPage() {
               </div>
             ))}
           </div>
+        ) : filteredData.length === 0 ? (
+          <Panel id="panel-gms-empty" span={12} kicker="Key performance indicators">
+            <MiniState tone="empty" title="No GMS records in this selection" note="Metrics are unavailable until data is loaded for these dates and filters." />
+          </Panel>
         ) : (
           <div className="ads-kpis" aria-label="Key performance indicators">
             {[
@@ -1754,7 +1744,7 @@ export default function GmsTrackerPage() {
                 invert: true,
               },
               {
-                label: "Profit",
+                label: "Gross Profit",
                 value: formatCompactINR(kpiMetrics.profit),
                 change: percentageChanges.changes?.profit,
                 sub: `${(kpiMetrics.marginPct || 0).toFixed(1)}% margin`,
@@ -1904,7 +1894,7 @@ export default function GmsTrackerPage() {
             </div>
           )}
         </Panel>
-      </div>
+      </div>}
 
       {/* FILE UPLOAD MODAL */}
       <Modal
@@ -1913,7 +1903,7 @@ export default function GmsTrackerPage() {
         onCancel={() => {
           if (!isUploading) {
             setIsUploadOpen(false);
-            setFileList([]);
+            resetUpload();
           }
         }}
         footer={null}
@@ -1927,6 +1917,8 @@ export default function GmsTrackerPage() {
           <div style={{ padding: "20px 10px", textAlign: "center" }}>
             <Progress
               type="circle"
+              percent={uploadProgress}
+              status={uploadProgress === 100 ? "active" : "normal"}
               strokeColor="#0f172a"
             />
             <div
@@ -1969,7 +1961,7 @@ export default function GmsTrackerPage() {
                 accept=".csv,.xlsx,.xls"
                 beforeUpload={handleFileSelect}
                 fileList={fileList}
-                onChange={({ fileList }) => setFileList(fileList)}
+                onRemove={() => { resetUpload(); return true; }}
                 maxCount={1}
               >
                 <p className="ant-upload-drag-icon" style={{ marginBottom: 8 }}>
@@ -1994,7 +1986,7 @@ export default function GmsTrackerPage() {
                   className="ant-upload-hint"
                   style={{ fontSize: 10, color: "#64748b", padding: "0 8px" }}
                 >
-                  Required headers: ASIN, Product Title, Brand, StoreCode,
+                  Required headers: ASIN, Date, Brand, StoreCode,
                   Ordered Revenue, Ordered Units, Shipped Revenue, Shipped COGS,
                   Shipped Units, Customer Returns
                 </p>
@@ -2007,7 +1999,7 @@ export default function GmsTrackerPage() {
               <Button
                 onClick={() => {
                   setIsUploadOpen(false);
-                  setFileList([]);
+                  resetUpload();
                 }}
                 style={{
                   borderRadius: 6,
@@ -2027,7 +2019,7 @@ export default function GmsTrackerPage() {
         title="Confirm GMS Upload"
         open={confirmUploadOpen}
         onCancel={() => {
-          setConfirmUploadOpen(false);
+          resetUpload();
         }}
         footer={null}
         destroyOnHidden
@@ -2064,7 +2056,7 @@ export default function GmsTrackerPage() {
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
             <Button
               onClick={() => {
-                setConfirmUploadOpen(false);
+                resetUpload();
               }}
               size="small"
             >

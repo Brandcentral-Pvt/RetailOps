@@ -5,6 +5,9 @@ const fs = require('fs');
 const path = require('path');
 const SocketService = require('../services/socketService');
 const { buildInClause } = require('../utils/sqlHelpers');
+const { resolveAccessProfile } = require('../services/accessProfileService');
+const { resolveSellerScope, bindSellerFilter } = require('../utils/sellerScope');
+const { exportWindow, unambiguousSellerSql } = require('../utils/gmsPhase1');
 
 const EXPORTS_DIR = path.join(__dirname, '../uploads/exports');
 
@@ -1321,6 +1324,26 @@ exports.startGmsExport = async (req, res) => {
             selectedBrands = []
         } = req.body;
 
+        try {
+            exportWindow(req.body || {});
+            for (const [key, allowed] of Object.entries({
+                exportLevel: ['asin', 'seller'],
+                exportBrandType: ['all', 'current', 'custom'],
+                exportDataType: ['daily', 'weekly', 'monthly'],
+                exportFileType: ['csv', 'xlsx']
+            })) {
+                if (req.body[key] != null && !allowed.includes(req.body[key])) throw new Error('Invalid ' + key);
+            }
+            for (const key of ['selectedBrands', 'exportCustomBrands']) {
+                if (req.body[key] != null && (!Array.isArray(req.body[key]) || req.body[key].some(v => typeof v !== 'string'))) {
+                    throw new Error('Invalid ' + key);
+                }
+            }
+            if (exportBrandType === 'custom' && exportCustomBrands.length === 0) throw new Error('Select at least one seller');
+        } catch (error) {
+            return res.status(400).json({ success: false, message: error.message });
+        }
+
         const userId = (req.user?._id || req.user?.id || '').toString();
         const pool = await getPool();
 
@@ -1468,46 +1491,39 @@ async function processGmsExportJob(downloadId, params, userId) {
         selectedBrands = []
     } = params;
 
-    // Fetch user details for RBAC
-    let user = null;
+    // Re-resolve the current canonical access profile before background work.
+    // Role overrides and inherited seller assignments must match live requests.
     const userResult = await pool.request()
         .input('userId', sql.VarChar, userId)
-        .query(`SELECT U.*, R.Name as RoleName FROM Users U LEFT JOIN Roles R ON U.RoleId = R.Id WHERE U.Id = @userId`);
-    if (userResult.recordset.length > 0) {
-        const u = userResult.recordset[0];
-        user = { id: u.Id, role: u.RoleName === 'super_admin' ? 'admin' : u.RoleName, assignedSellers: [] };
-        const sellersResult = await pool.request().input('userId', sql.VarChar, userId)
-            .query('SELECT SellerId FROM UserSellers WHERE UserId = @userId');
-        user.assignedSellers = sellersResult.recordset.map(s => s.SellerId);
+        .query('SELECT U.*, R.Name as RoleName FROM Users U LEFT JOIN Roles R ON U.RoleId = R.Id WHERE U.Id = @userId AND U.IsActive = 1');
+    const user = userResult.recordset[0];
+    if (!user) throw new Error('Export access is no longer available');
+    const access = await resolveAccessProfile(user, pool);
+    if (!access.permissions.includes('*') && !access.permissions.includes('gms_tracker_export')) {
+        throw new Error('Export permission is no longer available');
     }
-
-    const roleName = user?.role || '';
-    const isGlobalUser = ['admin', 'super_admin', 'developer', 'operational_manager'].includes(roleName);
+    const scope = resolveSellerScope(access);
     const gmsRequest = pool.request();
     let whereClause = 'WHERE 1=1';
-
-    if (!isGlobalUser) {
-        const assignedIds = user?.assignedSellers || [];
-        if (assignedIds.length === 0) { whereClause += ' AND 1=0'; }
-        else {
-            const inClause = buildInClause(gmsRequest, 'gmsSeller', assignedIds);
-            whereClause += ` AND a.SellerId IN (${inClause})`;
-        }
+    if (!scope.isGlobal) {
+        whereClause += bindSellerFilter(gmsRequest, scope, { alias: 'a', prefix: 'gmsExport' });
+        whereClause += ' AND ' + unambiguousSellerSql('a');
     }
-
     await updateDownloadStatus(pool, downloadId, 'processing', 20);
 
-    // Build date filter
-    let sqlDateFilter = '';
-    if (exportDateType === 'current' && startDate && endDate) {
-        sqlDateFilter = `AND g.Date >= '${startDate}' AND g.Date <= '${endDate}'`;
-    } else if (exportDateType === 'custom' && exportCustomDates && exportCustomDates[0] && exportCustomDates[1]) {
-        sqlDateFilter = `AND g.Date >= '${exportCustomDates[0]}' AND g.Date <= '${exportCustomDates[1]}'`;
+    const window = exportWindow(params);
+    if (window.from) {
+        gmsRequest.input('gmsStartDate', sql.Date, window.from);
+        whereClause += ' AND g.Date >= @gmsStartDate';
+    }
+    if (window.to) {
+        gmsRequest.input('gmsEndDate', sql.Date, window.to);
+        whereClause += ' AND g.Date < DATEADD(day, 1, @gmsEndDate)';
     }
 
     // Fetch all GMS data
     const result = await gmsRequest.query(`
-      SELECT g.Date as date, g.Asin as asin, g.Brand as brand, g.StoreCode as storeCode,
+      SELECT CONVERT(char(10), g.Date, 23) as date, g.Asin as asin, g.Brand as brand, g.StoreCode as storeCode,
         g.OrderedRevenue as orderedRevenue, g.OrderedUnits as orderedUnits,
         g.ShippedRevenue as shippedRevenue, g.ShippedCOGS as shippedCOGS,
         g.ShippedUnits as shippedUnits, g.CustomerReturns as customerReturns,
@@ -1515,16 +1531,13 @@ async function processGmsExportJob(downloadId, params, userId) {
       FROM GmsDailyPerformance g
       LEFT JOIN Asins a ON g.Asin = a.AsinCode
       LEFT JOIN Sellers s ON a.SellerId = s.Id
-      ${whereClause} ${sqlDateFilter}
+      ${whereClause}
       ORDER BY g.Date DESC
     `);
 
-    const rawGmsData = result.recordset.map(row => {
-        if (!row.date) return { ...row, date: null };
-        const d = new Date(row.date);
-        const tzOffset = d.getTimezoneOffset() * 60000;
-        return { ...row, date: new Date(d.getTime() - tzOffset).toISOString().split('T')[0], resolvedDbBrand: row.dbBrand || '-' };
-    });
+    const rawGmsData = result.recordset.filter(row => row.date).map(row => ({
+        ...row, resolvedDbBrand: row.dbBrand || '-'
+    }));
 
     // Apply brand/seller filtering
     let filteredData = rawGmsData;
@@ -1658,7 +1671,7 @@ async function processGmsExportJob(downloadId, params, userId) {
         // CSV — always fast, always works
         try {
             const csvContent = [sheetHeaders.join(','), ...sheetRows.map(row =>
-                row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+                row.map(cell => `"${String(typeof cell === 'string' && /^[\s\u0000-\u001f]*[=+\-@]/.test(cell) ? "'" + cell : cell).replace(/"/g, '""')}"`).join(',')
             )].join('\n');
             fs.writeFileSync(filePath, '\ufeff' + csvContent, 'utf8'); // BOM for Excel compatibility
         } catch (csvErr) {
@@ -1677,7 +1690,7 @@ async function processGmsExportJob(downloadId, params, userId) {
             // Fallback: write as CSV then copy to xlsx path
             try {
                 const csvContent = [sheetHeaders.join(','), ...sheetRows.map(row =>
-                    row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+                    row.map(cell => `"${String(typeof cell === 'string' && /^[\s\u0000-\u001f]*[=+\-@]/.test(cell) ? "'" + cell : cell).replace(/"/g, '""')}"`).join(',')
                 )].join('\n');
                 const csvPath = filePath.replace('.xlsx', '.csv');
                 fs.writeFileSync(csvPath, csvContent, 'utf8');

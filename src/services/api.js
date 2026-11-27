@@ -2083,12 +2083,12 @@ export const gmsApi = {
           try {
             resolve(JSON.parse(xhr.responseText));
           } catch (e) {
-            resolve({ success: true });
+            reject(new Error('Invalid response from GMS import server'));
           }
         } else {
           try {
             const errData = JSON.parse(xhr.responseText);
-            reject(new Error(errData.error || xhr.statusText || 'Upload failed'));
+            reject(new Error(errData.message || errData.error || 'Upload failed'));
           } catch (e) {
             reject(new Error(xhr.statusText || 'Upload failed'));
           }
@@ -2100,19 +2100,21 @@ export const gmsApi = {
     });
   },
 
-  getAll: async (params = {}) => {
+  getAll: async (params = {}, { signal } = {}) => {
     const qs = new URLSearchParams(params).toString();
     const url = qs ? `${API_BASE}/upload/gms-data?${qs}` : `${API_BASE}/upload/gms-data`;
     const res = await fetch(url, {
-      headers: { ...getAuthHeader() }
+      headers: { ...getAuthHeader() },
+      signal
     });
     if (!res.ok) throw new Error('Failed to fetch GMS data');
     return res.json();
   },
 
-  getAsins: async () => {
+  getAsins: async ({ signal } = {}) => {
     const res = await fetch(`${API_BASE}/upload/gms-asins`, {
-      headers: { ...getAuthHeader() }
+      headers: { ...getAuthHeader() },
+      signal
     });
     if (!res.ok) throw new Error('Failed to fetch GMS ASINs');
     return res.json();
