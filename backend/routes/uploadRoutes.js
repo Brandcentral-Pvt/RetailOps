@@ -3,6 +3,7 @@ const multer = require('multer');
 const router = express.Router();
 const uploadController = require('../controllers/uploadController');
 const gmsImport = require('../controllers/gmsImportController');
+const gmsAnalytics = require('../controllers/gmsAnalyticsController');
 const { MAX_FILE_BYTES } = require('../services/gmsImportParser');
 const { randomUUID } = require('node:crypto');
 const os = require('node:os');
@@ -82,6 +83,7 @@ router.get('/upload/gms-imports', authenticate, importPermission, gmsImport.list
 router.get('/upload/gms-imports/:id', authenticate, importPermission, gmsImport.get);
 router.post('/upload/gms-imports/:id/confirm', authenticate, importPermission, gmsImport.confirm);
 router.post('/upload/gms-imports/:id/cancel', authenticate, importPermission, gmsImport.cancel);
+    router.post('/upload/gms-analytics', authenticate, requirePermission('gms_tracker_view'), gmsAnalytics.overview);
     router.get('/upload/gms-data', authenticate, requirePermission('gms_tracker_view'), uploadController.getGmsData);
     router.get('/upload/gms-asins', authenticate, requirePermission('gms_tracker_view'), uploadController.getGmsAsins);
     router.post('/upload/gms-clear', authenticate, requirePermission('gms_tracker_delete'), (req,res) => {
