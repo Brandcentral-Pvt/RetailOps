@@ -156,10 +156,15 @@ function buildAnalytics(raw,{window,filters={},level='asin',groups=null,includeO
   const facts=selectFacts(raw,filters);
   const current=facts.filter(r=>inWindow(r,window));
   const rows=new Map(),history=new Map();
+  const prior=priorWindow(window),previousByKey=new Map();
   for(const r of facts){
     const key=keyOf(r,level);
     if(!history.has(key))history.set(key,new Map());
     addDaily(history.get(key),r);
+    if(prior&&inWindow(r,prior)){
+      if(!previousByKey.has(key))previousByKey.set(key,{acc:accumulator(),dates:new Set()});
+      const previous=previousByKey.get(key);add(previous.acc,r);previous.dates.add(r.date);
+    }
   }
   for(const r of current){
     const key=keyOf(r,level);
@@ -203,9 +208,12 @@ function buildAnalytics(raw,{window,filters={},level='asin',groups=null,includeO
       }
     }
     const brandsList=[...r.brands].sort(),storeCodesList=[...r.stores].sort();
+    const currentMetrics=metrics(r.acc),previous=previousByKey.get(r.key),baseline=previous?metrics(previous.acc):null;
+    const comparable=Boolean(prior&&r.daily.size===prior.days&&previous?.dates.size===prior.days);
+    const periodChanges=Object.fromEntries(Object.keys(currentMetrics).map(k=>[k,comparable?(k==='marginPct'||k==='returnRatio'?(currentMetrics[k]==null||baseline[k]==null?null:currentMetrics[k]-baseline[k]):pct(currentMetrics[k],baseline[k])):null]));
     matrixRows.push({key:r.key,asin:r.asin,dbBrand:r.dbBrand,sellerId:r.sellerId,isUnmatched:r.isUnmatched,productTitle:r.productTitle,
       asinsList:[...r.asins],brandsList,storeCodesList,brand:brandsList.join(', '),storeCode:storeCodesList.join(', '),
-      orderedUnits:metrics(r.acc).orderedUnits,orderedRevenue:metrics(r.acc).orderedRevenue,dailyRev,weeklyRev,monthlyRev,_dodTrends,_wowTrends,_momTrends});
+      ...currentMetrics,periodBaseline:baseline,periodChanges,periodCoverage:{currentDays:r.daily.size,priorDays:previous?.dates.size??0,expectedDays:prior?.days??null,comparable},dailyRev,weeklyRev,monthlyRev,_dodTrends,_wowTrends,_momTrends});
   }
   return {matrixRows,monthGroups,...(includeOverview?buildOverview(facts,window):{})};
 }
