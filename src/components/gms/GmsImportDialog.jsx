@@ -213,10 +213,11 @@ export default function GmsImportDialog({ open, initialTab='upload', onClose, on
   const historyContent=<Flex vertical gap={12}>
     <Flex align="center" justify="space-between" wrap gap={8}><Typography.Text type="secondary">Review your last 50 import batches. Open a batch to see its validation results and download any error report.</Typography.Text>
       <Button icon={<ReloadOutlined/>} loading={historyLoading} disabled={busy} onClick={()=>refreshHistory()}>Refresh history</Button></Flex>
+    {queued&&<Alert type="info" showIcon title="An import is currently processing" description="The current batch is being tracked. You can review other batches after it finishes."/>}
     <Table size="small" rowKey="id" dataSource={history} loading={historyLoading} pagination={{pageSize:10,hideOnSinglePage:true}} scroll={{x:650}}
       columns={[{title:'Report',dataIndex:'fileName',ellipsis:true},{title:'Status',dataIndex:'status',render:v=><Tag color={colors[v]}>{statusLabels[v]||v}</Tag>},
         {title:'Created',dataIndex:'createdAt',render:formatDate},{title:'Rows',render:(_,r)=>count(r.summary?.total)},
-        {title:'Action',render:(_,r)=><Button type="link" size="small" disabled={busy} onClick={()=>inspect(r.id)}>View</Button>}]}/>
+        {title:'Action',render:(_,r)=><Button type="link" size="small" disabled={busy||(queued&&r.id!==job.id)} onClick={()=>inspect(r.id)}>View</Button>}]}/>
   </Flex>;
   return <Modal open={open} onCancel={()=>{if(!busy)onClose();}} keyboard={!busy} title="GMS Report Import" width={960}
     footer={<Button onClick={onClose} disabled={busy}>Close</Button>} closable={!busy} mask={{closable:!busy}}>
