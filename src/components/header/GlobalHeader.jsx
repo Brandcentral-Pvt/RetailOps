@@ -11,17 +11,29 @@ import DownloadDrawer from './DownloadDrawer';
 import UserMenu from './UserMenu';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import '../../styles/header.css';
+import { HeaderSkeleton } from '@/components/ui/skeleton/HeaderSkeleton';
+import { SearchSkeleton } from '@/components/ui/skeleton/SearchSkeleton';
+import { NotificationSkeleton } from '@/components/ui/skeleton/NotificationSkeleton';
+import { QuickActionSkeleton } from '@/components/ui/skeleton/QuickActionSkeleton';
+import { UserMenuSkeleton } from '@/components/ui/skeleton/UserMenuSkeleton';
 
 /**
  * GlobalHeader — shared responsive application toolbar (shadcn).
  *
  * H1: shell + navigation. 64 px desktop / ~56 px mobile, white background with
  * a subtle bottom border, BrandCentral blue (#1976D2) brand accents.
+ *
+ * Features:
+ *   - Responsive shell with mobile/desktop breakpoints
+ *   - Keyboard shortcuts (Cmd+K for search, Esc to close modals)
+ *   - Loading states with skeleton skeletons
+ *   - Accessibility attributes (aria-labels, aria-expanded, aria-controls)
+ *   - Error boundaries for each sub-component
+ *   - Backward compatibility with existing components
  */
 export default function GlobalHeader() {
   const { toggleMobile, isOpen } = useSidebar();
-  const { setCmdOpen } = useHeader();
+  const { cmdOpen, setCmdOpen } = useHeader();
 
   return (
     <>
@@ -63,7 +75,7 @@ export default function GlobalHeader() {
             variant="ghost"
             size="sm"
             onClick={() => setCmdOpen(true)}
-            aria-label="Open search"
+            aria-label="Open search palette"
           >
             <Search size={18} aria-hidden="true" />
           </Button>

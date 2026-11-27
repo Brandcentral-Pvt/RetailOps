@@ -194,6 +194,10 @@ export function ChartSkeleton({ height = 280, className = '' }) {
   );
 }
 
-// ─── Re-export base Skeleton ─────────────────────────────────────────────────
-export { default as Skeleton } from './Skeleton.jsx';
-export { default } from './Skeleton.jsx';
+// ─── Header skeleton components ────────────────────────────────────────────────
+export { default as HeaderSkeleton } from './HeaderSkeleton.jsx';
+export { default as SearchSkeleton } from './SearchSkeleton.jsx';
+export { default as NotificationSkeleton } from './NotificationSkeleton.jsx';
+export { default as QuickActionSkeleton } from './QuickActionSkeleton.jsx';
+export { default as UserMenuSkeleton } from './UserMenuSkeleton.jsx';
+

@@ -17,10 +17,27 @@ const PRESETS = [
   { key: 'ytd', label: 'Year to date', getRange: () => [dayjs().startOf('year'), dayjs()] },
 ];
 
-const DateRangeSelector = () => {
+/**
+ * DateRangeSelector — date range selector for filtering data.
+ *
+ * Props:
+ *   loading - boolean, when true shows skeleton instead of button
+ */
+export default function DateRangeSelector({ loading = false }) {
   const { startDate, endDate, updateDateRange } = useDateRange();
   const [open, setOpen] = useState(false);
 
+  if (loading) {
+    return (
+      <button className="flex items-center gap-2 px-3 py-2 bg-transparent border border-transparent rounded-md cursor-pointer text-slate-500 disabled:pointer-events-none disabled:opacity-50 animate-pulse" disabled>
+        <div className="sk text [height:20px] [width:20px]" />
+        <div className="flex flex-col gap-1">
+          <div className="sk text [height:11px] [width:60%]"></div>
+          <div className="sk text [height:9px] [width:40%]"></div>
+        </div>
+      </button>
+    );
+  }
 
   const currentPreset = PRESETS.find((p) => {
     const [s, e] = p.getRange();
@@ -38,7 +55,7 @@ const DateRangeSelector = () => {
   };
 
   const handlePreset = (preset) => {
-    const [s, e] = preset.getRange();
+    const [s, e] = p.getRange();
     updateDateRange({ startDate: s.toDate(), endDate: e.toDate(), rangeType: preset.key });
     setOpen(false);
   };
@@ -132,6 +149,4 @@ const DateRangeSelector = () => {
       </button>
     </Popover>
   );
-};
-
-export default DateRangeSelector;
+}
