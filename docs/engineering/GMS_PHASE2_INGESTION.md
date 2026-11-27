@@ -11,6 +11,8 @@
 - Legacy immediate-write upload endpoint returns 409. Global clear is deliberately paused (409 for authorized global users) pending a coordinated administrative recovery/deletion workflow; pending batches can be cancelled.
 - Migration 091 adds staging and missing compatibility columns, with no historical attribution or metric backfill. GMS read/export joins respect verified fact ownership when present. Other consumers still use legacy identity; do not introduce multi-seller/store facts until Phase 3 cross-module reconciliation.
 
+- Optional Product Title from the original report is stored in ReportProductTitle (migration 095). Blank or omitted titles do not overwrite an existing saved title. Historical title values remain unknown where the original was not previously stored.
+
 ## Release gates
 
 1. GMS Phase 1 Regression, GMS Phase 2 Ingestion (unit, route, isolated SQL Server, build/browser) and cross-module regressions must pass.
