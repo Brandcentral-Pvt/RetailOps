@@ -888,7 +888,11 @@ server.listen(PORT, '0.0.0.0', () => {
 
   // Run DB migrations (idempotent; gated by RUN_MIGRATIONS_ON_STARTUP=false)
   const { runMigrationsAtStartup } = require('./database/migrate');
-  runMigrationsAtStartup();
+  runMigrationsAtStartup().then(result => {
+    // SQL-backed queue does not depend on Redis or local uploaded files.
+    // Transaction-owned application locks coordinate all API instances.
+    if (isPrimaryWorker && !result?.failed) require('./services/gmsImportService').startWorker();
+  }).catch(err => logger.error('GMS import worker startup failed', { error: err.message }));
 });
 
 // Make getPool available globally for socket handlers

@@ -891,12 +891,12 @@ exports.getGmsData = async (req, res) => {
         g.ShippedCOGS as shippedCOGS,
         g.ShippedUnits as shippedUnits,
         g.CustomerReturns as customerReturns,
-        a.SellerId as sellerId,
+        COALESCE(g.SellerId, a.SellerId) as sellerId,
         s.Name as dbBrand,
         a.Title as productTitle
       FROM GmsDailyPerformance g
-      LEFT JOIN Asins a ON g.Asin = a.AsinCode
-      LEFT JOIN Sellers s ON a.SellerId = s.Id
+      LEFT JOIN Asins a ON g.Asin = a.AsinCode AND (g.SellerId IS NULL OR a.SellerId = g.SellerId)
+      LEFT JOIN Sellers s ON COALESCE(g.SellerId, a.SellerId) = s.Id
       ${whereSQL}
       ORDER BY g.Date DESC
     `;
@@ -937,7 +937,7 @@ exports.getGmsAsins = async (req, res) => {
       SELECT DISTINCT a.AsinCode as asinCode, a.Brand as brand, a.SellerId as sellerId,
              a.Title as title, s.Name as sellerName
       FROM Asins a
-      INNER JOIN GmsDailyPerformance g ON g.Asin = a.AsinCode
+      INNER JOIN GmsDailyPerformance g ON g.Asin = a.AsinCode AND (g.SellerId IS NULL OR g.SellerId = a.SellerId)
       LEFT JOIN Sellers s ON a.SellerId = s.Id
       WHERE 1=1 ${filter}
     `);

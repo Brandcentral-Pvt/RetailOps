@@ -77,11 +77,30 @@ describe('GMS route security', () => {
     expect((await request(app).post('/api/upload/gms-clear')).status).toBe(403);
     expect(mockPool.calls).toHaveLength(0);
   });
-  test('a wildcard global user can clear data', async () => {
+  test('global clear stays gated during staged-import rollout', async () => {
     mockUser.role.name = 'admin';
     mockUser.permissions = ['*'];
-    expect((await request(app).post('/api/upload/gms-clear')).status).toBe(200);
-    expect(mockPool.calls[0].sql).toBe('DELETE FROM GmsDailyPerformance');
+    expect((await request(app).post('/api/upload/gms-clear')).status).toBe(409);
+    expect(mockPool.calls).toHaveLength(0);
+  });
+  test('legacy immediate-write upload cannot bypass staged preview', async () => {
+    mockUser.permissions.push('gms_tracker_import');
+    expect((await request(app).post('/api/upload/upload-gms')).status).toBe(409);
+    expect(mockPool.calls).toHaveLength(0);
+  });
+  test('import history and commit require import permission', async () => {
+    expect((await request(app).get('/api/upload/gms-imports')).status).toBe(403);
+    expect((await request(app).post('/api/upload/gms-imports/foreign/confirm')).status).toBe(403);
+    expect(mockPool.calls).toHaveLength(0);
+  });
+  test('even an importer cannot inspect or confirm another owner batch', async () => {
+    mockUser.permissions.push('gms_tracker_import');
+    expect((await request(app).get('/api/upload/gms-imports/foreign')).status).toBe(404);
+    expect((await request(app).post('/api/upload/gms-imports/foreign/confirm')).status).toBe(404);
+    for (const call of mockPool.calls) {
+      expect(call.sql).toContain('OwnerId=@owner');
+      expect(call.inputs.owner).toBe('u1');
+    }
   });
   test('metadata query is seller scoped and excludes ambiguous owners', async () => {
     expect((await request(app).get('/api/upload/gms-asins')).status).toBe(200);

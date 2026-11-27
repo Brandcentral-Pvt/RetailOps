@@ -1529,8 +1529,8 @@ async function processGmsExportJob(downloadId, params, userId) {
         g.ShippedUnits as shippedUnits, g.CustomerReturns as customerReturns,
         s.Name as dbBrand, a.Title as productTitle
       FROM GmsDailyPerformance g
-      LEFT JOIN Asins a ON g.Asin = a.AsinCode
-      LEFT JOIN Sellers s ON a.SellerId = s.Id
+      LEFT JOIN Asins a ON g.Asin = a.AsinCode AND (g.SellerId IS NULL OR a.SellerId = g.SellerId)
+      LEFT JOIN Sellers s ON COALESCE(g.SellerId, a.SellerId) = s.Id
       ${whereClause}
       ORDER BY g.Date DESC
     `);

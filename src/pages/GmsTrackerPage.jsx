@@ -18,11 +18,9 @@ import {
   Tag,
   Tooltip,
   message,
-  Progress,
   Select,
   Segmented,
   Radio,
-  Upload,
 } from "antd";
 import {
   UploadOutlined,
@@ -41,6 +39,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useHeader } from "../contexts/HeaderContext";
 
 import { LoadError } from "@/components/LoadError";
+import GmsImportDialog from "../components/gms/GmsImportDialog";
 import { GmsTrackerSkeleton } from "@/components/ui/PageSkeletons";
 import { Panel, MiniState, timeAgo, useNow } from "./opsCenter/primitives";
 import "./opsCenter/ops.css";
@@ -187,9 +186,6 @@ export default function GmsTrackerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [confirmUploadOpen, setConfirmUploadOpen] = useState(false);
-  const [fileList, setFileList] = useState([]);
   const [selectedBrands, setSelectedBrands] = useState([]);
   const [selectedManagers, setSelectedManagers] = useState([]);
   const { startDate, endDate } = useDateRange();
@@ -294,28 +290,6 @@ export default function GmsTrackerPage() {
   const latestLoad = useRef(loadAllData);
   useEffect(() => { latestLoad.current = loadAllData; }, [loadAllData]);
 
-  const clearAllData = useCallback(() => {
-    Modal.confirm({
-      title: "Are you sure you want to clear all GMS Tracker data?",
-      content:
-        "This will delete all uploaded GMS records permanently from the database.",
-      okText: "Clear Data",
-      okType: "danger",
-      cancelText: "Cancel",
-      async onOk() {
-        try {
-          const res = await gmsApi.clearAll();
-          if (!res.success) throw new Error(res.message || 'Clear failed');
-          setGmsData([]);
-          await latestLoad.current({ refreshMetadata: true });
-          message.success(`GMS data cleared. ${res.deleted ?? 0} records deleted.`);
-        } catch (err) {
-          message.error("Failed to clear GMS data: " + err.message);
-        }
-      },
-    });
-  }, []);
-
   // Handle GMS spreadsheet matrix export via background job served in Downloads drawer
   const handleExport = async () => {
     try {
@@ -387,62 +361,6 @@ export default function GmsTrackerPage() {
       .filter(Boolean)
       .sort((a, b) => String(a).localeCompare(String(b)));
   }, [dbSellers]);
-
-  // Pending file for confirmation flow
-  const [pendingFile, setPendingFile] = useState(null);
-  const [uploadStatus, setUploadStatus] = useState("");
-
-  // Handle file selection — store for confirmation, don't auto-upload
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const uploadingRef = useRef(false);
-
-  // Ant Design beforeUpload receives the file itself. Always return false
-  // for a valid file so the component cannot issue its own HTTP request.
-  const handleFileSelect = (file) => {
-    if (uploadingRef.current) return Upload.LIST_IGNORE;
-    if (!/\.(csv|xlsx|xls)$/i.test(file.name || "") || !file.size || file.size > 200 * 1024 * 1024) {
-      message.error("Choose a non-empty CSV or Excel report up to 200 MB.");
-      return Upload.LIST_IGNORE;
-    }
-    setPendingFile(file);
-    setFileList([file]);
-    setConfirmUploadOpen(true);
-    return false;
-  };
-
-  const resetUpload = () => {
-    setConfirmUploadOpen(false);
-    setPendingFile(null);
-    setFileList([]);
-  };
-
-  const processUpload = async () => {
-    if (!pendingFile || uploadingRef.current) return;
-    uploadingRef.current = true;
-    setConfirmUploadOpen(false);
-    setIsUploading(true);
-    setUploadProgress(0);
-    setUploadStatus("Uploading file...");
-    try {
-      const res = await gmsApi.upload(pendingFile, (percent) => {
-        setUploadProgress(percent);
-        setUploadStatus(percent === 100 ? "Processing report on server..." : "Uploading file...");
-      });
-      if (!res?.success || !(res.processed > 0)) throw new Error(res?.message || "No records were imported.");
-      message.success(`Imported ${res.processed} records; ${res.skipped || 0} skipped; ${res.duplicatesCondensed || 0} duplicates condensed.`);
-      resetUpload();
-      setIsUploadOpen(false);
-      if (!await latestLoad.current({ refreshMetadata: true })) message.warning("Import completed. Refresh GMS data to see the latest records.");
-    } catch (err) {
-      message.error("Upload failed: " + err.message);
-      resetUpload();
-    } finally {
-      uploadingRef.current = false;
-      setIsUploading(false);
-      setUploadStatus("");
-      setUploadProgress(0);
-    }
-  };
 
   // Filter Data — pre-compute date boundaries to avoid per-item dayjs creation
   const filteredData = useMemo(() => {
@@ -1506,16 +1424,18 @@ export default function GmsTrackerPage() {
             )}
 
             {canClear && (
-              <Tooltip title="Permanently delete all uploaded GMS records">
+              <Tooltip title="Global clear is paused during staged-import rollout">
+                <span>
                 <Button
                   danger
                   icon={<DeleteOutlined />}
                   size="small"
                   className="gms-cmd__btn gms-cmd__btn--danger"
-                  onClick={clearAllData}
+                  disabled
                 >
                   Clear Data
                 </Button>
+                </span>
               </Tooltip>
             )}
           </div>
@@ -1896,183 +1816,10 @@ export default function GmsTrackerPage() {
         </Panel>
       </div>}
 
-      {/* FILE UPLOAD MODAL */}
-      <Modal
-        title={<span style={{ fontWeight: 800 }}>Upload GMS Report</span>}
-        open={isUploadOpen}
-        onCancel={() => {
-          if (!isUploading) {
-            setIsUploadOpen(false);
-            resetUpload();
-          }
-        }}
-        footer={null}
-        destroyOnHidden
-        centered
-        width={450}
-        closable={!isUploading}
-        mask={{ closable: !isUploading }}
-      >
-        {isUploading ? (
-          <div style={{ padding: "20px 10px", textAlign: "center" }}>
-            <Progress
-              type="circle"
-              percent={uploadProgress}
-              status={uploadProgress === 100 ? "active" : "normal"}
-              strokeColor="#0f172a"
-            />
-            <div
-              style={{
-                marginTop: 16,
-                fontSize: "var(--font-size-sm)",
-                fontWeight: 600,
-                color: "#0f172a",
-              }}
-            >
-              {uploadStatus || "Uploading and parsing..."}
-            </div>
-            <div
-              style={{
-                marginTop: 6,
-                fontSize: "var(--font-size-xs)",
-                color: "#64748b",
-              }}
-            >
-              Please do not close this window while processing is running.
-            </div>
-          </div>
-        ) : (
-          <div style={{ padding: "4px 0" }}>
-            <div style={{ marginBottom: 16 }}>
-              <div
-                style={{
-                  fontSize: "var(--font-size-xs)",
-                  fontWeight: 600,
-                  color: "#475569",
-                  marginBottom: 4,
-                }}
-              >
-                SELECT GMS CSV/EXCEL REPORT
-              </div>
-              <div style={{ fontSize: 10, color: "#64748b", marginBottom: 8 }}>
-                Date values will be read per-row from the sheet's Date column.
-              </div>
-              <Upload.Dragger
-                accept=".csv,.xlsx,.xls"
-                beforeUpload={handleFileSelect}
-                fileList={fileList}
-                onRemove={() => { resetUpload(); return true; }}
-                maxCount={1}
-              >
-                <p className="ant-upload-drag-icon" style={{ marginBottom: 8 }}>
-                  <UploadOutlined
-                    style={{
-                      color: "#1349c6",
-                      fontSize: "var(--font-size-2xl)",
-                    }}
-                  />
-                </p>
-                <p
-                  className="ant-upload-text"
-                  style={{
-                    fontSize: "var(--font-size-xs)",
-                    fontWeight: 600,
-                    color: "#1e293b",
-                  }}
-                >
-                  Click or drag GMS CSV/Excel report here
-                </p>
-                <p
-                  className="ant-upload-hint"
-                  style={{ fontSize: 10, color: "#64748b", padding: "0 8px" }}
-                >
-                  Required headers: ASIN, Date, Brand, StoreCode,
-                  Ordered Revenue, Ordered Units, Shipped Revenue, Shipped COGS,
-                  Shipped Units, Customer Returns
-                </p>
-              </Upload.Dragger>
-            </div>
-
-            <div
-              style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}
-            >
-              <Button
-                onClick={() => {
-                  setIsUploadOpen(false);
-                  resetUpload();
-                }}
-                style={{
-                  borderRadius: 6,
-                  fontSize: "var(--font-size-sm)",
-                  height: 32,
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* FILE UPLOAD CONFIRMATION MODAL */}
-      <Modal
-        title="Confirm GMS Upload"
-        open={confirmUploadOpen}
-        onCancel={() => {
-          resetUpload();
-        }}
-        footer={null}
-        destroyOnHidden
-        centered
-        width={420}
-      >
-        <div style={{ padding: 24 }}>
-          <div style={{ marginBottom: 16 }}>
-            <div
-              style={{
-                fontSize: "var(--font-size-xs)",
-                fontWeight: 600,
-                color: "#475569",
-                marginBottom: 4,
-              }}
-            >
-              Confirm file upload
-            </div>
-            <div
-              style={{
-                background: "#f8fafc",
-                border: "1px solid #e2e8f0",
-                borderRadius: 6,
-                padding: 12,
-                marginBottom: 12,
-              }}
-            >
-              <div style={{ fontSize: 13, color: "#334155" }}>
-                The selected file will be uploaded and processed. Date values will
-                be read per-row from the sheet's Date column.
-              </div>
-            </div>
-          </div>
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-            <Button
-              onClick={() => {
-                resetUpload();
-              }}
-              size="small"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="primary"
-              onClick={processUpload}
-              size="small"
-              disabled={isUploading}
-            >
-              Confirm Upload
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      {can("gms_tracker_import") && (
+        <GmsImportDialog open={isUploadOpen} onClose={() => setIsUploadOpen(false)}
+          onCommitted={() => latestLoad.current({ refreshMetadata: true })} />
+      )}
 
       {/* EXPORT DATA CONFIGURATION MODAL */}
       <Modal

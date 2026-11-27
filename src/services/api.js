@@ -2058,47 +2058,34 @@ export const targetsApi = {
 };
 
 export const gmsApi = {
-  upload: async (file, onProgress) => {
+  previewImport: async (file, onProgress) => {
     const formData = new FormData();
     formData.append('file', file);
-
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${API_BASE}/upload/upload-gms`);
-      
-      const headers = getAuthHeader();
-      Object.keys(headers).forEach(k => {
-        xhr.setRequestHeader(k, headers[k]);
-      });
-
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable && onProgress) {
-          const percent = Math.round((event.loaded / event.total) * 100);
-          onProgress(percent);
-        }
+      xhr.open('POST', API_BASE + '/upload/gms-imports');
+      xhr.withCredentials = true;
+      xhr.timeout = 300000;
+      xhr.ontimeout = () => reject(new Error('Validation timed out. Check import history before retrying.'));
+      xhr.upload.onprogress = event => {
+        if (event.lengthComputable && onProgress) onProgress(Math.round(event.loaded / event.total * 100));
       };
-
       xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            resolve(JSON.parse(xhr.responseText));
-          } catch (e) {
-            reject(new Error('Invalid response from GMS import server'));
-          }
-        } else {
-          try {
-            const errData = JSON.parse(xhr.responseText);
-            reject(new Error(errData.message || errData.error || 'Upload failed'));
-          } catch (e) {
-            reject(new Error(xhr.statusText || 'Upload failed'));
-          }
-        }
+        let data;
+        try { data = JSON.parse(xhr.responseText); }
+        catch (_) { reject(new Error('Invalid response from import server')); return; }
+        if (xhr.status >= 200 && xhr.status < 300 && data.success && data.data?.id) resolve(data);
+        else reject(new Error(data.message || 'Report validation failed'));
       };
-
-      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.onerror = () => reject(new Error('Network error during report upload'));
+      xhr.onabort = () => reject(new Error('Report upload cancelled'));
       xhr.send(formData);
     });
   },
+  listImports: async ({signal} = {}) => handleResponse(await fetch(API_BASE + '/upload/gms-imports', {credentials:'include',signal}), 'Import history unavailable'),
+  getImport: async (id, {signal} = {}) => handleResponse(await fetch(API_BASE + '/upload/gms-imports/' + encodeURIComponent(id), {credentials:'include',signal}), 'Import status unavailable'),
+  confirmImport: async id => handleResponse(await fetch(API_BASE + '/upload/gms-imports/' + encodeURIComponent(id) + '/confirm', {method:'POST',credentials:'include'}), 'Import confirmation failed'),
+  cancelImport: async id => handleResponse(await fetch(API_BASE + '/upload/gms-imports/' + encodeURIComponent(id) + '/cancel', {method:'POST',credentials:'include'}), 'Import cancellation failed'),
 
   getAll: async (params = {}, { signal } = {}) => {
     const qs = new URLSearchParams(params).toString();
