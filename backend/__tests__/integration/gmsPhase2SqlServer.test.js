@@ -31,6 +31,7 @@ const { inspectGmsSchema, ensureGmsSchema } = require('../../database/gmsSchema'
 const migration = require('../../migrations/091_gms_import_jobs');
 const nullableMigration = require('../../migrations/092_gms_nullable_seller');
 const { gmsCatalogApplySql } = require('../../utils/gmsPhase1');
+const { loadAnalytics } = require('../../services/gmsAnalyticsService');
 const service = require('../../services/gmsImportService');
 const real = process.env.GMS_SQLSERVER_SMOKE === '1' ? test : test.skip;
 async function connect() {
@@ -51,7 +52,7 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'gms-sql-'));
   try {
     await mockPool.request().query(
-      'CREATE TABLE dbo.Sellers (Id VARCHAR(50) PRIMARY KEY, Marketplace NVARCHAR(50), IsActive BIT);' +
+      'CREATE TABLE dbo.Sellers (Id VARCHAR(50) PRIMARY KEY, Marketplace NVARCHAR(50), IsActive BIT, Name NVARCHAR(255));' +
       'CREATE TABLE dbo.Asins (Id VARCHAR(50) PRIMARY KEY, AsinCode NVARCHAR(30), SellerId VARCHAR(50), Title NVARCHAR(MAX));' +
       'CREATE TABLE dbo.GmsDailyPerformance (Id VARCHAR(50) PRIMARY KEY, Asin NVARCHAR(30), Date DATETIME2, OrderedRevenue DECIMAL(18,2), OrderedUnits INT, CreatedAt DATETIME2);' +
       'CREATE TABLE dbo.Roles (Id VARCHAR(50) PRIMARY KEY, Name NVARCHAR(50));' +
@@ -76,7 +77,7 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
     await nullableMigration.up(mockPool);
     expect((await inspectGmsSchema(mockPool)).ready).toBe(true);
     await mockPool.request().query(
-      "INSERT INTO Sellers VALUES('S1','legacy-marketplace',0);" +
+      "INSERT INTO Sellers VALUES('S1','legacy-marketplace',0,'Seller A');" +
       "INSERT INTO Asins VALUES('A1','B000000001','S1',NULL);" +
       "INSERT INTO Roles VALUES('R1','brand_manager');" +
       "INSERT INTO Users VALUES('U1','R1',1);" +
@@ -146,6 +147,16 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
     await mockPool.request().query("INSERT INTO Asins VALUES('A2','B000000002','S1',NULL),('A3','B000000002','S1',NULL)");
     const mapped=await mockPool.request().query("SELECT COALESCE(g.SellerId,a.SellerId) AS sellerId,g.Brand FROM GmsDailyPerformance g "+gmsCatalogApplySql+" WHERE g.Asin='B000000002'");
     expect(mapped.recordset).toEqual([{sellerId:'S1',Brand:'Sheet Brand'}]);
+    // Read real persisted signed values with the shared analytics SQL path.
+    // Multiple catalog rows with the same owner must not multiply revenue.
+    const unified=await loadAnalytics(mockPool,global,{startDate:'2026-11-27',endDate:'2026-11-27',level:'asin'});
+    expect(unified.kpis.orderedRevenue).toBe(29.5);
+    expect(unified.meta.records).toBe(2);
+    expect(unified.matrixRows.find(r=>r.asin==='B000000002')).toMatchObject({dbBrand:'Seller A',brand:'Sheet Brand'});
+    expect(unified.comparison.changes.orderedRevenue).toBeNull();
+    const scoped=await loadAnalytics(mockPool,user,{startDate:'2026-11-27',endDate:'2026-11-27',level:'seller',sellerIds:['S1']});
+    expect(scoped.matrixRows).toHaveLength(1);
+    expect(scoped.kpis.orderedRevenue).toBe(29.5);
     // Existing mapped fact test below is scoped to its original ASIN.
     const revoked=await preview('170.00');
     await service.confirm('U1',revoked.id);
