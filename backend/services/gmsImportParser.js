@@ -1,6 +1,7 @@
 const XLSX = require('xlsx');
 const { isMainThread, parentPort, workerData } = require('node:worker_threads');
 const { dateOnly } = require('../utils/gmsPhase1');
+const { issue } = require('./gmsImportIssueDetails');
 
 const MAX_ROWS = 500000;
 const MAX_COLS = 64;
@@ -91,17 +92,21 @@ function reportDate(value, date1904 = false) {
   if (day < '2000-01-01' || day > '2099-12-31') throw new Error('Date outside supported reporting years');
   return day;
 }
-function validateRows(matrix, date1904 = false) {
-  const issues = [];
+function validateRows(matrix, date1904 = false, cellProblems = new Map()) {
+  const issues = [], allIssues = [];
   let invalid = 0, total = 0, duplicates = 0, defaultedCells = 0, defaultedRows = 0, negativeRows = 0;
-  const addIssue = (row, code, message) => {
+  const addIssue = (row, code, message, context) => {
     invalid++;
-    if (issues.length < MAX_ISSUES) issues.push({ row, code, message });
+    const item = issue(row, code, message, context);
+    allIssues.push(item);
+    if (issues.length < MAX_ISSUES) issues.push(item);
   };
   if (!Array.isArray(matrix) || matrix.length < 2) {
     addIssue(1, 'EMPTY_REPORT', 'The report has no data rows');
-    return { rows: [], issues, invalid, total, duplicates, defaultedCells, defaultedRows, negativeRows };
+    return { rows: [], issues, allIssues, invalid, total, duplicates, defaultedCells, defaultedRows, negativeRows };
   }
+  const headerProblem = cellProblems.get(1);
+  if (headerProblem) addIssue(1, headerProblem.code, headerProblem.message, { column: headerProblem.column });
   const headers = matrix[0].map(normalizeHeader);
   const columns = {};
   for (const [field, aliases] of Object.entries(fields)) {
@@ -109,14 +114,22 @@ function validateRows(matrix, date1904 = false) {
     if (matches.length !== 1) addIssue(1, 'HEADER', 'Missing or duplicate required column: ' + field);
     else columns[field] = matches[0];
   }
-  if (invalid) return { rows: [], issues, invalid, total: matrix.length - 1, duplicates, defaultedCells, defaultedRows, negativeRows };
+  if (invalid) return { rows: [], issues, allIssues, invalid, total: matrix.length - 1, duplicates, defaultedCells, defaultedRows, negativeRows };
   if (matrix.length - 1 > MAX_ROWS) throw new Error('Report exceeds 500,000 data rows; split it into smaller reports');
   const seen = new Map();
   for (let i = 1; i < matrix.length; i++) {
     const cells = matrix[i];
-    if (!cells.some(v => v !== null && v !== undefined && String(v).trim() !== '')) continue;
+    const problem = cellProblems.get(i + 1);
+    if (!problem && !cells.some(v => v !== null && v !== undefined && String(v).trim() !== '')) continue;
     total++;
     const get = field => cells[columns[field]];
+    let sourceDate = get('date');
+    try { sourceDate = reportDate(sourceDate,date1904); } catch (_) { /* retain original invalid date */ }
+    const context = { asin: get('asin') ?? '', date: sourceDate ?? '', brand: get('brand') ?? '' };
+    if (problem) {
+      addIssue(i+1, problem.code, problem.message, { ...context, column:problem.column });
+      continue;
+    }
     try {
       const asin = String(get('asin') ?? '').trim().toUpperCase();
       if (!/^[A-Z0-9]{10}$/.test(asin)) throw new Error('Invalid ASIN');
@@ -140,12 +153,12 @@ function validateRows(matrix, date1904 = false) {
       if (seen.has(key)) {
         const first = seen.get(key);
         if (JSON.stringify(first.values) === JSON.stringify(row)) duplicates++;
-        else addIssue(i + 1, 'CONFLICTING_DUPLICATE', 'Conflicting values for the same ASIN and date; first row ' + first.line);
+        else addIssue(i + 1, 'CONFLICTING_DUPLICATE', 'Conflicting values for the same ASIN and date; first row ' + first.line, context);
       } else seen.set(key, { values: row, line: i + 1 });
-    } catch (err) { addIssue(i + 1, 'INVALID_ROW', err.message); }
+    } catch (err) { addIssue(i + 1, 'INVALID_ROW', err.message, context); }
   }
   if (!total) addIssue(1, 'EMPTY_REPORT', 'The report has no data rows');
-  return { rows: [...seen.values()].map(r => ({ ...r.values, line: r.line })), issues, invalid, total, duplicates, defaultedCells, defaultedRows, negativeRows };
+  return { rows: [...seen.values()].map(r => ({ ...r.values, line: r.line })), issues, allIssues, invalid, total, duplicates, defaultedCells, defaultedRows, negativeRows };
 }
 function parseFile(filePath, name) {
   const isCsv = /\.csv$/i.test(name);
@@ -156,15 +169,31 @@ function parseFile(filePath, name) {
   if (!sheet['!ref']) return validateRows([]);
   const range = XLSX.utils.decode_range(sheet['!fullref'] || sheet['!ref']);
   if (range.e.r >= MAX_ROWS + 1 || range.e.c >= MAX_COLS) throw new Error('Report exceeds 500,000 data rows or 64 columns; split it into smaller reports');
-  // SheetJS 0.18 dense worksheets are arrays of row arrays. Keep a sparse
-  // fallback for formats that do not honor dense mode.
-  const anyCell = predicate => Array.isArray(sheet)
-    ? sheet.some(row => Array.isArray(row) && row.some(predicate))
-    : Object.keys(sheet).some(key => !key.startsWith('!') && predicate(sheet[key]));
-  if (anyCell(cell => cell?.f || cell?.F)) throw new Error('Formula cells are not supported; export values only');
-  if (anyCell(cell => cell?.t === 'e')) throw new Error('Excel error cells are not blank values; correct them before importing');
+  // Preserve the first offending cell per source row, including formula
+  // and error cells that otherwise become blank when converted to JSON.
+  // This keeps the existing reject-on-invalid policy, but identifies the ASIN.
+  const problems = new Map();
+  const header = Array.isArray(sheet) ? sheet[0] || [] : null;
+  const note = (r,c,cell) => {
+    if (problems.has(r+1) || !(cell?.f || cell?.F || cell?.t==='e')) return;
+    const headerCell = header ? header[c] : sheet[XLSX.utils.encode_cell({r:0,c})];
+    const column = XLSX.utils.encode_col(c) + (headerCell?.v ? ' ('+String(headerCell.v).slice(0,70)+')' : '');
+    const formula = Boolean(cell.f || cell.F);
+    problems.set(r+1, { code:formula?'FORMULA_CELL':'EXCEL_ERROR_CELL', message:formula?'Formula cells are not supported':'Excel error cells are not supported', column });
+  };
+  if (Array.isArray(sheet)) {
+    sheet.forEach((row,r)=>{ if(Array.isArray(row))row.forEach((cell,c)=>note(r,c,cell)); });
+  } else {
+    for (const key of Object.keys(sheet)) {
+      if (key.startsWith('!')) continue;
+      const cell=sheet[key];
+      if (!(cell?.f || cell?.F || cell?.t==='e')) continue;
+      const {r,c}=XLSX.utils.decode_cell(key);
+      note(r,c,cell);
+    }
+  }
   const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, range: 0, raw: true, defval: null, blankrows: true });
-  return validateRows(matrix, Boolean(book.Workbook?.WBProps?.date1904));
+  return validateRows(matrix, Boolean(book.Workbook?.WBProps?.date1904), problems);
 }
 module.exports = { MAX_ROWS, MAX_ISSUES, MAX_FILE_BYTES, normalizeStore, isIndiaSeller, money, units, reportDate, validateRows, parseFile };
 if (!isMainThread) {
