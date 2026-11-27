@@ -74,4 +74,5 @@ function Skeleton({
   );
 }
 
+export { Skeleton };
 export default Skeleton;

@@ -5,7 +5,7 @@ import Skeleton from './Skeleton';
  * Skeleton skeleton for the header brand component.
  * Shows loading state while page metadata is loading.
  */
-export default function HeaderSkeleton() {
+export function HeaderSkeleton() {
   return (
     <div className="flex flex-col gap-1 min-w-0 animate-pulse">
       <div className="flex flex-wrap items-center gap-1 text-[11px] font-medium text-slate-500">
@@ -17,3 +17,5 @@ export default function HeaderSkeleton() {
     </div>
   );
 }
+
+export default HeaderSkeleton;

@@ -295,4 +295,5 @@ const FileUploadProgressBar = forwardRef<{
 
 FileUploadProgressBar.displayName = "FileUploadProgressBar";
 
+export { FileUploadProgressBar };
 export default FileUploadProgressBar;
