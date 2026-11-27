@@ -109,7 +109,7 @@ function validateRows(matrix, date1904 = false) {
     if (matches.length !== 1) addIssue(1, 'HEADER', 'Missing or duplicate required column: ' + field);
     else columns[field] = matches[0];
   }
-  if (invalid) return { rows: [], issues, invalid, total: matrix.length - 1, duplicates };
+  if (invalid) return { rows: [], issues, invalid, total: matrix.length - 1, duplicates, defaultedCells, defaultedRows, negativeRows };
   if (matrix.length - 1 > MAX_ROWS) throw new Error('Report exceeds 500,000 data rows; split it into smaller reports');
   const seen = new Map();
   for (let i = 1; i < matrix.length; i++) {
@@ -158,10 +158,11 @@ function parseFile(filePath, name) {
   if (range.e.r >= MAX_ROWS + 1 || range.e.c >= MAX_COLS) throw new Error('Report exceeds 500,000 data rows or 64 columns; split it into smaller reports');
   // SheetJS 0.18 dense worksheets are arrays of row arrays. Keep a sparse
   // fallback for formats that do not honor dense mode.
-  const hasFormula = Array.isArray(sheet)
-    ? sheet.some(row => Array.isArray(row) && row.some(cell => cell?.f || cell?.F))
-    : Object.keys(sheet).some(key => !key.startsWith('!') && (sheet[key]?.f || sheet[key]?.F));
-  if (hasFormula) throw new Error('Formula cells are not supported; export values only');
+  const anyCell = predicate => Array.isArray(sheet)
+    ? sheet.some(row => Array.isArray(row) && row.some(predicate))
+    : Object.keys(sheet).some(key => !key.startsWith('!') && predicate(sheet[key]));
+  if (anyCell(cell => cell?.f || cell?.F)) throw new Error('Formula cells are not supported; export values only');
+  if (anyCell(cell => cell?.t === 'e')) throw new Error('Excel error cells are not blank values; correct them before importing');
   const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, range: 0, raw: true, defval: null, blankrows: true });
   return validateRows(matrix, Boolean(book.Workbook?.WBProps?.date1904));
 }
