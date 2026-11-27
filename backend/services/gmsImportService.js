@@ -8,9 +8,9 @@ const { MAX_ISSUES, normalizeStore, money } = require('./gmsImportParser');
 
 const TERMINAL = new Set(['REJECTED','COMPLETED','FAILED','EXPIRED','CANCELLED']);
 const LOCK = 'retailops:gms-import-commit';
+const SQL_BATCH_ROWS = 10000;
 const metricFields = ['orderedRevenue','orderedUnits','shippedRevenue','shippedCOGS','shippedUnits','customerReturns'];
 const keyOf = row => row.asin + '|' + row.date;
-const sha = value => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
 let activeParses = 0;
 function parseInWorker(file) {
@@ -25,7 +25,7 @@ function parseInWorker(file) {
     try {
       worker = new Worker(path.join(__dirname, 'gmsImportParser.js'), {
         workerData: { path: file.path, name: file.originalname },
-        resourceLimits: { maxOldGenerationSizeMb: 384 },
+        resourceLimits: { maxOldGenerationSizeMb: 1536 },
       });
     } catch (err) { activeParses--; reject(err); return; }
     let settled = false;
@@ -37,7 +37,7 @@ function parseInWorker(file) {
       activeParses--;
       if (error) reject(error); else resolve(result);
     };
-    const timer = setTimeout(() => finish(new Error('Report validation timed out; split the report into smaller files')), 120000);
+    const timer = setTimeout(() => finish(new Error('Report validation timed out; split the report into smaller files')), 480000);
     worker.once('message', data => {
       if (data.ok) finish(null, data.result);
       else {
@@ -75,9 +75,9 @@ function sameMetrics(existing, row) {
 
 // Inputs are already validated. All SQL is static and payloads are bound.
 const keysJson = "OPENJSON(@payload) WITH (asin NVARCHAR(30) '$.asin', [date] DATE '$.date')";
-async function inspect(db, rows, scope, { lock = false } = {}) {
+async function inspectChunk(db, rows, scope, { lock = false } = {}) {
   const summary = { invalid: 0, issues: [], inserted: 0, updated: 0, unchanged: 0, matched: 0, unmatched: 0, sample: [] };
-  if (!rows.length) return { summary, rows: [], snapshotHash: sha([]) };
+  if (!rows.length) return { summary, rows: [], snapshot: [] };
   const payload = JSON.stringify(rows.map(({asin,date}) => ({asin,date})));
   const hint = lock ? ' WITH (UPDLOCK,HOLDLOCK)' : '';
   const catalog = await db.request().input('payload', sql.NVarChar(sql.MAX), payload).query(
@@ -155,7 +155,34 @@ async function inspect(db, rows, scope, { lock = false } = {}) {
     }
   }
   snapshot.sort((a,b) => a.key.localeCompare(b.key));
-  return { summary, rows: prepared, snapshotHash: sha(snapshot) };
+  return { summary, rows: prepared, snapshot };
+}
+
+// Limit SQL payloads and result sets while retaining a deterministic snapshot
+// over the whole file. The worker still commits all chunks in one transaction.
+async function inspect(db, rows, scope, options = {}) {
+  const summary = { invalid: 0, issues: [], inserted: 0, updated: 0, unchanged: 0, matched: 0, unmatched: 0, sample: [] };
+  const prepared = [];
+  const sorted = [...rows].sort((a,b) => keyOf(a).localeCompare(keyOf(b)));
+  const digest = crypto.createHash('sha256');
+  digest.update('[');
+  let first = true;
+  for (let offset = 0; offset < sorted.length; offset += SQL_BATCH_ROWS) {
+    const chunk = await inspectChunk(db, sorted.slice(offset,offset + SQL_BATCH_ROWS), scope, options);
+    for (const key of ['invalid','inserted','updated','unchanged','matched','unmatched']) {
+      summary[key] += chunk.summary[key];
+    }
+    summary.issues.push(...chunk.summary.issues.slice(0, MAX_ISSUES-summary.issues.length));
+    summary.sample.push(...chunk.summary.sample.slice(0, 20-summary.sample.length));
+    for (const row of chunk.rows) prepared.push(row);
+    for (const fact of chunk.snapshot) {
+      if (!first) digest.update(',');
+      digest.update(JSON.stringify(fact));
+      first = false;
+    }
+  }
+  digest.update(']');
+  return { summary, rows: prepared, snapshotHash: digest.digest('hex') };
 }
 
 function publicJob(row) {
@@ -192,6 +219,7 @@ async function createPreview(user, file) {
   const inspected = await inspect(pool, parsed.rows, scope);
   const summary = {
     total: parsed.total, duplicates: parsed.duplicates,
+    defaultedCells: parsed.defaultedCells || 0, defaultedRows: parsed.defaultedRows || 0, negativeRows: parsed.negativeRows || 0,
     ...inspected.summary,
     invalid: parsed.invalid + inspected.summary.invalid,
     issues: [...parsed.issues, ...inspected.summary.issues].slice(0, MAX_ISSUES),
@@ -239,7 +267,9 @@ async function commitRows(tx, rows) {
   // All actions were verified under the same transaction and locks. Never
   // invent owner IDs, infer missing values, or change the legacy date key.
   const source = "OPENJSON(@payload) WITH (asin NVARCHAR(30) '$.asin', [date] DATE '$.date', sellerId VARCHAR(50) '$.sellerId', brand NVARCHAR(255) '$.brand', storeCode NVARCHAR(50) '$.storeCode', orderedRevenue DECIMAL(18,2) '$.orderedRevenue', orderedUnits INT '$.orderedUnits', shippedRevenue DECIMAL(18,2) '$.shippedRevenue', shippedCOGS DECIMAL(18,2) '$.shippedCOGS', shippedUnits INT '$.shippedUnits', customerReturns INT '$.customerReturns', [action] VARCHAR(20) '$.action')";
-  const result = await tx.request().input('payload',sql.NVarChar(sql.MAX),JSON.stringify(writes)).query(
+  for (let offset=0; offset<writes.length; offset+=SQL_BATCH_ROWS) {
+    const batch = writes.slice(offset,offset+SQL_BATCH_ROWS);
+    const result = await tx.request().input('payload',sql.NVarChar(sql.MAX),JSON.stringify(batch)).query(
     'MERGE GmsDailyPerformance WITH (HOLDLOCK) AS g USING ' + source + ' AS s ' +
     'ON g.Asin=s.asin AND g.Date>=s.date AND g.Date<DATEADD(day,1,s.date) ' +
     "WHEN MATCHED AND s.action='updated' AND (g.SellerId=s.sellerId OR g.SellerId IS NULL) THEN UPDATE SET " +
@@ -248,7 +278,8 @@ async function commitRows(tx, rows) {
     "WHEN NOT MATCHED BY TARGET AND s.action='inserted' THEN INSERT (Id,Asin,Date,SellerId,Brand,StoreCode,OrderedRevenue,OrderedUnits,ShippedRevenue,ShippedCOGS,ShippedUnits,CustomerReturns,CreatedAt,UpdatedAt) " +
     "VALUES (SUBSTRING(LOWER(REPLACE(CAST(NEWID() AS VARCHAR(36)),'-','')),1,24),s.asin,s.date,s.sellerId,s.brand,s.storeCode,s.orderedRevenue,s.orderedUnits,s.shippedRevenue,s.shippedCOGS,s.shippedUnits,s.customerReturns,dbo.GetEnvDate(),dbo.GetEnvDate());"
   );
-  if (result.rowsAffected?.[0] !== writes.length) throw new Error('Fact write count did not match validated rows');
+    if (result.rowsAffected?.[0] !== batch.length) throw new Error('Fact write count did not match validated rows');
+  }
 }
 async function processNext() {
   let claimed = null;
