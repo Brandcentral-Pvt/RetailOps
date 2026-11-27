@@ -71,7 +71,51 @@
 .gms-row-count {font-size:12px;font-weight:400;}
 .gms-matrix-tools .ant-segmented {max-width:100%;}
 .gms-matrix-hint {font-size:12px;}
-.gms-matrix-scroll {min-width:0;max-width:100%;overflow:hidden;border:1px solid var(--gms-border);border-radius:7px;}
+/* The Ant table body is the only horizontal scroll owner. The outer shell
+   clips paint, not scrolling; do not use max-content on its wrappers or add
+   another overflow:auto ancestor around the synchronized header/body. */
+.gms-matrix-scroll {
+  min-width:0;width:100%;max-width:100%;overflow:clip;isolation:isolate;
+  border:1px solid var(--gms-border);border-radius:7px;
+  background:var(--gms-surface);
+}
+.gms-matrix-scroll .ant-table-wrapper,
+.gms-matrix-scroll .ant-table,
+.gms-matrix-scroll .ant-table-container {
+  min-width:0;max-width:100%;
+}
+.gms-matrix-scroll .ant-table-body {
+  overflow-x:auto!important;
+  overscroll-behavior-inline:contain;
+}
+.gms-matrix-scroll .ant-table-header {
+  overflow:hidden!important;
+}
+/* RetailOps' global Ant overrides force body z-index:auto and give every
+   header the same z-index. Ant Design 6 uses -cell-fix, not just -fix-left.
+   Use a column-owned marker that works for both versions and beats global
+   !important rules. Native rc-table sticky offsets remain authoritative. */
+.gms-matrix-scroll .ant-table-thead > tr > th {
+  z-index:1!important;
+}
+.gms-matrix-scroll .ant-table-thead > tr > th.gms-matrix-pinned-cell {
+  z-index:4!important;
+  background:var(--bc-slate-50,#f8fafc)!important;
+}
+.gms-matrix-scroll .ant-table-tbody > tr > td.gms-matrix-pinned-cell {
+  z-index:3!important;
+  background:var(--gms-surface,#fff)!important;
+}
+.gms-matrix-scroll .ant-table-tbody > tr:hover > td.gms-matrix-pinned-cell,
+.gms-matrix-scroll .ant-table-tbody > tr > td.gms-matrix-pinned-cell.ant-table-cell-row-hover {
+  background:var(--bc-slate-100,#f1f5f9)!important;
+}
+.gms-matrix-scroll .gms-matrix-pinned-cell {
+  position:sticky;
+  background-clip:padding-box;
+}
+/* Preserve Ant's own edge shadow. Do not add another pseudo-element or
+   independently translate cells, which can obscure the next column. */
 .gms-matrix-scroll .ant-table {font-size:12px;font-variant-numeric:tabular-nums;}
 .gms-matrix-scroll .ant-table-thead > tr > th {white-space:normal;text-transform:none;font-size:12px;font-weight:650;padding-block:9px;}
 .gms-matrix-scroll .ant-table-tbody > tr > td {padding-block:7px;white-space:normal;overflow-wrap:anywhere;border-bottom:1px solid var(--gms-border);}

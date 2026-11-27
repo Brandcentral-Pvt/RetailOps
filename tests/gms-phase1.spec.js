@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 const user = { Id: 'u-test', id: 'u-test', firstName: 'Test', role: { name: 'admin' }, scope: 'global', permissions: ['*'] };
 
-async function setup(page, nonempty=false, {historyCount=0,issueCount=1}={}) {
+async function setup(page, nonempty=false, {historyCount=0,issueCount=1,wideMatrix=false}={}) {
   let reads = 0, uploads = 0, commits = 0, fail = false, reject = false, status = 'READY', lastRequest=null, lastExport=null;
   const batch = () => ({ id:'batch1',fileName:'report.csv',status,createdAt:'2026-11-27T10:00:00Z',summary:{total:1,inserted:1,updated:0,unchanged:0,duplicates:0,invalid:reject?1:0,issues:reject?[{row:2,asin:'B000000001',date:'2026-11-27',column:'Ordered Revenue',code:'INVALID_ROW',message:'Invalid monetary value',remarks:'Enter a valid amount in Ordered Revenue, such as 1250.50 or -250.00.'}]:[],reportIssueCount:reject?1:0,reportComplete:true,sample:[],committed:status==='COMPLETED'?1:0} });
   const historyFixture=Array.from({length:historyCount},(_,i)=>({
@@ -26,6 +26,22 @@ async function setup(page, nonempty=false, {historyCount=0,issueCount=1}={}) {
         comparison:{window:{from:'2026-09-27',to:'2026-10-27',days:31},changes:{orderedRevenue:null,returnRatio:null},currentCoverage:{observedDays:1,expectedDays:31,complete:false},previousCoverage:{observedDays:0,complete:false}},selectedWindow:{from:'2026-10-28',to:'2026-11-27'},
         daily:[{date:'2026-11-27',orderedRevenue:0,shippedRevenue:-10,shippedCOGS:5,shippedUnits:1,orderedUnits:2,customerReturns:0,profit:-15,marginPct:null,returnRatio:0}],meta:{records:101,asins:101,sellers:0,unmatchedRecords:101,last:'2026-11-27'},pagination:{page:currentPage,pageSize,totalRows:101}
       }:{matrixRows:[],monthGroups:{},kpis:{},comparison:{window:null},daily:[],meta:{records:0,asins:0,sellers:0,unmatchedRecords:0,last:null},pagination:{page:1,pageSize,totalRows:0}};
+      if(nonempty&&wideMatrix){
+        const days=['2026-11-23','2026-11-24','2026-11-25','2026-11-26','2026-11-27'];
+        const base=data.matrixRows[0];
+        data.matrixRows=Array.from({length:Math.min(pageSize,101-(currentPage-1)*pageSize)},(_,i)=>{
+          const n=(currentPage-1)*pageSize+i+1;
+          const asin='B'+String(n).padStart(9,'0');
+          const sellerId='seller-'+n;
+          const seller=lastRequest.level==='seller';
+          return {...base,key:seller?'seller:'+sellerId:asin,asin:seller?'-':asin,sellerId,dbBrand:'Seller '+n,
+            isUnmatched:false,productTitle:'Long product title '+n+' for scroll testing',brand:'Sheet Brand',
+            orderedRevenue:n*500,dailyRev:Object.fromEntries(days.map(day=>[day,n*100])),
+            weeklyRev:{'2026-11|2026-W48':n*500},monthlyRev:{'2026-11':n*500},
+            _dodTrends:Object.fromEntries(days.map(day=>[day,0]))};
+        });
+        data.monthGroups['2026-11'].weeks['2026-11|2026-W48']={key:'2026-11|2026-W48',label:'Week 48 (23 Nov - 27 Nov)',days};
+      }
       return fail ? send({ success:false,message:'Failed' },500) : send({success:true,data});
     }
     if(path.endsWith('/export/start-gms')){lastExport=route.request().postDataJSON();return send({success:true,downloadId:'test-export',fileName:'gms.xlsx'});}
@@ -289,4 +305,93 @@ test('mobile import dialog keeps footer and tabs accessible with long error repo
   expect(state.commits()).toBe(0);
   await modal.getByRole('button',{name:'Close',exact:true}).last().click();
   await expect(modal).not.toBeVisible();
+});
+
+async function pinnedGeometry(matrix){
+  return matrix.evaluate(el=>{
+    const header=el.querySelector('.ant-table-header');
+    const body=el.querySelector('.ant-table-body');
+    const th=header?.querySelector('th.gms-matrix-pinned-cell');
+    const td=body?.querySelector('tr.ant-table-row > td.gms-matrix-pinned-cell');
+    if(!header||!body||!th||!td)return null;
+    const bounds=node=>{const r=node.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width};};
+    const hit=node=>{
+      const r=node.getBoundingClientRect(),target=document.elementFromPoint(r.left+Math.min(12,r.width/2),r.top+r.height/2);
+      return !!target&&node.contains(target);
+    };
+    const background=node=>getComputedStyle(node).backgroundColor;
+    return {head:bounds(th),cell:bounds(td),viewport:bounds(body),
+      scroll:body.scrollLeft,max:body.scrollWidth-body.clientWidth,headerScroll:header.scrollLeft,
+      wrapperScroll:el.scrollLeft,wrapperWidth:el.clientWidth,wrapperScrollWidth:el.scrollWidth,
+      headZ:Number(getComputedStyle(th).zIndex),bodyZ:Number(getComputedStyle(td).zIndex),
+      regularHeadZ:Number(getComputedStyle(header.querySelector('th:not(.gms-matrix-pinned-cell)')).zIndex),
+      headHit:hit(th),bodyHit:hit(td),headBackground:background(th),bodyBackground:background(td)};
+  });
+}
+async function scrollMatrix(matrix,direction){
+  await matrix.locator('.ant-table-body').evaluate((el,where)=>{el.scrollLeft=where==='end'?el.scrollWidth:where;el.dispatchEvent(new Event('scroll'));},direction);
+}
+function assertPinned(g,baseline){
+  expect(g).not.toBeNull();
+  expect(Math.abs(g.head.left-baseline.head.left)).toBeLessThan(2);
+  expect(Math.abs(g.cell.left-baseline.cell.left)).toBeLessThan(2);
+  expect(Math.abs(g.head.left-g.cell.left)).toBeLessThan(2);
+  expect(Math.abs(g.head.width-g.cell.width)).toBeLessThan(2);
+  expect(g.headZ).toBeGreaterThan(g.regularHeadZ);
+  expect(g.bodyZ).toBeGreaterThan(0);
+  expect(g.headBackground).not.toMatch(/transparent|rgba\(.*,\s*0\)/);
+  expect(g.bodyBackground).not.toMatch(/transparent|rgba\(.*,\s*0\)/);
+  expect(g.headHit).toBe(true);
+  expect(g.bodyHit).toBe(true);
+  expect(g.wrapperScroll).toBe(0);
+}
+test('wide daily matrix keeps ASIN header and cells pinned above scrolling columns',async({page})=>{
+  await page.setViewportSize({width:1280,height:900});
+  const state=await setup(page,true,{wideMatrix:true});
+  const matrix=page.locator('#panel-matrix .gms-matrix-scroll');
+  await page.getByRole('radiogroup',{name:'Matrix granularity'}).getByText('Daily',{exact:true}).click();
+  await expect(matrix.locator('.ant-table-header th.gms-matrix-pinned-cell')).toHaveText('ASIN');
+  await matrix.locator('.ant-table-header').scrollIntoViewIfNeeded();
+  await expect.poll(async()=>{const g=await pinnedGeometry(matrix);return g?.max||0;}).toBeGreaterThan(300);
+  const start=await pinnedGeometry(matrix);
+  assertPinned(start,start);
+  const reads=state.reads();
+  await scrollMatrix(matrix,360);
+  await expect.poll(async()=>{const g=await pinnedGeometry(matrix);return Math.abs(g.headerScroll-g.scroll);}).toBeLessThan(2);
+  await expect.poll(async()=>(await pinnedGeometry(matrix)).scroll).toBeGreaterThan(300);
+  assertPinned(await pinnedGeometry(matrix),start);
+  await scrollMatrix(matrix,'end');
+  await expect.poll(async()=>{const g=await pinnedGeometry(matrix);return Math.abs(g.scroll-g.max);}).toBeLessThan(2);
+  await expect.poll(async()=>{const g=await pinnedGeometry(matrix);return Math.abs(g.headerScroll-g.scroll);}).toBeLessThan(2);
+  assertPinned(await pinnedGeometry(matrix),start);
+  await expect(matrix.getByRole('columnheader',{name:'27 Nov',exact:true})).toBeInViewport();
+  expect(state.reads()).toBe(reads);
+  // Switching grouping pins the seller identity, never a second column.
+  await page.getByRole('radiogroup',{name:'Row grouping'}).getByText('Seller View',{exact:true}).click();
+  await expect.poll(()=>state.lastRequest()?.level).toBe('seller');
+  await expect(matrix.locator('.ant-table-header th.gms-matrix-pinned-cell')).toHaveText('Seller (DB)');
+  await expect(matrix.locator('.ant-table-body tr.ant-table-row').first().locator('.gms-matrix-pinned-cell')).toHaveCount(1);
+  await expect(matrix.getByText('Seller 1',{exact:true})).toBeVisible();
+  await scrollMatrix(matrix,0);
+  await expect.poll(async()=>(await pinnedGeometry(matrix)).scroll).toBe(0);
+  const sellerStart=await pinnedGeometry(matrix);
+  await scrollMatrix(matrix,360);
+  await expect.poll(async()=>{const g=await pinnedGeometry(matrix);return Math.abs(g.headerScroll-g.scroll);}).toBeLessThan(2);
+  assertPinned(await pinnedGeometry(matrix),sellerStart);
+});
+test('narrow matrix releases the pin while retaining native horizontal scroll',async({page})=>{
+  await page.setViewportSize({width:1280,height:900});
+  await setup(page,true,{wideMatrix:true});
+  const matrix=page.locator('#panel-matrix .gms-matrix-scroll');
+  await expect(matrix.locator('.ant-table-header th.gms-matrix-pinned-cell')).toHaveCount(1);
+  // Simulate reduced content area (expanded sidebar/split-screen).
+  await page.locator('.gms-workspace').evaluate(el=>{el.style.maxWidth='620px';});
+  await expect(matrix.locator('.ant-table-header th.gms-matrix-pinned-cell')).toHaveCount(0);
+  const overflow=await matrix.locator('.ant-table-body').evaluate(el=>el.scrollWidth-el.clientWidth);
+  expect(overflow).toBeGreaterThan(200);
+  await scrollMatrix(matrix,'end');
+  await expect.poll(()=>matrix.locator('.ant-table-body').evaluate(el=>el.scrollLeft)).toBeGreaterThan(200);
+  await expect.poll(()=>matrix.evaluate(el=>el.scrollLeft)).toBe(0);
+  const width=await page.locator('.gms-workspace').evaluate(el=>({client:el.clientWidth,scroll:el.scrollWidth}));
+  expect(width.scroll).toBeLessThanOrEqual(width.client+2);
 });

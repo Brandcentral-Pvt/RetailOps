@@ -1,4 +1,4 @@
-import React,{useMemo,useState,useEffect} from 'react';
+import React,{useMemo,useState,useEffect,useRef} from 'react';
 import {Button,Card,Checkbox,Drawer,Empty,Flex,Grid,Popover,Segmented,Select,Space,Table,Tag,Tooltip,Typography} from 'antd';
 import {InfoCircleOutlined,LeftOutlined,RightOutlined,SettingOutlined} from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -40,6 +40,22 @@ function RowDetail({row,level,onClose}){
 }
 export default function GmsMatrix({analytics,loading,level,onLevelChange,page,pageSize,sortKey,sortDirection,onPageChange,onSortChange}){
   const screens=Grid.useBreakpoint();
+  const matrixRef=useRef(null);
+  const [matrixWidth,setMatrixWidth]=useState(null);
+  const [tableHeight,setTableHeight]=useState(()=>Math.max(240,Math.min(560,typeof window==='undefined'?480:window.innerHeight-395)));
+  // Measure the actual available content width, not just the viewport. The
+  // expanded RetailOps sidebar can make the usable report area much narrower.
+  useEffect(()=>{
+    const node=matrixRef.current;
+    if(!node)return;
+    const measure=()=>setMatrixWidth(Math.round(node.clientWidth));
+    const resize=()=>{measure();setTableHeight(Math.max(240,Math.min(560,window.innerHeight-395)));};
+    resize();
+    const observer=typeof ResizeObserver==='undefined'?null:new ResizeObserver(measure);
+    observer?.observe(node);
+    window.addEventListener('resize',resize);
+    return ()=>{observer?.disconnect();window.removeEventListener('resize',resize);};
+  },[]);
   const [granularity,setGranularity]=useState('summary');
   const [month,setMonth]=useState(null);
   const [showTrends,setShowTrends]=useState(true);
@@ -54,13 +70,16 @@ export default function GmsMatrix({analytics,loading,level,onLevelChange,page,pa
   const monthIndex=keys.indexOf(activeMonth);
   const rows=analytics?.matrixRows||[];
   const total=analytics?.pagination?.totalRows??0;
-  const fixed=Boolean(screens.lg);
+  const fixed=Boolean(screens.lg)&& (matrixWidth==null||matrixWidth>=680);
+  // Attach an explicit scoped class to both header and body. Ant Design 6
+  // uses -cell-fix/-cell-fix-start rather than the legacy -fix-left names.
+  const pinIdentity=fixed?{fixed:'left',className:'gms-matrix-pinned-cell'}:{};
   const columns=useMemo(()=>{
     const sortable=key=>({key,sorter:true,sortOrder:sortKey===key?(sortDirection==='asc'?'ascend':'descend'):null});
     const identity=[
-      ...(level==='asin'?[{title:'ASIN',dataIndex:'asin',...sortable('asin'),width:218,fixed:fixed?'left':undefined,
+      ...(level==='asin'?[{title:'ASIN',dataIndex:'asin',...sortable('asin'),width:218,...pinIdentity,
         render:(v,r)=><div className="gms-product-cell"><Button type="link" className="gms-row-link" aria-label={'View ASIN '+v+' details'} onClick={()=>setDetail(r)}>{v||'-'}</Button><Tooltip title={r.productTitle||'Product title unavailable'}><span className="gms-product-title">{r.productTitle||'-'}</span></Tooltip></div>}]:[]),
-      {title:'Seller (DB)',dataIndex:'dbBrand',...sortable('dbBrand'),width:level==='seller'?190:158,fixed:fixed&&level==='seller'?'left':undefined,
+      {title:'Seller (DB)',dataIndex:'dbBrand',...sortable('dbBrand'),width:level==='seller'?190:158,...(level==='seller'?pinIdentity:{}),
         render:(v,r)=><div className="gms-product-cell">{level==='seller'?<Button type="link" className="gms-row-link" onClick={()=>setDetail(r)}>{v||'-'}</Button>:<Text>{v||'-'}</Text>}{r.isUnmatched&&<Tag color="warning">Unmatched</Tag>}</div>},
       {title:'Brand (Sheet)',dataIndex:'brand',...sortable('brand'),width:142,ellipsis:{showTitle:true}},
     ];
@@ -77,7 +96,10 @@ export default function GmsMatrix({analytics,loading,level,onLevelChange,page,pa
     }));
     return [...identity,...metrics,...periodCols];
   },[level,periods,showTrends,fixed,sortKey,sortDirection,metricKeys,granularity]);
+  // Keep the table's measured leaf widths stable across nested date groups.
+  // rc-table uses the same numeric width for its synchronized header/body.
   const width=columns.reduce((n,c)=>n+(c.children?c.children.reduce((m,x)=>m+x.width,0):c.width),0);
+  const scrollX=Math.max(width, matrixWidth||800);
   useEffect(()=>{
     if(loading||!analytics)return;
     const isPeriod=/^(day-|week-total-|month-total-)/.test(sortKey);
@@ -113,9 +135,9 @@ export default function GmsMatrix({analytics,loading,level,onLevelChange,page,pa
         </>}
         <Text type="secondary">{granularity==='summary'?'Selected-period financial totals. Select an ASIN or seller for details.':granularity==='month'?'Observed months in '+(activeYear||'the selected year')+'.':granularity==='week'?'Non-overlapping week segments.':'Observed dates in the selected month.'} Sorting applies to the full report.</Text>
       </Flex>
-      <div className="gms-matrix-scroll">
+      <div ref={matrixRef} className="gms-matrix-scroll">
         <Table size="small" rowKey="key" columns={columns} dataSource={rows} loading={loading} tableLayout="fixed"
-          scroll={{x:Math.max(width,800),y:Math.max(240,Math.min(560,typeof window==='undefined'?480:window.innerHeight-395))}}
+          scroll={{x:scrollX,y:tableHeight}}
           locale={{emptyText:<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No matching matrix rows"/>}}
           pagination={{current:analytics?.pagination?.page??page,pageSize,total,showSizeChanger:true,pageSizeOptions:[25,50,100],size:'small',showTotal:(n,range)=>range[0]+'-'+range[1]+' of '+n.toLocaleString('en-IN')+' rows'}}
           onChange={(pagination,_filters,sorter,extra)=>{
