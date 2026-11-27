@@ -83,7 +83,7 @@ const precomputeTrends = (rows) => {
       const curr = row.monthlyRev[months[i]] || 0;
       const prev = row.monthlyRev[months[i - 1]] || 0;
       row._momTrends[months[i]] =
-        prev > 0 ? ((curr - prev) / prev) * 100 : null;
+        prev !== 0 ? ((curr - prev) / Math.abs(prev)) * 100 : null;
     }
 
     // WoW: current week vs previous week from row.weeklyRev
@@ -91,7 +91,7 @@ const precomputeTrends = (rows) => {
     for (let i = 1; i < weeks.length; i++) {
       const curr = row.weeklyRev[weeks[i]] || 0;
       const prev = row.weeklyRev[weeks[i - 1]] || 0;
-      row._wowTrends[weeks[i]] = prev > 0 ? ((curr - prev) / prev) * 100 : null;
+      row._wowTrends[weeks[i]] = prev !== 0 ? ((curr - prev) / Math.abs(prev)) * 100 : null;
     }
 
     // DoD: each day vs previous day from row.dailyRev
@@ -99,7 +99,7 @@ const precomputeTrends = (rows) => {
     for (let i = 1; i < days.length; i++) {
       const curr = row.dailyRev[days[i]] || 0;
       const prev = row.dailyRev[days[i - 1]] || 0;
-      row._dodTrends[days[i]] = prev > 0 ? ((curr - prev) / prev) * 100 : null;
+      row._dodTrends[days[i]] = prev !== 0 ? ((curr - prev) / Math.abs(prev)) * 100 : null;
     }
   });
   return rows;
@@ -429,9 +429,9 @@ export default function GmsTrackerPage() {
     });
 
     const profit = shippedRevenue - shippedCOGS;
-    const marginPct = shippedRevenue > 0 ? (profit / shippedRevenue) * 100 : 0;
+    const marginPct = shippedRevenue > 0 ? (profit / shippedRevenue) * 100 : null;
     const returnRatio =
-      orderedUnits > 0 ? (customerReturns / orderedUnits) * 100 : 0;
+      orderedUnits > 0 ? (customerReturns / orderedUnits) * 100 : null;
 
     return {
       orderedRevenue,
@@ -483,14 +483,14 @@ export default function GmsTrackerPage() {
 
     // Percent change; null when the baseline is zero (don't fake a 0%)
     const pctChange = (current, prior) =>
-      prior === 0 ? null : ((current - prior) / Math.abs(prior)) * 100;
+      current == null || prior == null || prior === 0 ? null : ((current - prior) / Math.abs(prior)) * 100;
 
     const profitIn = (dates) =>
       sumIn(dates, "shippedRevenue") - sumIn(dates, "shippedCOGS");
 
     const ratioIn = (dates) => {
       const units = sumIn(dates, "orderedUnits");
-      return units > 0 ? (sumIn(dates, "customerReturns") / units) * 100 : 0;
+      return units > 0 ? (sumIn(dates, "customerReturns") / units) * 100 : null;
     };
 
     const currentProfit = profitIn(currentDates);
@@ -1179,7 +1179,7 @@ export default function GmsTrackerPage() {
     const dailyOrders = {};
     const dailyReturns = {};
     filteredData.forEach((d) => {
-      if (!dailyData[d.date]) {
+      if (!Object.prototype.hasOwnProperty.call(dailyData, d.date)) {
         dailyData[d.date] = 0;
         dailyOrders[d.date] = 0;
         dailyReturns[d.date] = 0;
@@ -1237,7 +1237,7 @@ export default function GmsTrackerPage() {
             },
             labels: {
               formatter: (val) =>
-                `₹${val >= 100000 ? (val / 100000).toFixed(1) + "L" : val >= 1000 ? (val / 1000).toFixed(0) + "k" : val}`,
+                formatCompactINR(val),
               style: { colors: "#64748b", fontSize: "10px" },
             },
           },
@@ -1641,7 +1641,7 @@ export default function GmsTrackerPage() {
                 label: "Gross Profit",
                 value: formatCompactINR(kpiMetrics.profit),
                 change: percentageChanges.changes?.profit,
-                sub: `${(kpiMetrics.marginPct || 0).toFixed(1)}% margin`,
+                sub: kpiMetrics.marginPct == null ? 'Margin unavailable' : `${kpiMetrics.marginPct.toFixed(1)}% margin`,
                 emphasis: true,
               },
               {
@@ -1652,7 +1652,7 @@ export default function GmsTrackerPage() {
               },
               {
                 label: "Return Ratio",
-                value: `${(kpiMetrics.returnRatio || 0).toFixed(2)}%`,
+                value: kpiMetrics.returnRatio == null ? 'N/A' : `${kpiMetrics.returnRatio.toFixed(2)}%`,
                 change: percentageChanges.changes?.returnRatio,
                 invert: true,
               },
