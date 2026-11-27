@@ -143,7 +143,7 @@ export default function GmsTrackerPage() {
   const [tableSort, setTableSort] = useState({key:'orderedRevenue',direction:'desc'});
   const filterKey = JSON.stringify([selectedBrands,selectedManagers,debouncedSearch,viewLevel,startDate,endDate]);
   const analytics=storedAnalytics?.clientFilterKey===filterKey?storedAnalytics:null;
-  const reportLoading=searchQuery!==debouncedSearch || (!analytics && requestLoading);
+  const reportLoading=searchQuery!==debouncedSearch || (!analytics && !error);
   const [pageFilterKey,setPageFilterKey]=useState(filterKey);
   const effectivePage=pageFilterKey===filterKey?tablePage:1;
   // An old period column is not a meaningful sort after a date change.
