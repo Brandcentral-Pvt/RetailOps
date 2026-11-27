@@ -32,7 +32,7 @@ function RowDetail({row,level,onClose}){
       </div>
       {coverage&&<Text type="secondary">Observed dates: {coverage.currentDays}/{coverage.expectedDays??coverage.currentDays} current, {coverage.priorDays}/{coverage.expectedDays??0} prior. {coverage.comparable?'Equal-length comparison available.':'Comparison unavailable where coverage is incomplete.'}</Text>}
       <div className="gms-compare-scroll"><table className="gms-compare-table"><thead><tr><th>Metric</th><th>Current</th><th>Prior</th><th>Change</th></tr></thead><tbody>
-        {METRICS.map(m=><tr key={m.key}><th>{m.label}</th><td>{metricValue(m,row[m.key])}</td><td>{metricValue(m,row.periodBaseline?.[m.key])}</td><td>{changeLabel(m,row.periodChanges?.[m.key])??'N/A'}</td></tr>)}
+        {METRICS.map(m=><tr key={m.key}><th scope="row">{m.label}</th><td>{metricValue(m,row[m.key])}</td><td>{metricValue(m,row.periodBaseline?.[m.key])}</td><td>{changeLabel(m,row.periodChanges?.[m.key])??'N/A'}</td></tr>)}
       </tbody></table></div>
       <Text type="secondary">These are selected-period totals, not estimates. Missing values are displayed as N/A.</Text>
     </Flex>}
@@ -48,7 +48,9 @@ export default function GmsMatrix({analytics,loading,level,onLevelChange,page,pa
   const groups=analytics?.monthGroups||emptyGroups;
   const keys=useMemo(()=>monthKeys(groups),[groups]);
   const activeMonth=visibleMonth(groups,month);
-  const periods=useMemo(()=>matrixPeriods(groups,granularity,activeMonth),[groups,granularity,activeMonth]);
+  const activeYear=activeMonth?.slice(0,4);
+  const years=useMemo(()=>[...new Set(keys.map(k=>k.slice(0,4)))],[keys]);
+  const periods=useMemo(()=>matrixPeriods(groups,granularity,activeMonth).filter(p=>granularity!=='month'||p.key.startsWith(activeYear)),[groups,granularity,activeMonth,activeYear]);
   const monthIndex=keys.indexOf(activeMonth);
   const rows=analytics?.matrixRows||[];
   const total=analytics?.pagination?.totalRows??0;
@@ -103,12 +105,13 @@ export default function GmsMatrix({analytics,loading,level,onLevelChange,page,pa
         </Space>
       </Flex>
       <Flex align="center" wrap gap={8} className="gms-matrix-hint">
+        {granularity==='month'&&years.length>1&&<Select size="small" aria-label="Matrix year" value={activeYear} options={years.map(year=>({label:year,value:year}))} onChange={year=>setMonth(keys.filter(key=>key.startsWith(year)).at(-1))}/>}
         {['week','day'].includes(granularity)&&<>
           <Button size="small" aria-label="Previous matrix month" icon={<LeftOutlined/>} disabled={monthIndex<=0} onClick={()=>setMonth(keys[monthIndex-1])}/>
           <Select size="small" aria-label="Matrix month" placeholder="Select month" style={{minWidth:155}} value={activeMonth??undefined} onChange={setMonth} options={keys.map(key=>({label:groups[key].label,value:key}))}/>
           <Button size="small" aria-label="Next matrix month" icon={<RightOutlined/>} disabled={monthIndex<0||monthIndex>=keys.length-1} onClick={()=>setMonth(keys[monthIndex+1])}/>
         </>}
-        <Text type="secondary">{granularity==='summary'?'Selected-period financial totals. Select an ASIN or seller for details.':granularity==='month'?'All observed months.':granularity==='week'?'Non-overlapping week segments.':'Observed dates in the selected month.'} Sorting applies to the full report.</Text>
+        <Text type="secondary">{granularity==='summary'?'Selected-period financial totals. Select an ASIN or seller for details.':granularity==='month'?'Observed months in '+(activeYear||'the selected year')+'.':granularity==='week'?'Non-overlapping week segments.':'Observed dates in the selected month.'} Sorting applies to the full report.</Text>
       </Flex>
       <div className="gms-matrix-scroll">
         <Table size="small" rowKey="key" columns={columns} dataSource={rows} loading={loading} tableLayout="fixed"
