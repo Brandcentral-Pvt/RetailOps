@@ -1,12 +1,12 @@
 import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import {Alert,App,Button} from 'antd';
+import {Alert,App,Button,Tabs} from 'antd';
 import dayjs from 'dayjs';
 import {sellerApi,userApi,gmsApi,exportApi} from '../services/api';
 import {useDateRange} from '../contexts/DateRangeContext';
 import {useAuth} from '../contexts/AuthContext';
 import {useHeader} from '../contexts/HeaderContext';
 import GmsReportToolbar from '../components/gms/GmsReportToolbar';
-import {GmsFinancialSummary,GmsTrend} from '../components/gms/GmsFinancialOverview';
+import {GmsFinancialSummary,GmsTrend,GmsComparisonTable} from '../components/gms/GmsFinancialOverview';
 import GmsMatrix from '../components/gms/GmsMatrix';
 import GmsImportDialog from '../components/gms/GmsImportDialog';
 import GmsExportDialog from '../components/gms/GmsExportDialog';
@@ -45,6 +45,7 @@ export default function GmsTrackerPage(){
   const [debouncedSearch,setDebouncedSearch]=useState('');
   const [level,setLevel]=useState('asin');
   const [metric,setMetric]=useState('orderedRevenue');
+  const [workspaceTab,setWorkspaceTab]=useState('matrix');
   const [pager,setPager]=useState({key:null,page:1,pageSize:50,sort:defaultSort});
   const [stored,setStored]=useState(null),[failure,setFailure]=useState(null);
   const [requestLoading,setRequestLoading]=useState(true);
@@ -152,10 +153,15 @@ export default function GmsTrackerPage(){
       error={error} lastLoadedAt={lastLoadedAt} onRefresh={()=>load({refreshMetadata:true})}
       canImport={can('gms_tracker_import')} canExport={can('gms_tracker_export')} onImport={()=>showImport('upload')} onHistory={()=>showImport('history')} onExport={()=>setExportOpen(true)}/>
     {error?<Alert type="error" showIcon title="Unable to load the report" description={error} action={<Button size="small" onClick={()=>load({refreshMetadata:true})}>Retry</Button>}/>:<>
-      <GmsFinancialSummary analytics={analytics} loading={reportLoading} metric={metric} onMetricChange={setMetric}/>
-      <GmsTrend analytics={analytics} loading={reportLoading} metric={metric} onMetricChange={setMetric}/>
-      <GmsMatrix analytics={analytics} loading={loading} level={level} onLevelChange={setLevel} page={page} pageSize={pageSize}
-        sortKey={sortKey} sortDirection={sortDirection} onPageChange={onPageChange} onSortChange={onSortChange}/>
+      <GmsFinancialSummary analytics={analytics} loading={reportLoading} metric={metric}
+        onMetricChange={next=>{setMetric(next);setWorkspaceTab('analysis');}}
+        onUseLatest={date=>updateDateRange({startDate:dayjs(date).startOf('day').toDate(),endDate:dayjs(date).endOf('day').toDate(),rangeType:'custom'})}/>
+      <Tabs className="gms-workspace-tabs" activeKey={workspaceTab} onChange={setWorkspaceTab} items={[
+        {key:'matrix',label:'Revenue matrix',children:<GmsMatrix analytics={analytics} loading={loading} level={level} onLevelChange={setLevel} page={page} pageSize={pageSize}
+          sortKey={sortKey} sortDirection={sortDirection} onPageChange={onPageChange} onSortChange={onSortChange}/>},
+        {key:'analysis',label:'Financial analysis',children:<div className="gms-analysis-stack"><GmsTrend analytics={analytics} loading={reportLoading} metric={metric} onMetricChange={setMetric}/>
+          {!reportLoading&&<GmsComparisonTable analytics={analytics}/>}</div>}
+      ]}/>
     </>}
     {can('gms_tracker_import')&&<GmsImportDialog open={importOpen} initialTab={importTab} onClose={()=>setImportOpen(false)} onCommitted={()=>latestLoad.current({refreshMetadata:true})}/>}
     {can('gms_tracker_export')&&<GmsExportDialog open={exportOpen} onClose={()=>setExportOpen(false)} onSubmit={submitExport}

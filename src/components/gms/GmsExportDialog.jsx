@@ -25,7 +25,7 @@ export default function GmsExportDialog({open,onClose,onSubmit,level,startDate,e
     finally{lock.current=false;setBusy(false);}
   }
   return <Drawer open={open} title="Export GMS report" width="min(560px, 100vw)" forceRender onClose={()=>{if(!busy)onClose();}} mask={{closable:!busy}} keyboard={!busy}
-    footer={<Flex justify="flex-end" gap={8}><Button disabled={busy} onClick={onClose}>Cancel</Button><Button type="primary" icon={<DownloadOutlined/>} loading={busy} disabled={disabled} onClick={()=>form.submit()}>Export {format==='csv'?'complete CSV':'complete Excel'}</Button></Flex>}>
+    footer={<Flex justify="flex-end" gap={8}><Button disabled={busy} onClick={onClose}>Cancel</Button><Button aria-label={format==='csv'?'Export complete CSV':'Export complete Excel'} type="primary" icon={<DownloadOutlined/>} loading={busy} disabled={disabled} onClick={()=>form.submit()}>Export {format==='csv'?'complete CSV':'complete Excel'}</Button></Flex>}>
     <Form form={form} layout="vertical" initialValues={defaults} onFinish={submit} requiredMark={false} className="gms-export-form">
       {error&&<Alert type="error" showIcon title={error} style={{marginBottom:16}}/>}
       <Form.Item name="exportFileType" label="Report format">

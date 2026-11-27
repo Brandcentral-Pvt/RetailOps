@@ -14,6 +14,7 @@ on:
       - 'backend/controllers/exportController.js'
       - 'backend/routes/uploadRoutes.js'
       - 'backend/server.js'
+      - 'backend/middleware/privateExportFiles.js'
       - 'backend/database/gmsSchema.js'
       - 'backend/scripts/repairGmsSchema.js'
       - 'backend/migrations/091_gms_import_jobs.js'
@@ -69,6 +70,7 @@ jobs:
           node --check services/gmsAnalyticsPageService.js
           node --check services/gmsExportWriter.js
           node --check services/exportFileIntegrity.js
+          node --check middleware/privateExportFiles.js
           node --check services/gmsCompleteExport.js
           node --check migrations/095_gms_report_product_title.js
           node --check migrations/094_gms_analytics_date_index.js

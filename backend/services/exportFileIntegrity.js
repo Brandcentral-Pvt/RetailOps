@@ -1,4 +1,8 @@
 const fs=require('node:fs/promises');
+const {createReadStream}=require('node:fs');
+const {createInflateRaw}=require('node:zlib');
+const {Writable}=require('node:stream');
+const {pipeline}=require('node:stream/promises');
 const path=require('node:path');
 const {StringDecoder}=require('node:string_decoder');
 const unzipper=require('unzipper');
@@ -59,6 +63,42 @@ function sheetTarget(target){
   if(!/^xl\/worksheets\/[^/]+\.xml$/.test(value))throw integrityError();
   return value;
 }
+// Stream exactly the compressed byte range identified by the ZIP central
+// directory. A streaming ZIP writer may put zero placeholders in its local
+// header and append a data descriptor; those placeholders are not the sizes
+// or CRC against which its contents should be validated.
+async function readZipEntry(file,entry,archiveSize,consume,signal){
+  aborted(signal);
+  const offset=Number(entry.offsetToLocalFileHeader),compressed=Number(entry.compressedSize);
+  const expected=Number(entry.uncompressedSize),method=Number(entry.compressionMethod),flags=Number(entry.flags);
+  if(![offset,compressed,expected,flags,method].every(Number.isSafeInteger)||
+      offset<0||compressed<0||expected<0||offset+30>archiveSize||
+      (flags&1)||![0,8].includes(method))throw integrityError();
+  const fd=await fs.open(file,'r');
+  let start;
+  try{
+    const local=Buffer.alloc(30);
+    if((await fd.read(local,0,30,offset)).bytesRead!==30||local.readUInt32LE(0)!==0x04034b50||
+       local.readUInt16LE(8)!==method||(local.readUInt16LE(6)&1))throw integrityError();
+    const nameLength=local.readUInt16LE(26),extraLength=local.readUInt16LE(28);
+    const name=Buffer.alloc(nameLength);
+    if((await fd.read(name,0,nameLength,offset+30)).bytesRead!==nameLength||name.toString('utf8')!==entry.path)throw integrityError();
+    start=offset+30+nameLength+extraLength;
+    if(start+compressed>archiveSize)throw integrityError();
+  }finally{await fd.close();}
+  if(!compressed){if(expected!==0)throw integrityError();return;}
+  let size=0;
+  const sink=new Writable({write(chunk,_encoding,cb){
+    try{
+      aborted(signal);size+=chunk.length;
+      if(size>expected)throw integrityError();
+      consume(chunk);cb();
+    }catch(err){cb(err);}
+  }});
+  const source=createReadStream(file,{start,end:start+compressed-1});
+  if(method===8)await pipeline(source,createInflateRaw(),sink,{signal});
+  else await pipeline(source,sink,{signal});
+}
 // Validate the complete ZIP and every XML part without loading a second
 // workbook into memory. Strict XML parsing catches malformed XML that a
 // permissive spreadsheet reader might accept. This is not Office schema QA.
@@ -97,20 +137,18 @@ async function verifyXlsx(file,{signal,expectedSheets}={}){
         if(/^xl\/worksheets\/[^/]+\.xml$/.test(name)&&tag.local==='row'&&tag.uri===mainNs)rows++;
       });
     }
-    const stream=entry.stream();
-    const cancel=()=>stream.destroy(new Error('Export verification cancelled'));
-    signal?.addEventListener('abort',cancel,{once:true});
-    try{
-      for await(const chunk of stream){
-        aborted(signal);size+=chunk.length;crc=crc32.buf(chunk,crc);
-        if(parser)parser.write(decoder.write(chunk));
-      }
-      if(parser){parser.write(decoder.end());parser.close();}
-    }finally{
-      signal?.removeEventListener('abort',cancel);
-      if(!stream.destroyed)stream.destroy();
+    const expectedSize=Number(entry.uncompressedSize),expectedCrc=Number(entry.crc32)>>>0;
+    await readZipEntry(file,entry,info.size,chunk=>{
+      size+=chunk.length;crc=crc32.buf(chunk,crc);
+      if(parser)parser.write(decoder.write(chunk));
+    },signal);
+    if(parser){parser.write(decoder.end());parser.close();}
+    if(size!==expectedSize||(crc>>>0)!==expectedCrc){
+      // Diagnostic details stay in server logs, never in the response.
+      const err=integrityError();
+      err.message+=' [ZIP entry '+name+'; size '+size+'/'+expectedSize+'; CRC '+(crc>>>0)+'/'+expectedCrc+']';
+      throw err;
     }
-    if(size!==Number(entry.uncompressedSize)||(crc>>>0)!==(Number(entry.crc32)>>>0))throw integrityError();
     if(/^xl\/worksheets\/[^/]+\.xml$/.test(name)){
       if(root!=='worksheet')throw integrityError();
       sheetRows.set(name,rows);

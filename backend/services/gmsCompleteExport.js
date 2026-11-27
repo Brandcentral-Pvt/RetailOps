@@ -169,7 +169,7 @@ function buildDailyExport(facts,{window}){
 function buildCompleteExport(facts,{window,level='asin'}){
   const current=facts.filter(r=>inWindow(r,window));
   const prior=priorWindow(window),previous=prior?facts.filter(r=>inWindow(r,prior)):[];
-  const report=buildAnalytics(facts,{window,level});
+  const report=buildAnalytics(facts,{window,level,rowComparisons:false});
   if(report.meta.records!==current.length)throw new Error('GMS export row-count reconciliation failed');
   const sortedDates=report.daily.map(d=>d.date);
   const complete={selectedCount:current.length,priorCount:previous.length,firstDate:sortedDates[0],lastDate:sortedDates.at(-1)};

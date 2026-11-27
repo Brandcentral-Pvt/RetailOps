@@ -195,6 +195,13 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
     expect(secondPage.monthGroups).toEqual(firstPage.monthGroups);
     const ascending=await loadPagedAnalytics(mockPool,global,{...options,page:1,sort:{key:'day-2026-11-27',direction:'asc'}});
     expect(ascending.matrixRows[0].asin).toBe('B000000002');
+    const profitSort=await loadPagedAnalytics(mockPool,global,{...options,page:1,sort:{key:'profit',direction:'asc'}});
+    expect(profitSort.matrixRows[0].asin).toBe('B000000002');
+    expect(profitSort.matrixRows[0]).toMatchObject({shippedRevenue:-25,shippedCOGS:-5,profit:-20,marginPct:null,periodCoverage:{currentDays:1,priorDays:0,expectedDays:1,comparable:false}});
+    const selectedSearch=await loadPagedAnalytics(mockPool,global,{...options,search:'Original title from report'});
+    const searchFacts=await queryFacts(mockPool,global,{from:'2026-11-27',to:'2026-11-27'},{search:'Original title from report'});
+    expect(selectedSearch.kpis.orderedRevenue).toBe(155);
+    expect(searchFacts.map(r=>r.asin)).toEqual(['B000000001']);
     const scopedPage=await loadPagedAnalytics(mockPool,user,{...options,level:'seller',sellerIds:['S1']});
     expect(scopedPage.kpis).toEqual(scoped.kpis);
     expect(scopedPage.matrixRows[0].orderedRevenue).toBe(29.5);

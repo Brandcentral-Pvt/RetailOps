@@ -15,11 +15,11 @@ async function setup(page, nonempty=false) {
       const currentPage=lastRequest.page||1, pageSize=lastRequest.pageSize||50;
       const currentAsin='B'+String((currentPage-1)*pageSize+1).padStart(9,'0');
       const data=nonempty?{
-        matrixRows:[{key:currentAsin,asin:currentAsin,dbBrand:'-',brand:'Sheet Brand',storeCode:'IN',isUnmatched:true,orderedUnits:2,orderedRevenue:0,productTitle:'Example product',dailyRev:{'2026-11-27':0},weeklyRev:{'2026-11|2026-W48':0},monthlyRev:{'2026-11':0},_momTrends:{},_wowTrends:{},_dodTrends:{}}],
+        matrixRows:[{key:currentAsin,asin:currentAsin,dbBrand:'-',brand:'Sheet Brand',storeCode:'IN',isUnmatched:true,orderedUnits:2,orderedRevenue:0,shippedRevenue:-10,shippedCOGS:5,shippedUnits:1,customerReturns:0,profit:-15,marginPct:null,returnRatio:0,periodBaseline:null,periodChanges:{orderedRevenue:null},periodCoverage:{currentDays:1,priorDays:0,expectedDays:31,comparable:false},productTitle:'Example product',dailyRev:{'2026-11-27':0},weeklyRev:{'2026-11|2026-W48':0},monthlyRev:{'2026-11':0},_momTrends:{},_wowTrends:{},_dodTrends:{}}],
         monthGroups:{'2026-11':{key:'2026-11',label:'November 2026',weeks:{'2026-11|2026-W48':{key:'2026-11|2026-W48',label:'Week 48 (27 Nov - 27 Nov)',days:['2026-11-27']}}}},
         kpis:{orderedRevenue:0,orderedUnits:2,shippedRevenue:-10,shippedCOGS:5,shippedUnits:1,customerReturns:0,profit:-15,marginPct:null,returnRatio:0},
-        comparison:{window:{from:'2026-11-26',to:'2026-11-26',days:1},changes:{orderedRevenue:null,returnRatio:0},currentCoverage:{observedDays:1,expectedDays:1,complete:true},previousCoverage:{observedDays:1,complete:true}},
-        daily:[{date:'2026-11-27',orderedRevenue:0,orderedUnits:2,customerReturns:0}],meta:{records:101,asins:101,sellers:0,unmatchedRecords:101,last:'2026-11-27'},pagination:{page:currentPage,pageSize,totalRows:101}
+        comparison:{window:{from:'2026-09-27',to:'2026-10-27',days:31},changes:{orderedRevenue:null,returnRatio:null},currentCoverage:{observedDays:1,expectedDays:31,complete:false},previousCoverage:{observedDays:0,complete:false}},selectedWindow:{from:'2026-10-28',to:'2026-11-27'},
+        daily:[{date:'2026-11-27',orderedRevenue:0,shippedRevenue:-10,shippedCOGS:5,shippedUnits:1,orderedUnits:2,customerReturns:0,profit:-15,marginPct:null,returnRatio:0}],meta:{records:101,asins:101,sellers:0,unmatchedRecords:101,last:'2026-11-27'},pagination:{page:currentPage,pageSize,totalRows:101}
       }:{matrixRows:[],monthGroups:{},kpis:{},comparison:{window:null},daily:[],meta:{records:0,asins:0,sellers:0,unmatchedRecords:0,last:null},pagination:{page:1,pageSize,totalRows:0}};
       return fail ? send({ success:false,message:'Failed' },500) : send({success:true,data});
     }
@@ -95,9 +95,9 @@ test('invalid preview displays issues and cannot be confirmed', async ({page}) =
   await expect(page.getByText('Enter a valid amount in Ordered Revenue, such as 1250.50 or -250.00.',{exact:true})).toBeVisible();
   await expect(page.getByText('B000000001',{exact:true})).toBeVisible();
   await expect(page.getByText('INVALID_ROW',{exact:true})).toHaveCount(0);
-  await expect(page.getByRole('button',{name:'Download Excel'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Download Excel error report',exact:true})).toBeVisible();
   const downloadPromise=page.waitForEvent('download');
-  await page.getByRole('button',{name:'Download CSV'}).click();
+  await page.getByRole('button',{name:'Download CSV error report',exact:true}).click();
   const download=await downloadPromise;
   expect(download.suggestedFilename()).toBe('report_error_report.csv');
   await expect(page.getByRole('button',{name:'Confirm import'})).toHaveCount(0);
@@ -131,7 +131,10 @@ test('metric focus and matrix granularity are presentation-only',async({page})=>
   const reads=state.reads();
   await page.getByRole('button',{name:'Show Shipped Revenue trend'}).click();
   await expect(page.getByLabel('Chart metric')).toBeVisible();
-  await page.getByText('Daily',{exact:true}).click();
+  await expect(page.getByText('Only one observed reporting day',{exact:true})).toBeVisible();
+  await expect(page.locator('.gms-trend-chart')).toHaveCount(0);
+  await page.getByRole('tab',{name:'Revenue matrix',exact:true}).click();
+  await page.getByRole('radiogroup',{name:'Matrix granularity'}).getByText('Daily',{exact:true}).click();
   await expect(page.getByLabel('Matrix month')).toBeVisible();
   await expect(page.getByRole('columnheader',{name:'27 Nov',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Hide comparisons'}).click();
@@ -144,13 +147,13 @@ test('complete export drawer sends full-report parameters rather than matrix pag
   const drawer=page.getByRole('dialog',{name:'Export GMS report'});
   await expect(drawer.getByText('Complete financial workbook',{exact:true})).toBeVisible();
   await drawer.getByRole('radio',{name:'Custom dates',exact:true}).check();
-  await drawer.getByRole('button',{name:'Export complete Excel'}).click();
+  await drawer.getByRole('button',{name:'Export complete Excel',exact:true}).click();
   await expect(drawer.getByText('Select a start and end date')).toBeVisible();
   expect(state.lastExport()).toBeNull();
   await drawer.getByRole('radio',{name:/Current report range/}).check();
   await drawer.getByRole('radio',{name:'CSV: complete daily data',exact:true}).check();
   await expect(drawer.getByText('Complete daily records',{exact:true})).toBeVisible();
-  await drawer.getByRole('button',{name:'Export complete CSV'}).click();
+  await drawer.getByRole('button',{name:'Export complete CSV',exact:true}).click();
   await expect.poll(()=>state.lastExport()?.exportFileType).toBe('csv');
   expect(state.lastExport()).not.toHaveProperty('page');
   expect(state.lastExport()).not.toHaveProperty('pageSize');
@@ -163,7 +166,7 @@ test('import history opens directly and template download retains canonical head
   await expect(modal.getByRole('tab',{name:'My import history'})).toHaveAttribute('aria-selected','true');
   await modal.getByRole('tab',{name:'Import report'}).click();
   const downloadPromise=page.waitForEvent('download');
-  await modal.getByRole('button',{name:'CSV template'}).click();
+  await modal.getByRole('button',{name:'Download import template',exact:true}).click();
   expect((await downloadPromise).suggestedFilename()).toBe('GMS_Import_Template.csv');
 });
 test('mobile report layout keeps horizontal scrolling inside the matrix',async({page})=>{
@@ -173,4 +176,23 @@ test('mobile report layout keeps horizontal scrolling inside the matrix',async({
   const layout=await page.locator('.gms-workspace').evaluate(el=>({width:el.clientWidth,scroll:el.scrollWidth}));
   expect(layout.scroll).toBeLessThanOrEqual(layout.width+2);
   await expect(page.getByText('B000000001',{exact:true})).toBeVisible();
+});
+
+test('row detail contains the same server-sourced financial metrics and missing prior values',async({page})=>{
+  await setup(page,true);
+  await expect(page.getByRole('tab',{name:'Revenue matrix',exact:true})).toHaveAttribute('aria-selected','true');
+  await page.getByRole('button',{name:'View ASIN B000000001 details',exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:'ASIN financial details'});
+  await expect(dialog.getByText('Example product',{exact:true})).toBeVisible();
+  const row=dialog.getByRole('row').filter({has:dialog.getByRole('rowheader',{name:'Gross Profit',exact:true})});
+  await expect(row).toContainText('-₹15.00');
+  await expect(row).toContainText('N/A');
+});
+
+test('latest observed reporting date is an explicit date-range action',async({page})=>{
+  const state=await setup(page,true);
+  await expect(page.getByText('1/31 reporting days available',{exact:false})).toBeVisible();
+  await page.getByRole('button',{name:'View 27 Nov only',exact:true}).click();
+  await expect.poll(()=>state.lastRequest()?.startDate).toBe('2026-11-27');
+  expect(state.lastRequest().endDate).toBe('2026-11-27');
 });

@@ -154,7 +154,7 @@ export default function GmsImportDialog({ open, initialTab='upload', onClose, on
     <Steps size="small" current={step} status={stepStatus} items={[{title:'Choose report'},{title:'Review validation'},{title:'Import result'}]} />
     <Alert type="info" showIcon title="Amazon India daily reports" description="CSV, XLS or XLSX, up to 100 MB and 500,000 data rows. Empty financial cells become zero; valid negative values are retained. Import requires your confirmation."/>
     {queued?<Alert type="info" showIcon title="An import is in progress" description="Review its result before starting a new upload. You can close this window while processing continues."/>:
-      <Card size="small" title="Select a GMS report" extra={<Button size="small" icon={<DownloadOutlined/>} onClick={downloadTemplate} disabled={busy}>CSV template</Button>}>
+      <Card size="small" title="Select a GMS report" extra={<Button aria-label="Download import template" size="small" icon={<DownloadOutlined/>} onClick={downloadTemplate} disabled={busy}>CSV template</Button>}>
         <Upload.Dragger accept=".csv,.xlsx,.xls" beforeUpload={selectFile} maxCount={1} disabled={busy}
           fileList={file?[file]:[]} onRemove={()=>{if(busy)return false;setFile(null);return true;}}>
           <p><UploadOutlined style={{fontSize:28}}/></p>
@@ -187,8 +187,8 @@ export default function GmsImportDialog({ open, initialTab='upload', onClose, on
         {(summary.issues?.length>0||(job.status==='FAILED'&&summary.failure))&&<Card size="small" title={'Error report ('+count(summary.reportIssueCount??summary.issues?.length??1)+')'}>
           <Flex vertical gap={10}>
             <Space wrap>
-              <Button icon={<DownloadOutlined/>} loading={downloading==='xlsx'} disabled={busy||!!downloading} onClick={()=>downloadIssues('xlsx')}>Download Excel</Button>
-              <Button icon={<DownloadOutlined/>} loading={downloading==='csv'} disabled={busy||!!downloading} onClick={()=>downloadIssues('csv')}>Download CSV</Button>
+              <Button aria-label="Download Excel error report" icon={<DownloadOutlined/>} loading={downloading==='xlsx'} disabled={busy||!!downloading} onClick={()=>downloadIssues('xlsx')}>Download Excel</Button>
+              <Button aria-label="Download CSV error report" icon={<DownloadOutlined/>} loading={downloading==='csv'} disabled={busy||!!downloading} onClick={()=>downloadIssues('csv')}>Download CSV</Button>
             </Space>
             {summary.reportComplete!==true&&<Alert type="warning" showIcon title="Older error report" description="Some source ASINs or issues were not saved in this older import. Revalidate the original file to obtain the complete report."/>}
             {summary.reportIssueCount>(summary.issues?.length||0)&&<Typography.Text type="secondary">Showing the first {summary.issues.length} issues. The downloaded report includes every detected issue.</Typography.Text>}

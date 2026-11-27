@@ -48,6 +48,9 @@ describe('KPI integrity, grouping and filter parity',()=>{
     expect(r.comparison.changes.orderedRevenue).toBe(175);
     expect(r.comparison.changes.returnRatio).toBe(-25);
     expect(r.comparison.currentCoverage.complete).toBe(true);
+    expect(r.matrixRows[0]).toMatchObject({orderedRevenue:15,shippedRevenue:200,shippedCOGS:120,profit:80,marginPct:40,returnRatio:25,periodCoverage:{currentDays:2,priorDays:2,expectedDays:2,comparable:true}});
+    expect(r.matrixRows[0].periodChanges.orderedRevenue).toBe(175);
+    expect(r.matrixRows[0].periodChanges.returnRatio).toBe(-25);
   });
   test('missing days, zero baseline and null metrics are explicit rather than fabricated',()=>{
     const r=report([fact('2026-11-25','0'),fact('2026-11-27','0',{shippedRevenue:null,orderedUnits:0})],'2026-11-27','2026-11-28');
@@ -56,6 +59,8 @@ describe('KPI integrity, grouping and filter parity',()=>{
     expect(r.comparison.currentCoverage).toMatchObject({observedDays:1,expectedDays:2,complete:false});
     expect(r.matrixRows[0].dailyRev['2026-11-27']).toBe(0);
     expect(r.matrixRows[0].dailyRev['2026-11-28']).toBeUndefined();
+    expect(r.matrixRows[0].periodCoverage.comparable).toBe(false);
+    expect(r.matrixRows[0].periodChanges.orderedRevenue).toBeNull();
   });
   test('same seller display name does not merge distinct IDs and unmatched revenue stays separate',()=>{
     const facts=[fact('2026-11-27','0.10'),fact('2026-11-27','0.20',{asin:'B000000002',sellerId:'S2'}),fact('2026-11-27','-0.05',{asin:'B000000003',sellerId:null,dbBrand:null})];
@@ -73,10 +78,12 @@ describe('canonical SQL scope and historical fetch',()=>{
     const db=makeFakePool([{match:/FROM GmsDailyPerformance g/,rows:[fact('2026-11-27','5')]}]);
     await loadAnalytics(db,scopedUser,{startDate:'2026-11-27',endDate:'2026-11-27',sellerIds:['S1'],search:'example',level:'asin'});
     const call=db.calls[0];
-    expect(call.inputs).toMatchObject({fromDate:'2026-10-01',toDate:'2026-11-27',gmsAnalytics_0:'S1',sellerIds:'["S1"]'});
+    expect(call.inputs).toMatchObject({fromDate:'2026-10-01',toDate:'2026-11-27',allowedSellerIds:'["S1"]',sellerIds:'["S1"]',search:'example'});
     expect(call.sql).toContain('OUTER APPLY');
     expect(call.sql).toContain('NOT EXISTS');
     expect(call.sql).toContain('OPENJSON(@sellerIds)');
+    expect(call.sql).toContain('OPENJSON(@allowedSellerIds)');
+    expect(call.sql).toContain('CHARINDEX(@search');
     expect(call.sql).not.toContain("'S1'");
   });
   test('empty selected seller intersection never widens scope',async()=>{
