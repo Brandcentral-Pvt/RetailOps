@@ -1,8 +1,10 @@
 const fs = require('node:fs/promises');
 const service = require('../services/gmsImportService');
+const { isGmsSchemaError, sendGmsSchemaUnavailable } = require('../database/gmsSchema');
 const owner = req => String(req.user.id || req.user.Id || req.user._id);
 function respondError(res, err) {
   console.error('GMS import request failed:', err.message);
+  if (isGmsSchemaError(err)) return sendGmsSchemaUnavailable(res);
   if (err.status === 403 || err.status === 429) return res.status(err.status).json({success:false,message:err.message});
   return res.status(500).json({success:false,message:'GMS import service unavailable. Retry after checking service and migration status.'});
 }
