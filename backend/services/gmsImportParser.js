@@ -114,6 +114,9 @@ function validateRows(matrix, date1904 = false, cellProblems = new Map()) {
     if (matches.length !== 1) addIssue(1, 'HEADER', 'Missing or duplicate required column: ' + field);
     else columns[field] = matches[0];
   }
+  const titleColumns=headers.map((h,i)=>['producttitle'].includes(h)?i:-1).filter(i=>i>=0);
+  if(titleColumns.length>1)addIssue(1,'HEADER','Missing or duplicate required column: productTitle');
+  if(titleColumns.length===1)columns.productTitle=titleColumns[0];
   if (invalid) return { rows: [], issues, allIssues, invalid, total: matrix.length - 1, duplicates, defaultedCells, defaultedRows, negativeRows };
   if (matrix.length - 1 > MAX_ROWS) throw new Error('Report exceeds 500,000 data rows; split it into smaller reports');
   const seen = new Map();
@@ -138,7 +141,12 @@ function validateRows(matrix, date1904 = false, cellProblems = new Map()) {
       if (brand.length > 255) throw new Error('Brand is too long');
       const storeCode = isBlank(get('storeCode')) ? 'IN' : normalizeStore(get('storeCode'));
       if (!storeCode) throw new Error('Only explicit Amazon India (IN) store codes are supported');
+      const title=get('productTitle');
       const row = { asin, date, brand, storeCode };
+      if(!isBlank(title)){
+        row.reportProductTitle=String(title);
+        if(row.reportProductTitle.length>32767)throw new Error('Product Title exceeds the Excel cell limit');
+      }
       for (const field of moneyFields) {
         try { row[field] = money(get(field)); } catch (err) { throw new Error(field + ': ' + err.message); }
       }
