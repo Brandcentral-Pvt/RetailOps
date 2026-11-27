@@ -4,7 +4,8 @@ const { sql, getPool, generateId, executeWithRetry } = require('../database/db')
 const { buildInClause } = require('../utils/sqlHelpers');
 const marketDataSyncService = require("../services/marketDataSyncService");
 const SystemLogService = require('../services/SystemLogService');
-const { resolveSellerScope } = require('../utils/sellerScope');
+const { resolveSellerScope, bindSellerFilter } = require('../utils/sellerScope');
+const { dateWindow, unambiguousSellerSql } = require('../utils/gmsPhase1');
 const { asinUsableSqlFor } = require('../utils/asinUtils');
 
 // Helper: find a value in row by possible keys
@@ -687,11 +688,12 @@ exports.uploadAsinMapping = async (req, res) => {
 exports.uploadGmsData = async (req, res) => {
   let filePath = null;
   let tempTableName = null;
-  const pool = await getPool();
+  let pool;
 
   try {
     if (!req.file) throw new Error('No file uploaded');
     filePath = req.file.path;
+    pool = await getPool();
     
     const isCSV = filePath.toLowerCase().endsWith('.csv');
     let workbook = XLSX.readFile(filePath, isCSV ? { raw: true } : {});
@@ -700,20 +702,16 @@ exports.uploadGmsData = async (req, res) => {
     sheet = null;
     workbook = null;
 
-    const reportType = req.body.reportType || 'daily';
-    const userRole = req.user.role?.name || req.user.role;
-    const isGlobalUser = ['admin', 'super_admin', 'developer', 'operational_manager'].includes(userRole);
+    const scope = resolveSellerScope(req.user);
     let allowedAsins = null;
-
-    if (!isGlobalUser) {
-      const assignedSellerIds = (req.user.assignedSellers || []).map(s => (s._id || s).toString());
-      if (assignedSellerIds.length === 0) {
-        throw new Error('You do not have any assigned sellers.');
-      }
+    if (!scope.isGlobal) {
+      if (scope.empty) return res.status(403).json({ success: false, message: 'No assigned sellers' });
       const dbReq = pool.request();
-      const inClause = buildInClause(dbReq, 'sellerId', assignedSellerIds);
-      const allowedAsinsResult = await dbReq.query(`SELECT AsinCode FROM Asins WHERE SellerId IN (${inClause})`);
-      allowedAsins = new Set(allowedAsinsResult.recordset.map(r => r.AsinCode.toUpperCase()));
+      const filter = bindSellerFilter(dbReq, scope, { alias: 'a', prefix: 'gmsImport' });
+      const allowedAsinsResult = await dbReq.query(
+        `SELECT DISTINCT a.AsinCode FROM Asins a WHERE ${unambiguousSellerSql('a')} ${filter}`
+      );
+      allowedAsins = new Set(allowedAsinsResult.recordset.map(r => String(r.AsinCode).toUpperCase()));
     }
 
     const columnsList = [
@@ -802,6 +800,9 @@ exports.uploadGmsData = async (req, res) => {
 
     const uniqueCount = uniqueRowMap.size;
 
+    if (uniqueCount === 0) {
+      return res.status(422).json({ success: false, message: 'No valid, authorized GMS rows found', processed: 0, skipped: skippedCount });
+    }
     if (uniqueCount > 0) {
       await pool.request().bulk(table);
 
@@ -843,7 +844,7 @@ exports.uploadGmsData = async (req, res) => {
       details: err.message 
     });
   } finally {
-    if (tempTableName) {
+    if (tempTableName && pool) {
       try { 
         await pool.request().query(`IF OBJECT_ID('tempdb..${tempTableName}') IS NOT NULL DROP TABLE ${tempTableName}`);
       } catch(e) {}
@@ -856,37 +857,31 @@ exports.uploadGmsData = async (req, res) => {
 
 exports.getGmsData = async (req, res) => {
   try {
-    const userRole = req.user.role?.name || req.user.role;
-    const isGlobalUser = ['admin', 'super_admin', 'developer', 'operational_manager'].includes(userRole);
-    
+    let window;
+    try { window = dateWindow(req.query.startDate, req.query.endDate); }
+    catch (err) { return res.status(400).json({ success: false, message: err.message }); }
+    const scope = resolveSellerScope(req.user);
+    if (scope.empty) return res.json({ success: true, data: [] });
     const pool = await getPool();
     const request = pool.request();
-    let whereClauses = [];
-
-    if (!isGlobalUser) {
-      const assignedSellerIds = (req.user.assignedSellers || []).map(s => (s._id || s).toString());
-      if (assignedSellerIds.length === 0) {
-        return res.json({ success: true, data: [] });
-      }
-      whereClauses.push(`a.SellerId IN (${buildInClause(request, 'sellerId', assignedSellerIds)})`);
+    let whereSQL = 'WHERE 1=1';
+    if (!scope.isGlobal) {
+      whereSQL += bindSellerFilter(request, scope, { alias: 'a', prefix: 'gmsRead' });
+      whereSQL += ' AND ' + unambiguousSellerSql('a');
     }
-
-    // Date range filter
-    if (req.query.startDate) {
-      request.input('startDate', sql.Date, req.query.startDate);
-      whereClauses.push('g.Date >= @startDate');
+    if (window.from) {
+      request.input('startDate', sql.Date, window.from);
+      whereSQL += ' AND g.Date >= @startDate';
     }
-    if (req.query.endDate) {
-      request.input('endDate', sql.Date, req.query.endDate);
-      whereClauses.push('g.Date <= @endDate');
+    if (window.to) {
+      request.input('endDate', sql.Date, window.to);
+      whereSQL += ' AND g.Date < DATEADD(day, 1, @endDate)';
     }
-
-    const whereSQL = whereClauses.length > 0 ? 'WHERE ' + whereClauses.join(' AND ') : '';
 
     // Always JOIN Asins and Sellers — sellerId is required for the frontend manager filter.
     const query = `
       SELECT
-        g.Date as date,
+        CONVERT(char(10), g.Date, 23) as date,
         g.Asin as asin,
         g.Brand as brand,
         g.StoreCode as storeCode,
@@ -908,19 +903,7 @@ exports.getGmsData = async (req, res) => {
 
     const result = await request.query(query);
     
-    // Format Date object to YYYY-MM-DD avoiding timezone shifts
-    const formatted = result.recordset.map(row => {
-      if (!row.date) return { ...row, date: null };
-      const d = new Date(row.date);
-      const tzOffset = d.getTimezoneOffset() * 60000;
-      const localDate = new Date(d.getTime() - tzOffset);
-      return {
-        ...row,
-        date: localDate.toISOString().split('T')[0]
-      };
-    });
-
-    res.json({ success: true, data: formatted });
+    res.json({ success: true, data: result.recordset });
   } catch (error) {
     console.error("❌ Gms fetch error:", error);
     res.status(500).json({ success: false, message: "Failed to fetch GMS data" });
@@ -929,43 +912,34 @@ exports.getGmsData = async (req, res) => {
 
 exports.clearGmsData = async (req, res) => {
   try {
+    // A full-workspace delete has no safe seller-level meaning until GMS
+    // facts carry a verified owner. The route also requires gms_tracker_delete.
+    const scope = resolveSellerScope(req.user);
+    if (!scope.isGlobal) return res.status(403).json({ success: false, message: 'Global scope is required to clear GMS data' });
     const pool = await getPool();
-    const userRole = req.user.role?.name || req.user.role;
-    const isGlobalUser = ['admin', 'super_admin', 'developer', 'operational_manager'].includes(userRole);
-
-    if (isGlobalUser) {
-      await pool.request().query("DELETE FROM GmsDailyPerformance");
-    } else {
-      const assignedSellerIds = (req.user.assignedSellers || []).map(s => (s._id || s).toString());
-      if (assignedSellerIds.length === 0) {
-        return res.json({ success: true, message: "No sellers assigned — nothing deleted.", deleted: 0 });
-      }
-      const dbReq = pool.request();
-      const inClause = buildInClause(dbReq, 'clearSellerId', assignedSellerIds);
-      await dbReq.query(`
-        DELETE g FROM GmsDailyPerformance g
-        INNER JOIN Asins a ON g.Asin = a.AsinCode
-        WHERE a.SellerId IN (${inClause})
-      `);
-    }
-
-    res.json({ success: true, message: "GMS Performance data cleared successfully." });
+    const result = await pool.request().query('DELETE FROM GmsDailyPerformance');
+    res.json({ success: true, message: 'GMS Performance data cleared successfully.', deleted: result.rowsAffected?.[0] ?? 0 });
   } catch (error) {
-    console.error("❌ Gms clear error:", error);
-    res.status(500).json({ success: false, message: "Failed to clear GMS data" });
+    console.error('GMS clear error:', error);
+    res.status(500).json({ success: false, message: 'Failed to clear GMS data' });
   }
 };
 
 // Lightweight ASINs endpoint for GMS tracker (only ASINs with GMS data)
 exports.getGmsAsins = async (req, res) => {
   try {
+    const scope = resolveSellerScope(req.user);
+    if (scope.empty) return res.json({ success: true, data: [] });
     const pool = await getPool();
-    const result = await pool.request().query(`
+    const request = pool.request();
+    const filter = scope.isGlobal ? '' : bindSellerFilter(request, scope, { alias: 'a', prefix: 'gmsMeta' }) + ' AND ' + unambiguousSellerSql('a');
+    const result = await request.query(`
       SELECT DISTINCT a.AsinCode as asinCode, a.Brand as brand, a.SellerId as sellerId,
              a.Title as title, s.Name as sellerName
       FROM Asins a
       INNER JOIN GmsDailyPerformance g ON g.Asin = a.AsinCode
       LEFT JOIN Sellers s ON a.SellerId = s.Id
+      WHERE 1=1 ${filter}
     `);
     res.json({ success: true, data: result.recordset });
   } catch (error) {
