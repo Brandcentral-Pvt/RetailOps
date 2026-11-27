@@ -1965,6 +1965,23 @@ export const adsApi = {
     /** Ads workbook upload (requires adsreport_import). */
     uploadData: (formData) => api.post('/upload/upload-ads', formData),
 
+    // ── Saved views (filter presets) ────────────────────────────────────
+    listSavedViews: () => adsRequest('/ads/saved-views'),
+    createSavedView: (body) => adsRequest('/ads/saved-views', { method: 'POST', body }),
+    deleteSavedView: (id) => adsRequest(`/ads/saved-views/${id}`, { method: 'DELETE' }),
+
+    // ── ASIN flags (personal annotations) ───────────────────────────────
+    setFlag: (key, body) => adsRequest(`/ads/table/${encodeURIComponent(key)}/flag`, { method: 'POST', body }),
+    listFlags: () => adsRequest('/ads/table/flags'),
+    deleteFlag: (id) => adsRequest(`/ads/table/flags/${id}`, { method: 'DELETE' }),
+
+    // ── User preferences ────────────────────────────────────────────────
+    getUserPrefs: () => adsRequest('/ads/user-prefs'),
+    upsertUserPrefs: (body) => adsRequest('/ads/user-prefs', { method: 'PUT', body }),
+
+    // ── Export status (ads-scoped) ──────────────────────────────────────
+    getExportStatus: (id) => adsRequest(`/ads/export/${id}/status`),
+
     // Back-compat aliases (legacy callers / bookmarked call sites).
     getAdsManagerData: (params = {}) => adsRequest('/ads/overview', { params: cleanParams(params) }),
     exportAdsManagerData: (params = {}) => api.post('/export/start-ads', cleanParams(params)),
@@ -2041,10 +2058,9 @@ export const targetsApi = {
 };
 
 export const gmsApi = {
-  upload: async (file, date, onProgress) => {
+  upload: async (file, onProgress) => {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('date', date);
 
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();

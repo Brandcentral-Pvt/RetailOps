@@ -21,6 +21,7 @@ import {
   HelpCircle,
   Key,
 } from 'lucide-react';
+import { UserMenuSkeleton } from '@/components/ui/skeleton/UserMenuSkeleton';
 
 const getInitials = (user) => {
   if (!user) return 'U';
@@ -38,12 +39,22 @@ const getInitials = (user) => {
   return (first + second).toUpperCase() || (user.email ? user.email[0] : 'U').toUpperCase();
 };
 
-export default function UserMenu() {
-  const { user, logout, hasPermission } = useAuth();
+/**
+ * UserMenu — user profile dropdown with RBAC-aware menu items.
+ *
+ * Props:
+ *   loading - boolean, when true shows skeleton instead of user menu
+ */
+export default function UserMenu({ loading = false }) {
+  const { user, logout } = useAuth();
   const { setCmdOpen } = useHeader();
   const navigate = useNavigate();
 
   if (!user) return null;
+
+  if (loading) {
+    return <UserMenuSkeleton />;
+  }
 
   const initials = getInitials(user);
   const displayName =

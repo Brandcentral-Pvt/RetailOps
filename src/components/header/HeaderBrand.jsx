@@ -2,6 +2,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useHeader } from '../../contexts/HeaderContext';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton/Skeleton';
+import { HeaderSkeleton } from '@/components/ui/skeleton/HeaderSkeleton';
 
 /**
  * HeaderBrand — breadcrumb + accessible page heading.
@@ -9,10 +11,17 @@ import { Separator } from '@/components/ui/separator';
  * Breadcrumbs come from RoutePageMeta (populated via HeaderContext.pageMeta).
  * The final breadcrumb is the current page (non-linkable); prior crumbs link
  * back to their route. A shadcn Separator divides crumbs.
+ *
+ * Props:
+ *   loading - boolean, when true shows skeleton instead of content
  */
-export default function HeaderBrand() {
+export default function HeaderBrand({ loading = false }) {
   const { pageMeta } = useHeader();
   const { breadcrumbs = [], title } = pageMeta;
+
+  if (loading) {
+    return <HeaderSkeleton />;
+  }
 
   return (
     <div className="flex flex-col gap-1 min-w-0">

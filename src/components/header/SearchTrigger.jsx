@@ -4,13 +4,24 @@ import { useHeader } from '../../contexts/HeaderContext';
 import { usePlatform } from './headerHooks';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { SearchSkeleton } from '@/components/ui/skeleton/SearchSkeleton';
 
 /**
- * SearchTrigger — shadcn button that opens the global search modal (Cmd/K).
+ * SearchTrigger — shadcn button that opens the command palette (Cmd/K).
+ *
+ * Replaces the wide antd search bar: the actual search input now lives inside
+ * the command palette. Kept as a global entry point for search/navigation.
+ *
+ * Props:
+ *   loading - boolean, when true shows skeleton instead of button
  */
-export default function SearchTrigger() {
+export default function SearchTrigger({ loading = false }) {
   const { setCmdOpen } = useHeader();
   const { modKey } = usePlatform();
+
+  if (loading) {
+    return <SearchSkeleton />;
+  }
 
   return (
     <Tooltip>
@@ -20,7 +31,7 @@ export default function SearchTrigger() {
           variant="outline"
           size="sm"
           onClick={() => setCmdOpen(true)}
-          aria-label="Open search"
+          aria-label="Open command palette"
         >
           <Search size={15} className="mr-2" aria-hidden="true" />
           Search
@@ -29,7 +40,7 @@ export default function SearchTrigger() {
           </span>
         </Button>
       </TooltipTrigger>
-      <TooltipContent side="bottom">Search ({modKey} + K)</TooltipContent>
+      <TooltipContent side="bottom">Command palette ({modKey} + K)</TooltipContent>
     </Tooltip>
   );
 }

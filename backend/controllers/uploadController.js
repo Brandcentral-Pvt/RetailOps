@@ -700,9 +700,7 @@ exports.uploadGmsData = async (req, res) => {
     sheet = null;
     workbook = null;
 
-    const reportDate = req.body.date; // 'YYYY-MM-DD'
-    if (!reportDate) throw new Error('Date is required');
-
+    const reportType = req.body.reportType || 'daily';
     const userRole = req.user.role?.name || req.user.role;
     const isGlobalUser = ['admin', 'super_admin', 'developer', 'operational_manager'].includes(userRole);
     let allowedAsins = null;
@@ -783,9 +781,14 @@ exports.uploadGmsData = async (req, res) => {
       const shippedUnits = Math.floor(parseNum(findValue(row, ['shipped units', 'shipped_units'])));
       const customerReturns = Math.floor(parseNum(findValue(row, ['customer returns', 'customer_returns', 'returns'])));
 
-      const parsedDate = parseDate(reportDate);
+      const parsedDate = parseDate(findValue(row, ['date', 'Date', 'Day', 'Released Date', 'Realeased date', 'release_date', 'released_date']));
+      if (!parsedDate || isNaN(parsedDate.getTime())) {
+        skippedCount++;
+        continue;
+      }
 
-      const compositeKey = `${asin}|${reportDate}`;
+      const dateStr = parsedDate.toISOString().split('T')[0];
+      const compositeKey = `${asin}|${dateStr}`;
       uniqueRowMap.set(compositeKey, [
         asin, parsedDate, brand, storeCode,
         orderedRevenue, orderedUnits, shippedRevenue,

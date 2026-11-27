@@ -7,17 +7,29 @@
  *
  * The AI review route carries its own limiter: it is the only endpoint here
  * that spends money per call, and it is user-triggered by design.
+ *
+ * Extensions (2026-11-27):
+ *   - Saved views:      GET/POST/DELETE /api/ads/saved-views[/:id]
+ *   - ASIN flags:       POST/GET/DELETE /api/ads/table/:key/flag, /api/ads/table/flags[/:id]
+ *   - User preferences: GET/PUT /api/ads/user-prefs
+ *   - Export status:    GET /api/ads/export/:id/status
  */
 
 const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/adsController');
+const savedViewsController = require('../controllers/adsSavedViewsController');
+const flagsController = require('../controllers/adsFlagsController');
+const prefsController = require('../controllers/adsUserPrefsController');
+const exportController = require('../controllers/exportController');
 const { authenticate, requirePermission } = require('../middleware/auth');
 const { createLimiter } = require('../middleware/rateLimiter');
 const { cacheRoute } = require('../middleware/cache');
 
 const canViewAds = requirePermission('adsreport_view');
 const aiLimiter = createLimiter('STRICT');
+
+// ── Core Ads Intelligence (existing) ────────────────────────────────────
 
 router.get('/meta', authenticate, cacheRoute('ads:meta', 300), controller.getMeta);
 
@@ -30,5 +42,26 @@ router.get('/insights', authenticate, canViewAds, controller.getInsights);
 router.get('/report', authenticate, canViewAds, controller.getReport);
 
 router.post('/ai-review', authenticate, canViewAds, aiLimiter, controller.postAiReview);
+
+// ── Saved views (filter presets) ────────────────────────────────────────
+
+router.get('/saved-views', authenticate, canViewAds, savedViewsController.listSavedViews);
+router.post('/saved-views', authenticate, canViewAds, savedViewsController.createSavedView);
+router.delete('/saved-views/:id', authenticate, canViewAds, savedViewsController.deleteSavedView);
+
+// ── ASIN flags (personal annotations) ───────────────────────────────────
+
+router.post('/table/:key/flag', authenticate, canViewAds, flagsController.setFlag);
+router.get('/table/flags', authenticate, canViewAds, flagsController.listFlags);
+router.delete('/table/flags/:id', authenticate, canViewAds, flagsController.deleteFlag);
+
+// ── User preferences ────────────────────────────────────────────────────
+
+router.get('/user-prefs', authenticate, canViewAds, prefsController.getUserPrefs);
+router.put('/user-prefs', authenticate, canViewAds, prefsController.upsertUserPrefs);
+
+// ── Export status (ads-scoped alias for /api/export/status/:id) ─────────
+
+router.get('/export/:id/status', authenticate, canViewAds, exportController.getExportStatus);
 
 module.exports = router;

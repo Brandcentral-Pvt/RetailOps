@@ -11,7 +11,6 @@ import {
   Table,
   Button,
   DatePicker,
-  Upload,
   Modal,
   Typography,
   Space,
@@ -42,6 +41,7 @@ import { useHeader } from "../contexts/HeaderContext";
 
 import { LoadError } from "@/components/LoadError";
 import { GmsTrackerSkeleton } from "@/components/ui/PageSkeletons";
+import { FileUploadProgressBar } from "@/components/application/file-upload/file-upload-base";
 import { Panel, MiniState, timeAgo, useNow } from "./opsCenter/primitives";
 import "./opsCenter/ops.css";
 import "./ads/ads.css";
@@ -183,7 +183,8 @@ export default function GmsTrackerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const [uploadDate, setUploadDate] = useState(dayjs());
+  const [confirmUploadOpen, setConfirmUploadOpen] = useState(false);
+  const fileUploadRef = useRef(null);
   const [selectedBrands, setSelectedBrands] = useState([]);
   const [selectedManagers, setSelectedManagers] = useState([]);
   const { startDate, endDate } = useDateRange();
@@ -191,7 +192,6 @@ export default function GmsTrackerPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedMonths, setExpandedMonths] = useState({});
   const [expandedWeeks, setExpandedWeeks] = useState({});
-  const [fileList, setFileList] = useState([]);
   const [viewLevel, setViewLevel] = useState("asin"); // 'asin' or 'seller'
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [exportLevel, setExportLevel] = useState("asin");
@@ -390,55 +390,22 @@ export default function GmsTrackerPage() {
       .sort((a, b) => String(a).localeCompare(String(b)));
   }, [dbSellers]);
 
-  // Handle CSV file parsing with visual loading stages
-  const handleFileUpload = async (file) => {
+  // Handle files dropped — show confirmation, don't auto-upload
+  const handleFilesDropped = (files) => {
+    setConfirmUploadOpen(true);
+    return false; // block auto-upload, wait for user confirmation
+  };
+
+  // Confirm and start all pending uploads via the component ref
+  const processUpload = async () => {
+    setConfirmUploadOpen(false);
     setIsUploading(true);
     setUploadProgress(0);
-    setUploadStatus("Uploading report to database...");
+    setUploadStatus("Preparing upload...");
 
     try {
-      const formattedDate = uploadDate.format("YYYY-MM-DD");
-      const res = await gmsApi.upload(file, formattedDate, (percent) => {
-        setUploadProgress(Math.min(95, percent));
-        if (percent >= 100) {
-          setUploadStatus("Processing and ingestion running on server...");
-        }
-      });
-
-      if (res.success) {
-        setUploadProgress(100);
-        setUploadStatus("Processing completed successfully!");
-        message.success(
-          `Successfully uploaded GMS report: ${res.processed} rows processed, ${res.skipped} skipped.`,
-        );
-
-        const effectiveStart =
-          startDate || dayjs().startOf("month").format("YYYY-MM-DD");
-        const effectiveEnd =
-          endDate || dayjs().endOf("month").format("YYYY-MM-DD");
-        const freshGms = await gmsApi.getAll({
-          startDate: effectiveStart,
-          endDate: effectiveEnd,
-        });
-        if (freshGms.success && freshGms.data) {
-          const resolved = resolveDbBrands(
-            freshGms.data,
-            dbAsinsRef.current,
-            dbSellersRef.current,
-          );
-          setGmsData(resolved);
-        }
-
-        setTimeout(() => {
-          setIsUploadOpen(false);
-          setIsUploading(false);
-          setFileList([]);
-          setUploadProgress(0);
-          setUploadStatus("");
-        }, 800);
-      } else {
-        throw new Error(res.error || "Ingestion failed");
-      }
+      // Start all pending uploads through the component's upload handler
+      fileUploadRef.current?.startUploads();
     } catch (err) {
       console.error(err);
       message.error("File upload failed: " + err.message);
@@ -446,7 +413,6 @@ export default function GmsTrackerPage() {
       setUploadProgress(0);
       setUploadStatus("");
     }
-    return false; // prevent default upload
   };
 
   // Filter Data — pre-compute date boundaries to avoid per-item dayjs creation
@@ -1949,30 +1915,6 @@ export default function GmsTrackerPage() {
           </div>
         ) : (
           <div style={{ padding: "4px 0" }}>
-            <div style={{ marginBottom: 12 }}>
-              <div
-                style={{
-                  fontSize: "var(--font-size-xs)",
-                  fontWeight: 600,
-                  color: "#475569",
-                  marginBottom: 4,
-                }}
-              >
-                1. ASSOCIATE DATE / MONTH FOR REPORT
-              </div>
-              <DatePicker
-                value={uploadDate}
-                onChange={setUploadDate}
-                style={{ width: "100%", borderRadius: 6 }}
-                picker="date"
-                placeholder="Select date for this sheet"
-              />
-              <div style={{ fontSize: 10, color: "#64748b", marginTop: 4 }}>
-                Assigns the loaded metrics to the chosen date for MoM/WoW/DoD
-                trend comparison.
-              </div>
-            </div>
-
             <div style={{ marginBottom: 16 }}>
               <div
                 style={{
@@ -1982,42 +1924,52 @@ export default function GmsTrackerPage() {
                   marginBottom: 4,
                 }}
               >
-                2. SELECT FILE TO PARSE
+                1. SELECT FILE TO PARSE
               </div>
-              <Upload.Dragger
-                accept=".csv,.xlsx,.xls"
-                beforeUpload={handleFileUpload}
-                fileList={fileList}
-                onChange={({ fileList }) => setFileList(fileList)}
-                maxCount={1}
-              >
-                <p className="ant-upload-drag-icon" style={{ marginBottom: 8 }}>
-                  <UploadOutlined
-                    style={{
-                      color: "#1349c6",
-                      fontSize: "var(--font-size-2xl)",
-                    }}
-                  />
-                </p>
-                <p
-                  className="ant-upload-text"
-                  style={{
-                    fontSize: "var(--font-size-xs)",
-                    fontWeight: 600,
-                    color: "#1e293b",
-                  }}
-                >
-                  Click or drag GMS CSV/Excel report here
-                </p>
-                <p
-                  className="ant-upload-hint"
-                  style={{ fontSize: 10, color: "#64748b", padding: "0 8px" }}
-                >
-                  Required headers: ASIN, Product Title, Brand, StoreCode,
-                  Ordered Revenue, Ordered Units, Shipped Revenue, Shipped COGS,
-                  Shipped Units, Customer Returns
-                </p>
-              </Upload.Dragger>
+              <FileUploadProgressBar
+                ref={fileUploadRef}
+                uploadHandler={(file, onProgress) =>
+                  gmsApi.upload(file, onProgress)
+                }
+                onFilesDropped={handleFilesDropped}
+                onUploadComplete={async ({ id }) => {
+                  setUploadedFiles((prev) =>
+                    prev.map((f) =>
+                      f.id === id ? { ...f, progress: 100 } : f
+                    )
+                  );
+                  // Refresh GMS data after upload completes
+                  const effectiveStart =
+                    startDate || dayjs().startOf("month").format("YYYY-MM-DD");
+                  const effectiveEnd =
+                    endDate || dayjs().endOf("month").format("YYYY-MM-DD");
+                  const freshGms = await gmsApi.getAll({
+                    startDate: effectiveStart,
+                    endDate: effectiveEnd,
+                  });
+                  if (freshGms.success && freshGms.data) {
+                    const resolved = resolveDbBrands(
+                      freshGms.data,
+                      dbAsinsRef.current,
+                      dbSellersRef.current,
+                    );
+                    setGmsData(resolved);
+                  }
+                  message.success("GMS report uploaded successfully.");
+                  setTimeout(() => {
+                    setIsUploadOpen(false);
+                    setIsUploading(false);
+                    setUploadProgress(0);
+                    setUploadStatus("");
+                  }, 800);
+                }}
+                onUploadError={(err) => {
+                  message.error("Upload failed: " + err.message);
+                  setIsUploading(false);
+                  setUploadProgress(0);
+                  setUploadStatus("");
+                }}
+              />
             </div>
 
             <div
@@ -2039,6 +1991,66 @@ export default function GmsTrackerPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* FILE UPLOAD CONFIRMATION MODAL */}
+      <Modal
+        title="Confirm GMS Upload"
+        open={confirmUploadOpen}
+        onCancel={() => {
+          setConfirmUploadOpen(false);
+        }}
+        footer={null}
+        destroyOnHidden
+        centered
+        width={420}
+      >
+        <div style={{ padding: 24 }}>
+          <div style={{ marginBottom: 16 }}>
+            <div
+              style={{
+                fontSize: "var(--font-size-xs)",
+                fontWeight: 600,
+                color: "#475569",
+                marginBottom: 4,
+              }}
+            >
+              Confirm file upload
+            </div>
+            <div
+              style={{
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                borderRadius: 6,
+                padding: 12,
+                marginBottom: 12,
+              }}
+            >
+              <div style={{ fontSize: 13, color: "#334155" }}>
+                The selected file(s) will be uploaded and processed. Date
+                values will be read per-row from the sheet's Date column.
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            <Button
+              onClick={() => {
+                setConfirmUploadOpen(false);
+              }}
+              size="small"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="primary"
+              onClick={processUpload}
+              size="small"
+              disabled={isUploading}
+            >
+              Confirm Upload
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       {/* EXPORT DATA CONFIGURATION MODAL */}

@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { isConnected, reconnect } from '../../services/realtimeService';
+import { useHeader } from '../../contexts/HeaderContext';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { QuickActionSkeleton } from '@/components/ui/skeleton/QuickActionSkeleton';
 
 /**
- * QuickActions — truthful connection status with combined status indicator.
+ * QuickActions — truthful connection status.
  *
- * Replaces the fake "Syncing..." spinner (a 2.2 s setTimeout in HeaderContext)
- * with the real Socket.IO connection state. "Reconnect" force-reconnects the
- * shared singleton; no synchronization is simulated or faked (Rule 12).
+ * Replaces the fake "Syncing..." spinner with the real Socket.IO connection state.
+ *
+ * Props:
+ *   loading - boolean, when true shows skeleton instead of button
  */
-export default function QuickActions() {
+export default function QuickActions({ loading = false }) {
   const [connected, setConnected] = useState(isConnected());
 
   useEffect(() => {
@@ -24,6 +27,25 @@ export default function QuickActions() {
     setConnected(isConnected());
   };
 
+  if (loading) {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => { }}
+        disabled
+        aria-label="Connection live"
+        className="animate-pulse"
+      >
+        <Wifi size={14} className="text-[#1565c0]" />
+        <span className="ml-1.5 text-xs font-medium">
+          Live
+        </span>
+      </Button>
+    );
+  }
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -34,13 +56,7 @@ export default function QuickActions() {
           onClick={handleReconnect}
           disabled={connected}
           aria-label={connected ? 'Connection live' : 'Reconnect'}
-          title={connected ? 'Connection live' : 'Reconnect'}
-          className="gap-1.5"
         >
-          <span
-            className={`connection-dot h-2 w-2 rounded-full ${connected ? 'bg-[#1565c0] animate-pulse' : 'bg-slate-400'}`}
-            aria-hidden="true"
-          />
           {connected ? (
             <Wifi size={14} className="text-[#1565c0]" />
           ) : (

@@ -57,18 +57,36 @@ app.use((req, res, next) => {
   });
 });
 app.set('trust proxy', 1); // Trust the first proxy (e.g. Nginx) to securely read X-Forwarded-For headers
+// Allow localhost plus any device on the local network (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+function isLocalNetworkOrigin(origin) {
+  if (!origin) return false;
+  try {
+    const url = new URL(origin);
+    const host = url.hostname;
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host === '::1';
+    const isPrivate =
+      /^192\.168\./.test(host) ||
+      /^10\./.test(host) ||
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host);
+    return isLocalhost || isPrivate;
+  } catch {
+    return false;
+  }
+}
+
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'http://localhost:5175',
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://127.0.0.1:5173',
-    'http://10.0.2.2:3001',
-    'http://10.0.2.2:8081',
-    process.env.FRONTEND_URL,
-  ].filter(Boolean),
+  origin: function (origin, callback) {
+    // Allow non-browser clients (curl, mobile, etc.) that send no Origin header
+    if (!origin) return callback(null, true);
+    if (isLocalNetworkOrigin(origin)) return callback(null, true);
+    const allowed = [
+      process.env.FRONTEND_URL,
+      /\.brandcentral\.in$/,
+    ].filter(Boolean);
+    const matches = allowed.some(a => (a instanceof RegExp ? a.test(origin) : a === origin));
+    if (matches) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true
 }));
 app.use(helmet({
@@ -363,14 +381,17 @@ require('./jobs/otpCleanup');
 const { Server } = require('socket.io');
 const io = new Server(server, {
   cors: {
-    origin: [
-      'http://localhost:5173',
-      'http://localhost:5175',
-      'http://localhost:3000',
-      'http://127.0.0.1:5173',
-      process.env.FRONTEND_URL,
-      /\.brandcentral\.in$/
-    ].filter(Boolean),
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      if (isLocalNetworkOrigin(origin)) return callback(null, true);
+      const allowed = [
+        process.env.FRONTEND_URL,
+        /\.brandcentral\.in$/,
+      ].filter(Boolean);
+      const matches = allowed.some(a => (a instanceof RegExp ? a.test(origin) : a === origin));
+      if (matches) return callback(null, true);
+      callback(new Error('Not allowed by Socket.IO CORS'));
+    },
     credentials: true
   },
   pingTimeout: 60000,

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Drawer, Badge, Tabs, Button, Empty, Spin } from 'antd';
+import { Drawer, Badge, Tabs, Tooltip, Button, Empty, Spin } from 'antd';
 import {
   BellOutlined,
   CheckOutlined,
@@ -16,7 +16,7 @@ import { useSocket } from '../../contexts/SocketContext';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
 import { formatRelativeTime } from './headerHooks';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { NotificationSkeleton } from '@/components/ui/skeleton/NotificationSkeleton';
 
 const typeIcons = {
   success: <CheckCircleFilled />,
@@ -38,7 +38,7 @@ const typeStyles = {
   error: { color: '#D32F2F', bg: '#FFEBEE', border: '#EF9A9A' },
   info: { color: '#64748B', bg: '#F1F5F9', border: '#E5E7EB' },
   LIVE_SYNC: { color: '#2E7D32', bg: '#E8F5E9', border: '#A5D6A7' },
-  RE_SYNC: { color: '#1976D2', bg: '#E3F2FD', border: '#90CAF9' },
+  RE_SYNC: { color: '#2E7D32', bg: '#E3F2FD', border: '#90CAF9' },
   RE_SYNC_ERROR: { color: '#D32F2F', bg: '#FFEBEE', border: '#EF9A9A' },
   CHAT_MESSAGE: { color: '#64748B', bg: '#F1F5F9', border: '#E5E7EB' },
   BUYBOX_LOST: { color: '#ED6C02', bg: '#FFF3E0', border: '#FFCC80' },
@@ -65,7 +65,13 @@ const mapTypeToDisplay = (type, message) => {
   return { type: 'info', category: 'system' };
 };
 
-const NotificationCenter = () => {
+/**
+ * NotificationCenter — notification drawer with real-time updates.
+ *
+ * Props:
+ *   loading - boolean, when true shows skeleton instead of button
+ */
+export default function NotificationCenter({ loading = false }) {
   const { notifOpen, setNotifOpen } = useHeader();
   const socket = useSocket();
   const { user } = useAuth();
@@ -144,7 +150,7 @@ const NotificationCenter = () => {
       if (data.unreadCount != null) {
         setServerUnreadCount(data.unreadCount);
       } else {
-        setServerUnreadCount((prev) => prev + 1);
+        setServerUnreadCount((prev) => Math.max(0, prev - 1));
       }
     };
 
@@ -207,23 +213,30 @@ const NotificationCenter = () => {
     fetchNotifications(next, true);
   };
 
+  if (loading) {
+    return (
+      <button className="flex items-center gap-2 px-3 py-2 bg-transparent border border-transparent rounded-md cursor-pointer text-slate-500 disabled:pointer-events-none disabled:opacity-50 animate-pulse" disabled>
+        <div className="sk text [height:20px] [width:20px]" />
+        <div className="flex flex-col gap-1">
+          <div className="sk text [height:11px] [width:60%]"></div>
+          <div className="sk text [height:9px] [width:40%]"></div>
+        </div>
+      </button>
+    );
+  }
+
   return (
     <>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            className="header-icon-btn"
-            onClick={() => setNotifOpen(true)}
-            aria-label="Notifications"
-          >
-            <Badge count={unreadCount} size="small" offset={[-2, 2]}>
-              <BellOutlined style={{ fontSize: 'var(--font-size-lg)' }} />
-            </Badge>
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">
-          <p>Notifications</p>
-        </TooltipContent>
+      <Tooltip title="Notifications" placement="bottom">
+        <button
+          className="header-icon-btn"
+          onClick={() => setNotifOpen(true)}
+          aria-label="Notifications"
+        >
+          <Badge count={unreadCount} size="small" offset={[-2, 2]} offset={[-2, 2]}>
+            <BellOutlined style={{ fontSize: 'var(--font-size-lg)' }} />
+          </Badge>
+        </button>
       </Tooltip>
 
       <Drawer
@@ -245,24 +258,13 @@ const NotificationCenter = () => {
               )}
             </div>
             <div style={{ display: 'flex', gap: '4px' }}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button type="text" size="small" icon={<CheckOutlined />}
-                    onClick={markAllRead} disabled={unreadCount === 0} style={{ color: '#94A3B8' }} />
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p>Mark all as read</p>
-                </TooltipContent>
+              <Tooltip title="Mark all as read">
+                <Button type="text" size="small" icon={<CheckOutlined />}
+                  onClick={markAllRead} disabled={unreadCount === 0} style={{ color: '#94A3B8' }} />
               </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button type="text" size="small" icon={<DeleteOutlined />}
-                    onClick={clearAllRead} disabled={!notifications.some(n => n.read)}
-                    style={{ color: '#94A3B8' }} />
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p>Clear read notifications</p>
-                </TooltipContent>
+              <Tooltip title="Clear read notifications">
+                <Button type="text" size="small" icon={<DeleteOutlined />}
+                  onClick={clearAllRead} disabled={!notifications.some(n => n.read)} style={{ color: '#94A3B8' }} />
               </Tooltip>
             </div>
           </div>
@@ -298,7 +300,7 @@ const NotificationCenter = () => {
                       <span style={{ color: '#94A3B8', fontSize: 'var(--font-size-sm)', fontFamily: 'Inter, sans-serif' }}>
                         You're all caught up
                       </span>
-                    }
+                    />
                   />
                 </div>
               ) : (
@@ -308,6 +310,7 @@ const NotificationCenter = () => {
                   return (
                     <motion.div
                       key={notif.id}
+                      className={`notif-item ${!notif.read ? 'unread' : ''}`}
                       layout
                       initial={{ opacity: 0, x: 12 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -343,42 +346,39 @@ const NotificationCenter = () => {
                             {formatRelativeTime(notif.timestamp)}
                           </span>
                         </div>
-                      </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); deleteOne(notif.id); }}
-                        style={{
-                          background: 'transparent', border: 'none', cursor: 'pointer',
-                          color: 'var(--border-light)', padding: '4px', opacity: 0, transition: 'opacity 0.15s',
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-                        onMouseLeave={(e) => (e.currentTarget.style.opacity = '0')}
-                      >
-                        <DeleteOutlined style={{ fontSize: 'var(--font-size-xs)' }} />
-                      </button>
-                    </motion.div>
-                  );
-                })
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteOne(notif.id); }}
+                          style={{
+                            background: 'transparent', border: 'none', cursor: 'pointer',
+                            color: 'var(--border-light)', padding: '4px', opacity: 0, transition: 'opacity 0.15s',
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+                          onMouseLeave={(e) => (e.currentTarget.style.opacity = '0')}
+                        >
+                          <DeleteOutlined style={{ fontSize: 'var(--font-size-xs)' }} />
+                        </button>
+                      </motion.div>
+                    );
+                  })}
+                )}
               )}
-            </AnimatePresence>
+            </div>
+
+            {hasMore && !loading && notifications.length > 0 && (
+              <div style={{ padding: '12px 20px', borderTop: '1px solid #F1F5F9', background: '#F1F5F9', textAlign: 'center' }}>
+                <Button type="link" size="small" onClick={loadMore}
+                  style={{ color: '#1976D2', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>
+                  Load more
+                </Button>
+              </div>
+            )}
+            {loading && notifications.length > 0 && (
+              <div style={{ padding: '12px 20px', borderTop: '1px solid #F1F5F9', textAlign: 'center' }}>
+                <Spin size="small" />
+              </div>
+            )}
           )}
-        </div>
-
-        {hasMore && !loading && notifications.length > 0 && (
-          <div style={{ padding: '12px 20px', borderTop: '1px solid #F1F5F9', background: '#F1F5F9', textAlign: 'center' }}>
-            <Button type="link" size="small" onClick={loadMore}
-              style={{ color: '#1976D2', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>
-              Load more
-            </Button>
-          </div>
-        )}
-        {loading && notifications.length > 0 && (
-          <div style={{ padding: '12px 20px', borderTop: '1px solid #F1F5F9', textAlign: 'center' }}>
-            <Spin size="small" />
-          </div>
-        )}
-      </Drawer>
-    </>
-  );
-};
-
-export default NotificationCenter;
+        </Drawer>
+      </>
+    );
+}
