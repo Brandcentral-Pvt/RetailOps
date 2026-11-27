@@ -1,6 +1,12 @@
 // Add durable import staging without replacing the legacy ASIN/date identity.
 module.exports = { up: async (pool) => {
   await pool.request().query(`
+    SET XACT_ABORT ON;
+    BEGIN TRY
+      BEGIN TRANSACTION;
+      DECLARE @schemaLock INT;
+      EXEC @schemaLock=sp_getapplock @Resource='retailops:gms-schema-091', @LockMode='Exclusive', @LockOwner='Transaction', @LockTimeout=30000;
+      IF @schemaLock < 0 THROW 51001, 'GMS schema migration lock unavailable', 1;
     IF OBJECT_ID(N'dbo.GmsImportJobs', N'U') IS NULL
     BEGIN
       CREATE TABLE dbo.GmsImportJobs (
@@ -40,5 +46,11 @@ module.exports = { up: async (pool) => {
       ALTER TABLE dbo.GmsDailyPerformance ADD CustomerReturns INT NULL;
     IF COL_LENGTH('dbo.GmsDailyPerformance', 'UpdatedAt') IS NULL
       ALTER TABLE dbo.GmsDailyPerformance ADD UpdatedAt DATETIME2 NULL;
+      COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+      IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+      THROW;
+    END CATCH;
   `);
 } };

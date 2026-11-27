@@ -2094,8 +2094,7 @@ export const gmsApi = {
       headers: { ...getAuthHeader() },
       signal
     });
-    if (!res.ok) throw new Error('Failed to fetch GMS data');
-    return res.json();
+    return handleResponse(res, 'Failed to fetch GMS data');
   },
 
   getAsins: async ({ signal } = {}) => {
@@ -2103,8 +2102,7 @@ export const gmsApi = {
       headers: { ...getAuthHeader() },
       signal
     });
-    if (!res.ok) throw new Error('Failed to fetch GMS ASINs');
-    return res.json();
+    return handleResponse(res, 'Failed to fetch GMS ASINs');
   },
 
   clearAll: async () => {

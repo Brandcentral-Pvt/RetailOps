@@ -6,6 +6,7 @@ const marketDataSyncService = require("../services/marketDataSyncService");
 const SystemLogService = require('../services/SystemLogService');
 const { resolveSellerScope, bindSellerFilter } = require('../utils/sellerScope');
 const { dateWindow, unambiguousSellerSql } = require('../utils/gmsPhase1');
+const { isGmsSchemaError, sendGmsSchemaUnavailable } = require('../database/gmsSchema');
 const { asinUsableSqlFor } = require('../utils/asinUtils');
 
 // Helper: find a value in row by possible keys
@@ -905,7 +906,8 @@ exports.getGmsData = async (req, res) => {
     
     res.json({ success: true, data: result.recordset });
   } catch (error) {
-    console.error("❌ Gms fetch error:", error);
+    console.error("GMS data query failed:", error.message);
+    if (isGmsSchemaError(error)) return sendGmsSchemaUnavailable(res);
     res.status(500).json({ success: false, message: "Failed to fetch GMS data" });
   }
 };
@@ -943,7 +945,8 @@ exports.getGmsAsins = async (req, res) => {
     `);
     res.json({ success: true, data: result.recordset });
   } catch (error) {
-    console.error("GMS asins error:", error);
+    console.error("GMS ASIN query failed:", error.message);
+    if (isGmsSchemaError(error)) return sendGmsSchemaUnavailable(res);
     res.status(500).json({ success: false, message: "Failed to fetch ASINs" });
   }
 };

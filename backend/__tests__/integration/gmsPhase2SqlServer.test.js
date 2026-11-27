@@ -27,6 +27,7 @@ jest.mock('../../database/db', () => {
   };
 });
 const sql = require(process.env.GMS_TEST_MSSQL_MODULE || 'mssql');
+const { inspectGmsSchema, ensureGmsSchema } = require('../../database/gmsSchema');
 const migration = require('../../migrations/091_gms_import_jobs');
 const service = require('../../services/gmsImportService');
 const real = process.env.GMS_SQLSERVER_SMOKE === '1' ? test : test.skip;
@@ -58,8 +59,15 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
       'CREATE TABLE dbo.UserSellers (UserId VARCHAR(50), SellerId VARCHAR(50));'
     );
     await mockPool.request().query('CREATE FUNCTION dbo.GetEnvDate() RETURNS DATETIME2 AS BEGIN RETURN GETUTCDATE(); END');
+    const before = await inspectGmsSchema(mockPool);
+    expect(before.ready).toBe(false);
+    expect(before.missing).toEqual(expect.arrayContaining(['GmsImportJobs','GmsDailyPerformance.SellerId']));
+    const readOnly = await ensureGmsSchema({ pool: mockPool });
+    expect(readOnly.ready).toBe(false);
+    const repaired = await ensureGmsSchema({ apply:true, pool:mockPool });
+    expect(repaired).toMatchObject({ready:true,missing:[]});
     await migration.up(mockPool);
-    await migration.up(mockPool);
+    expect((await inspectGmsSchema(mockPool)).ready).toBe(true);
     await mockPool.request().query(
       "INSERT INTO Sellers VALUES('S1','amazon.in',1);" +
       "INSERT INTO Asins VALUES('A1','B000000001','S1');" +

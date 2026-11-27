@@ -1,4 +1,4 @@
-import { Spinner, LoadingIndicator } from "@/components/Spinner";
+import { LoadingIndicator } from "@/components/Spinner";
 import React, {
   useState,
   useEffect,
@@ -1332,9 +1332,8 @@ export default function GmsTrackerPage() {
   const now = useNow(30000);
   const isStale = lastLoadedAt ? now - lastLoadedAt > 5 * 60 * 1000 : false;
 
-  if (loading && gmsData.length === 0) {
-    return <Spinner />;
-  }
+  // Keep import history and completion state mounted during refreshes.
+  // The content area renders its own loading state below.
 
   return (
     <div className="ops ads-page gms-page">

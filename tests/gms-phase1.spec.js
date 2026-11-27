@@ -67,6 +67,7 @@ test('selection does not upload automatically; preview must precede explicit com
   await expect(page.getByText('Import completed', { exact: true })).toBeVisible();
   await expect.poll(state.commits).toBe(1);
   await expect.poll(state.reads).toBeGreaterThan(initial);
+  await expect(page.getByText('Import completed', { exact: true })).toBeVisible();
 });
 
 test('invalid preview displays issues and cannot be confirmed', async ({page}) => {

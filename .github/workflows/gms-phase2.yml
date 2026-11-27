@@ -10,6 +10,8 @@ on:
       - 'backend/controllers/exportController.js'
       - 'backend/routes/uploadRoutes.js'
       - 'backend/server.js'
+      - 'backend/database/gmsSchema.js'
+      - 'backend/scripts/repairGmsSchema.js'
       - 'backend/migrations/091_gms_import_jobs.js'
       - 'backend/__tests__/**/gmsPhase*.test.js'
       - 'src/components/gms/**'
@@ -44,6 +46,8 @@ jobs:
           node --check routes/uploadRoutes.js
           node --check migrations/091_gms_import_jobs.js
           node --check server.js
+          node --check database/gmsSchema.js
+          node --check scripts/repairGmsSchema.js
       - name: Validation and route security regression
         working-directory: backend
         run: npm test -- --runInBand __tests__/unit/gmsPhase2Ingestion.test.js __tests__/routes/gmsPhase1.test.js
