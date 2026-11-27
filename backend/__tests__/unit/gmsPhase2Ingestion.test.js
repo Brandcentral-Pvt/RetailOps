@@ -75,6 +75,24 @@ describe('seller mapping and legacy fact conflicts', () => {
     expect(result.rows[0]).toMatchObject({sellerId:'S1',action:'inserted'});
     expect(db.calls.every(c=>c.inputs.payload)).toBe(true);
   });
+  test('ASIN lookup uses its assigned database seller regardless of seller status, marketplace or spreadsheet brand', async () => {
+    const db=pool([{asin:' b000000001 ',sellerId:'S1',active:false,marketplace:'legacy-value'}]);
+    const result=await inspect(db,[{...valid(),brand:'Different report brand'}],scope);
+    expect(result.summary).toMatchObject({inserted:1,invalid:0});
+    expect(result.rows[0].sellerId).toBe('S1');
+    expect(db.calls[0].sql).not.toMatch(/JOIN Sellers|IsActive|Marketplace/i);
+  });
+  test('duplicate catalog records carrying the same owner resolve to that owner', async () => {
+    const result=await inspect(pool([seller,{...seller}]),[valid()],scope);
+    expect(result.summary).toMatchObject({inserted:1,invalid:0});
+    expect(result.rows[0].sellerId).toBe('S1');
+  });
+  test('unmapped, unassigned, conflicting and inaccessible ASINs have separate diagnostics', async () => {
+    expect((await inspect(pool([]),[valid()],scope)).summary.issues[0].code).toBe('ASIN_NOT_FOUND');
+    expect((await inspect(pool([{...seller,sellerId:null}]),[valid()],scope)).summary.issues[0].code).toBe('ASIN_UNASSIGNED');
+    expect((await inspect(pool([seller,{...seller,sellerId:'S2'}]),[valid()],scope)).summary.issues[0].code).toBe('ASIN_AMBIGUOUS');
+    expect((await inspect(pool([{...seller,sellerId:'S2'}]),[valid()],scope)).summary.issues[0].code).toBe('ASIN_FORBIDDEN');
+  });
   test('out-of-scope or ambiguous ASIN is rejected even if one match is authorized', async () => {
     expect((await inspect(pool([{...seller,sellerId:'S2'}]),[valid()],scope)).summary.invalid).toBe(1);
     expect((await inspect(pool([seller,{...seller,sellerId:'S2'}]),[valid()],{isGlobal:true,allowed:[]})).summary.invalid).toBe(1);

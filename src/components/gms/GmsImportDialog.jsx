@@ -133,7 +133,7 @@ export default function GmsImportDialog({ open, onClose, onCommitted }) {
       footer={<Button onClick={onClose} disabled={busy}>Close</Button>} closable={!busy} mask={{closable:!busy}}>
       <Space direction="vertical" size="middle" style={{ width:'100%' }}>
         <Alert type="info" showIcon title="Validate before importing"
-          description="Amazon India daily reports only. CSV, XLS or XLSX; maximum 25 MB and 100,000 data rows per report. No revenue is changed until a valid preview is confirmed." />
+          description="Amazon India daily reports only. CSV, XLS or XLSX; maximum 25 MB and 100,000 data rows per report. Seller assignments are inherited automatically from RetailOps ASINs. No revenue is changed until a valid preview is confirmed." />
         {error && <Alert type="error" showIcon title={error} />}
         <Upload.Dragger accept=".csv,.xlsx,.xls" beforeUpload={selectFile} maxCount={1} disabled={busy}
           fileList={file ? [file] : []} onRemove={() => {setFile(null);return true;}}>
