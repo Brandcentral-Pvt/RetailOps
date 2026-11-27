@@ -8,7 +8,7 @@ const { buildInClause } = require('../utils/sqlHelpers');
 const { resolveAccessProfile } = require('../services/accessProfileService');
 const { exportWindow } = require('../utils/gmsPhase1');
 const { filterSpec, queryFacts, selectFacts, historyWindow } = require('../services/gmsAnalyticsService');
-const { buildCompleteExport } = require('../services/gmsCompleteExport');
+const { buildCompleteExport,buildDailyExport } = require('../services/gmsCompleteExport');
 const { writeGmsExport,ensureActive } = require('../services/gmsExportWriter');
 
 const EXPORTS_DIR = path.join(__dirname, '../uploads/exports');
@@ -1441,13 +1441,13 @@ async function processGmsExportJob(downloadId, params, userId, signal) {
     const filters = filterSpec({sellerIds:modern?params.sellerIds:null,search:params.search});
     // Load current and required comparison history once. Never call the
     // interactive paginated API for an export. All sheets use these same facts.
-    let facts = selectFacts(await queryFacts(pool,access,historyWindow(window),filters,{signal}),filters);
+    let facts = selectFacts(await queryFacts(pool,access,exportFileType==='csv'?window:historyWindow(window),filters,{signal}),filters);
     if (!modern) {
         const names = exportBrandType==='current'?selectedBrands:exportBrandType==='custom'?exportCustomBrands:[];
         if (names.length) facts = facts.filter(d=>names.includes(d.dbBrand)||names.includes(d.brand));
     }
     ensureActive(signal);
-    const {report,complete}=buildCompleteExport(facts,{window,level:exportLevel});
+    const {report,complete}=exportFileType==='csv'?buildDailyExport(facts,{window}):buildCompleteExport(facts,{window,level:exportLevel});
     ensureActive(signal);
     const {monthGroups}=report;
     await updateDownloadStatus(pool, downloadId, 'processing', 60);
