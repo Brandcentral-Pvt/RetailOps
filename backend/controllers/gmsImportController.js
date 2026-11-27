@@ -1,4 +1,7 @@
 const fs = require('node:fs/promises');
+const os = require('node:os');
+const path = require('node:path');
+const { writeIssueReport, reportFileName } = require('../services/gmsImportIssueReport');
 const service = require('../services/gmsImportService');
 const { isGmsSchemaError, sendGmsSchemaUnavailable } = require('../database/gmsSchema');
 const owner = req => String(req.user.id || req.user.Id || req.user._id);
@@ -42,4 +45,28 @@ exports.cancel = async (req,res) => {
     if (data.status!=='CANCELLED') return res.status(409).json({success:false,message:'Import cannot be cancelled in its current state',data});
     res.json({success:true,data});
   } catch (err) { respondError(res,err); }
+};
+
+exports.downloadIssues = async (req,res) => {
+  const format=String(req.query.format||'xlsx').toLowerCase();
+  if (!['xlsx','csv'].includes(format)) return res.status(400).json({success:false,message:'Choose Excel or CSV for the error report.'});
+  let dir;
+  try {
+    const report=await service.getIssueReport(owner(req),req.params.id);
+    if(!report) return res.status(404).json({success:false,message:'Import not found'});
+    if(!report.issues.length)return res.status(409).json({success:false,message:'This import has no error report.'});
+    dir=await fs.mkdtemp(path.join(os.tmpdir(),'retailops-gms-issues-'));
+    const filename=reportFileName(report.fileName,format);
+    const file=path.join(dir,filename);
+    await writeIssueReport(report,format,file);
+    res.set('Cache-Control','private, no-store');
+    // Express download streams a completed file; no partial or mislabeled file.
+    return res.download(file,filename,async err=>{
+      await fs.rm(dir,{recursive:true,force:true}).catch(()=>{});
+      if(err&&!res.headersSent) respondError(res,err);
+    });
+  } catch(err) {
+    if(dir)await fs.rm(dir,{recursive:true,force:true}).catch(()=>{});
+    respondError(res,err);
+  }
 };
