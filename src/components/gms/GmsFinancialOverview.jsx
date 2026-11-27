@@ -86,7 +86,7 @@ export function GmsComparisonTable({analytics}){
   return <Card size="small" title="Selected period comparison">
     <Text type="secondary">{c?.window?'Prior: '+c.window.from+' to '+c.window.to:'No equal-length prior period available'}. Values compare the full filtered dataset.</Text>
     <div className="gms-compare-scroll"><table className="gms-compare-table"><thead><tr><th>Metric</th><th>Current</th><th>Prior</th><th>Change</th></tr></thead><tbody>
-      {METRICS.map(m=><tr key={m.key}><th>{m.label}</th><td>{metricValue(m,analytics.kpis?.[m.key])}</td><td>{metricValue(m,c?.baseline?.[m.key])}</td><td>{changeLabel(m,c?.changes?.[m.key])??'N/A'}</td></tr>)}
+      {METRICS.map(m=><tr key={m.key}><th scope="row">{m.label}</th><td>{metricValue(m,analytics.kpis?.[m.key])}</td><td>{metricValue(m,c?.baseline?.[m.key])}</td><td>{changeLabel(m,c?.changes?.[m.key])??'N/A'}</td></tr>)}
     </tbody></table></div>
     {(!c?.currentCoverage?.complete||!c?.previousCoverage?.complete)&&<Text type="secondary">Comparisons are unavailable where the date coverage is incomplete or the baseline is zero.</Text>}
   </Card>;
