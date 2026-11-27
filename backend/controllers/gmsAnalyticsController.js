@@ -14,15 +14,21 @@ exports.overview = async (req,res) => {
   active++;
   // Closing an obsolete browser request also cancels its SQL work.
   const controller=new AbortController();
+  let timedOut=false;
+  const timeout=setTimeout(()=>{timedOut=true;controller.abort();},120000);
+  timeout.unref?.();
   const close=()=>{if(!res.writableEnded)controller.abort();};
   res.once('close',close);
   try {
     const data=await loadPagedAnalytics(await getPool(),req.user,options,{signal:controller.signal});
+    if(timedOut&&!res.destroyed)return res.status(504).json({success:false,message:'This report took too long. Choose a shorter reporting period or try again.'});
     if(!controller.signal.aborted)return res.json({success:true,data});
   } catch(error) {
-    if(controller.signal.aborted||res.destroyed)return;
+    if(res.destroyed)return;
+    if(timedOut)return res.status(504).json({success:false,message:'This report took too long. Choose a shorter reporting period or try again.'});
+    if(controller.signal.aborted)return;
     console.error('GMS analytics failed:',error.message);
     if(isGmsSchemaError(error))return sendGmsSchemaUnavailable(res);
     return res.status(500).json({success:false,message:'Failed to calculate GMS analytics. Narrow the date range or try again.'});
-  } finally { active--; res.removeListener('close',close); }
+  } finally { clearTimeout(timeout);active--; res.removeListener('close',close); }
 };
