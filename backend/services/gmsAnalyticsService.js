@@ -195,7 +195,7 @@ function buildAnalytics(raw,{window,filters={},level='asin',groups=null,includeO
     const brandsList=[...r.brands].sort(),storeCodesList=[...r.stores].sort();
     matrixRows.push({key:r.key,asin:r.asin,dbBrand:r.dbBrand,sellerId:r.sellerId,isUnmatched:r.isUnmatched,productTitle:r.productTitle,
       asinsList:[...r.asins],brandsList,storeCodesList,brand:brandsList.join(', '),storeCode:storeCodesList.join(', '),
-      orderedUnits:metrics(r.acc).orderedUnits,dailyRev,weeklyRev,monthlyRev,_dodTrends,_wowTrends,_momTrends});
+      orderedUnits:metrics(r.acc).orderedUnits,orderedRevenue:metrics(r.acc).orderedRevenue,dailyRev,weeklyRev,monthlyRev,_dodTrends,_wowTrends,_momTrends});
   }
   return {matrixRows,monthGroups,...(includeOverview?buildOverview(facts,window):{})};
 }
