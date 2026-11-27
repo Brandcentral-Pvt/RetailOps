@@ -1,6 +1,12 @@
 // Reuse a usable date-leading index when migration 024 already provided one.
 module.exports = { up: async pool => {
   await pool.request().query(`
+    SET XACT_ABORT ON;
+    BEGIN TRY
+      BEGIN TRANSACTION;
+      DECLARE @schemaLock int;
+      EXEC @schemaLock=sp_getapplock @Resource='retailops:gms-analytics-index-094', @LockMode='Exclusive', @LockOwner='Transaction', @LockTimeout=30000;
+      IF @schemaLock<0 THROW 51006, 'GMS analytics index migration lock unavailable', 1;
     IF OBJECT_ID(N'dbo.GmsDailyPerformance',N'U') IS NULL
       THROW 51005, 'GMS fact table must exist before analytics indexing', 1;
     IF NOT EXISTS (
@@ -16,5 +22,11 @@ module.exports = { up: async pool => {
       ON dbo.GmsDailyPerformance(Date,Asin)
       INCLUDE (SellerId,OrderedRevenue,OrderedUnits,ShippedRevenue,ShippedCOGS,ShippedUnits,CustomerReturns);
     END
+      COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+      IF XACT_STATE()<>0 ROLLBACK TRANSACTION;
+      THROW;
+    END CATCH
   `);
 } };
