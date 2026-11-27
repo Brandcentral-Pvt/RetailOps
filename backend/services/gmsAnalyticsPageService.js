@@ -54,6 +54,13 @@ function pageSpec(input={}){
     storeCode:"MIN(COALESCE(NULLIF(StoreCode,N''),N'-'))",
     orderedUnits:"CASE WHEN COUNT_BIG(*)=COUNT_BIG(OrderedUnits) THEN SUM(CONVERT(bigint,OrderedUnits)) END",
     orderedRevenue:"CASE WHEN COUNT_BIG(*)=COUNT_BIG(OrderedRevenue) THEN SUM(OrderedRevenue) END",
+    shippedRevenue:"CASE WHEN COUNT_BIG(*)=COUNT_BIG(ShippedRevenue) THEN SUM(ShippedRevenue) END",
+    shippedCOGS:"CASE WHEN COUNT_BIG(*)=COUNT_BIG(ShippedCOGS) THEN SUM(ShippedCOGS) END",
+    shippedUnits:"CASE WHEN COUNT_BIG(*)=COUNT_BIG(ShippedUnits) THEN SUM(CONVERT(bigint,ShippedUnits)) END",
+    customerReturns:"CASE WHEN COUNT_BIG(*)=COUNT_BIG(CustomerReturns) THEN SUM(CONVERT(bigint,CustomerReturns)) END",
+    profit:"CASE WHEN COUNT_BIG(*)=COUNT_BIG(ShippedRevenue) AND COUNT_BIG(*)=COUNT_BIG(ShippedCOGS) THEN SUM(ShippedRevenue-ShippedCOGS) END",
+    marginPct:"CASE WHEN COUNT_BIG(*)=COUNT_BIG(ShippedRevenue) AND COUNT_BIG(*)=COUNT_BIG(ShippedCOGS) AND SUM(ShippedRevenue)>0 THEN CONVERT(float,SUM(ShippedRevenue-ShippedCOGS))/NULLIF(CONVERT(float,SUM(ShippedRevenue)),0) END",
+    returnRatio:"CASE WHEN COUNT_BIG(*)=COUNT_BIG(OrderedUnits) AND COUNT_BIG(*)=COUNT_BIG(CustomerReturns) AND SUM(CONVERT(bigint,OrderedUnits))>0 THEN CONVERT(float,SUM(CONVERT(bigint,CustomerReturns)))/NULLIF(CONVERT(float,SUM(CONVERT(bigint,OrderedUnits))),0) END",
   };
   const range=Object.prototype.hasOwnProperty.call(fixed,sort.key)?null:periodRange(sort.key);
   if(!range&&!Object.prototype.hasOwnProperty.call(fixed,sort.key))throw new Error('Invalid sort column');
