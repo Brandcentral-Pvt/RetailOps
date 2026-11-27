@@ -79,9 +79,10 @@ function inWindow(r,w){return (!w.from||r.date>=w.from)&&(!w.to||r.date<=w.to);}
 function coverage(rows,w){
   const dates=new Set(rows.map(r=>r.date));
   const days=w.from&&w.to?dayCount(w.from,w.to):null;
-  return {observedDays:dates.size,expectedDays:days,complete:days!==null&&dates.size===days,records:rows.length};
+  return {observedDays:dates.size,expectedDays:days,complete:days!==null&&dates.size===days,records:rows.reduce((n,r)=>n+Number(r.recordCount??1),0)};
 }
 function keyOf(r,level){
+  if(r.entityKey!=null)return r.entityKey; // internal SQL-aggregated page rows
   return level==='asin'?r.asin:r.sellerId!=null?'seller:'+String(r.sellerId):'unmatched:'+String(r.brand||'-');
 }
 function buildGroups(dates){
@@ -118,23 +119,39 @@ function rangeDates(from,to){
   for(let d=from;d<=to;d=shift(d,1))out.push(d);
   return out;
 }
-function buildAnalytics(raw,{window,filters={},level='asin'}){
-  if(!['asin','seller'].includes(level))throw new Error('Invalid grouping');
-  const facts=selectFacts(raw,filters);
+// Shared summary computation accepts raw facts or lossless SQL day aggregates.
+function buildOverview(facts,window){
   const prior=priorWindow(window);
   const current=facts.filter(r=>inWindow(r,window));
   const previous=prior?facts.filter(r=>inWindow(r,prior)):[];
-  const nowAcc=accumulator(),prevAcc=accumulator(),dailyAcc=new Map(),rows=new Map(),history=new Map();
+  const nowAcc=accumulator(),prevAcc=accumulator(),dailyAcc=new Map();
   for(const r of previous)add(prevAcc,r);
+  for(const r of current){
+    add(nowAcc,r);
+    if(!dailyAcc.has(r.date))dailyAcc.set(r.date,accumulator());
+    add(dailyAcc.get(r.date),r);
+  }
+  const kpis=metrics(nowAcc),baseline=metrics(prevAcc);
+  const currentCoverage=coverage(current,window),previousCoverage=prior?coverage(previous,prior):null;
+  const comparable=currentCoverage.complete&&previousCoverage?.complete;
+  const changes=Object.fromEntries(Object.keys(kpis).map(k=>[k,comparable?(k==='returnRatio'||k==='marginPct'?(kpis[k]==null||baseline[k]==null?null:kpis[k]-baseline[k]):pct(kpis[k],baseline[k])):null]));
+  const dates=[...dailyAcc.keys()].sort();
+  const daily=dates.map(date=>({date,...metrics(dailyAcc.get(date))}));
+  return {kpis,comparison:{window:prior,changes,baseline,currentCoverage,previousCoverage},daily,
+    meta:{records:current.reduce((n,r)=>n+Number(r.recordCount??1),0),asins:new Set(current.map(r=>r.asin)).size,sellers:new Set(current.map(r=>r.sellerId).filter(v=>v!=null)).size,
+      unmatchedRecords:current.filter(r=>r.sellerId==null).reduce((n,r)=>n+Number(r.recordCount??1),0),last:dates[dates.length-1]||null},selectedWindow:window};
+}
+function buildAnalytics(raw,{window,filters={},level='asin',groups=null,includeOverview=true}){
+  if(!['asin','seller'].includes(level))throw new Error('Invalid grouping');
+  const facts=selectFacts(raw,filters);
+  const current=facts.filter(r=>inWindow(r,window));
+  const rows=new Map(),history=new Map();
   for(const r of facts){
     const key=keyOf(r,level);
     if(!history.has(key))history.set(key,new Map());
     addDaily(history.get(key),r);
   }
   for(const r of current){
-    add(nowAcc,r);
-    if(!dailyAcc.has(r.date))dailyAcc.set(r.date,accumulator());
-    add(dailyAcc.get(r.date),r);
     const key=keyOf(r,level);
     if(!rows.has(key))rows.set(key,{key,asin:level==='asin'?r.asin:'-',dbBrand:r.dbBrand||'-',sellerId:r.sellerId??null,
       isUnmatched:r.sellerId==null,productTitle:r.productTitle||'-',asins:new Set(),brands:new Set(),stores:new Set(),acc:accumulator(),daily:new Map()});
@@ -142,7 +159,7 @@ function buildAnalytics(raw,{window,filters={},level='asin'}){
     row.asins.add(r.asin);row.brands.add(r.brand||'-');row.stores.add(r.storeCode||'-');
     add(row.acc,r);addDaily(row.daily,r);
   }
-  const monthGroups=buildGroups(current.map(r=>r.date));
+  const monthGroups=groups||buildGroups(current.map(r=>r.date));
   const matrixRows=[];
   for(const r of rows.values()){
     const all=history.get(r.key),dailyRev={},weeklyRev={},monthlyRev={},_dodTrends={},_wowTrends={},_momTrends={};
@@ -180,16 +197,7 @@ function buildAnalytics(raw,{window,filters={},level='asin'}){
       asinsList:[...r.asins],brandsList,storeCodesList,brand:brandsList.join(', '),storeCode:storeCodesList.join(', '),
       orderedUnits:metrics(r.acc).orderedUnits,dailyRev,weeklyRev,monthlyRev,_dodTrends,_wowTrends,_momTrends});
   }
-  const kpis=metrics(nowAcc),baseline=metrics(prevAcc);
-  const currentCoverage=coverage(current,window),previousCoverage=prior?coverage(previous,prior):null;
-  const comparable=currentCoverage.complete&&previousCoverage?.complete;
-  const changes=Object.fromEntries(Object.keys(kpis).map(k=>[k,comparable?(k==='returnRatio'||k==='marginPct'?(kpis[k]==null||baseline[k]==null?null:kpis[k]-baseline[k]):pct(kpis[k],baseline[k])):null]));
-  const dates=[...dailyAcc.keys()].sort();
-  const daily=dates.map(date=>({date,...metrics(dailyAcc.get(date))}));
-  return {matrixRows,monthGroups,kpis,comparison:{window:prior,changes,baseline,currentCoverage,previousCoverage},daily,
-    meta:{records:current.length,asins:new Set(current.map(r=>r.asin)).size,sellers:new Set(current.map(r=>r.sellerId).filter(v=>v!=null)).size,
-      unmatchedRecords:current.filter(r=>r.sellerId==null).length,last:dates[dates.length-1]||null},
-    selectedWindow:window};
+  return {matrixRows,monthGroups,...(includeOverview?buildOverview(facts,window):{})};
 }
 async function queryFacts(pool,user,window,filters={}){
   const scope=resolveSellerScope(user),spec=filterSpec(filters);
@@ -224,4 +232,4 @@ async function loadAnalytics(pool,user,options){
   const facts=await queryFacts(pool,user,{from,to:window.to},filters);
   return buildAnalytics(facts,{window,filters,level:options.level??'asin'});
 }
-module.exports={filterSpec,selectFacts,priorWindow,isoWeek,weekKey,buildGroups,buildAnalytics,queryFacts,loadAnalytics,pct};
+module.exports={filterSpec,selectFacts,priorWindow,isoWeek,weekKey,buildGroups,buildOverview,buildAnalytics,queryFacts,loadAnalytics,pct};
