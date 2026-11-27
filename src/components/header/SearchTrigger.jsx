@@ -1,46 +1,25 @@
 import React from 'react';
-import { Search } from 'lucide-react';
+import { Button, Skeleton, Tooltip } from 'antd';
+import { SearchOutlined } from '@ant-design/icons';
 import { useHeader } from '../../contexts/HeaderContext';
 import { usePlatform } from './headerHooks';
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { SearchSkeleton } from '@/components/ui/skeleton/SearchSkeleton';
 
-/**
- * SearchTrigger — shadcn button that opens the command palette (Cmd/K).
- *
- * Replaces the wide antd search bar: the actual search input now lives inside
- * the command palette. Kept as a global entry point for search/navigation.
- *
- * Props:
- *   loading - boolean, when true shows skeleton instead of button
- */
 export default function SearchTrigger({ loading = false }) {
   const { setCmdOpen } = useHeader();
   const { modKey } = usePlatform();
-
-  if (loading) {
-    return <SearchSkeleton />;
-  }
-
+  if (loading) return <Skeleton.Input active block size="small" />;
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setCmdOpen(true)}
-          aria-label="Open command palette"
-        >
-          <Search size={15} className="mr-2" aria-hidden="true" />
-          Search
-          <span className="ml-auto text-xs text-slate-500 font-mono">
-            {modKey} K
-          </span>
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom">Command palette ({modKey} + K)</TooltipContent>
+    <Tooltip title="Search pages and commands">
+      <Button
+        type="default"
+        className="ro-header-search-trigger"
+        onClick={() => setCmdOpen(true)}
+        aria-label="Search pages and commands"
+        icon={<SearchOutlined />}
+      >
+        <span className="ro-header-search-label">Search pages, sellers, ASINs...</span>
+        <kbd className="ro-header-shortcut">{modKey} K</kbd>
+      </Button>
     </Tooltip>
   );
 }
