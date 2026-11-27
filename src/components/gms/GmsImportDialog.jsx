@@ -16,6 +16,7 @@ export default function GmsImportDialog({ open, onClose, onCommitted }) {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [error, setError] = useState('');
   const [progress, setProgress] = useState(null);
+  const [downloading, setDownloading] = useState(null);
   const lock = useRef(false);
   const onCommittedRef = useRef(onCommitted);
   const notified = useRef(new Set());
@@ -118,14 +119,22 @@ export default function GmsImportDialog({ open, onClose, onCommitted }) {
       store(result.data);
     });
   }
-  function downloadIssues() {
-    const blob = new Blob([JSON.stringify({ id: job.id, fileName: job.fileName, invalid: job.summary.invalid, issues: job.summary.issues }, null, 2)], { type:'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'gms-validation-' + job.id + '.json';
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  async function downloadIssues(format) {
+    if (!job?.id || downloading) return;
+    setDownloading(format);
+    setError('');
+    try {
+      const {blob,filename}=await gmsApi.downloadImportIssues(job.id,format);
+      const url=URL.createObjectURL(blob);
+      const link=document.createElement('a');
+      link.href=url;
+      link.download=filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1000);
+    } catch(err) { setError(err.message || 'Unable to download the error report. Try again.'); }
+    finally { setDownloading(null); }
   }
   const summary = job?.summary;
   return (
@@ -169,11 +178,23 @@ export default function GmsImportDialog({ open, onClose, onCommitted }) {
                   {title:'Brand (Sheet)',dataIndex:'brand'}, {title:'Mapping',dataIndex:'mappingStatus'}, {title:'Store',dataIndex:'storeCode'}, {title:'Ordered revenue',dataIndex:'orderedRevenue'}, {title:'Units',dataIndex:'orderedUnits'}, {title:'Action',dataIndex:'action'}
                 ]}/>
             )}
-            {summary.issues?.length>0 && (
+            {(summary.issues?.length>0 || (job.status==='FAILED' && summary.failure)) && (
               <>
-                <Space wrap><Typography.Text strong>Validation issues (first {summary.issues.length})</Typography.Text><Button size="small" icon={<DownloadOutlined/>} onClick={downloadIssues}>Download issue report</Button></Space>
-                <Table size="small" rowKey={row=>row.row+'-'+row.code+'-'+row.message} pagination={{pageSize:5,hideOnSinglePage:true}} dataSource={summary.issues}
-                  columns={[{title:'Row',dataIndex:'row',width:70},{title:'Code',dataIndex:'code',width:180},{title:'Issue',dataIndex:'message'}]}/>
+                <Space wrap>
+                  <Typography.Text strong>Error report ({count(summary.reportIssueCount ?? summary.issues?.length ?? 1)} issue{(summary.reportIssueCount ?? summary.issues?.length ?? 1)===1?'':'s'})</Typography.Text>
+                  <Button size="small" icon={<DownloadOutlined/>} loading={downloading==='xlsx'} disabled={busy||!!downloading} onClick={()=>downloadIssues('xlsx')}>Download Excel</Button>
+                  <Button size="small" icon={<DownloadOutlined/>} loading={downloading==='csv'} disabled={busy||!!downloading} onClick={()=>downloadIssues('csv')}>Download CSV</Button>
+                </Space>
+                {summary.reportComplete!==true && <Alert type="warning" showIcon title="Older error report" description="Some ASIN details or errors may not have been saved in this older import. Validate the original file again for the complete report."/>}
+                {summary.reportIssueCount>(summary.issues?.length||0)&&<Typography.Text type="secondary">Showing the first {summary.issues.length} issues here. The downloaded report includes every detected issue.</Typography.Text>}
+                <Table size="small" rowKey={(row,index)=>String(row.row??'file')+'-'+String(index)} pagination={{pageSize:5,hideOnSinglePage:true}} dataSource={summary.issues||[]} scroll={{x:790}}
+                  columns={[
+                    {title:'Excel Row',dataIndex:'row',width:90,render:v=>v??'File'},
+                    {title:'ASIN',dataIndex:'asin',width:130,render:v=>v||'-'},
+                    {title:'Date',dataIndex:'date',width:110,render:v=>v||'-'},
+                    {title:'Affected Column',dataIndex:'column',width:150,render:v=>v||'Report'},
+                    {title:'Remarks / How to Fix',dataIndex:'remarks',render:(v,r)=>v||r.message||'Validate the original report again.'}
+                  ]}/>
               </>
             )}
             <Space wrap>
