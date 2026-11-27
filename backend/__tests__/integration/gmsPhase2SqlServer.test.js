@@ -36,13 +36,15 @@ const { loadPagedAnalytics } = require('../../services/gmsAnalyticsPageService')
 const analyticsIndex=require('../../migrations/094_gms_analytics_date_index');
 const service = require('../../services/gmsImportService');
 const real = process.env.GMS_SQLSERVER_SMOKE === '1' ? test : test.skip;
+const scaleRows=Number(process.env.GMS_SQL_SCALE_ROWS||0);
+if(![0,100000,500000].includes(scaleRows))throw new Error('Unsupported disposable GMS scale fixture size');
 async function connect() {
   if (process.env.GMS_TEST_SQLSERVER_HOST !== '127.0.0.1' || !process.env.GMS_TEST_SQLSERVER_PASSWORD) {
     throw new Error('Disposable local SQL Server configuration required');
   }
   const config = { server:'127.0.0.1',port:1433,user:'sa',
     password:process.env.GMS_TEST_SQLSERVER_PASSWORD,database:'tempdb',
-    options:{encrypt:false,trustServerCertificate:true},connectionTimeout:4000,requestTimeout:20000 };
+    options:{encrypt:false,trustServerCertificate:true},connectionTimeout:4000,requestTimeout:scaleRows?240000:20000 };
   for(let i=0;i<40;i++) {
     const p=new sql.ConnectionPool(config);
     try { await p.connect(); return p; }
@@ -205,8 +207,36 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
     await service.processNext();
     expect((await service.getJob('U1',revoked.id)).status).toBe('FAILED');
     expect(await facts()).toEqual([{SellerId:'S1',OrderedRevenue:155}]);
+    // Optional manual scale exercise: exclusively the disposable local SQL
+    // Server above. Report elapsed times without asserting hardware-dependent SLAs.
+    if(scaleRows){
+      await mockPool.request().input('rows',sql.Int,scaleRows).query(`
+        WITH digits AS (SELECT n FROM (VALUES(0),(1),(2),(3),(4),(5),(6),(7),(8),(9)) d(n)),
+        seq AS (SELECT TOP (@rows) ROW_NUMBER() OVER(ORDER BY (SELECT NULL)) AS n FROM digits a CROSS JOIN digits b CROSS JOIN digits c CROSS JOIN digits d CROSS JOIN digits e CROSS JOIN digits f)
+        INSERT INTO GmsDailyPerformance(Id,Asin,Date,SellerId,Brand,StoreCode,OrderedRevenue,OrderedUnits,ShippedRevenue,ShippedCOGS,ShippedUnits,CustomerReturns,CreatedAt,UpdatedAt)
+        SELECT 'scale-'+CONVERT(varchar(20),n),'F'+RIGHT('000000000'+CONVERT(varchar(20),(n-1)/30+1),9),
+          DATEADD(day,CONVERT(int,(n-1)%30),CONVERT(date,'2026-10-01')),NULL,'Load Test','IN',
+          CASE WHEN n%7=0 THEN -1.25 ELSE 1.25 END,1,1.25,0.50,1,0,SYSUTCDATETIME(),SYSUTCDATETIME()
+        FROM seq;
+      `);
+      const scaleOptions={startDate:'2026-10-01',endDate:'2026-10-30',level:'asin',pageSize:100};
+      const before=Date.now();
+      const large=await loadPagedAnalytics(mockPool,global,{...scaleOptions,page:1});
+      const firstMs=Date.now()-before;
+      const nextStarted=Date.now();
+      const next=await loadPagedAnalytics(mockPool,global,{...scaleOptions,page:2});
+      const nextMs=Date.now()-nextStarted;
+      expect(large.meta.records).toBe(scaleRows);
+      expect(large.kpis.orderedRevenue).toBe((scaleRows-2*Math.floor(scaleRows/7))*1.25);
+      expect(large.pagination.totalRows).toBe(Math.ceil(scaleRows/30));
+      expect(large.matrixRows).toHaveLength(100);
+      expect(next.matrixRows).toHaveLength(100);
+      expect(next.kpis).toEqual(large.kpis);
+      expect(new Set([...large.matrixRows,...next.matrixRows].map(r=>r.key)).size).toBe(200);
+      console.log('GMS disposable scale result',JSON.stringify({facts:scaleRows,entities:large.pagination.totalRows,pageRows:100,firstMs,nextMs,responseBytes:Buffer.byteLength(JSON.stringify(large))}));
+    }
   } finally {
     fs.rmSync(dir,{recursive:true,force:true});
     await mockPool.close();
   }
-}, 180000);
+}, scaleRows?600000:180000);
