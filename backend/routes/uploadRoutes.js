@@ -63,12 +63,16 @@ const gmsUpload = multer({
   fileFilter: (_req,file,cb) => /\.(csv|xlsx|xls)$/i.test(file.originalname)
     ? cb(null,true) : cb(new Error('Only CSV or Excel reports are supported'))
 }).single('file');
-const receiveGms = (req,res,next) => gmsUpload(req,res,err => {
+const receiveGms = (req,res,next) => {
+  req.setTimeout(900000);
+  res.setTimeout(900000);
+  gmsUpload(req,res,err => {
   if (err) return res.status(err.code==='LIMIT_FILE_SIZE'?413:400).json({
-    success:false,message:err.code==='LIMIT_FILE_SIZE'?'Report exceeds 25 MB; split it into smaller reports':'Invalid report upload'
+    success:false,message:err.code==='LIMIT_FILE_SIZE'?'Report exceeds 100 MB; split it into smaller reports':'Invalid report upload'
   });
   next();
-});
+  });
+};
 const importPermission = requirePermission('gms_tracker_import');
 // Retired legacy immediate-write endpoint: old clients cannot bypass preview.
 router.post('/upload/upload-gms', authenticate, importPermission, (_req,res) =>

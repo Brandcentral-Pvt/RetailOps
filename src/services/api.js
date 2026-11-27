@@ -2065,7 +2065,7 @@ export const gmsApi = {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', API_BASE + '/upload/gms-imports');
       xhr.withCredentials = true;
-      xhr.timeout = 300000;
+      xhr.timeout = 900000;
       xhr.ontimeout = () => reject(new Error('Validation timed out. Check import history before retrying.'));
       xhr.upload.onprogress = event => {
         if (event.lengthComputable && onProgress) onProgress(Math.round(event.loaded / event.total * 100));

@@ -135,6 +135,14 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
     await service.confirm('UG',correctionMissing.id); await service.processNext();
     const orphanFact=await mockPool.request().query("SELECT SellerId,Brand,OrderedRevenue FROM GmsDailyPerformance WHERE Asin='B000000002'");
     expect(orphanFact.recordset).toEqual([{SellerId:null,Brand:'Sheet Brand',OrderedRevenue:26}]);
+    const signedFile=path.join(dir,'signed-adjustment.csv');
+    fs.writeFileSync(signedFile,'ASIN,Date,Brand,StoreCode,Ordered Revenue,Ordered Units,Shipped Revenue,Shipped COGS,Shipped Units,Customer Returns\nB000000002,2026-11-27,Sheet Brand,IN,-125.50,-2,-25.00,-5.00,-1,');
+    const signed=await service.createPreview(global,{path:signedFile,originalname:'signed.csv'});
+    expect(signed.summary).toMatchObject({invalid:0,defaultedCells:1,negativeRows:1,updated:1});
+    await service.confirm('UG',signed.id); await service.processNext();
+    expect((await service.getJob('UG',signed.id)).status).toBe('COMPLETED');
+    const persisted=await mockPool.request().query("SELECT OrderedRevenue,OrderedUnits,ShippedRevenue,ShippedCOGS,ShippedUnits,CustomerReturns FROM GmsDailyPerformance WHERE Asin='B000000002'");
+    expect(persisted.recordset).toEqual([{OrderedRevenue:-125.5,OrderedUnits:-2,ShippedRevenue:-25,ShippedCOGS:-5,ShippedUnits:-1,CustomerReturns:0}]);
     await mockPool.request().query("INSERT INTO Asins VALUES('A2','B000000002','S1',NULL),('A3','B000000002','S1',NULL)");
     const mapped=await mockPool.request().query("SELECT COALESCE(g.SellerId,a.SellerId) AS sellerId,g.Brand FROM GmsDailyPerformance g "+gmsCatalogApplySql+" WHERE g.Asin='B000000002'");
     expect(mapped.recordset).toEqual([{sellerId:'S1',Brand:'Sheet Brand'}]);
