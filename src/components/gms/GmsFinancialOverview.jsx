@@ -31,7 +31,7 @@ export function GmsFinancialSummary({analytics,loading,metric,onMetricChange}){
                   <Tooltip title={'Show '+m.label+' daily trend'}><Button size="small" type="text" icon={<LineChartOutlined/>} aria-label={'Show '+m.label+' trend'} aria-pressed={selected} onClick={()=>onMetricChange(m.key)}/></Tooltip>
                 </Flex>
                 <Tooltip title={metricValue(m,value)}>
-                  <Statistic value={metricValue(m,value,{compact:true})} valueStyle={{fontSize:22,fontWeight:650,color:isKnown(value)&&value<0?token.colorError:token.colorText}}/>
+                  <Statistic value={isKnown(value)?value:0} formatter={()=>metricValue(m,value,{compact:true})} valueStyle={{fontSize:22,fontWeight:650,color:isKnown(value)&&value<0?token.colorError:token.colorText}}/>
                 </Tooltip>
                 <Flex wrap gap={4} align="center" className="gms-stat-delta">
                   {delta!==null?<Tag color={changeTone(m,change)}>{delta}</Tag>:<Text type="secondary">No comparison</Text>}
