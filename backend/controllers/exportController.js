@@ -7,7 +7,8 @@ const SocketService = require('../services/socketService');
 const { buildInClause } = require('../utils/sqlHelpers');
 const { resolveAccessProfile } = require('../services/accessProfileService');
 const { exportWindow } = require('../utils/gmsPhase1');
-const { filterSpec, queryFacts, buildAnalytics, loadAnalytics } = require('../services/gmsAnalyticsService');
+const { filterSpec, queryFacts, selectFacts, historyWindow } = require('../services/gmsAnalyticsService');
+const { buildCompleteExport } = require('../services/gmsCompleteExport');
 const { writeGmsExport,ensureActive } = require('../services/gmsExportWriter');
 
 const EXPORTS_DIR = path.join(__dirname, '../uploads/exports');
@@ -1438,17 +1439,15 @@ async function processGmsExportJob(downloadId, params, userId, signal) {
     // Keep legacy name filters for older clients, but never widen RBAC.
     const modern = Object.prototype.hasOwnProperty.call(params,'sellerIds');
     const filters = filterSpec({sellerIds:modern?params.sellerIds:null,search:params.search});
-    let report;
-    if (modern && window.from && window.to) {
-        report = await loadAnalytics(pool,access,{startDate:window.from,endDate:window.to,level:exportLevel,...filters},{signal});
-    } else {
-        let facts = await queryFacts(pool,access,modern?window:{from:null,to:window.to},filters,{signal});
-        if (!modern) {
-            const names = exportBrandType==='current'?selectedBrands:exportBrandType==='custom'?exportCustomBrands:[];
-            if (names.length) facts = facts.filter(d=>names.includes(d.dbBrand)||names.includes(d.brand));
-        }
-        report = buildAnalytics(facts,{window,filters,level:exportLevel});
+    // Load current and required comparison history once. Never call the
+    // interactive paginated API for an export. All sheets use these same facts.
+    let facts = selectFacts(await queryFacts(pool,access,historyWindow(window),filters,{signal}),filters);
+    if (!modern) {
+        const names = exportBrandType==='current'?selectedBrands:exportBrandType==='custom'?exportCustomBrands:[];
+        if (names.length) facts = facts.filter(d=>names.includes(d.dbBrand)||names.includes(d.brand));
     }
+    ensureActive(signal);
+    const {report,complete}=buildCompleteExport(facts,{window,level:exportLevel});
     ensureActive(signal);
     const {monthGroups}=report;
     await updateDownloadStatus(pool, downloadId, 'processing', 60);
@@ -1503,7 +1502,7 @@ async function processGmsExportJob(downloadId, params, userId, signal) {
     const filePath=path.join(EXPORTS_DIR,`${downloadId}_${fileName}`);
     let published=false;
     try {
-    const stats=await writeGmsExport({filePath,format:fileExt,report,columns:columnDef,signal,onProgress:async(done,total)=>{
+    const stats=await writeGmsExport({filePath,format:fileExt,report,complete,columns:columnDef,matrixFixedCount:exportLevel==='seller'?6:7,signal,onProgress:async(done,total)=>{
         await updateDownloadStatus(pool,downloadId,'processing',Math.min(95,70+Math.round(done/Math.max(total,1)*25)));
     }});
     published=true;
