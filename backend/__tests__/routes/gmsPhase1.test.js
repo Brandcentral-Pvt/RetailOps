@@ -144,6 +144,25 @@ describe('GMS route security', () => {
     expect((await request(app).post('/api/export/start-gms').send({ exportDateType: 'current', startDate: 'invalid', endDate: '2026-11-27' })).status).toBe(400);
     expect(mockPool.calls).toHaveLength(0);
   });
+  test('analytics route requires view permission and validates filter input', async () => {
+    mockUser.permissions=[];
+    expect((await request(app).post('/api/upload/gms-analytics').send({startDate:'2026-11-27',endDate:'2026-11-27'})).status).toBe(403);
+    mockUser.permissions=['gms_tracker_view'];
+    expect((await request(app).post('/api/upload/gms-analytics').send({startDate:'2026-11-27',endDate:'2026-11-27',sellerIds:'S1'})).status).toBe(400);
+    expect(mockPool.calls).toHaveLength(0);
+  });
+  test('analytics uses identical scope for selected and preceding dates and returns computed data', async () => {
+    mockPool=makeFakePool([{match:/FROM GmsDailyPerformance g/,rows:[
+      {date:'2026-11-26',asin:'B000000001',sellerId:'S1',orderedRevenue:'10.00',orderedUnits:1,shippedRevenue:'10.00',shippedCOGS:'5.00',shippedUnits:1,customerReturns:0},
+      {date:'2026-11-27',asin:'B000000001',sellerId:'S1',orderedRevenue:'20.00',orderedUnits:2,shippedRevenue:'20.00',shippedCOGS:'10.00',shippedUnits:2,customerReturns:0}
+    ]}]);
+    const res=await request(app).post('/api/upload/gms-analytics').send({startDate:'2026-11-27',endDate:'2026-11-27',sellerIds:['S1']});
+    expect(res.status).toBe(200);
+    expect(res.body.data.kpis.orderedRevenue).toBe(20);
+    expect(res.body.data.comparison.changes.orderedRevenue).toBe(100);
+    expect(mockPool.calls[0].inputs.gmsAnalytics_0).toBe('S1');
+    expect(mockPool.calls[0].sql).toContain('OPENJSON(@sellerIds)');
+  });
   test('invalid read date rejected before database access', async () => {
     expect((await request(app).get('/api/upload/gms-data').query({ startDate: '2026-11-31' })).status).toBe(400);
     expect(mockPool.calls).toHaveLength(0);

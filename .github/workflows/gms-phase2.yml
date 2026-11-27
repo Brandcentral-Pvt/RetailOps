@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'backend/services/gmsImport*.js'
+      - 'backend/services/gmsAnalyticsService.js'
+      - 'backend/controllers/gmsAnalyticsController.js'
       - 'backend/controllers/gmsImportController.js'
       - 'backend/controllers/uploadController.js'
       - 'backend/controllers/exportController.js'
@@ -44,6 +46,8 @@ jobs:
         run: |
           node --check services/gmsImportParser.js
           node --check services/gmsImportService.js
+          node --check services/gmsAnalyticsService.js
+          node --check controllers/gmsAnalyticsController.js
           node --check controllers/gmsImportController.js
           node --check routes/uploadRoutes.js
           node --check migrations/091_gms_import_jobs.js
@@ -53,7 +57,7 @@ jobs:
           node --check scripts/repairGmsSchema.js
       - name: Validation and route security regression
         working-directory: backend
-        run: npm test -- --runInBand __tests__/unit/gmsPhase2Ingestion.test.js __tests__/routes/gmsPhase1.test.js
+        run: npm test -- --runInBand __tests__/unit/gmsPhase2Ingestion.test.js __tests__/unit/gmsPhase3Analytics.test.js __tests__/routes/gmsPhase1.test.js
   sql:
     runs-on: ubuntu-latest
     timeout-minutes: 20
