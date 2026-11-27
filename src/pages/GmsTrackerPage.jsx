@@ -22,6 +22,7 @@ import {
   Select,
   Segmented,
   Radio,
+  Upload,
 } from "antd";
 import {
   UploadOutlined,
@@ -41,7 +42,6 @@ import { useHeader } from "../contexts/HeaderContext";
 
 import { LoadError } from "@/components/LoadError";
 import { GmsTrackerSkeleton } from "@/components/ui/PageSkeletons";
-import Upload from "antd/es/upload/Upload";
 import { Panel, MiniState, timeAgo, useNow } from "./opsCenter/primitives";
 import "./opsCenter/ops.css";
 import "./ads/ads.css";
