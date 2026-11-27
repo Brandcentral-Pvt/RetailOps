@@ -172,17 +172,27 @@ describe('GMS route security', () => {
     expect((await request(app).post('/api/upload/gms-analytics').send({startDate:'2026-11-27',endDate:'2026-11-27',sellerIds:'S1'})).status).toBe(400);
     expect(mockPool.calls).toHaveLength(0);
   });
-  test('analytics uses identical scope for selected and preceding dates and returns computed data', async () => {
-    mockPool=makeFakePool([{match:/FROM GmsDailyPerformance g/,rows:[
-      {date:'2026-11-26',asin:'B000000001',sellerId:'S1',orderedRevenue:'10.00',orderedUnits:1,shippedRevenue:'10.00',shippedCOGS:'5.00',shippedUnits:1,customerReturns:0},
-      {date:'2026-11-27',asin:'B000000001',sellerId:'S1',orderedRevenue:'20.00',orderedUnits:2,shippedRevenue:'20.00',shippedCOGS:'10.00',shippedUnits:2,customerReturns:0}
+  test('analytics pagination validates bounds before SQL and preserves full-filter KPIs', async () => {
+    const prior={date:'2026-11-26',recordCount:2,orderedRevenue:'10.00',orderedUnits:'1',shippedRevenue:'10.00',shippedCOGS:'5.00',shippedUnits:'1',customerReturns:'0'};
+    const current={...prior,date:'2026-11-27',orderedRevenue:'20.00',orderedUnits:'2',shippedRevenue:'20.00',shippedCOGS:'10.00',shippedUnits:'2'};
+    const entity={entityKey:'B000000001',asin:'B000000001',sellerId:'S1',dbBrand:'Seller A',brand:'Brand A',storeCode:'IN'};
+    mockPool=makeFakePool([{match:/INTO #GmsSource/,recordsets:[
+      [prior,current],[{records:2,asins:2,sellers:1,unmatchedRecords:0}],[{page:1,pageSize:1,totalRows:2}],
+      [{...current,entityKey:entity.entityKey,orderedRevenue:'12.00'}],[entity],[entity]
     ]}]);
-    const res=await request(app).post('/api/upload/gms-analytics').send({startDate:'2026-11-27',endDate:'2026-11-27',sellerIds:['S1']});
+    const input={startDate:'2026-11-27',endDate:'2026-11-27',sellerIds:['S1'],page:1,pageSize:1};
+    expect((await request(app).post('/api/upload/gms-analytics').send({...input,pageSize:101})).status).toBe(400);
+    expect((await request(app).post('/api/upload/gms-analytics').send({...input,sort:{key:'g.Date;DROP TABLE Asins',direction:'desc'}})).status).toBe(400);
+    expect(mockPool.calls).toHaveLength(0);
+    const res=await request(app).post('/api/upload/gms-analytics').send(input);
     expect(res.status).toBe(200);
     expect(res.body.data.kpis.orderedRevenue).toBe(20);
     expect(res.body.data.comparison.changes.orderedRevenue).toBe(100);
-    expect(mockPool.calls[0].inputs.gmsAnalytics_0).toBe('S1');
-    expect(mockPool.calls[0].sql).toContain('OPENJSON(@sellerIds)');
+    expect(res.body.data.matrixRows).toHaveLength(1);
+    expect(res.body.data.matrixRows[0].orderedRevenue).toBe(12);
+    expect(res.body.data.pagination).toEqual({page:1,pageSize:1,totalRows:2});
+    expect(mockPool.calls[0].inputs).toMatchObject({allowedSellerIds:'["S1"]',selectedSellerIds:'["S1"]',historyFrom:'2026-10-01',currentTo:'2026-11-27'});
+    expect(mockPool.calls[0].sql).toContain('OPENJSON(@allowedSellerIds)');
   });
   test('invalid read date rejected before database access', async () => {
     expect((await request(app).get('/api/upload/gms-data').query({ startDate: '2026-11-31' })).status).toBe(400);
