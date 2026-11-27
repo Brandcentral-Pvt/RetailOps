@@ -43,7 +43,7 @@ function selectFacts(rows,filters={}){
 }
 function cents(value){
   if(value==null)return null;
-  const s=String(value);
+  const s=String(value).replace(/(\.\d{2})0+$/,'$1');
   if(!/^[+-]?\d+(?:\.\d{1,2})?$/.test(s))throw new Error('Invalid stored GMS monetary precision');
   const neg=s.startsWith('-'),[w,f='']=s.replace(/^[+-]/,'').split('.');
   return (neg?-1n:1n)*(BigInt(w)*100n+BigInt(f.padEnd(2,'0')));
@@ -155,7 +155,10 @@ function buildAnalytics(raw,{window,filters={},level='asin'}){
       const observed=dates.filter(d=>r.daily.has(d));
       return observed.length?revenueOn(r.daily,observed):null;
     };
-    for(const m of Object.values(monthGroups)){
+    const rowMonths=new Set([...r.daily.keys()].map(d=>d.slice(0,7)));
+    const rowWeeks=new Set([...r.daily.keys()].map(weekKey));
+    for(const month of rowMonths){
+      const m=monthGroups[month];
       const monthDays=Object.values(m.weeks).flatMap(w=>w.days);
       monthlyRev[m.key]=subtotal(monthDays);
       const from=m.key+'-01',to=shift(monthOffset(from,1),-1);
@@ -164,6 +167,7 @@ function buildAnalytics(raw,{window,filters={},level='asin'}){
       _momTrends[m.key]=inWindow({date:from},window)&&inWindow({date:to},window)
         ?pct(revenueOn(r.daily,rangeDates(from,to)),revenueOn(all,rangeDates(prevFrom,prevTo))):null;
       for(const w of Object.values(m.weeks)){
+        if(!rowWeeks.has(w.key))continue;
         weeklyRev[w.key]=subtotal(w.days);
         // A week spanning months is split into non-overlapping month segments.
         // Compare exactly the same weekdays one week earlier, never the whole week twice.
