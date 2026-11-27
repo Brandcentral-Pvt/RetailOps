@@ -5,7 +5,7 @@ const { buildInClause } = require('../utils/sqlHelpers');
 const marketDataSyncService = require("../services/marketDataSyncService");
 const SystemLogService = require('../services/SystemLogService');
 const { resolveSellerScope, bindSellerFilter } = require('../utils/sellerScope');
-const { dateWindow, unambiguousSellerSql } = require('../utils/gmsPhase1');
+const { dateWindow, unambiguousSellerSql, gmsCatalogApplySql } = require('../utils/gmsPhase1');
 const { isGmsSchemaError, sendGmsSchemaUnavailable } = require('../database/gmsSchema');
 const { asinUsableSqlFor } = require('../utils/asinUtils');
 
@@ -896,7 +896,7 @@ exports.getGmsData = async (req, res) => {
         s.Name as dbBrand,
         a.Title as productTitle
       FROM GmsDailyPerformance g
-      LEFT JOIN Asins a ON g.Asin = a.AsinCode AND (g.SellerId IS NULL OR a.SellerId = g.SellerId)
+      ${gmsCatalogApplySql}
       LEFT JOIN Sellers s ON COALESCE(g.SellerId, a.SellerId) = s.Id
       ${whereSQL}
       ORDER BY g.Date DESC
