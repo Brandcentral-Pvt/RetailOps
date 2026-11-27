@@ -19,7 +19,6 @@ import {
   Tooltip,
   message,
   Select,
-  Segmented,
   Radio,
 } from "antd";
 import {
@@ -40,7 +39,6 @@ import { useHeader } from "../contexts/HeaderContext";
 
 import { LoadError } from "@/components/LoadError";
 import GmsImportDialog from "../components/gms/GmsImportDialog";
-import { GmsTrackerSkeleton } from "@/components/ui/PageSkeletons";
 import { Panel, MiniState, timeAgo, useNow } from "./opsCenter/primitives";
 import "./opsCenter/ops.css";
 import "./ads/ads.css";
@@ -114,7 +112,7 @@ export default function GmsTrackerPage() {
   const canClear = can('gms_tracker_delete') && user?.scope === 'global';
   const { setPageMeta } = useHeader();
   const [analytics, setAnalytics] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [requestLoading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [selectedBrands, setSelectedBrands] = useState([]);
@@ -123,6 +121,7 @@ export default function GmsTrackerPage() {
   const [lastLoadedAt, setLastLoadedAt] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const loading = requestLoading || searchQuery !== debouncedSearch;
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 250);
     return () => clearTimeout(timer);
@@ -164,6 +163,7 @@ export default function GmsTrackerPage() {
     const isCurrent = () => loadMountedRef.current && requestId === loadRequestRef.current && !controller.signal.aborted;
     setLoading(true);
     setError(null);
+    setAnalytics(null);
     try {
       let sellers = dbSellersRef.current;
       let managers = dbManagersRef.current;
@@ -231,6 +231,7 @@ export default function GmsTrackerPage() {
   // Handle GMS spreadsheet matrix export via background job served in Downloads drawer
   const handleExport = async () => {
     try {
+      if (loading || searchQuery !== debouncedSearch || error) throw new Error('Wait for the active report to finish loading');
       const exportParams = {
         exportLevel,
         exportDateType,
@@ -249,12 +250,12 @@ export default function GmsTrackerPage() {
         exportDataType,
         exportFileType,
         startDate:
-          exportDateType === "current" && startDate
-            ? dayjs(startDate).format("YYYY-MM-DD")
+          exportDateType === "current"
+            ? dayjs(startDate || dayjs().startOf("month")).format("YYYY-MM-DD")
             : null,
         endDate:
-          exportDateType === "current" && endDate
-            ? dayjs(endDate).format("YYYY-MM-DD")
+          exportDateType === "current"
+            ? dayjs(endDate || dayjs().endOf("month")).format("YYYY-MM-DD")
             : null,
         sellerIds: exportBrandType === 'current' ? selectedSellerIds(selectedBrands, selectedManagers, dbManagersRef.current) : exportBrandType === 'custom' ? exportCustomBrands : null,
         search: exportBrandType === 'current' ? searchQuery : '',
@@ -310,7 +311,7 @@ export default function GmsTrackerPage() {
 
   // Matrix rows, values and dates are computed by the shared backend engine.
   const tableDataSource = analytics?.matrixRows || [];
-  const monthGroups = analytics?.monthGroups || {};
+  const monthGroups = useMemo(() => analytics?.monthGroups || {}, [analytics]);
   const fixedCols = useMemo(() => [
     {title:'Seller (DB)',dataIndex:'dbBrand',key:'dbBrand',width:140, sorter:(a,b)=>(a.dbBrand||'').localeCompare(b.dbBrand||''),
       render:(v,r)=><Space><Text strong={!r.isUnmatched}>{v||'-'}</Text>{r.isUnmatched&&<Tag color="orange">Unmatched</Tag>}</Space>},
@@ -374,7 +375,7 @@ export default function GmsTrackerPage() {
                 (a.monthlyRev[month.key] || 0) - (b.monthlyRev[month.key] || 0),
             },
             {
-              title: "MoM Trend",
+              title: "MoM (full months)",
               key: `mom-trend-${month.key}`,
               align: "center",
               width: 110,
@@ -431,7 +432,7 @@ export default function GmsTrackerPage() {
             title: weekTitle,
             children: [
               {
-                title: "Week Total",
+                title: "Week Segment Total",
                 key: `week-total-${week.key}`,
                 align: "right",
                 width: 120,
@@ -449,7 +450,7 @@ export default function GmsTrackerPage() {
                   (a.weeklyRev[week.key] || 0) - (b.weeklyRev[week.key] || 0),
               },
               {
-                title: "WoW Trend",
+                title: "WoW (same days)",
                 key: `wow-trend-${week.key}`,
                 align: "center",
                 width: 110,
@@ -638,7 +639,7 @@ export default function GmsTrackerPage() {
               color={isUp ? "success" : "error"}
               style={{ border: "none", fontWeight: 600 }}
             >
-              {isUp ? "▲" : "▼"} {trend.toFixed(1)}%
+              {isUp ? "▲" : "▼"} {Math.abs(trend).toFixed(1)}%
             </Tag>
           );
         },
@@ -719,6 +720,7 @@ export default function GmsTrackerPage() {
           theme: "light",
           y: {
             formatter: (val, { seriesIndex }) => {
+              if (val == null) return "N/A";
               if (seriesIndex === 0) return `₹${val.toLocaleString("en-IN")}`;
               return `${val} units`;
             },
@@ -981,7 +983,7 @@ export default function GmsTrackerPage() {
         </div>
 
         {/* ── Row 3: dataset metadata strip (not KPI cards) ── */}
-        {windowMeta && (
+        {windowMeta && !loading && (
           <div className="gms-cmd__meta" role="note" aria-label="Dataset summary">
             <span className="gms-cmd__window ops-num">
               {startDate ? dayjs(startDate).format("DD MMM YYYY") : "Earliest"}
@@ -1006,6 +1008,7 @@ export default function GmsTrackerPage() {
               </span>
               <span className="gms-cmd__mlabel">Sellers</span>
             </span>
+            <span className="gms-cmd__mstat"><span className="ops-num">{windowMeta.unmatchedRecords ?? 0}</span><span className="gms-cmd__mlabel">Unmatched records</span></span>
             {windowMeta.last && (
               <span className="gms-cmd__mstat">
                 <span className="ops-num">{windowMeta.last}</span>
