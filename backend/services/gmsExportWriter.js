@@ -40,7 +40,7 @@ async function writeGmsExport({filePath,format,report,columns,signal,onProgress=
   if(!['xlsx','csv'].includes(format))throw new Error('Unsupported GMS export format');
   ensureActive(signal);
   const partial=filePath+'.partial';
-  let output;
+  let output, abortOutput;
   try{
     if(format==='csv'){
       async function* chunks(){
@@ -56,11 +56,17 @@ async function writeGmsExport({filePath,format,report,columns,signal,onProgress=
     }else{
       output=fs.createWriteStream(partial,{flags:'wx'});
       // Use the stream writer, rather than XLSX.write(... type:'buffer').
+      let streamError;
+      const streamFailure=new Promise((_,reject)=>output.once('error',err=>{streamError=err;reject(err);}));
+      streamFailure.catch(()=>{}); // handle early disk errors before commit
+      abortOutput=()=>output.destroy(new Error('GMS export cancelled'));
+      signal?.addEventListener('abort',abortOutput,{once:true});
       const book=new ExcelJS.stream.xlsx.WorkbookWriter({stream:output,useStyles:false,useSharedStrings:false});
       const sheet=book.addWorksheet('GMS Matrix',{views:[{state:'frozen',ySplit:1}]});
       sheet.addRow(headers).commit();
       for(let i=0;i<rows.length;i++){
         ensureActive(signal);
+        if(streamError)throw streamError;
         sheet.addRow(columns.map(c=>c.getValue(rows[i])??'-')).commit();
         // Yield to the event loop so timeout/cancellation and HTTP requests
         // can progress even while generating a very wide workbook.
@@ -71,7 +77,8 @@ async function writeGmsExport({filePath,format,report,columns,signal,onProgress=
       const summary=book.addWorksheet('Summary');
       for(const row of summaryRows(report))summary.addRow(row).commit();
       summary.commit();
-      await book.commit();
+      if(streamError)throw streamError;
+      await Promise.race([book.commit(),streamFailure]);
     }
     ensureActive(signal);
     const stat=await fsp.stat(partial);
@@ -82,6 +89,7 @@ async function writeGmsExport({filePath,format,report,columns,signal,onProgress=
     if(output&&!output.destroyed)output.destroy();
     throw err;
   }finally{
+    if(abortOutput)signal?.removeEventListener('abort',abortOutput);
     await fsp.unlink(partial).catch(()=>{});
   }
 }
