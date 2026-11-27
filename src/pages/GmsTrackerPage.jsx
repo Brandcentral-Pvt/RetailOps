@@ -291,6 +291,9 @@ export default function GmsTrackerPage() {
     });
   }, [setPageMeta]);
 
+  const latestLoad = useRef(loadAllData);
+  useEffect(() => { latestLoad.current = loadAllData; }, [loadAllData]);
+
   const clearAllData = useCallback(() => {
     Modal.confirm({
       title: "Are you sure you want to clear all GMS Tracker data?",
@@ -304,14 +307,14 @@ export default function GmsTrackerPage() {
           const res = await gmsApi.clearAll();
           if (!res.success) throw new Error(res.message || 'Clear failed');
           setGmsData([]);
-          await loadAllData({ refreshMetadata: true });
+          await latestLoad.current({ refreshMetadata: true });
           message.success(`GMS data cleared. ${res.deleted ?? 0} records deleted.`);
         } catch (err) {
           message.error("Failed to clear GMS data: " + err.message);
         }
       },
     });
-  }, [loadAllData]);
+  }, []);
 
   // Handle GMS spreadsheet matrix export via background job served in Downloads drawer
   const handleExport = async () => {
@@ -429,7 +432,7 @@ export default function GmsTrackerPage() {
       message.success(`Imported ${res.processed} records; ${res.skipped || 0} skipped; ${res.duplicatesCondensed || 0} duplicates condensed.`);
       resetUpload();
       setIsUploadOpen(false);
-      if (!await loadAllData({ refreshMetadata: true })) message.warning("Import completed. Refresh GMS data to see the latest records.");
+      if (!await latestLoad.current({ refreshMetadata: true })) message.warning("Import completed. Refresh GMS data to see the latest records.");
     } catch (err) {
       message.error("Upload failed: " + err.message);
       resetUpload();
@@ -757,7 +760,7 @@ export default function GmsTrackerPage() {
             (a.storeCode || "").localeCompare(b.storeCode || ""),
         },
         {
-          title: "Orders",
+          title: "Ordered Units",
           dataIndex: "orderedUnits",
           key: "orderedUnits",
           width: 80,
@@ -1572,7 +1575,7 @@ export default function GmsTrackerPage() {
             />
 
             <Input.Search
-              placeholder="Search ASIN, SKU, Parent, Title, Brand..."
+              placeholder="Search ASIN, Title, Brand, Store..."
               size="small"
               allowClear
               className="gms-cmd__search"
@@ -1685,7 +1688,7 @@ export default function GmsTrackerPage() {
 
 
       {/* KPI STRIP + TREND + MATRIX */}
-      <div className="ops-grid">
+      {!error && <div className="ops-grid">
         {!loading && percentageChanges.window && (
           <div className="gms-kpi-note">
             Deltas compare the most recent {percentageChanges.window.text.replace("vs prior ", "")} against the{" "}
@@ -1707,6 +1710,10 @@ export default function GmsTrackerPage() {
               </div>
             ))}
           </div>
+        ) : filteredData.length === 0 ? (
+          <Panel id="panel-gms-empty" span={12} kicker="Key performance indicators">
+            <MiniState tone="empty" title="No GMS records in this selection" note="Metrics are unavailable until data is loaded for these dates and filters." />
+          </Panel>
         ) : (
           <div className="ads-kpis" aria-label="Key performance indicators">
             {[
@@ -1737,7 +1744,7 @@ export default function GmsTrackerPage() {
                 invert: true,
               },
               {
-                label: "Profit",
+                label: "Gross Profit",
                 value: formatCompactINR(kpiMetrics.profit),
                 change: percentageChanges.changes?.profit,
                 sub: `${(kpiMetrics.marginPct || 0).toFixed(1)}% margin`,
@@ -1887,7 +1894,7 @@ export default function GmsTrackerPage() {
             </div>
           )}
         </Panel>
-      </div>
+      </div>}
 
       {/* FILE UPLOAD MODAL */}
       <Modal
