@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'src/pages/GmsTrackerPage.jsx'
+      - 'src/pages/gms.css'
+      - 'src/components/gms/**'
       - 'src/services/api.js'
       - 'backend/controllers/uploadController.js'
       - 'backend/controllers/exportController.js'
@@ -57,6 +59,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: node --test src/components/gms/__tests__/gmsPresentation.test.mjs
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test tests/gms-phase1.spec.js

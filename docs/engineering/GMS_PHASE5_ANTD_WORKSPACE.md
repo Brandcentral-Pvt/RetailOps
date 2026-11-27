@@ -1,0 +1,17 @@
+# GMS Phase 5 - Ant Design workspace
+
+## Design
+The report page uses the existing RetailOps Ant Design theme and a scoped stylesheet. GmsTrackerPage owns request, authorization, filters, server paging/sorting, and the existing import/export APIs. Presentation is split into GmsReportToolbar, GmsFinancialOverview, GmsMatrix, GmsImportDialog and GmsExportDialog.
+
+- Toolbar: one shared DateRangeContext date range, inclusive date presets, seller and manager filters, debounced search, refresh, visible sync state, permission-gated upload/history/export actions, full-filter record/mapping counts. Failed metadata loads are visible; a selected manager cannot silently use an unavailable directory.
+- Summary: nine financial metrics from server analytics, exact value tooltips, signed values and unknown/zero distinction, equal-length preceding period and observed-date coverage. Ratio deltas use percentage points. COGS and return-count changes are neutral, not unconditionally good/bad.
+- Chart: selected metric only, area/line switch, explicit null gaps for absent dates; no mixed units on one scale. No new backend request when selecting chart metrics.
+- Matrix: summary/monthly/weekly/daily views, selected month for weekly and daily views, previous/next month navigation, comparison visibility toggle, product title and identity columns, server-side sortable totals and dates, 25/50/100 page sizes, horizontal scroll in the table, sticky header and desktop fixed identity column. The monthly view shows all observed months; daily and weekly modes show one month to bound the number of columns. Totals remain the selected range totals regardless of presentation mode. Hide a sorted period column and revert to global period revenue sort.
+- Import: three-step progress, template CSV containing canonical headings, existing validation/confirm boundary, counts and readable remarks, full error report downloads, separate owner-scoped history tab. The current queued import remains tracked; new upload or other history inspection is disabled until it reaches a terminal state. Closing the dialog does not cancel queued work.
+- Export: native validated form in Drawer; complete Excel is default and complete daily CSV is an alternative. Matrix grouping/detail options do not affect raw data or analytical sheets. Current/custom/all date and seller scopes remain explicit. Custom dates/sellers require a valid selection before submitting. No pagination fields are sent.
+
+## Compatibility
+No backend changes or new migrations. Preserve Phase 4 financial semantics, role enforcement, unmatched ASIN handling, blank and signed values, complete report scope, and disabled global clear. Use existing downloads drawer event. Existing API response remains the source of truth; frontend presentation does not recompute financial totals. Date controls update the shared app-wide date selection.
+
+## Release validation
+Run existing GMS Phase 1 and Phase 2 workflows, native presentation unit tests, Vite production build, and Playwright scenarios for refresh/failure, preview and explicit confirmation, error report downloads, server pagination/sorting, metric and month switching, validated export, history/template downloads and mobile table layout. Verify production shell styling, accessibility, real date/filter metadata, long ranges and complete export workflows in staging. No production visual audit or load benchmark was run during implementation. Existing OOS regression remains outside this change; production-scale historical export and integration remain open.

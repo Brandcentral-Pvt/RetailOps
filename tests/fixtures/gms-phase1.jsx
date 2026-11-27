@@ -5,10 +5,11 @@ import { AuthProvider } from '/src/contexts/AuthContext.jsx';
 import { DateRangeProvider } from '/src/contexts/DateRangeContext.jsx';
 import { HeaderProvider } from '/src/contexts/HeaderContext.jsx';
 import GmsTrackerPage from '/src/pages/GmsTrackerPage.jsx';
+import retailOpsTheme from '/src/theme/antdTheme';
 import '/src/index.css';
 
 createRoot(document.getElementById('root')).render(
-  <ConfigProvider><AntApp><AuthProvider><DateRangeProvider><HeaderProvider>
+  <ConfigProvider theme={retailOpsTheme}><AntApp><AuthProvider><DateRangeProvider><HeaderProvider>
     <GmsTrackerPage />
   </HeaderProvider></DateRangeProvider></AuthProvider></AntApp></ConfigProvider>
 );
