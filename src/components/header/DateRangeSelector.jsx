@@ -55,7 +55,7 @@ export default function DateRangeSelector({ loading = false }) {
   };
 
   const handlePreset = (preset) => {
-    const [s, e] = p.getRange();
+    const [s, e] = preset.getRange();
     updateDateRange({ startDate: s.toDate(), endDate: e.toDate(), rangeType: preset.key });
     setOpen(false);
   };
