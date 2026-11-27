@@ -48,6 +48,10 @@ function makeFakePool(routes = []) {
                 calls.push(entry);
                 for (const route of routes) {
                     if (route.match.test(sqlText)) {
+                        if (route.recordsets) {
+                            const recordsets=typeof route.recordsets==='function'?route.recordsets(entry):route.recordsets;
+                            return {recordsets,recordset:recordsets[0]||[],rowsAffected:[]};
+                        }
                         const rows = typeof route.rows === 'function'
                             ? route.rows(entry)
                             : (route.rows || []);
