@@ -6,7 +6,7 @@ import { gmsApi } from '../../services/api';
 const colors = { READY: 'blue', REJECTED: 'red', QUEUED: 'processing', COMPLETED: 'green', FAILED: 'red', EXPIRED: 'default', CANCELLED: 'default' };
 const formatDate = value => value ? new Date(value).toLocaleString('en-IN') : '-';
 const count = value => Number(value || 0).toLocaleString('en-IN');
-const maxBytes = 25 * 1024 * 1024;
+const maxBytes = 100 * 1024 * 1024;
 
 export default function GmsImportDialog({ open, onClose, onCommitted }) {
   const [file, setFile] = useState(null);
@@ -86,7 +86,7 @@ export default function GmsImportDialog({ open, onClose, onCommitted }) {
   function selectFile(next) {
     if (lock.current) return Upload.LIST_IGNORE;
     if (!/\.(csv|xlsx|xls)$/i.test(next.name) || !next.size || next.size > maxBytes) {
-      setError('Choose a non-empty CSV or Excel report up to 25 MB.');
+      setError('Choose a non-empty CSV or Excel report up to 100 MB.');
       return Upload.LIST_IGNORE;
     }
     setFile(next);
@@ -133,7 +133,7 @@ export default function GmsImportDialog({ open, onClose, onCommitted }) {
       footer={<Button onClick={onClose} disabled={busy}>Close</Button>} closable={!busy} mask={{closable:!busy}}>
       <Space direction="vertical" size="middle" style={{ width:'100%' }}>
         <Alert type="info" showIcon title="Validate before importing"
-          description="Amazon India daily reports only. CSV, XLS or XLSX; maximum 25 MB and 100,000 data rows per report. Seller assignments are inherited automatically from RetailOps ASINs. No revenue is changed until a valid preview is confirmed." />
+          description="Amazon India daily reports only. CSV, XLS or XLSX; maximum 100 MB and 500,000 data rows per report. Blank financial cells become zero; signed adjustments are preserved. Seller assignments are inherited automatically from RetailOps ASINs. No revenue is changed until a valid preview is confirmed." />
         {error && <Alert type="error" showIcon title={error} />}
         <Upload.Dragger accept=".csv,.xlsx,.xls" beforeUpload={selectFile} maxCount={1} disabled={busy}
           fileList={file ? [file] : []} onRemove={() => {setFile(null);return true;}}>
@@ -153,7 +153,7 @@ export default function GmsImportDialog({ open, onClose, onCommitted }) {
             <Space wrap size={[8,8]}>
               {[
                 ['Source rows',summary.total],['New',summary.inserted],['Updates',summary.updated],
-                ['Unchanged',summary.unchanged],['Matched ASINs',summary.matched],['Unmatched ASINs',summary.unmatched],['Identical duplicates',summary.duplicates],['Validation issues',summary.invalid]
+                ['Unchanged',summary.unchanged],['Matched ASINs',summary.matched],['Unmatched ASINs',summary.unmatched],['Identical duplicates',summary.duplicates],['Blank metrics → 0',summary.defaultedCells],['Negative-value rows',summary.negativeRows],['Validation issues',summary.invalid]
               ].map(([label,value])=><Tag key={label}>{label}: {count(value)}</Tag>)}
             </Space>
             {job.status==='READY' && <Alert type={summary.updated?'warning':'success'} showIcon title="Validation passed"
