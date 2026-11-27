@@ -88,10 +88,15 @@ All require `auth`.
 | POST | `/api/upload/upload-ads` | `adsreport_import`, file | `uploadController.uploadAdsData` | Upload ads report |
 | POST | `/api/upload/octoparse` | `authenticate`, file | `uploadController.uploadOctoparseData` | Upload Octoparse scrape |
 | GET | `/api/upload/upload-stats` | `authenticate` | `uploadController.getUploadStats` | Upload status/stats |
-| POST | `/api/upload/upload-gms` | `gms_tracker_import`, file | `uploadController.uploadGmsData` | Upload GMS tracker data |
+| POST | `/api/upload/upload-gms` | `gms_tracker_import` | Retired | 409; staged import required |
+| POST | `/api/upload/gms-imports` | `gms_tracker_import`, file | `gmsImportController.preview` | Validate and create durable preview |
+| GET | `/api/upload/gms-imports` | `gms_tracker_import` | `gmsImportController.list` | Own import history |
+| GET | `/api/upload/gms-imports/:id` | `gms_tracker_import` | `gmsImportController.get` | Own preview and status |
+| POST | `/api/upload/gms-imports/:id/confirm` | `gms_tracker_import` | `gmsImportController.confirm` | Queue validated batch |
+| POST | `/api/upload/gms-imports/:id/cancel` | `gms_tracker_import` | `gmsImportController.cancel` | Cancel pending batch |
 | GET | `/api/upload/gms-data` | `gms_tracker_view` | `uploadController.getGmsData` | Get GMS data |
 | GET | `/api/upload/gms-asins` | `gms_tracker_view` | `uploadController.getGmsAsins` | Get GMS ASINs |
-| POST | `/api/upload/gms-clear` | `gms_tracker_export` | `uploadController.clearGmsData` | Clear GMS data |
+| POST | `/api/upload/gms-clear` | `gms_tracker_delete`, global scope | Maintenance gate | 409 during staged import rollout |
 
 ### 2.6 Alerts — `/api` (`routes/alertsRoutes.js`)
 
@@ -117,7 +122,7 @@ All require `auth`.
 |---|---|---|---|---|
 | POST | `/api/export/start` | `auth` | `startExport` | Start async export job |
 | POST | `/api/export/start-ads` | `adsreport_export` | `startAdsExport` | Start ads export |
-| POST | `/api/export/start-gms` | `auth` | `startGmsExport` | Start GMS export |
+| POST | `/api/export/start-gms` | `gms_tracker_export` | `startGmsExport` | Start GMS export |
 | GET | `/api/export/downloads` | `auth` | `getDownloads` | List downloads |
 | GET | `/api/export/status/:id` | `auth` | `getExportStatus` | Job status |
 | GET | `/api/export/download/:id` | `auth` | `downloadFile` | Download export file |
