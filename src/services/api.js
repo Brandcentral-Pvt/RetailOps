@@ -2058,6 +2058,9 @@ export const targetsApi = {
 };
 
 export const gmsApi = {
+  analytics: async (params, {signal} = {}) => handleResponse(await fetch(API_BASE + '/upload/gms-analytics', {
+    method:'POST', credentials:'include', headers:{'Content-Type':'application/json', ...getAuthHeader()}, body:JSON.stringify(params), signal,
+  }), 'Failed to load GMS analytics'),
   previewImport: async (file, onProgress) => {
     const formData = new FormData();
     formData.append('file', file);
