@@ -328,6 +328,17 @@ app.get('/api/health', async (req, res) => {
   });
 });
 
+app.get('/api/health/gms', async (_req,res) => {
+  try {
+    const { inspectGmsSchema } = require('./database/gmsSchema');
+    const state = await inspectGmsSchema();
+    return res.status(state.ready ? 200 : 503).json({ status: state.ready ? 'ready' : 'not-ready' });
+  } catch (error) {
+    logger.error('GMS schema health check failed', { error: error.message });
+    return res.status(503).json({ status: 'not-ready' });
+  }
+});
+
 app.get('/api/health/liveness', (req, res) => {
   res.status(200).json({ status: 'alive', uptime: Math.floor(process.uptime()) });
 });
@@ -888,11 +899,22 @@ server.listen(PORT, '0.0.0.0', () => {
 
   // Run DB migrations (idempotent; gated by RUN_MIGRATIONS_ON_STARTUP=false)
   const { runMigrationsAtStartup } = require('./database/migrate');
-  runMigrationsAtStartup().then(result => {
-    // SQL-backed queue does not depend on Redis or local uploaded files.
-    // Transaction-owned application locks coordinate all API instances.
-    if (isPrimaryWorker && !result?.failed) require('./services/gmsImportService').startWorker();
-  }).catch(err => logger.error('GMS import worker startup failed', { error: err.message }));
+  runMigrationsAtStartup().then(async () => {
+    if (!isPrimaryWorker) return;
+    const { ensureGmsSchema } = require('./database/gmsSchema');
+    // Repair only the independent additive GMS schema, even if an older
+    // unrelated migration stopped the main chain. Honor the operator's
+    // explicit migration opt-out. Never run DDL in request handlers.
+    const state = await ensureGmsSchema({
+      apply: process.env.RUN_MIGRATIONS_ON_STARTUP !== 'false',
+    });
+    if (!state.ready) {
+      logger.error('GMS schema is not ready; import worker not started', state);
+      return;
+    }
+    require('./services/gmsImportService').startWorker();
+    logger.info('GMS schema verified; import worker started');
+  }).catch(err => logger.error('GMS schema/worker startup failed', { error: err.message }));
 });
 
 // Make getPool available globally for socket handlers
