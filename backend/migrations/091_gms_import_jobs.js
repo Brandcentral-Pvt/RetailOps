@@ -20,8 +20,25 @@ module.exports = { up: async (pool) => {
       CREATE INDEX IX_GmsImportJobs_Owner_Created ON dbo.GmsImportJobs(OwnerId, CreatedAt DESC);
     END;
     -- New imports retain verified owner identity; do not guess historical ownership.
-    IF OBJECT_ID(N'dbo.GmsDailyPerformance', N'U') IS NOT NULL
-      AND COL_LENGTH('dbo.GmsDailyPerformance', 'SellerId') IS NULL
+    IF OBJECT_ID(N'dbo.GmsDailyPerformance', N'U') IS NULL
+      THROW 51000, 'GMS fact table missing', 1;
+    IF COL_LENGTH('dbo.GmsDailyPerformance', 'SellerId') IS NULL
       ALTER TABLE dbo.GmsDailyPerformance ADD SellerId VARCHAR(50) NULL;
+    -- Align fresh-install schema with the already-deployed GMS read contract.
+    -- Missing historical fields stay NULL; they are not backfilled with zeros.
+    IF COL_LENGTH('dbo.GmsDailyPerformance', 'Brand') IS NULL
+      ALTER TABLE dbo.GmsDailyPerformance ADD Brand NVARCHAR(255) NULL;
+    IF COL_LENGTH('dbo.GmsDailyPerformance', 'StoreCode') IS NULL
+      ALTER TABLE dbo.GmsDailyPerformance ADD StoreCode NVARCHAR(50) NULL;
+    IF COL_LENGTH('dbo.GmsDailyPerformance', 'ShippedRevenue') IS NULL
+      ALTER TABLE dbo.GmsDailyPerformance ADD ShippedRevenue DECIMAL(18,2) NULL;
+    IF COL_LENGTH('dbo.GmsDailyPerformance', 'ShippedCOGS') IS NULL
+      ALTER TABLE dbo.GmsDailyPerformance ADD ShippedCOGS DECIMAL(18,2) NULL;
+    IF COL_LENGTH('dbo.GmsDailyPerformance', 'ShippedUnits') IS NULL
+      ALTER TABLE dbo.GmsDailyPerformance ADD ShippedUnits INT NULL;
+    IF COL_LENGTH('dbo.GmsDailyPerformance', 'CustomerReturns') IS NULL
+      ALTER TABLE dbo.GmsDailyPerformance ADD CustomerReturns INT NULL;
+    IF COL_LENGTH('dbo.GmsDailyPerformance', 'UpdatedAt') IS NULL
+      ALTER TABLE dbo.GmsDailyPerformance ADD UpdatedAt DATETIME2 NULL;
   `);
 } };
