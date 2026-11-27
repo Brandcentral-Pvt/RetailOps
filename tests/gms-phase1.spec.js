@@ -223,14 +223,14 @@ test('latest observed reporting date is an explicit date-range action',async({pa
 async function modalGeometry(modal){
   return modal.evaluate(el=>{
     const bounds=node=>{const r=node.getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,height:r.height};};
-    const shell=el.querySelector('.ant-modal-container,.ant-modal-content');
-    const content=el.querySelector('.ant-tabs-tabpane-active .gms-import-scroll');
+    const shell=el.querySelector('.gms-import-shell');
+    const content=el.querySelector('.gms-import-panel:not([hidden]) .gms-import-scroll');
     return {
-      shell:bounds(shell),header:bounds(el.querySelector('.ant-modal-header')),
-      tabs:bounds(el.querySelector('.ant-tabs-nav')),footer:bounds(el.querySelector('.ant-modal-footer')),
-      scroll:{client:content.clientHeight,height:content.scrollHeight,top:content.scrollTop},
+      shell:bounds(shell),header:bounds(el.querySelector('.gms-import-header')),
+      tabs:bounds(el.querySelector('.gms-import-tabs')),footer:bounds(el.querySelector('.gms-import-footer')),
+      scroll:{client:content.clientHeight,height:content.scrollHeight,top:content.scrollTop,overflow:getComputedStyle(content).overflowY},
       viewport:{width:window.innerWidth,height:window.innerHeight},
-      wrapScroll:el.closest('.ant-modal-wrap').scrollTop
+      wrapScroll:el.closest('.gms-import-wrap').scrollTop
     };
   });
 }
@@ -242,6 +242,8 @@ function expectContained(g){
   expect(g.footer.bottom).toBeLessThanOrEqual(g.shell.bottom+1);
   expect(g.header.top).toBeGreaterThanOrEqual(g.shell.top-1);
   expect(g.wrapScroll).toBe(0);
+  expect(g.scroll.client).toBeGreaterThan(0);
+  expect(g.scroll.overflow).toBe('auto');
 }
 test('import modal remains fixed while history and validation content scroll',async({page})=>{
   await page.setViewportSize({width:1280,height:620});
@@ -256,15 +258,20 @@ test('import modal remains fixed while history and validation content scroll',as
   const first=await modalGeometry(modal);
   expectContained(first);
   expect(first.scroll.height).toBeGreaterThan(first.scroll.client);
-  await history.evaluate(el=>{el.scrollTop=el.scrollHeight;});
-  await expect.poll(async()=>(await modalGeometry(modal)).scroll.top).toBeGreaterThan(0);
+  // Real wheel input over the table, not programmatic scrollTop assignment.
+  await history.getByText('report-history-01.xlsx',{exact:true}).hover();
+  await page.mouse.wheel(0,1800);
+  await expect.poll(async()=>{const {scroll}=await modalGeometry(modal);return scroll.height-scroll.client-scroll.top;}).toBeLessThan(3);
+  await expect(history.getByText('1-10 of 23 batches',{exact:true})).toBeInViewport();
   const scrolled=await modalGeometry(modal);
   expectContained(scrolled);
   expect(Math.abs(scrolled.header.top-first.header.top)).toBeLessThan(2);
   expect(Math.abs(scrolled.tabs.top-first.tabs.top)).toBeLessThan(2);
   expect(Math.abs(scrolled.footer.bottom-first.footer.bottom)).toBeLessThan(2);
   await expect(modal.getByRole('button',{name:'Close',exact:true}).last()).toBeInViewport();
-  await history.evaluate(el=>{el.scrollTop=0;});
+  await history.focus();
+  await page.keyboard.press('Home');
+  await expect.poll(async()=>(await modalGeometry(modal)).scroll.top).toBe(0);
   await history.getByRole('button',{name:/View import report-history-01.xlsx/}).click();
   await expect(modal.getByText('Validation passed',{exact:true})).toBeVisible();
   await expect(modal.getByRole('button',{name:'Confirm import',exact:true})).toBeInViewport();
@@ -291,8 +298,9 @@ test('mobile import dialog keeps footer and tabs accessible with long error repo
   await expect(content.getByText('Report rejected',{exact:true})).toBeVisible();
   await expect.poll(async()=>(await modalGeometry(modal)).scroll.height>(await modalGeometry(modal)).scroll.client).toBe(true);
   const initial=await modalGeometry(modal);
-  await content.evaluate(el=>{el.scrollTop=el.scrollHeight;});
-  await expect.poll(async()=>(await modalGeometry(modal)).scroll.top).toBeGreaterThan(0);
+  await content.hover({position:{x:18,y:Math.min(100,initial.scroll.client-10)}});
+  await page.mouse.wheel(0,4000);
+  await expect.poll(async()=>{const {scroll}=await modalGeometry(modal);return scroll.height-scroll.client-scroll.top;}).toBeLessThan(3);
   const after=await modalGeometry(modal);
   expectContained(after);
   expect(Math.abs(after.header.top-initial.header.top)).toBeLessThan(2);
@@ -300,7 +308,19 @@ test('mobile import dialog keeps footer and tabs accessible with long error repo
   await expect(modal.getByRole('button',{name:'New report',exact:true})).toBeInViewport();
   await expect(modal.getByRole('button',{name:'Confirm import',exact:true})).toHaveCount(0);
   await modal.getByRole('tab',{name:'My import history',exact:true}).click();
-  await expect(modal.getByRole('region',{name:'Import history content'})).toBeVisible();
+  const mobileHistory=modal.getByRole('region',{name:'Import history content'});
+  await expect(mobileHistory).toBeVisible();
+  await expect(mobileHistory.getByText('report-history-02.xlsx',{exact:true})).toBeVisible();
+  expectContained(await modalGeometry(modal));
+  await mobileHistory.focus();
+  await page.keyboard.press('End');
+  await expect.poll(async()=>(await modalGeometry(modal)).scroll.top).toBeGreaterThan(0);
+  await expect(modal.getByRole('button',{name:'Close',exact:true}).last()).toBeInViewport();
+  const historyTab=modal.getByRole('tab',{name:'My import history',exact:true});
+  await historyTab.focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(modal.getByRole('tab',{name:'Import report',exact:true})).toHaveAttribute('aria-selected','true');
+  await expect(content.getByText('Report rejected',{exact:true})).toBeVisible();
   expectContained(await modalGeometry(modal));
   expect(state.commits()).toBe(0);
   await modal.getByRole('button',{name:'Close',exact:true}).last().click();
