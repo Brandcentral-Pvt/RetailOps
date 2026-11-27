@@ -121,7 +121,7 @@ app.use(apiCallLogger);
 const path = require('path');
 const requestGuard = require('./middleware/requestGuard');
 app.use(requestGuard);
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', require('./middleware/privateExportFiles'), express.static(path.join(__dirname, 'uploads')));
 app.use('/tools', express.static(path.join(__dirname, 'public')));
 
 // SQL Server connection verification
