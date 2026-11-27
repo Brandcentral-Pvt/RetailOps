@@ -27,7 +27,7 @@ function presentIssue(raw) {
     case 'HEADER': {
       const key=message.split(':').pop().trim();
       column=labels[key]||column||'Column headings';
-      remarks=labels[key]
+      remarks=key==='productTitle'?'The optional Product Title heading appears more than once. Keep only one Product Title column.':labels[key]
         ? 'The '+labels[key]+' column is missing or appears more than once. Keep exactly one column with this heading in row 1.'
         : 'Check the column headings against the GMS upload template. Keep each required heading exactly once in row 1.';
       break;
