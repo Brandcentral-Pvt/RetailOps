@@ -6,7 +6,6 @@ const path = require('path');
 const SocketService = require('../services/socketService');
 const { buildInClause } = require('../utils/sqlHelpers');
 const { resolveAccessProfile } = require('../services/accessProfileService');
-const { resolveSellerScope, bindSellerFilter } = require('../utils/sellerScope');
 const { exportWindow } = require('../utils/gmsPhase1');
 const { filterSpec, queryFacts, buildAnalytics, loadAnalytics } = require('../services/gmsAnalyticsService');
 
