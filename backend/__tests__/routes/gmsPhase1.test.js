@@ -139,6 +139,27 @@ describe('GMS route security', () => {
     expect((await request(app).get('/api/upload/gms-data')).body.data).toEqual([]);
     expect(mockPool.calls).toHaveLength(0);
   });
+  test('error report download requires import permission, owner and a valid format', async () => {
+    expect((await request(app).get('/api/upload/gms-imports/foreign/errors?format=xlsx')).status).toBe(403);
+    mockUser.permissions.push('gms_tracker_import');
+    expect((await request(app).get('/api/upload/gms-imports/foreign/errors?format=json')).status).toBe(400);
+    expect(mockPool.calls).toHaveLength(0);
+    expect((await request(app).get('/api/upload/gms-imports/foreign/errors?format=csv')).status).toBe(404);
+    expect(mockPool.calls[0].sql).toContain('Id=@id AND OwnerId=@owner');
+    expect(mockPool.calls[0].inputs).toEqual({id:'foreign',owner:'u1'});
+  });
+  test('owner downloads readable CSV from stored full diagnostics', async () => {
+    mockUser.permissions.push('gms_tracker_import');
+    const issue={row:755,asin:'B000000001',date:'2026-11-27',brand:'Brand A',code:'ASIN_AMBIGUOUS',message:'RetailOps contains this ASIN under multiple seller IDs'};
+    mockPool=makeFakePool([{match:/IssueReportJson FROM GmsImportJobs/,rows:[{Id:'batch1',FileName:'101-gms.xlsx',Status:'REJECTED',SummaryJson:JSON.stringify({invalid:1,issues:[issue]}),IssueReportJson:JSON.stringify([issue])}]}]);
+    const res=await request(app).get('/api/upload/gms-imports/batch1/errors?format=csv');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-disposition']).toContain('101-gms_error_report.csv');
+    expect(res.headers['cache-control']).toContain('no-store');
+    expect(res.text).toContain('B000000001');
+    expect(res.text).toContain('Ask your administrator');
+    expect(res.text).not.toContain('ASIN_AMBIGUOUS');
+  });
   test('invalid export date rejected before job creation', async () => {
     mockUser.permissions.push('gms_tracker_export');
     expect((await request(app).post('/api/export/start-gms').send({ exportDateType: 'current', startDate: 'invalid', endDate: '2026-11-27' })).status).toBe(400);
