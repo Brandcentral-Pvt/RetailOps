@@ -1,0 +1,71 @@
+/* The shared header imports this stylesheet directly. No Tailwind utilities or
+   legacy .shadcn-header selectors are required for its geometry. */
+.ro-global-header.global-header {
+  box-sizing:border-box; width:100%; flex:0 0 auto; height:64px;
+  min-width:0; min-height:64px; padding:0 20px;
+  display:flex; flex-flow:row nowrap; align-items:center; gap:16px;
+  background:var(--bc-white,#fff); border-bottom:1px solid var(--bc-border-default,#e2e8f0);
+  position:relative; z-index:100; overflow:visible; color:var(--bc-slate-900,#0f172a);
+  container-type:inline-size;
+}
+.ro-header-leading { display:flex; align-items:center; min-width:0; flex:1 1 220px; gap:8px; }
+.ro-header-page { display:flex; flex-direction:column; justify-content:center; gap:2px; min-width:0; max-width:100%; }
+.ro-header-breadcrumb { font-size:11px; line-height:16px; overflow:hidden; white-space:nowrap; }
+.ro-header-breadcrumb ol { flex-wrap:nowrap; }
+.ro-header-title.ant-typography { display:block; margin:0; font-size:15px; line-height:21px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--bc-slate-900,#0f172a); }
+.ro-header-search { flex:1 1 320px; max-width:460px; min-width:36px; }
+.ro-header-search-trigger.ant-btn { display:flex; align-items:center; width:100%; height:36px; padding:0 10px; gap:8px; text-align:left; box-shadow:none; background:var(--bc-slate-50,#f8fafc); border-color:var(--bc-border-default,#e2e8f0); }
+.ro-header-search-trigger.ant-btn > span:not(.ant-btn-icon) { min-width:0; }
+.ro-header-search-label { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--bc-slate-600,#475569); }
+.ro-header-shortcut { flex:none; font-size:11px; line-height:18px; border:1px solid var(--bc-border-default,#e2e8f0); padding:0 5px; border-radius:4px; color:var(--bc-slate-600,#475569); background:var(--bc-white,#fff); }
+.ro-header-actions { display:flex; flex-flow:row nowrap; align-items:center; justify-content:flex-end; gap:6px; flex:none; min-width:0; }
+.ro-header-actions > * { flex-shrink:0; }
+.ro-header-divider.ant-divider-vertical { height:24px; margin:0 3px; }
+.ro-header-mobile-toggle.ant-btn { display:none; }
+.ro-header-actions .ro-header-icon.ant-btn, .ro-header-mobile-toggle.ant-btn { width:36px; height:36px; align-items:center; justify-content:center; padding:0; }
+.ro-header-date-trigger.ant-btn { height:38px; gap:8px; padding:0 10px; box-shadow:none; }
+.ro-header-date-label { display:flex; flex-direction:column; align-items:flex-start; line-height:15px; }
+.ro-header-date-preset { font-size:10px; font-weight:600; color:var(--bc-slate-600,#475569); }
+.ro-header-date-range { font-size:12px; font-weight:500; white-space:nowrap; }
+.ro-header-date-content { width:min(300px,calc(100vw - 48px)); }
+.ro-header-date-presets { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; margin:8px 0 12px; }
+.ro-header-date-presets .ant-btn { text-align:left; justify-content:flex-start; }
+.ro-header-date-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:8px 0 12px; }
+.ro-header-date-fields label { display:flex; flex-direction:column; gap:4px; min-width:0; font-size:12px; }
+.ro-header-date-fields .ant-picker { width:100%; }
+.ro-header-user-trigger.ant-btn { height:42px; padding:3px 6px; border-radius:8px; }
+.ro-header-user-trigger.ant-btn > .ant-space { max-width:190px; }
+.ro-header-avatar.ant-avatar { background:var(--bc-ro-500,#1976d2); flex:none; font-weight:600; font-size:12px; }
+.ro-header-user-details { display:flex; flex-direction:column; min-width:0; max-width:110px; text-align:left; line-height:16px; }
+.ro-header-user-name { font-weight:600; font-size:12px; color:var(--bc-slate-900,#0f172a); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ro-header-user-role { color:var(--bc-slate-600,#475569); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ro-header-user-chevron { font-size:10px; color:var(--bc-slate-600,#475569); }
+.ro-header-user-dropdown { min-width:220px; max-width:calc(100vw - 24px); padding:5px; border:1px solid var(--bc-border-default,#e2e8f0); background:var(--bc-white,#fff); border-radius:10px; }
+.ro-header-user-dropdown-intro { display:flex; flex-direction:column; padding:10px 12px; border-bottom:1px solid var(--bc-border-default,#e2e8f0); margin-bottom:5px; }
+.ro-header-user-dropdown-intro > * { max-width:240px; }
+.ro-global-header button:focus-visible { outline:2px solid var(--bc-ro-500,#1976d2); outline-offset:2px; }
+@container (max-width:1000px) {
+  .ro-header-user-details,.ro-header-user-chevron { display:none; }
+  .ro-header-shortcut { display:none; }
+}
+@container (max-width:700px) {
+  .ro-header-search { flex:0 0 36px; }
+  .ro-header-search-trigger.ant-btn { justify-content:center; padding:0; background:transparent; border-color:transparent; }
+  .ro-header-search-label,.ro-header-shortcut,.ro-header-divider { display:none; }
+  .ro-header-date-trigger.ant-btn { width:36px; height:36px; justify-content:center; padding:0; border-color:transparent; }
+  .ro-header-date-label,.ro-header-date-chevron { display:none; }
+  .ro-header-leading { flex:1 1 0; }
+  .ro-header-breadcrumb { display:none; }
+  .ro-header-actions { gap:2px; }
+  .ro-header-user-trigger.ant-btn { padding:2px; }
+}
+@media (max-width:991px) {
+  .ro-global-header.global-header { height:60px; min-height:60px; gap:8px; padding:0 12px; }
+  .ro-header-mobile-toggle.ant-btn { display:inline-flex; flex:none; }
+}
+@media (max-width:400px) {
+  .ro-global-header.global-header { gap:4px; padding:0 6px; }
+  .ro-header-leading { gap:3px; }
+  .ro-header-title.ant-typography { font-size:13px; }
+  .ro-header-actions { gap:0; }
+}
