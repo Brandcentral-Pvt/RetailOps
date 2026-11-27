@@ -1,0 +1,69 @@
+name: GMS Phase 1 Regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/pages/GmsTrackerPage.jsx'
+      - 'src/services/api.js'
+      - 'backend/controllers/uploadController.js'
+      - 'backend/controllers/exportController.js'
+      - 'backend/controllers/roleController.js'
+      - 'backend/routes/uploadRoutes.js'
+      - 'backend/routes/exportRoutes.js'
+      - 'backend/utils/gmsPhase1.js'
+      - 'backend/migrations/090_gms_delete_permission.js'
+      - 'backend/__tests__/routes/gmsPhase1.test.js'
+      - 'tests/gms-phase1.spec.js'
+      - 'tests/fixtures/gms-phase1.*'
+      - '.github/workflows/gms-phase1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - name: Check modified backend syntax
+        working-directory: backend
+        run: |
+          node --check controllers/uploadController.js
+          node --check controllers/exportController.js
+          node --check controllers/roleController.js
+          node --check routes/uploadRoutes.js
+          node --check routes/exportRoutes.js
+          node --check utils/gmsPhase1.js
+          node --check migrations/090_gms_delete_permission.js
+      - run: npm test -- --runInBand __tests__/routes/gmsPhase1.test.js
+        working-directory: backend
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test tests/gms-phase1.spec.js
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gms-playwright-results
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
