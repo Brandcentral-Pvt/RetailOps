@@ -1,0 +1,57 @@
+/* Scoped Ant Design toolbar. Do not override unrelated application components. */
+.ro-global-header.global-header {
+  box-sizing: border-box;
+  width: 100%;
+  height: 68px;
+  min-height: 68px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  background: var(--bc-white, #fff);
+  border-bottom: 1px solid var(--bc-border-default, #e5e7eb);
+  overflow: visible;
+  position: relative;
+  z-index: 100;
+}
+.ro-header-leading { display:flex; align-items:center; min-width:0; flex:0 1 280px; }
+.ro-header-page { display:flex; flex-direction:column; justify-content:center; gap:3px; min-width:0; max-width:100%; }
+.ro-header-breadcrumb { font-size:11px; line-height:16px; white-space:nowrap; overflow:hidden; }
+.ro-header-breadcrumb .ant-breadcrumb-link { white-space:nowrap; }
+.ro-header-title.ant-typography { display:block; font-size:15px; line-height:21px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--bc-slate-900, #0f172a); }
+.ro-header-search { flex:1 1 340px; max-width:520px; min-width:120px; }
+.ro-header-search-trigger.ant-btn { display:flex; align-items:center; width:100%; height:38px; padding:0 12px; gap:10px; text-align:left; box-shadow:none; background:var(--bc-slate-50, #f8fafc); border-color:var(--bc-border-default, #e2e8f0); }
+.ro-header-search-label { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--bc-slate-500, #64748b); }
+.ro-header-shortcut { flex:none; font-size:11px; line-height:18px; border:1px solid var(--bc-border-default, #e2e8f0); padding:0 6px; border-radius:4px; color:var(--bc-slate-500, #64748b); background:white; }
+.ro-header-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex:none; min-width:0; }
+.ro-header-actions .header-icon-btn { width:36px; height:36px; }
+.ro-header-actions .date-range-trigger { min-height:38px; }
+.ro-header-divider.ant-divider-vertical { height:24px; margin:0 4px; }
+.ro-header-mobile-toggle.ant-btn, .ro-header-search-mobile.ant-btn { display:none; }
+.ro-header-actions > * { flex-shrink:0; }
+@media (max-width:1199px) {
+  .ro-global-header.global-header { padding:0 16px; gap:16px; }
+  .ro-header-leading { flex-basis:210px; }
+  .ro-header-search { max-width:420px; }
+  .ro-header-actions { gap:4px; }
+}
+@media (max-width:991px) {
+  .ro-global-header.global-header { height:60px; min-height:60px; gap:12px; padding:0 12px; }
+  .ro-header-mobile-toggle.ant-btn { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; margin-right:8px; flex:none; }
+  .ro-header-leading { flex:1 1 auto; }
+  .ro-header-search { display:none; }
+  .ro-header-search-mobile.ant-btn { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; }
+}
+@media (max-width:700px) {
+  .ro-header-date, .ro-header-date-divider { display:none !important; }
+  .ro-header-account-divider { display:none; }
+  .ro-header-breadcrumb { display:none; }
+  .ro-header-title.ant-typography { max-width:clamp(90px, 28vw, 200px); }
+  .ro-global-header.global-header { gap:6px; }
+  .ro-header-actions { gap:1px; }
+}
+@media (max-width:380px) {
+  .ro-header-title.ant-typography { max-width:95px; font-size:13px; }
+  .ro-header-actions .header-icon-btn { width:32px; height:32px; }
+}
