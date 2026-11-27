@@ -452,7 +452,7 @@ exports.changePasswordWithOtp = async (req, res) => {
 
     const historyResult = await pool.request()
       .input('id', sql.VarChar, decoded.userId)
-      .query('SELECT TOP 5 PasswordHash FROM PasswordHistory WHERE UserId = @id ORDER BY ChangedAt DESC');
+      .query('SELECT TOP 5 PasswordHash FROM PasswordHistory WHERE UserId = @id ORDER BY CreatedAt DESC');
     for (const row of historyResult.recordset) {
       if (await bcrypt.compare(newPassword, row.PasswordHash)) {
         return res.status(400).json({ success: false, message: 'Cannot reuse last 5 passwords' });
@@ -466,7 +466,7 @@ exports.changePasswordWithOtp = async (req, res) => {
       .input('id', sql.VarChar, decoded.userId)
       .input('hash', sql.NVarChar, user.Password)
       .input('hid', sql.VarChar, histId)
-      .query('INSERT INTO PasswordHistory (Id, UserId, PasswordHash, ChangedAt) VALUES (@hid, @id, @hash, dbo.GetEnvDate())');
+      .query('INSERT INTO PasswordHistory (Id, UserId, PasswordHash, CreatedAt) VALUES (@hid, @id, @hash, dbo.GetEnvDate())');
 
     await pool.request()
       .input('id', sql.VarChar, decoded.userId)
@@ -504,7 +504,7 @@ exports.changePassword = async (req, res) => {
 
     const historyResult = await pool.request()
       .input('id', sql.VarChar, req.userId)
-      .query('SELECT TOP 5 PasswordHash FROM PasswordHistory WHERE UserId = @id ORDER BY ChangedAt DESC');
+      .query('SELECT TOP 5 PasswordHash FROM PasswordHistory WHERE UserId = @id ORDER BY CreatedAt DESC');
     for (const row of historyResult.recordset) {
       if (await bcrypt.compare(newPassword, row.PasswordHash)) {
         return res.status(400).json({ success: false, message: 'Cannot reuse last 5 passwords' });
@@ -518,7 +518,7 @@ exports.changePassword = async (req, res) => {
       .input('id', sql.VarChar, req.userId)
       .input('hash', sql.NVarChar, user.Password)
       .input('hid', sql.VarChar, histId)
-      .query('INSERT INTO PasswordHistory (Id, UserId, PasswordHash, ChangedAt) VALUES (@hid, @id, @hash, dbo.GetEnvDate())');
+      .query('INSERT INTO PasswordHistory (Id, UserId, PasswordHash, CreatedAt) VALUES (@hid, @id, @hash, dbo.GetEnvDate())');
 
     await pool.request()
       .input('id', sql.VarChar, req.userId)

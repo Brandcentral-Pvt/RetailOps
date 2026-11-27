@@ -80,7 +80,7 @@ class SetupWizardService {
     }
 
     const history = await pool.request().input('id', sql.VarChar, userId)
-      .query('SELECT TOP 5 PasswordHash FROM PasswordHistory WHERE UserId = @id ORDER BY ChangedAt DESC');
+      .query('SELECT TOP 5 PasswordHash FROM PasswordHistory WHERE UserId = @id ORDER BY CreatedAt DESC');
     for (const row of history.recordset) {
       if (await bcrypt.compare(newPassword, row.PasswordHash)) {
         throw new Error('Cannot reuse last 5 passwords');
@@ -102,7 +102,7 @@ class SetupWizardService {
 
     const histId = require('crypto').randomBytes(12).toString('hex');
     await pool.request().input('id', sql.VarChar, userId).input('hash', sql.NVarChar, user.Password).input('hid', sql.VarChar, histId)
-      .query('INSERT INTO PasswordHistory (Id, UserId, PasswordHash, ChangedAt) VALUES (@hid, @id, @hash, GETDATE())');
+      .query('INSERT INTO PasswordHistory (Id, UserId, PasswordHash, CreatedAt) VALUES (@hid, @id, @hash, GETDATE())');
     return { success: true };
   }
 

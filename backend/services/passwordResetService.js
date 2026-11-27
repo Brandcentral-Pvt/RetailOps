@@ -91,7 +91,7 @@ class PasswordResetService {
     }
     const history = await pool.request()
       .input('userId', sql.VarChar, validation.userId)
-      .query('SELECT TOP 5 PasswordHash FROM PasswordHistory WHERE UserId = @userId ORDER BY ChangedAt DESC');
+      .query('SELECT TOP 5 PasswordHash FROM PasswordHistory WHERE UserId = @userId ORDER BY CreatedAt DESC');
     for (const row of history.recordset) {
       if (await bcrypt.compare(newPassword, row.PasswordHash)) {
         return { success: false, message: 'Cannot reuse last 5 passwords' };
@@ -118,7 +118,7 @@ class PasswordResetService {
       .input('id', sql.VarChar, historyId)
       .input('userId', sql.VarChar, validation.userId)
       .input('passwordHash', sql.NVarChar, user.Password)
-      .query('INSERT INTO PasswordHistory (Id, UserId, PasswordHash, ChangedAt) VALUES (@id, @userId, @passwordHash, dbo.GetEnvDate())');
+      .query('INSERT INTO PasswordHistory (Id, UserId, PasswordHash, CreatedAt) VALUES (@id, @userId, @passwordHash, dbo.GetEnvDate())');
 
     await pool.request()
       .input('token', sql.NVarChar, token)

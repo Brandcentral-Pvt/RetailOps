@@ -54,6 +54,7 @@ class LiveDataSyncService extends EventEmitter {
             maxConcurrency: 1,            // One seller at a time
             scraperEnrichment: process.env.LIVE_SYNC_SCRAPER_ENRICHMENT === 'true',
             scraperTimeout: parseInt(process.env.LIVE_SYNC_SCRAPER_TIMEOUT || '25000', 10),
+            fallbackToScraperOnTpd: process.env.LIVE_SYNC_FALLBACK_TO_SCRAPER === 'true',
         };
 
         this._sdkClients = new Map();          // credId -> DefaultApi instance (cached SDK client)
@@ -334,6 +335,16 @@ class LiveDataSyncService extends EventEmitter {
 
             if (stats.pausedReason) {
                 console.log(`Live sync PAUSED: Seller ${sellerIdStr} ({ stats }), ${stats.pendingAsinCodes.length} ASINs deferred until account recovers`);
+
+                // Fallback to in-house scraper when TPD/throttle hits and config enabled
+                if (this._config.fallbackToScraperOnTpd && stats.pendingAsinCodes.length > 0) {
+                    console.log(`🔄 TPD/Throttle fallback: triggering full scraper for ${stats.pendingAsinCodes.length} pending ASINs`);
+                    try {
+                        await this._scrapeFallbackForSeller(sellerIdStr, stats.pendingAsinCodes, stats, sellerName);
+                    } catch (scrapeErr) {
+                        console.error(`  ⚠ Scraper fallback failed: ${scrapeErr.message}`);
+                    }
+                }
             } else {
                 console.log(`Live sync complete: Seller ${sellerIdStr}`, {
                     success: stats.successCount,
@@ -516,7 +527,7 @@ class LiveDataSyncService extends EventEmitter {
             FROM Sellers s
             JOIN Asins a ON a.SellerId = s.Id
             WHERE s.IsActive = 1 AND a.Status = 'Active' AND a.AsinCode LIKE 'B0%'
-            GROUP BY s.Id, s.Name
+            GROUP BY s.Id, s.Name, s.SyncPriority
             HAVING COUNT(a.Id) > 0
         `;
         const request = pool.request();
@@ -525,7 +536,7 @@ class LiveDataSyncService extends EventEmitter {
             sellerIds.forEach((id, i) => request.input(`sellerId${i}`, sql.VarChar, id));
         }
         sellersQuery += `
-            ORDER BY (COUNT(a.Id) - ISNULL(SUM(CASE WHEN (${hardPredicate}) THEN 1 ELSE 0 END), 0)) DESC, s.Name
+            ORDER BY ISNULL(s.SyncPriority, 999), s.Name
         `;
 
         const sellersResult = await request.query(sellersQuery);
@@ -646,12 +657,14 @@ class LiveDataSyncService extends EventEmitter {
                 });
 
                 // TPD is permanent for the day — don't waste completeness retries.
-                if (sellerResult.pausedReason === 'CREATORS_TPD') {
-                    console.log(`  ${progress} ⏸️  ${seller.Name}: TPD exhausted, deferring remaining ${sellerResult.pendingAsinsCount || 0} ASIN(s) to a later run.`);
+                // 429 throttle is temporary but can last hours — skip completeness retries
+                // and defer to next run rather than burning retries on same throttle.
+                if (sellerResult.pausedReason === 'CREATORS_TPD' || sellerResult.pausedReason === 'CREATORS_THROTTLED') {
+                    console.log(`  ${progress} ⏸️  ${seller.Name}: ${sellerResult.pausedReason}, deferring remaining ${sellerResult.pendingAsinsCount || 0} ASIN(s) to a later run.`);
                     await LiveSyncTracker.completeSeller(seller.Id, 'PARTIAL', sellerResult.pausedReason);
                     results.push({
                         sellerId: seller.Id, name: seller.Name,
-                        status: 'PARTIAL', pausedReason: 'CREATORS_TPD',
+                        status: 'PARTIAL', pausedReason: sellerResult.pausedReason,
                         updated: sellerResult.updatedAsins || 0, failed: sellerResult.failedAsins || 0,
                         pending: sellerResult.pendingAsinsCount || 0,
                         duration: sellerResult.duration || 0
@@ -2089,7 +2102,85 @@ class LiveDataSyncService extends EventEmitter {
         }
     }
 
-    _createBatches(items, size) {
+    /**
+   * Full scraper fallback when TPD/throttle hits — scrapes all pending ASINs
+   * using the in-house Playwright scraper (same as Ajio flow).
+   */
+  async _scrapeFallbackForSeller(sellerId, pendingAsinCodes, stats, sellerName = null) {
+    console.log(`  🕷️  Scraper fallback: starting full scrape for ${pendingAsinCodes.length} ASINs`);
+    this._globalSyncProgress.currentSeller.status = 'SCRAPING_FALLBACK';
+    this._publishGlobalSyncState();
+
+    const scraperRunner = require('./playwrightScraperRunner');
+    const sellerNameSafe = sellerName || sellerId;
+
+    // Process in chunks to respect scraper concurrency
+    const chunkSize = parseInt(process.env.SCRAPER_FALLBACK_CHUNK_SIZE || '50', 10);
+    let processed = 0;
+    let scraped = 0;
+    let failed = 0;
+
+    for (let i = 0; i < pendingAsinCodes.length; i += chunkSize) {
+      if (await this._isGlobalSyncAborted()) break;
+
+      const chunk = pendingAsinCodes.slice(i, i + chunkSize);
+      console.log(`  🕷️  Scraper fallback: chunk ${Math.floor(i / chunkSize) + 1}/${Math.ceil(pendingAsinCodes.length / chunkSize)} (${chunk.length} ASINs)`);
+
+      try {
+        // Use the same scraper runner as the scheduled scraper sync
+        const job = await scraperRunner.startJob({
+          sellerId,
+          asins: chunk,
+          userId: null,
+          options: { timeout: this._config.scraperTimeout }
+        });
+
+        // Wait for job completion
+        const result = await scraperRunner.waitForJob(job.jobId, {
+          timeoutMs: Math.max(this._config.scraperTimeout * chunk.length, 5 * 60 * 1000)
+        });
+
+        processed += chunk.length;
+        scraped += result.completedAsins || 0;
+        failed += result.failedAsins || 0;
+
+        stats.successCount += result.completedAsins || 0;
+        stats.failedCount += result.failedAsins || 0;
+        stats.failedAsinCodes = stats.failedAsinCodes.filter(c => !chunk.includes(c));
+        stats.pendingAsinCodes = stats.pendingAsinCodes.filter(c => !chunk.includes(c));
+
+        console.log(`  🕷️  Scraper fallback: chunk done — ${result.completedAsins || 0} ok, ${result.failedAsins || 0} failed`);
+
+        // Small delay between chunks
+        if (i + chunkSize < pendingAsinCodes.length) {
+          await this._delay(2000);
+        }
+
+      } catch (chunkErr) {
+        console.error(`  ⚠ Scraper fallback chunk failed: ${chunkErr.message}`);
+        failed += chunk.length;
+      }
+    }
+
+    // Update stats
+    stats.successCount += scraped;
+    stats.failedCount += failed;
+    stats.pendingAsinCodes = []; // All attempted
+    stats.pausedReason = null; // Cleared — we attempted scrapers
+
+    console.log(`  ✅ Scraper fallback complete: ${scraped} scraped, ${failed} failed`);
+    this._globalSyncProgress.currentSeller.status = 'SCRAPING_FALLBACK_DONE';
+    this._publishGlobalSyncState();
+
+    // Recalculate completeness
+    try {
+      const asinCompletenessService = require('./asinCompletenessService');
+      const completeness = await asinCompletenessService.getSellerCompleteness(sellerId);
+      console.log(`  📊 Post-fallback completeness: ${completeness.complete}/${completeness.total} (${completeness.percent}%)`);
+    } catch (e) { /* ignore */ }
+  }
+
+  _createBatches(items, size) {
         const batches = [];
         for (let i = 0; i < items.length; i += size) {
             batches.push(items.slice(i, i + size));
