@@ -2,7 +2,7 @@
 // Retain stable internal codes for diagnostics; never display SQL details or
 // guess an ASIN for a file-level error or an old history entry.
 const labels = {
-  asin:'ASIN', date:'Date', brand:'Brand', storeCode:'StoreCode',
+  asin:'ASIN', date:'Date', brand:'Brand', storeCode:'StoreCode', productTitle:'Product Title',
   orderedRevenue:'Ordered Revenue', orderedUnits:'Ordered Units',
   shippedRevenue:'Shipped Revenue', shippedCOGS:'Shipped COGS',
   shippedUnits:'Shipped Units', customerReturns:'Customer Returns',
@@ -55,6 +55,8 @@ function presentIssue(raw) {
         column='ASIN';remarks='Enter a valid 10-character Amazon ASIN using letters and numbers. Check for missing characters, extra characters or a blank ASIN.';
       }else if(/date|reporting years|YYYY/i.test(message)){
         column='Date';remarks='Enter a valid reporting date, such as 2026-11-27 or 27/11/2026. Check that the day and month exist and the year is between 2000 and 2099.';
+      }else if(/product title/i.test(message)){
+        column='Product Title';remarks='The product title exceeds the Excel text limit. Check the original product title and shorten it to 32,767 characters or fewer.';
       }else if(/brand/i.test(message)){
         column='Brand';remarks='Keep the brand name within 255 characters. Check the brand in the original report.';
       }else if(/store|marketplace|Amazon India/i.test(message)){
