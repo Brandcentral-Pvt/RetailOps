@@ -57,8 +57,8 @@ export default function GmsReportToolbar({startDate,endDate,onDateRangeChange,se
       </Row>
       {metadataError&&<Alert type="warning" showIcon title="Filter options unavailable" description={metadataError}/>}
       {meta&&!reportLoading&&<Flex align="center" wrap gap={8} role="note" aria-label="Dataset summary" className="gms-dataset-strip">
-        <Tag>{formatCount(meta.records)} daily records</Tag><Tag>{formatCount(meta.asins)} ASINs</Tag><Tag>{formatCount(meta.sellers)} sellers</Tag>
-        <Tag color={meta.unmatchedRecords?'warning':'default'}>{formatCount(meta.unmatchedRecords??0)} unmatched records</Tag>
+        <Tag>{formatCount(meta.records)} daily records</Tag><Tag>{formatCount(meta.asins)} ASINs</Tag><Tag>{formatCount(meta.sellers)} {meta.sellers===1?'seller':'sellers'}</Tag>
+        <Tooltip title="Unmatched daily records remain in authorized totals; Seller (DB) is shown as a dash until RetailOps resolves the assignment."><Tag color={meta.unmatchedRecords?'warning':'default'}>{formatCount(meta.unmatchedRecords??0)} unmatched records</Tag></Tooltip>
         {meta.last&&<Text type="secondary">Last report: {dayjs(meta.last).format('DD MMM YYYY')}</Text>}
         {!!filters&&<Button size="small" type="link" onClick={onReset}>Clear all filters</Button>}
       </Flex>}
