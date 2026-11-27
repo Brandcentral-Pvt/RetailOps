@@ -199,7 +199,8 @@ function buildAnalytics(raw,{window,filters={},level='asin',groups=null,includeO
   }
   return {matrixRows,monthGroups,...(includeOverview?buildOverview(facts,window):{})};
 }
-async function queryFacts(pool,user,window,filters={}){
+async function queryFacts(pool,user,window,filters={}, {signal}={}){
+  if(signal?.aborted)throw new Error('GMS query cancelled');
   const scope=resolveSellerScope(user),spec=filterSpec(filters);
   if(scope.empty||spec.sellerIds?.length===0)return [];
   const q=pool.request();let where='WHERE 1=1';
@@ -214,6 +215,9 @@ async function queryFacts(pool,user,window,filters={}){
     where+=' AND EXISTS (SELECT 1 FROM OPENJSON(@sellerIds) j WHERE j.value=COALESCE(g.SellerId,a.SellerId))';
   }
   // Money is read as exact decimal text, not an imprecise JS float.
+  const cancel=()=>{try{q.cancel?.();}catch(_){}};
+  signal?.addEventListener('abort',cancel,{once:true});
+  try {
   const result=await q.query(
     'SELECT CONVERT(char(10),g.Date,23) AS date,g.Asin AS asin,g.Brand AS brand,g.StoreCode AS storeCode,'+
     'CONVERT(varchar(50),g.OrderedRevenue) AS orderedRevenue,g.OrderedUnits AS orderedUnits,'+
@@ -222,14 +226,15 @@ async function queryFacts(pool,user,window,filters={}){
     'FROM GmsDailyPerformance g '+gmsCatalogApplySql+' LEFT JOIN Sellers s ON COALESCE(g.SellerId,a.SellerId)=s.Id '+where+' ORDER BY g.Date DESC,g.Asin,g.Id'
   );
   return result.recordset.filter(r=>r.date);
+  }finally{signal?.removeEventListener('abort',cancel);}
 }
-async function loadAnalytics(pool,user,options){
+async function loadAnalytics(pool,user,options,requestOptions={}){
   const window=dateWindow(options.startDate,options.endDate,{required:true});
   const prior=priorWindow(window);
   // Include history needed by an entire prior month and exact previous days.
   const from=[prior.from,monthOffset(window.from,-1),shift(window.from,-7)].sort()[0];
   const filters=filterSpec(options);
-  const facts=await queryFacts(pool,user,{from,to:window.to},filters);
+  const facts=await queryFacts(pool,user,{from,to:window.to},filters,requestOptions);
   return buildAnalytics(facts,{window,filters,level:options.level??'asin'});
 }
 module.exports={filterSpec,selectFacts,priorWindow,isoWeek,weekKey,buildGroups,buildOverview,buildAnalytics,queryFacts,loadAnalytics,pct};
