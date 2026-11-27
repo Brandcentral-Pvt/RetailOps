@@ -13,6 +13,8 @@ on:
       - 'backend/database/gmsSchema.js'
       - 'backend/scripts/repairGmsSchema.js'
       - 'backend/migrations/091_gms_import_jobs.js'
+      - 'backend/migrations/092_gms_nullable_seller.js'
+      - 'backend/utils/gmsPhase1.js'
       - 'backend/__tests__/**/gmsPhase*.test.js'
       - 'src/components/gms/**'
       - 'src/pages/GmsTrackerPage.jsx'
@@ -45,6 +47,7 @@ jobs:
           node --check controllers/gmsImportController.js
           node --check routes/uploadRoutes.js
           node --check migrations/091_gms_import_jobs.js
+          node --check migrations/092_gms_nullable_seller.js
           node --check server.js
           node --check database/gmsSchema.js
           node --check scripts/repairGmsSchema.js
