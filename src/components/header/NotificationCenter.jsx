@@ -357,8 +357,9 @@ export default function NotificationCenter({ loading = false }) {
                         >
                           <DeleteOutlined style={{ fontSize: 'var(--font-size-xs)' }} />
                         </button>
-                      </motion.div>
-                    );
+                      </div>
+                    </motion.div>
+                  );
                   })}
                 )}
               )}
