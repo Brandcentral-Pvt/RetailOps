@@ -4,7 +4,7 @@ const crypto = require('node:crypto');
 const { sql, getPool, generateId, withTransaction } = require('../database/db');
 const { resolveAccessProfile } = require('./accessProfileService');
 const { resolveSellerScope } = require('../utils/sellerScope');
-const { MAX_ISSUES, isIndiaSeller, normalizeStore, money } = require('./gmsImportParser');
+const { MAX_ISSUES, normalizeStore, money } = require('./gmsImportParser');
 
 const TERMINAL = new Set(['REJECTED','COMPLETED','FAILED','EXPIRED','CANCELLED']);
 const LOCK = 'retailops:gms-import-commit';
@@ -81,9 +81,11 @@ async function inspect(db, rows, scope, { lock = false } = {}) {
   const payload = JSON.stringify(rows.map(({asin,date}) => ({asin,date})));
   const hint = lock ? ' WITH (UPDLOCK,HOLDLOCK)' : '';
   const catalog = await db.request().input('payload', sql.NVarChar(sql.MAX), payload).query(
-    'SELECT a.AsinCode AS asin, a.SellerId AS sellerId, s.Marketplace AS marketplace, s.IsActive AS active ' +
-    'FROM Asins a' + hint + ' LEFT JOIN Sellers s' + hint + ' ON s.Id=a.SellerId ' +
-    'WHERE EXISTS (SELECT 1 FROM ' + keysJson + ' k WHERE k.asin=a.AsinCode)'
+    // The catalog owns the mapping. Do not join Sellers or filter their status,
+    // marketplace or display name. The uploaded ASIN is the only lookup key.
+    'SELECT a.AsinCode AS asin, a.SellerId AS sellerId ' +
+    'FROM Asins a' + hint + ' ' +
+    'WHERE EXISTS (SELECT 1 FROM ' + keysJson + ' k WHERE k.asin=UPPER(LTRIM(RTRIM(a.AsinCode))))'
   );
   const facts = await db.request().input('payload', sql.NVarChar(sql.MAX), payload).query(
     'SELECT g.Id AS id, g.Asin AS asin, CONVERT(char(10),g.Date,23) AS date, g.SellerId AS sellerId, ' +
@@ -95,7 +97,7 @@ async function inspect(db, rows, scope, { lock = false } = {}) {
   );
   const byAsin = new Map(), byKey = new Map();
   for (const c of catalog.recordset) {
-    const k = String(c.asin).toUpperCase();
+    const k = String(c.asin).trim().toUpperCase();
     if (!byAsin.has(k)) byAsin.set(k, []);
     byAsin.get(k).push(c);
   }
@@ -108,14 +110,29 @@ async function inspect(db, rows, scope, { lock = false } = {}) {
   const prepared = [], snapshot = [];
   for (const row of rows) {
     const matches = byAsin.get(row.asin) || [];
-    const c = matches[0];
-    // Do not leak an out-of-scope seller identity or any of their facts.
-    if (matches.length !== 1 || !c?.sellerId || !c.active || !isIndiaSeller(c.marketplace) ||
-        (!scope.isGlobal && !allowed.has(String(c.sellerId)))) {
-      addIssue(summary, row.line, 'SELLER_MAPPING', 'ASIN has no unique, active, authorized Amazon India catalog mapping');
+    if (!matches.length) {
+      addIssue(summary, row.line, 'ASIN_NOT_FOUND', 'ASIN is not present in the RetailOps ASIN catalog');
       continue;
     }
-    const sellerId = String(c.sellerId);
+    const owners = matches.map(c => String(c.sellerId ?? '').trim());
+    const sellerIds = [...new Set(owners.filter(Boolean))];
+    if (!sellerIds.length || owners.some(id => !id)) {
+      addIssue(summary, row.line, 'ASIN_UNASSIGNED', 'RetailOps ASIN has a missing seller assignment');
+      continue;
+    }
+    if (sellerIds.length > 1) {
+      // Legacy facts have an ASIN/date key. Never pick an arbitrary owner when
+      // the catalog itself contains genuinely conflicting assignments.
+      addIssue(summary, row.line, 'ASIN_AMBIGUOUS', 'RetailOps contains this ASIN under multiple seller IDs');
+      continue;
+    }
+    const sellerId = sellerIds[0];
+    // Permission is a separate check AFTER the canonical ASIN lookup.
+    // Neither spreadsheet brand nor seller status/marketplace selects an owner.
+    if (!scope.isGlobal && !allowed.has(sellerId)) {
+      addIssue(summary, row.line, 'ASIN_FORBIDDEN', 'Your account cannot import this RetailOps ASIN');
+      continue;
+    }
     const existing = byKey.get(keyOf(row)) || [];
     if (existing.length > 1) {
       addIssue(summary, row.line, 'AMBIGUOUS_FACT', 'Multiple existing records for this ASIN/date; resolve before importing');
