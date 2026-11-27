@@ -10,6 +10,7 @@ const { exportWindow } = require('../utils/gmsPhase1');
 const { filterSpec, queryFacts, selectFacts, historyWindow } = require('../services/gmsAnalyticsService');
 const { buildCompleteExport,buildDailyExport } = require('../services/gmsCompleteExport');
 const { writeGmsExport,ensureActive } = require('../services/gmsExportWriter');
+const { XLSX_MIME,safeExportName,checkFileEnvelope,verifyXlsx } = require('../services/exportFileIntegrity');
 
 const EXPORTS_DIR = path.join(__dirname, '../uploads/exports');
 
@@ -1241,27 +1242,46 @@ exports.downloadFile = async (req, res) => {
             return res.status(410).json({ success: false, error: 'File has expired' });
         }
 
-        // Find the actual file
-        const exportDir = path.join(__dirname, '../uploads/exports');
-        const files = fs.readdirSync(exportDir).filter(f => f.includes(id));
-
-        if (files.length === 0) {
-            return res.status(404).json({ success: false, error: 'File not found on disk' });
-        }
-
-        const filePath = path.join(exportDir, files[0]);
-
-        // Update download count
+        // Never pick a partial/stale file with a substring-matching name.
+        let filePath,selected,stat;
+        const controller=new AbortController();
+        const onClose=()=>{if(!res.writableEnded)controller.abort();};
+        res.once('close',onClose);
+        try {
+            selected=safeExportName(download);
+            filePath=path.join(EXPORTS_DIR,selected.diskName);
+            stat=await checkFileEnvelope(filePath,selected.format,download.FileSize);
+            // Earlier GMS exports did not perform workbook validation before
+            // publication. Validate those (and new GMS files) before delivery.
+            if(selected.format==='xlsx'&&selected.name.startsWith('gms_export_')){
+                await verifyXlsx(filePath,{signal:controller.signal});
+            }
+        } catch(err) {
+            if(controller.signal.aborted||res.destroyed)return;
+            if(err.code==='ENOENT')return res.status(404).json({success:false,error:'Export file is no longer available. Generate a new export.'});
+            console.error('Export file integrity check failed:',err.message);
+            return res.status(422).json({success:false,code:'EXPORT_INVALID_FILE',error:'The saved spreadsheet is incomplete or invalid. Generate a new export and try again.'});
+        } finally {res.removeListener('close',onClose);}
+        if(controller.signal.aborted||res.destroyed)return;
         await pool.request()
-            .input('id', sql.VarChar, id)
-            .query('UPDATE Downloads SET DownloadCount = DownloadCount + 1, DownloadedAt = dbo.GetEnvDate() WHERE Id = @id');
+            .input('id', sql.VarChar, download.Id)
+            .input('userId',sql.VarChar,userId)
+            .query('UPDATE Downloads SET DownloadCount = DownloadCount + 1, DownloadedAt = dbo.GetEnvDate() WHERE Id = @id AND UserId = @userId');
 
-        // Send file
-        res.download(filePath, download.FileName);
+        res.set('Cache-Control','private, no-store');
+        res.set('X-Content-Type-Options','nosniff');
+        res.set('X-Export-File-Size',String(stat.size));
+        res.type(selected.format==='xlsx'?XLSX_MIME:'text/csv; charset=utf-8');
+        return res.download(filePath,selected.name,{acceptRanges:false},err=>{
+            if(!err)return;
+            console.error('Export transmission failed:',err.message);
+            if(!res.headersSent&&!res.destroyed)res.status(500).json({success:false,error:'The export could not be transferred. Please retry.'});
+            else if(!res.destroyed)res.destroy(err);
+        });
 
     } catch (error) {
         console.error('Download File Error:', error);
-        res.status(500).json({ success: false, error: error.message });
+        if(!res.headersSent&&!res.destroyed)res.status(500).json({ success: false, error: 'Unable to download this export. Please retry.' });
     }
 };
 
