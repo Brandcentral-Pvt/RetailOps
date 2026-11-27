@@ -102,6 +102,25 @@ describe('GMS route security', () => {
       expect(call.inputs.owner).toBe('u1');
     }
   });
+  test('missing GMS fact column is reported as schema not ready', async () => {
+    mockPool = makeFakePool([{ match:/INNER JOIN GmsDailyPerformance/, rows:() => {
+      throw Object.assign(new Error('Invalid column name'), { number:207 });
+    } }]);
+    const res=await request(app).get('/api/upload/gms-asins');
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('GMS_SCHEMA_NOT_READY');
+    expect(res.body.message).not.toContain('Invalid column name');
+  });
+  test('missing import history table is reported as schema not ready', async () => {
+    mockUser.permissions.push('gms_tracker_import');
+    mockPool = makeFakePool([{ match:/FROM GmsImportJobs/, rows:() => {
+      throw Object.assign(new Error('Invalid object name'), { number:208 });
+    } }]);
+    const res=await request(app).get('/api/upload/gms-imports');
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('GMS_SCHEMA_NOT_READY');
+    expect(res.body.message).not.toContain('Invalid object name');
+  });
   test('metadata query is seller scoped and excludes ambiguous owners', async () => {
     expect((await request(app).get('/api/upload/gms-asins')).status).toBe(200);
     expect(mockPool.calls[0].inputs.gmsMeta_0).toBe('S1');
