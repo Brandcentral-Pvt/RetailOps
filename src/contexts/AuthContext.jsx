@@ -40,6 +40,7 @@ export const AuthProvider = ({ children }) => {
         const initAuth = async () => {
             try {
                 const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/me`, {
+                    credentials: 'include',
                     headers: {
                         // Token is now sent automatically via httpOnly cookie
                     },
@@ -107,7 +108,7 @@ export const AuthProvider = ({ children }) => {
                 setLoadingPermissions(true);
                 try {
                     const meRes = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/me`, {
-                        credentials: 'same-origin',
+                        credentials: 'include',
                     });
                     if (meRes.ok) {
                         const meResult = await meRes.json();
@@ -132,7 +133,7 @@ export const AuthProvider = ({ children }) => {
         try {
             await fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/logout`, {
                 method: 'POST',
-                credentials: 'same-origin',
+                credentials: 'include',
             });
         } catch (e) {
             console.warn('Logout API call failed:', e.message);
@@ -216,7 +217,7 @@ export const AuthProvider = ({ children }) => {
             if (!normalized.permissions || normalized.permissions.length === 0) {
                 try {
                     const meRes = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/me`, {
-                        credentials: 'same-origin',
+                        credentials: 'include',
                     });
                     if (meRes.ok) {
                         const meResult = await meRes.json();

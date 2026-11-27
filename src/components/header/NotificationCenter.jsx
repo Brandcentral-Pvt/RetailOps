@@ -76,7 +76,7 @@ export default function NotificationCenter({ loading = false }) {
   const socket = useSocket();
   const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -88,7 +88,7 @@ export default function NotificationCenter({ loading = false }) {
   const fetchNotifications = useCallback(async (pageNum = 1, append = false) => {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
-    setLoading(true);
+    setDataLoading(true);
     try {
       const res = await api.notificationApi.getNotifications({ page: pageNum, limit: 30 });
       if (res.success) {
@@ -110,7 +110,7 @@ export default function NotificationCenter({ loading = false }) {
     } catch (e) {
       console.error('Failed to fetch notifications:', e);
     } finally {
-      setLoading(false);
+      setDataLoading(false);
       fetchingRef.current = false;
     }
   }, []);
@@ -150,7 +150,7 @@ export default function NotificationCenter({ loading = false }) {
       if (data.unreadCount != null) {
         setServerUnreadCount(data.unreadCount);
       } else {
-        setServerUnreadCount((prev) => Math.max(0, prev - 1));
+        setServerUnreadCount((prev) => prev + 1);
       }
     };
 
@@ -233,7 +233,7 @@ export default function NotificationCenter({ loading = false }) {
           onClick={() => setNotifOpen(true)}
           aria-label="Notifications"
         >
-          <Badge count={unreadCount} size="small" offset={[-2, 2]} offset={[-2, 2]}>
+          <Badge count={unreadCount} size="small" offset={[-2, 2]}>
             <BellOutlined style={{ fontSize: 'var(--font-size-lg)' }} />
           </Badge>
         </button>
@@ -242,7 +242,7 @@ export default function NotificationCenter({ loading = false }) {
       <Drawer
         open={notifOpen}
         onClose={() => setNotifOpen(false)}
-        size={420}
+        width={420}
         className="notif-drawer"
         title={
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -286,99 +286,101 @@ export default function NotificationCenter({ loading = false }) {
         </div>
 
         <div style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 180px)' }}>
-          {loading && notifications.length === 0 ? (
+          {dataLoading && notifications.length === 0 ? (
             <div style={{ padding: '60px 20px', textAlign: 'center' }}>
               <Spin size="small" />
             </div>
           ) : (
-            <AnimatePresence>
-              {filtered.length === 0 ? (
-                <div style={{ padding: '60px 20px', textAlign: 'center' }}>
-                  <Empty
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    description={
-                      <span style={{ color: '#94A3B8', fontSize: 'var(--font-size-sm)', fontFamily: 'Inter, sans-serif' }}>
-                        You're all caught up
-                      </span>
+            <>
+              <AnimatePresence>
+                {filtered.length === 0 ? (
+                  <div style={{ padding: '60px 20px', textAlign: 'center' }}>
+                    <Empty
+                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+                      description={
+                        <span style={{ color: '#94A3B8', fontSize: 'var(--font-size-sm)', fontFamily: 'Inter, sans-serif' }}>
+                          You're all caught up
+                        </span>
+                      }
                     />
-                  />
-                </div>
-              ) : (
-                filtered.map((notif) => {
-                  const cfg = typeStyles[notif.displayType] || typeStyles[notif.type] || typeStyles.info;
-                  const icon = typeIcons[notif.displayType] || typeIcons[notif.type] || typeIcons.info;
-                  return (
-                    <motion.div
-                      key={notif.id}
-                      className={`notif-item ${!notif.read ? 'unread' : ''}`}
-                      layout
-                      initial={{ opacity: 0, x: 12 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -12, height: 0 }}
-                      className={`notif-item ${!notif.read ? 'unread' : ''}`}
-                      onClick={() => markOne(notif.id)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <div
-                        className="notif-item-icon"
-                        style={{
-                          background: cfg.bg,
-                          color: cfg.color,
-                          border: `1px solid ${cfg.border}`,
-                        }}
+                  </div>
+                ) : (
+                  filtered.map((notif) => {
+                    const cfg = typeStyles[notif.displayType] || typeStyles[notif.type] || typeStyles.info;
+                    const icon = typeIcons[notif.displayType] || typeIcons[notif.type] || typeIcons.info;
+                    return (
+                      <motion.div
+                        key={notif.id}
+                        layout
+                        initial={{ opacity: 0, x: 12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -12, height: 0 }}
+                        className={`notif-item ${!notif.read ? 'unread' : ''}`}
+                        onClick={() => markOne(notif.id)}
+                        style={{ cursor: 'pointer' }}
                       >
-                        {icon}
-                      </div>
-                      <div className="notif-item-content">
-                        <div className="notif-item-title" style={{
-                          fontWeight: !notif.read ? 700 : 500,
-                          color: !notif.read ? '#0F172A' : '#64748b',
-                        }}>
-                          {notif.type?.replace(/_/g, ' ') || 'Notification'}
-                        </div>
-                        <div className="notif-item-message" style={{
-                          color: !notif.read ? '#334155' : '#94a3b8',
-                        }}>
-                          {notif.message}
-                        </div>
-                        <div className="notif-item-meta">
-                          <span className="notif-item-time">
-                            {formatRelativeTime(notif.timestamp)}
-                          </span>
-                        </div>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); deleteOne(notif.id); }}
+                        <div
+                          className="notif-item-icon"
                           style={{
-                            background: 'transparent', border: 'none', cursor: 'pointer',
-                            color: 'var(--border-light)', padding: '4px', opacity: 0, transition: 'opacity 0.15s',
+                            background: cfg.bg,
+                            color: cfg.color,
+                            border: `1px solid ${cfg.border}`,
                           }}
-                          onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-                          onMouseLeave={(e) => (e.currentTarget.style.opacity = '0')}
                         >
-                          <DeleteOutlined style={{ fontSize: 'var(--font-size-xs)' }} />
-                        </button>
+                          {icon}
+                        </div>
+                        <div className="notif-item-content">
+                          <div className="notif-item-title" style={{
+                            fontWeight: !notif.read ? 700 : 500,
+                            color: !notif.read ? '#0F172A' : '#64748b',
+                          }}>
+                            {notif.type?.replace(/_/g, ' ') || 'Notification'}
+                          </div>
+                          <div className="notif-item-message" style={{
+                            color: !notif.read ? '#334155' : '#94a3b8',
+                          }}>
+                            {notif.message}
+                          </div>
+                          <div className="notif-item-meta">
+                            <span className="notif-item-time">
+                              {formatRelativeTime(notif.timestamp)}
+                            </span>
+                          </div>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); deleteOne(notif.id); }}
+                            style={{
+                              background: 'transparent', border: 'none', cursor: 'pointer',
+                              color: 'var(--border-light)', padding: '4px', opacity: 0, transition: 'opacity 0.15s',
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+                            onMouseLeave={(e) => (e.currentTarget.style.opacity = '0')}
+                          >
+                            <DeleteOutlined style={{ fontSize: 'var(--font-size-xs)' }} />
+                          </button>
+                        </div>
                       </motion.div>
                     );
-                  })}
+                  })
                 )}
-              )}
-            </div>
+              </AnimatePresence>
 
-            {hasMore && !loading && notifications.length > 0 && (
-              <div style={{ padding: '12px 20px', borderTop: '1px solid #F1F5F9', background: '#F1F5F9', textAlign: 'center' }}>
-                <Button type="link" size="small" onClick={loadMore}
-                  style={{ color: '#1976D2', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>
-                  Load more
-                </Button>
-              </div>
-            )}
-            {loading && notifications.length > 0 && (
-              <div style={{ padding: '12px 20px', borderTop: '1px solid #F1F5F9', textAlign: 'center' }}>
-                <Spin size="small" />
-              </div>
-            )}
+              {hasMore && !dataLoading && notifications.length > 0 && (
+                <div style={{ padding: '12px 20px', borderTop: '1px solid #F1F5F9', background: '#F1F5F9', textAlign: 'center' }}>
+                  <Button type="link" size="small" onClick={loadMore}
+                    style={{ color: '#1976D2', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>
+                    Load more
+                  </Button>
+                </div>
+              )}
+              {dataLoading && notifications.length > 0 && (
+                <div style={{ padding: '12px 20px', borderTop: '1px solid #F1F5F9', textAlign: 'center' }}>
+                  <Spin size="small" />
+                </div>
+              )}
+            </>
           )}
-        </Drawer>
-      </>
-    );
+        </div>
+      </Drawer>
+    </>
+  );
 }
