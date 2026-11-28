@@ -61,7 +61,7 @@ export interface ModuleStats {
 }
 
 export function useDashboardData(filters: DashboardFilters) {
-    const {user}=useAuth();
+    const {user,refreshUser}=useAuth();
     const principal=dashboardPrincipal(user);
     const socket=useSocket();
     const orch=useDashboardOrchestration({
@@ -71,6 +71,20 @@ export function useDashboardData(filters: DashboardFilters) {
         endDate:filters.dateRange.end?format(filters.dateRange.end,'yyyy-MM-dd'):undefined,
     });
     const scope=orch.scope;
+    // A role change invalidates authorization, not just a chart. Reload the
+    // authenticated profile; the principal-keyed dashboard then remounts.
+    useEffect(()=>{
+        if(!socket||!principal)return;
+        let active=true;let controller:AbortController|null=null;
+        const revalidate=async()=>{
+            controller?.abort();const request=new AbortController();controller=request;
+            try{const r=await apiClient.get('/auth/me',{signal:request.signal});const next=r.data?.data;
+                if(active&&!request.signal.aborted&&next&&String(next.Id??next.id??next._id)===String(user.Id??user.id??user._id))refreshUser(next);
+            }catch{if(active&&!request.signal.aborted)void orch.forceRefresh();}
+        };
+        socket.on('access_profile_changed',revalidate);
+        return ()=>{active=false;controller?.abort();socket.off('access_profile_changed',revalidate);};
+    },[socket,principal,refreshUser,orch.forceRefresh]);
     const scopeKey=scope?JSON.stringify([scope.unrestricted,scope.empty,scope.sellerIds]):'unresolved';
     const canTasks=canDashboardPermission(user,'tasks_view');
     const canPipeline=canDashboardPermission(user,'scraping_view');
@@ -242,11 +256,7 @@ export function useDashboardData(filters: DashboardFilters) {
         const totalAdSpend = adSpendData.reduce((a: number, b: number) => a + b, 0);
 
         // Get sellerIds for selected manager (match UserId OR BrandManager name)
-        const managerSellers = new Set(
-            targetsList
-                .filter((t: any) => matchesManagerFilter(t, filters.managerId))
-                .map((t: any) => t.SellerId)
-        );
+        const managerSellers=new Set(scope?.sellerIds??[]);
 
         // Tasks stats
         let tasks = optimizationTasks;
@@ -349,7 +359,7 @@ export function useDashboardData(filters: DashboardFilters) {
             },
         };
     }, [orch.targets, orch.dashboardRaw, optimizationTasks,
-        activityLogs, scrapeTasks, filters, matchesManagerFilter]);
+        activityLogs, scrapeTasks, filters, matchesManagerFilter,scope]);
 
     const filteredTasks=optimizationTasks;
     const filteredScrapeTasks=scrapeTasks;
