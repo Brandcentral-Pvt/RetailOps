@@ -401,19 +401,20 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
       // Measure cached adjacent-page latency separately. The normal SQL
       // benchmark above remains directly measurable.
       let cacheTiming;
+      const scaleLoader=process.env.GMS_TEST_REDIS==='1'?createReportLoader():cachedReport;
       const cacheStart=Date.now();
-      const primed=await cachedReport(mockPool,global,{...scaleOptions,page:1},{onTiming:t=>{cacheTiming=t;}});
+      const primed=await scaleLoader(mockPool,global,{...scaleOptions,page:1},{onTiming:t=>{cacheTiming=t;}});
       const primedMs=Date.now()-cacheStart;
       expect(cacheTiming.cacheStatus).toBe('miss');
       expect(primed.kpis).toEqual(large.kpis);
       const hitStart=Date.now();
-      const hit=await cachedReport(mockPool,global,{...scaleOptions,page:2},{onTiming:t=>{cacheTiming=t;}});
+      const hit=await scaleLoader(mockPool,global,{...scaleOptions,page:2},{onTiming:t=>{cacheTiming=t;}});
       const hitMs=Date.now()-hitStart;
       expect(cacheTiming.cacheStatus).toBe('hit');
       expect(cacheTiming.sqlMs).toBe(0);
       expect(hit.matrixRows.map(r=>r.key)).toEqual(next.matrixRows.map(r=>r.key));
       expect(hit.kpis).toEqual(next.kpis);
-      console.log('GMS disposable report-cache result',JSON.stringify({facts:scaleRows,primedMs,hitMs,hitTiming:cacheTiming}));
+      console.log('GMS disposable report-cache result',JSON.stringify({facts:scaleRows,cacheBackend:process.env.GMS_TEST_REDIS==='1'?'redis':'memory-fixture',primedMs,hitMs,hitTiming:cacheTiming}));
       console.log('GMS disposable scale result',JSON.stringify({facts:scaleRows,catalogRows:50000+mappedEntities,mappedEntities,entities:large.pagination.totalRows,pageRows:100,firstMs,nextMs,firstTiming,nextTiming,responseBytes:Buffer.byteLength(JSON.stringify(large))}));
     }
   } finally {
