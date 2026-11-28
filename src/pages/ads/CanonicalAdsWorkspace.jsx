@@ -101,6 +101,7 @@ const exportErrorText=async e=>{
  if(detail instanceof Blob){try{detail=JSON.parse(await detail.text());}catch{detail=null;}}
  return detail?.message||e.message||'Export failed.';
 };
+const ProductTable=React.memo(function ProductTable(props){return <Table {...props}/>;});
 function ReportLoading(){return <div className="ads-report-loading" role="status" aria-label="Loading advertising report"><div className="ads-kpi-grid">{Array.from({length:8},(_,i)=><Card key={i} size="small"><Skeleton active title={{width:'55%'}} paragraph={{rows:2}}/></Card>)}</div><Card size="small"><Skeleton active paragraph={{rows:4}}/></Card></div>;}
 const TrendTable=({series})=>series.length===0?<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No historical records in this period"/>:<div className="ads-table-shell" data-testid="ads-trend-table"><Table tableLayout="fixed" size="small" rowKey={r=>JSON.stringify([r.currency,r.periodKey,r.bucket])} dataSource={series} pagination={{pageSize:10}} scroll={{x:760}}
     columns={[{title:'Period',dataIndex:'periodKey',width:100},{title:'Date / bucket',dataIndex:'bucket',width:125},{title:'Currency',dataIndex:'currency',width:90},
@@ -223,6 +224,12 @@ export default function CanonicalAdsWorkspace(){
         ...RATIO_COLUMNS.filter(([,key])=>PRESETS[preset].includes(key)).map(([title,key,suffix])=>({title,key,width:140,align:'right',render:(_,r)=><><span className="ads-table-number" title={r.current?.ratios?.[key]?.value??'Unknown'}>{ratioValue(r.current?.ratios?.[key],suffix)}</span>{showPrior&&<><div className="ads-table-prior">Prior: {ratioValue(r.previous?.ratios?.[key],suffix)}</div><DeltaText change={r.comparison?.ratios?.[key]} currency={r.currency}/></>}{coverageLabel(r.current?.ratios?.[key])}</>}))
     ].map(c=>({...c,sortOrder:c.key===sort.sortBy?(sort.sortOrder==='asc'?'ascend':'descend'):undefined})),[groupBy,preset,showPrior,sort,openDrill]);
     const tableScroll=useMemo(()=>({x:columns.reduce((n,c)=>n+c.width,0),y:520}),[columns]);
+    const tablePagination=useMemo(()=>data?({current:report.isPlaceholderData?page:data.page,pageSize:data.limit,total:data.total,showSizeChanger:true,pageSizeOptions:[25,50,100],showTotal:total=>adsCount(total)+' entities'}):false,[data,page,report.isPlaceholderData]);
+    const onTableChange=useCallback((p,_f,s,extra)=>{
+        if(report.isPlaceholderData&&extra.action!=='paginate')return;
+        if(extra.action==='sort'){setSort({sortBy:s.order?s.columnKey:DEFAULT_SORT[preset],sortOrder:s.order==='ascend'?'asc':'desc'});setPaging({key:'',page:1,limit:p.pageSize||limit});}
+        else if(extra.action==='paginate')setPaging({key:signature,page:p.pageSize!==limit?1:p.current,limit:p.pageSize});
+    },[report.isPlaceholderData,preset,limit,signature]);
     const selector=(label,values,value,onChange)=><Select aria-label={label} placeholder={label} allowClear showSearch value={value} onChange={onChange} options={(values||[]).map(v=>({value:v,label:v}))}/>;
     const refresh=()=>{options.refetch();if(reportView&&hasDates){
         const isOverview=view==='overview';
@@ -277,13 +284,8 @@ export default function CanonicalAdsWorkspace(){
                 </div>
                 <div className="ads-table-shell" data-testid="ads-product-table" data-density={density} aria-busy={report.isFetching}>
                     {report.isPlaceholderData&&<div role="status" className="ads-analytics-note">Loading page {page}; showing page {data.page} until it is ready.</div>}
-                    <Table tableLayout="fixed" rowKey="key" columns={columns} dataSource={data.rows} size={density==='compact'?'small':'middle'} sticky scroll={tableScroll} loading={report.isFetching&&!report.isPlaceholderData}
-                        pagination={{current:report.isPlaceholderData?page:data.page,pageSize:data.limit,total:data.total,showSizeChanger:true,pageSizeOptions:[25,50,100],showTotal:total=>adsCount(total)+' entities'}}
-                        onChange={(p,_f,s,extra)=>{
-                            if(report.isPlaceholderData&&extra.action!=='paginate')return;
-                            if(extra.action==='sort'){setSort({sortBy:s.order?s.columnKey:DEFAULT_SORT[preset],sortOrder:s.order==='ascend'?'asc':'desc'});setPaging({key:'',page:1,limit:p.pageSize||limit});}
-                            else if(extra.action==='paginate')setPaging({key:signature,page:p.pageSize!==limit?1:p.current,limit:p.pageSize});
-                        }}/>
+                    <ProductTable tableLayout="fixed" rowKey="key" columns={columns} dataSource={data.rows} size={density==='compact'?'small':'middle'} sticky scroll={tableScroll} loading={report.isFetching&&!report.isPlaceholderData}
+                        pagination={tablePagination} onChange={onTableChange}/>
                 </div>
                 <div className="ads-chart-footer"><span>ASIN / seller identity stays pinned. Scroll horizontally to view all metrics. Null values remain N/A.</span><Button type="link" onClick={()=>navigate('opportunities')}>Review opportunities</Button></div>
             </Card>}
