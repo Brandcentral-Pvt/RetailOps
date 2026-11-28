@@ -24,16 +24,34 @@ function buildEvidence(report){
   }
  }
  const findings=[];
+ const addFinding=(record)=>findings.push({id:'F'+(findings.length+1),...record});
  for(const e of evidence.filter(e=>e.period==='current')){
   if(e.value===null||e.coverage!=='complete'||e.coveredDays!==e.expectedDays){
-   findings.push({code:'coverage_review',evidenceIds:[e.id],action:'Verify source completeness before making a performance decision.'});
+   addFinding({code:'coverage_review',evidenceIds:[e.id],action:'Verify source completeness before making a performance decision.'});
+  }
+ }
+ // All population counts are authoritative; samples are bounded by the SQL rule engine.
+ for(const signal of report.review?.signals||[]){
+  if(signal.count==='0'||signal.count==null)continue;
+  const id='E'+(evidence.length+1);
+  push({currency:signal.currency,period:'current',metric:signal.code,value:signal.count,coverage:'signal_count',sampleCount:signal.items.length});
+  addFinding({code:signal.code,evidenceIds:[id],action:signal.action,label:signal.label,currency:signal.currency,
+    products:signal.items.map(p=>({entityKey:p.entityKey,sellerId:p.sellerId,sellerName:p.sellerName,marketplace:p.marketplace,currency:p.currency,evidenceStatus:p.evidenceStatus,spend:p.spend,sales:p.sales,totalSales:p.totalSales,clicks:p.clicks,conversions:p.conversions,currentDays:p.currentDays,previousDays:p.previousDays}))});
+ }
+ for(const comparison of report.comparisons||[]){
+  for(const metric of ['spend','sales','totalSales','acos','tacos','roas']){
+   const change=(comparison.metrics[metric]||comparison.ratios[metric]);
+   if(change?.status!=='comparable'||change.delta==null||change.delta==='0')continue;
+   const id='E'+(evidence.length+1);
+   push({currency:comparison.currency,period:'comparison',metric,value:change.delta,unit:change.unit,coverage:'complete',expectedDays:report.period.days});
+   addFinding({code:'period_change',currency:comparison.currency,evidenceIds:[id],action:'Review the observed change against current and prior metrics before deciding on an action.'});
   }
  }
  return {period:report.period,empty:report.empty,evidence,findings,limitations:['Uploaded daily product reports only; no campaign or keyword evidence.','Reported total sales are independent of ad-attributed sales.','Missing data is not zero. Currency groups are never combined.','Stored coverage does not prove that all reports were uploaded.'],generatedAt:new Date().toISOString()};
 }
 async function loadEvidence({pool,sql,user,body}){
  const query=parseAnalystRequest(user,body);
- const report=await readCanonicalReport({pool,sql,user,query,overviewOnly:true});
+ const report=await readCanonicalReport({pool,sql,user,query,analystOnly:true});
  return buildEvidence(report);
 }
 module.exports={parseAnalystRequest,buildEvidence,loadEvidence};
