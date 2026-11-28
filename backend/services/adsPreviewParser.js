@@ -19,7 +19,7 @@ function parsePreview(input,{onProgress}={}){
 }
 function parseInWorker(input,{onProgress,timeoutMs=120000}={}){
  return new Promise((resolve,reject)=>{
-  const worker=new Worker(__filename,{workerData:{input},resourceLimits:{maxOldGenerationSizeMb:384}});
+  const worker=new Worker(__filename,{workerData:{input,adsPreview:true},resourceLimits:{maxOldGenerationSizeMb:384}});
   let settled=false;
   const finish=(err,value)=>{
    if(settled)return;settled=true;clearTimeout(timer);
@@ -38,7 +38,7 @@ function parseInWorker(input,{onProgress,timeoutMs=120000}={}){
   worker.on('exit',()=>finish(Error('Ads preview parser exited before returning a result')));
  });
 }
-if(!isMainThread){
+if(!isMainThread&&workerData?.adsPreview===true){
  try{const value=parsePreview(workerData.input,{onProgress:rows=>parentPort.postMessage({type:'progress',rows})});parentPort.postMessage({type:'result',value});}
  catch{parentPort.postMessage({type:'error'});}
 }

@@ -3,6 +3,7 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const {up:factMigration}=require('../migrations/098_ads_product_daily_facts');
 const {up:jobMigration}=require('../migrations/099_ads_import_jobs');
 const {up:queueMigration}=require('../migrations/101_ads_import_queue');
+const {up:previewMigration}=require('../migrations/102_ads_preview_queue');
 const {claimNext,refreshLease,processNext}=require('../services/adsImportWorker');
 const {inspectAdsImportSchema,ensureAdsImportSchema}=require('../database/adsImportSchema');
 const {HEADERS}=require('../services/adsProductContract');
@@ -24,8 +25,15 @@ test('SQL durable Ads job lifecycle, scope, atomic confirmation, retries and exp
   await pool.request().query("CREATE TABLE dbo.Roles(Id varchar(50) PRIMARY KEY,Name nvarchar(50),DisplayName nvarchar(100),IsActive bit); INSERT dbo.Roles VALUES('r1','brand_manager','Brand manager',1); CREATE TABLE dbo.Users(Id varchar(50) PRIMARY KEY,RoleId varchar(50),IsActive bit,ExtraPermissions nvarchar(max),ExcludedPermissions nvarchar(max),ForcePasswordReset bit,PasswordExpiresAt datetime2,IsFirstLogin bit,SetupCompletedAt datetime2); INSERT dbo.Users VALUES('u1','r1',1,NULL,NULL,0,NULL,0,NULL); CREATE TABLE dbo.TestAdsGrants(OwnerId varchar(50),Permission nvarchar(100)); INSERT dbo.TestAdsGrants VALUES('u1','adsreport_import'); CREATE TABLE dbo.UserSellers(UserId varchar(50),SellerId varchar(50)); INSERT dbo.UserSellers VALUES('u1','s1');");
   await factMigration(pool);
   assert.equal((await ensureAdsImportSchema({pool,apply:false})).ready,false);
+  await jobMigration(pool);await queueMigration(pool);
+  // Existing history survives the additive upgrade, including legacy terminal states.
+  await pool.request().query("INSERT dbo.AdsImportJobs(Id,OwnerId,SellerId,Marketplace,Currency,FileName,SourceFileSha256,Status,SummaryJson,IssuesJson,ExpiresAt) VALUES('old-history','u1','s1','amazon.in','INR','old.csv',REPLICATE('a',64),'CANCELLED',N'{}',N'[]',SYSUTCDATETIME());");
+  assert.equal((await inspectAdsImportSchema(pool)).ready,false);
   assert.equal((await ensureAdsImportSchema({pool,apply:true})).ready,true);
-  await jobMigration(pool);await queueMigration(pool);await queueMigration(pool);assert.equal((await inspectAdsImportSchema(pool)).ready,true);
+  await jobMigration(pool);await queueMigration(pool);await previewMigration(pool);await previewMigration(pool);
+  assert.equal((await inspectAdsImportSchema(pool)).ready,true);
+  assert.equal((await pool.request().query("SELECT Status FROM dbo.AdsImportJobs WHERE Id='old-history';")).recordset[0].Status,'CANCELLED');
+  await pool.request().query("DELETE dbo.AdsImportJobs WHERE Id='old-history';");
   const ctx={pool,sql,user};
   // Real SQL permissions/assignments, injected profile resolver in this isolated fixture.
   const resolveProfile=async(owner,db)=>{
@@ -35,8 +43,27 @@ test('SQL durable Ads job lifecycle, scope, atomic confirmation, retries and exp
   };
   const work=extra=>processNext({pool,sql,resolveProfile,...extra});
   const run=async id=>{const queued=await confirmJob({...ctx,id});assert.equal(queued.status,'QUEUED');assert.equal(await work(),true);return getJob({...ctx,id});};
-  const preview=(rows,extra={})=>createPreview({...ctx,sellerId:'s1',input:csv(rows),fileName:'report.csv',...extra});
-  const ready=await preview([{},row,{}]);assert.equal(ready.status,'READY');assert.equal(ready.summary.rows,1);assert.equal(ready.summary.skippedBlankRows,2);assert.equal(ready.summary.sourceRecords,3);assert.equal('SourceBytes' in ready,false);
+  const enqueue=(rows,extra={})=>createPreview({...ctx,sellerId:'s1',input:csv(rows),fileName:'report.csv',...extra});
+  const validateNext=extra=>work({kind:'preview',...extra});
+  const preview=async(rows,extra={})=>{
+   const job=await enqueue(rows,extra);
+   assert.equal(job.status,'PREVIEW_QUEUED');assert.equal(job.summary.valid,null);
+   assert.equal(await validateNext(),true);
+   return getJob({...ctx,id:job.id});
+  };
+  process.env.ADS_CANONICAL_IMPORT_ENABLED='false';
+  const queuedPreview=await enqueue([{},row,{}],{fileName:'April-report.csv'});
+  assert.equal(queuedPreview.status,'PREVIEW_QUEUED');assert.equal(queuedPreview.summary.valid,null);
+  assert.equal((await listJobs({...ctx,status:'PREVIEW_QUEUED',search:'April-',sellerId:'s1'})).total,1);
+  assert.equal((await listJobs({...ctx,search:'%'})).total,0);
+  await assert.rejects(()=>listJobs({...ctx,status:'invalid'}),{code:'invalid_history_status'});
+  await assert.rejects(()=>listJobs({...ctx,sellerId:'s2'}),{code:'forbidden_seller'});
+  await assert.rejects(()=>confirmJob({...ctx,id:queuedPreview.id}),{code:'job_not_ready'});
+  const previewClaims=await Promise.all([validateNext(),validateNext()]);
+  assert.equal(previewClaims.filter(Boolean).length,1);
+  const ready=await getJob({...ctx,id:queuedPreview.id});
+  assert.equal(ready.validationAttempts,1);assert.equal(ready.attemptCount,0);assert.ok(ready.validatedAt);
+  assert.equal(ready.importsEnabled,false);assert.equal(ready.status,'READY');assert.equal(ready.summary.rows,1);assert.equal(ready.summary.skippedBlankRows,2);assert.equal(ready.summary.sourceRecords,3);assert.equal('SourceBytes' in ready,false);
   assert.equal((await listJobs(ctx)).total,1);
   assert.equal(await getJob({...ctx,id:ready.id,user:{...user,Id:'u2'}}),null);
   assert.equal(await getJob({...ctx,id:ready.id,user:{...user,assignedSellers:['s2']}}),null);
@@ -118,6 +145,30 @@ test('SQL durable Ads job lifecycle, scope, atomic confirmation, retries and exp
   const afterFence=await pool.request().query("SELECT COUNT(*) AS n FROM dbo.AdsProductDailyFacts WHERE [Date]='2026-04-10'");
   assert.equal(afterFence.recordset[0].n,0);
   await work();assert.equal((await getJob({...ctx,id:fenced.id})).status,'COMPLETED');
+  const previewCancel=await enqueue([{...row,date:'2026-04-11'}]);
+  assert.equal((await cancelJob({...ctx,id:previewCancel.id})).status,'CANCELLED');assert.equal(await validateNext(),false);
+  const previewRecovery=await enqueue([{...row,date:'2026-04-12'}]);
+  const abandoned=await claimNext({pool,sql,kind:'preview'});assert.equal(abandoned.Id,previewRecovery.id);
+  assert.equal((await getJob({...ctx,id:previewRecovery.id})).status,'VALIDATING');
+  await assert.rejects(()=>cancelJob({...ctx,id:previewRecovery.id}),{code:'job_not_ready'});
+  await pool.request().input('id',sql.VarChar(50),previewRecovery.id).query("UPDATE dbo.AdsImportJobs SET LeaseUntil=DATEADD(second,-1,SYSUTCDATETIME()) WHERE Id=@id;");
+  await assert.rejects(()=>refreshLease({pool,sql,job:abandoned,stage:'preview_scanning',staged:1}),{code:'lease_lost'});
+  await validateNext();const recoveredPreview=await getJob({...ctx,id:previewRecovery.id});
+  assert.equal(recoveredPreview.status,'READY');assert.equal(recoveredPreview.validationAttempts,2);assert.equal(recoveredPreview.attemptCount,0);
+  await cancelJob({...ctx,id:previewRecovery.id});
+  const deniedPreview=await enqueue([{...row,date:'2026-04-13'}]);
+  await pool.request().query("DELETE dbo.TestAdsGrants WHERE OwnerId='u1';");
+  await validateNext();assert.equal((await getJob({...ctx,id:deniedPreview.id})).status,'FAILED');
+  await pool.request().query("INSERT dbo.TestAdsGrants VALUES('u1','adsreport_import');");
+  const retryPreview=await enqueue([{...row,date:'2026-04-14'}]);
+  await validateNext({parser:async()=>{throw Error('test parser interruption');}});
+  assert.equal((await getJob({...ctx,id:retryPreview.id})).status,'PREVIEW_QUEUED');
+  await pool.request().input('id',sql.VarChar(50),retryPreview.id).query("UPDATE dbo.AdsImportJobs SET NextAttemptAt=SYSUTCDATETIME() WHERE Id=@id;");
+  await validateNext();assert.equal((await getJob({...ctx,id:retryPreview.id})).validationAttempts,2);
+  await cancelJob({...ctx,id:retryPreview.id});
+  const readyOnly=await listJobs({...ctx,status:'READY'});assert.equal(readyOnly.total,0);
+  const leaks=await pool.request().query("SELECT COUNT(*) AS n FROM dbo.AdsProductDailyFacts WHERE [Date]>='2026-04-11';");
+  assert.equal(leaks.recordset[0].n,0);
 
  }finally{if(prior===undefined)delete process.env.ADS_CANONICAL_IMPORT_ENABLED;else process.env.ADS_CANONICAL_IMPORT_ENABLED=prior;if(pool)await pool.close();await admin.request().query('ALTER DATABASE ['+database+'] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE ['+database+'];').catch(()=>{});await admin.close();}
 });

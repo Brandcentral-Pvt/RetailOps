@@ -85,7 +85,7 @@ jobs:
           node --check backend/controllers/dashboardController.js
           node --check backend/controllers/targetController.js
           node --check backend/controllers/adsCanonicalExportController.js
-          node --test backend/testUtils/adsPhase1.contract.node.cjs backend/testUtils/adsPhase1.canonical.node.cjs backend/testUtils/adsPhase1.report.node.cjs backend/testUtils/adsPhase1.activation.node.cjs
+          node --test backend/testUtils/adsPhase1.contract.node.cjs backend/testUtils/adsPhase1.canonical.node.cjs backend/testUtils/adsPhase1.report.node.cjs backend/testUtils/adsPhase1.activation.node.cjs backend/testUtils/adsPhase2.preview.node.cjs
   sql:
     runs-on: ubuntu-latest
     timeout-minutes: 15
