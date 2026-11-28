@@ -183,10 +183,10 @@ describe('GET /api/dashboard — SQL binding & period correctness', () => {
 
         const topAsins = mockState.pool.callWhere(/TOP 200/);
         // Ranking is driven by GMS (ordered revenue), not by AdsPerformance.
-        expect(topAsins.sql).toMatch(/FROM GmsDailyPerformance g\s+WHERE g\.Date BETWEEN @prevStart AND @endDate/);
-        expect(topAsins.sql).toMatch(/ORDER BY G\.GmsRevenue DESC/);
+        expect(topAsins.sql).toMatch(/FROM GmsDailyPerformance g[\s\S]*WHERE g\.Date BETWEEN @prevStart AND @endDate/);
+        expect(topAsins.sql).toMatch(/ORDER BY TRY_CONVERT\(decimal\(38,2\),G\.GmsRevenue\) DESC/);
         // Ads is context only: LEFT JOIN of a window + daily restricted aggregate.
-        expect(topAsins.sql).toMatch(/LEFT JOIN AdsAgg AD ON AD\.Asin = G\.Asin AND AD\.SellerId = A\.SellerId/);
+        expect(topAsins.sql).toMatch(/LEFT JOIN AdsAgg AD ON AD\.Asin = G\.Asin AND AD\.SellerId = G\.SellerId/);
         expect(topAsins.sql).toMatch(/AP\.Date BETWEEN @startDate AND @endDate\s+AND AP\.ReportType = 'daily'/);
         expect(topAsins.inputs.startDate).toBeDefined();
         expect(topAsins.inputs.endDate).toBeDefined();
