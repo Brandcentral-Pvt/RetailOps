@@ -21,6 +21,7 @@ router.get('/search', authenticate, controller.globalSearch);
 // ✅ Permission alignment: brand managers reach the dashboard via the
 // targets_view permission (frontend ProtectedRoute allows this), so the
 // backend must accept either permission — otherwise they get a 403 here.
+router.get('/dashboard/tasks', authenticate, requireAnyPermission(['dashboard_view','targets_view']), requirePermission('tasks_view'), dashboardController.getDashboardTasks);
 router.get('/dashboard/options', authenticate, requireAnyPermission(['dashboard_view', 'targets_view']), dashboardController.getDashboardOptions);
 router.get('/dashboard', authenticate, requireAnyPermission(['dashboard_view', 'targets_view']), dashboardController.getDashboardData);
 
