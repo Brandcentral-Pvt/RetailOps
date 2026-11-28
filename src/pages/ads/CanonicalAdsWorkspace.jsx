@@ -9,6 +9,7 @@ import { apiClient } from '../../lib/api-client';
 import AdsImportModal from '../../components/ads/AdsImportModal';
 import {AdsComparisonPanel,AdsOpportunityPanel,DeltaText} from './AdsPerformanceReview';
 import AdsPortfolioPanel from './AdsPortfolioPanel';
+import {AdsBudgetPanel,AdsProductDiagnosticPanel} from './AdsBudgetIntelligence';
 import './canonicalAdsWorkspace.css';
 
 const iso=value=>{
@@ -89,7 +90,7 @@ export default function CanonicalAdsWorkspace(){
     const analyzePortfolio=()=>{if(portfolioRequested)portfolio.refetch();else setRequestedPortfolio(reviewSignature);};
     const targetFilters={sellerId:seller,startDate:filters.startDate,endDate:filters.endDate,currency};
     const targetsApplicable=!brand&&!category&&!search&&!marketplace;
-    const targets=useQuery({queryKey:['ads-canonical',principal,'targets',targetFilters],queryFn:({signal})=>get('canonical-targets',targetFilters,signal),enabled:enabled&&targetsApplicable&&!!filters.startDate&&!!filters.endDate,staleTime:0,retry:false});
+    const targets=useQuery({queryKey:['ads-canonical',principal,'budget',targetFilters],queryFn:({signal})=>get('canonical-budget',targetFilters,signal),enabled:enabled&&targetsApplicable&&!!filters.startDate&&!!filters.endDate,staleTime:0,retry:false});
     const data=report.data;
     const exportReport=async()=>{
         setExportBusy(true);setExportError(null);
@@ -166,18 +167,10 @@ export default function CanonicalAdsWorkspace(){
                 </Card>
             </>}
         </>}
-        <Card size="small" title="Seller targets & budgets">
-            {!targetsApplicable?<Alert type="info" message="Clear brand, category, marketplace and product search to compare seller-wide targets."/>:targets.isError?<Alert type="error" message={errorText(targets.error)} action={<Button onClick={()=>targets.refetch()}>Retry</Button>}/>:targets.isPending?<div className="ads-inline-loading"><Spin size="small"/> Loading seller targets…</div>:!targets.data?.rows?.length?<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No seller targets in the selected period"/>:<div className="ads-table-shell" data-testid="ads-target-table"><Table tableLayout="fixed" size="small" loading={targets.isFetching} rowKey={r=>JSON.stringify([r.sellerId,r.month,r.goalType])} dataSource={targets.data.rows} pagination={{pageSize:10}} scroll={{x:960}}
-                columns={[{title:'Seller',dataIndex:'sellerName',width:180},{title:'Month',dataIndex:'month',width:110},{title:'Metric',dataIndex:'goalType',width:90},
-                    {title:'Target',width:130,render:(_,r)=>r.goalType==='ACOS'?(r.target==null?'N/A':r.target+'%'):amount(r.target,r.currency)},
-                    {title:'Observed actual',width:150,render:(_,r)=>r.goalType==='ACOS'?(r.actual==null?'N/A':r.actual+'%'):amount(r.actual,r.currency)},
-                    {title:'Actual / target',width:130,render:(_,r)=>r.attainmentPct==null?'N/A':r.attainmentPct+'%'},
-                    {title:'Status',dataIndex:'status',width:170,render:s=><Tag>{s.replaceAll('_',' ')}</Tag>}]}/></div>}
-            <Typography.Text className="ads-period-note" type="secondary">Targets are full-calendar-month allocations. Partial date windows and incomplete coverage do not receive an attainment claim. Lower ACoS is better.</Typography.Text>
-        </Card>
+        <AdsBudgetPanel key={JSON.stringify([principal,targetFilters])} applicable={targetsApplicable} budget={targets} onRetry={()=>targets.refetch()}/>
         <Drawer rootClassName="ads-history-drawer" title={drillTarget?drillTarget.entityKey+' | '+drillTarget.sellerName:'Product history'} open={!!drillTarget} onClose={()=>setDrill(null)} width="min(900px, 95vw)">
             {history.isError?<Alert type="error" message={errorText(history.error)} action={<Button onClick={()=>history.refetch()}>Retry</Button>}/>:history.isPending?<Spin/>:history.data&&<>
-                {history.data.current.map(s=><Summary key={'cur'+s.currency} summary={s} title="Current"/>)}{history.data.previous.map(s=><Summary key={'prev'+s.currency} summary={s} title="Previous"/>)}<AdsComparisonPanel report={history.data}/><TrendTable series={history.data.series}/>
+                {history.data.current.map(s=><Summary key={'cur'+s.currency} summary={s} title="Current"/>)}{history.data.previous.map(s=><Summary key={'prev'+s.currency} summary={s} title="Previous"/>)}<AdsComparisonPanel report={history.data}/><AdsProductDiagnosticPanel diagnostics={history.data.diagnostics}/><TrendTable series={history.data.series}/>
             </>}
         </Drawer>
         {hasPermission(PERMISSIONS.ADSREPORT_IMPORT)&&<AdsImportModal isOpen={importOpen} onClose={()=>setImportOpen(false)} onComplete={imported}/>}

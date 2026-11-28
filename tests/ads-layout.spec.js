@@ -16,7 +16,7 @@ const mock=async(page,{empty=false,error=false,principal=user}={})=>{
   if(path.endsWith('/auth/me'))return send(principal);
   if(path.endsWith('/canonical-options'))return send({sellers:[{id:'s1',name:longName}],brands:['B'.repeat(230)],categories:['C'.repeat(240)],currencies:['INR'],truncated:true,parentAvailable:true});
   if(path.endsWith('/canonical-report'))return error?send(null,503):send({period,empty,current:empty?[]:[summary],previous:empty?[]:[summary],series:empty?[]:[{...summary,periodKey:'current',bucket:'2026-11-01'}],rows:empty?[]:rows,total:empty?0:rows.length,page:1,limit:50});
-  if(path.endsWith('/canonical-targets'))return send({rows:empty?[]:[{sellerId:'s1',sellerName:longName,month:'2026-11',goalType:'ADS',currency:'INR',target:'10000',actual:'1234',attainmentPct:'12.34',status:'insufficient_coverage'}]});
+  if(path.endsWith('/canonical-budget'))return send({asOf:'2026-11-27',rows:empty?[]:[{key:'budget-s1',sellerId:'s1',sellerName:longName,month:'2026-11',marketplace:'amazon.in',currency:'INR',slice:{start:'2026-11-01',through:'2026-11-27',elapsed:27,remaining:3,days:30},coverage:{coveredDays:10,spendRows:'10',rowCount:'30'},budget:{target:'10000',plannedSpend:'9000',actualSpend:'1234',observedUtilizationPct:'12.34',status:'insufficient_coverage',paceStatus:'insufficient_coverage',targetStatus:'configured',planSource:'calendar_linear',targetSource:'MONTHLY',forecastStatus:'insufficient_coverage'},acos:{target:'25',actual:null,status:'insufficient_coverage',targetStatus:'configured'}}]});
   if(path.endsWith('/ads-validation-sellers'))return send([{id:'s1',name:longName,marketplace:'Amazon India',context:{marketplace:'amazon.in',currency:'INR'}}]);
   if(path.endsWith('/ads-imports'))return send({rows:[],page:1,total:0,limit:10});
   return send([]);
@@ -258,7 +258,7 @@ test('Phase 3B portfolio analysis exposes full-population counts, segments, alig
  await panel.getByRole('tab',{name:'Aligned trends'}).click();
  await expect(panel.getByRole('img',{name:/Total sales current and prior aligned trend/})).toBeVisible();
  await expect(panel.getByText('2026-04-29 to 2026-04-30',{exact:true})).toBeVisible();
- const missingBucket=panel.getByRole('row').filter({has:panel.getByRole('cell',{name:'2026-05-03',exact:true})});
+ const missingBucket=panel.getByRole('row').filter({has:page.getByRole('cell',{name:'2026-05-03',exact:true})});
  await expect(missingBucket).toBeVisible();
  await expect(missingBucket.getByRole('cell',{name:'N/A',exact:true})).toHaveCount(2);
  await panel.locator('#ads-portfolio-trend-granularity').click();
@@ -274,4 +274,62 @@ test('Phase 3B portfolio analysis exposes full-population counts, segments, alig
  await panel.getByRole('button',{name:'Seller One',exact:true}).click();
  await expect.poll(()=>[lastReport?.get('sellerId'),lastReport?.get('marketplace'),lastReport?.get('currency')]).toEqual(['s1','amazon.in','INR']);
  await expect(panel.getByRole('button',{name:'Analyze portfolio'})).toBeVisible();
+});
+
+test('Phase 3C seller budget pacing preserves incomplete coverage, details and scoped filters',async({page})=>{
+ await page.setViewportSize({width:1440,height:900});await mock(page);
+ const common={sellerId:'s1',sellerName:'Seller One',month:'2026-11',currency:'INR',marketplace:'amazon.in',contextStatus:'verified',slice:{start:'2026-11-01',end:'2026-11-30',through:'2026-11-10',elapsed:10,remaining:20,days:30},coverage:{coveredDays:10,spendDays:10,salesDays:10,rowCount:'10',spendRows:'10',salesRows:'10',pairedRows:'10',negativeSpendRows:'0',negativeSalesRows:'0'}};
+ const full={...common,key:'full-budget',budget:{target:'3000',targetSource:'MONTHLY',targetStatus:'configured',status:'comparable',planSource:'configured_weeks',planStatus:'valid',plannedSpend:'1000',actualSpend:'1200',observedUtilizationPct:'40',utilizationPct:'40',observedOverBudget:false,paceStatus:'ahead_of_plan',varianceToPlan:'200',remainingBudget:'1800',projectedMonthEnd:'3600',projectedVariance:'600',remainingDailyAllowance:'90',forecastStatus:'linear_scenario'},acos:{target:'25',actual:'30',coverage:'complete',status:'above_target',targetStatus:'configured',gapPp:'5',targetSource:'YEARLY'}};
+ const partial={...common,key:'partial-budget',sellerId:'s2',sellerName:'Seller Two',coverage:{...common.coverage,coveredDays:3,spendRows:'3'},budget:{...full.budget,status:'insufficient_coverage',paceStatus:'insufficient_coverage',utilizationPct:null,remainingBudget:null,projectedMonthEnd:null,projectedVariance:null,varianceToPlan:null,remainingDailyAllowance:null,forecastStatus:'insufficient_coverage'},acos:{...full.acos,status:'insufficient_coverage',coverage:'partial',gapPp:null}};
+ let requestParams;
+ await page.route('**/api/ads/canonical-budget?*',route=>{
+  requestParams=new URL(route.request().url()).searchParams;
+  return route.fulfill({json:{success:true,data:{asOf:'2026-11-10',rows:[full,partial]}}});
+ });
+ await page.goto('/tests/fixtures/ads-layout.html');
+ const panel=page.getByTestId('ads-budget-panel');
+ await expect(panel.getByText('Reporting cutoff: 2026-11-10.',{exact:false})).toBeVisible();
+ const table=panel.getByTestId('ads-target-table');
+ const a=table.locator('tr[data-row-key="full-budget"]'),b=table.locator('tr[data-row-key="partial-budget"]');
+ await expect(a.getByText('INR 3600',{exact:true})).toBeVisible();
+ await expect(a.getByText('Above planned spend',{exact:true})).toBeVisible();
+ await expect(b.getByText('Observed only',{exact:true})).toBeVisible();
+ await expect(b.getByText('INR 3600',{exact:true})).toHaveCount(0);
+ expect(requestParams.has('brand')).toBe(false);expect(requestParams.has('search')).toBe(false);expect(requestParams.has('marketplace')).toBe(false);
+ await assertContained(page);
+ await a.getByRole('button',{name:'Budget details Seller One 2026-11'}).click();
+ const detail=page.getByRole('dialog');
+ await expect(detail.getByText('Configured weekly allocations',{exact:true})).toBeVisible();
+ await expect(detail.getByText('INR 90',{exact:true})).toBeVisible();
+ await expect(detail.getByText('+5 pp',{exact:true})).toBeVisible();
+ await detail.locator('.ant-modal-footer').getByRole('button',{name:'Close',exact:true}).click();
+ await panel.locator('#ads-budget-filter').click();
+ await page.getByRole('option',{name:'ACoS above target',exact:true}).click();
+ await expect(a).toBeVisible();await expect(b).toHaveCount(0);
+ await page.setViewportSize({width:1024,height:900});await assertContained(page);
+});
+test('Phase 3C ASIN diagnostics compare against the same owner portfolio and preserve prior gaps',async({page})=>{
+ await mock(page);
+ const seller={...summary,coveredDays:31,totals:{...summary.totals,spend:'400',sales:'1000',totalSales:'2000'}};
+ const product={...summary,coveredDays:20,totals:{...summary.totals,spend:'100',sales:'300',totalSales:'500'}};
+ const diag={asin:'B000000001',sellerId:'s1',marketplace:'amazon.in',currency:'INR',referenceScope:'full_seller_same_marketplace_currency',current:{
+  product,seller,days:31,shares:{spend:{product:'100',seller:'400',value:'25',status:'observed_partial'},sales:{product:'300',seller:'1000',value:'30',status:'observed_partial'},totalSales:{product:'500',seller:'2000',value:'25',status:'observed_partial'}},
+  benchmarks:{acos:{product:'20',seller:'25',delta:null,observedDelta:'-5',unit:'pp',status:'observed_partial'}},
+  observations:{daysWithFacts:20,positiveSpendDays:15,zeroNetSalesSpendDays:2,missingSalesSpendDays:1,clicksZeroConversionDays:3,signedAdjustmentDays:0}
+ },previous:{product:null,seller,days:31,shares:{},benchmarks:{},observations:null}};
+ let identity;
+ await page.route('**/api/ads/canonical-report?*',route=>{
+  const params=new URL(route.request().url()).searchParams;
+  const isDrill=params.has('entityKey');if(isDrill)identity=params;
+  return route.fulfill({json:{success:true,data:{period,empty:false,current:[summary],previous:[summary],series:[],rows:isDrill?[]:rows,total:isDrill?0:rows.length,page:1,limit:50,...(isDrill?{diagnostics:diag}:{})}}});
+ });
+ await page.goto('/tests/fixtures/ads-layout.html');
+ await page.getByTestId('ads-product-table').getByRole('button',{name:'B000000001',exact:true}).click();
+ const d=page.getByTestId('ads-product-diagnostics');
+ await expect(d.getByText('Product share of seller spend',{exact:true})).toBeVisible();
+ await expect(d.getByText('-5 pp',{exact:true})).toBeVisible();
+ await expect(d.getByText('Spend with missing ad sales',{exact:true})).toBeVisible();
+ expect([identity.get('sellerId'),identity.get('marketplace'),identity.get('currency'),identity.get('entityKey')]).toEqual(['s1','amazon.in','INR','B000000001']);
+ await d.getByText('Previous',{exact:true}).click();
+ await expect(d.getByText('No product records for this period',{exact:true})).toBeVisible();
 });

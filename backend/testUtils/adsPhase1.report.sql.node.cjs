@@ -3,6 +3,7 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const {up}=require('../migrations/098_ads_product_daily_facts');
 const {readCanonicalReport,readCanonicalOptions}=require('../services/adsCanonicalReport');
 const {readCanonicalTargets}=require('../services/adsCanonicalTargets');
+const {readBudgetIntelligence}=require('../services/adsBudgetIntelligence');
 test('SQL: canonical scope, duplicate catalog protection, current/prior comparison, exact metrics and pagination',{skip:process.env.ADS_SQL_SMOKE!=='1',timeout:120000},async()=>{
  const sql=require(process.env.ADS_TEST_MSSQL_MODULE||'mssql');
  const config={server:'127.0.0.1',user:'sa',password:process.env.ADS_TEST_SQL_PASSWORD,options:{trustServerCertificate:true,encrypt:false}};
@@ -49,6 +50,9 @@ test('SQL: canonical scope, duplicate catalog protection, current/prior comparis
   assert.equal(portfolio.current.find(x=>x.currency==='USD').totals.totalSales,'10');
   const drill=await read({sellerId:'s1',entityKey:'B000000001',marketplace:'amazon.in',currency:'INR'});
   assert.equal(drill.current[0].totals.totalSales,'98.76');assert.equal(drill.rows.length,0);
+  assert.equal(drill.diagnostics.sellerId,'s1');assert.equal(drill.diagnostics.current.seller.totals.totalSales,'148.76');
+  assert.equal(drill.diagnostics.current.shares.spend.value,'66.666667');assert.equal(drill.diagnostics.current.shares.spend.status,'observed_partial');
+  assert.equal(drill.diagnostics.current.observations.positiveSpendDays,1);assert.equal(drill.diagnostics.current.observations.signedAdjustmentDays,1);
   const weekly=await read({sellerId:'s1',granularity:'week'});
   assert.equal(weekly.current[0].totals.totalSales,'148.76');assert.ok(weekly.series.some(x=>x.bucket==='2026-03-30'));
   await assert.rejects(()=>read({sellerId:'s1,s3'}),{code:'forbidden_seller'});
@@ -59,6 +63,42 @@ test('SQL: canonical scope, duplicate catalog protection, current/prior comparis
   assert.equal(target.rows.length,2);assert.equal(Number(target.rows.find(x=>x.goalType==='ADS').target),100);assert.equal(target.rows.find(x=>x.goalType==='ADS').actual,'15');
   assert.equal(target.rows.find(x=>x.goalType==='ADS').attainmentPct,null);
   await assert.rejects(()=>readCanonicalTargets({pool,sql,user,query:{...range,sellerId:'s1,s3'}}),{code:'forbidden_seller'});
+  // Full month-to-date even when selected start is mid-month; no cross-currency
+  // or unauthorized target attachment. Actual rows with no target remain visible.
+  await pool.request().query("INSERT dbo.GmsTargetBreakdowns VALUES('m1','WEEK',1,20),('m1','WEEK',2,30),('m1','WEEK',3,20),('m1','WEEK',4,20),('m1','WEEK',5,10);");
+  const budget=(query,actor=user)=>readBudgetIntelligence({pool,sql,user:actor,query,now:new Date('2026-11-28T12:00:00Z')});
+  const pacing=await budget({startDate:'2026-04-02',endDate:'2026-04-10',sellerId:'s1'});
+  assert.equal(pacing.rows.length,1);
+  const pace=pacing.rows[0];assert.equal(pace.slice.start,'2026-04-01');assert.equal(pace.slice.elapsed,10);assert.equal(pace.budget.actualSpend,'15');
+  assert.equal(pace.budget.target,'100');assert.equal(pace.budget.planSource,'configured_weeks');assert.equal(pace.budget.plannedSpend,'32.8571428571');
+  assert.equal(pace.budget.status,'insufficient_coverage');assert.equal(pace.budget.projectedMonthEnd,null);
+  assert.equal(pace.acos.status,'insufficient_coverage');
+  const scopedBudget=await budget({...range});
+  assert.ok(scopedBudget.rows.every(x=>x.sellerId!=='s3'));
+  assert.equal(scopedBudget.rows.find(x=>x.sellerId==='s2').budget.target,null);
+  await assert.rejects(()=>budget({...range,sellerId:'s1,s3'}),{code:'forbidden_seller'});
+  await assert.rejects(()=>budget({...range,brand:'A'}),{code:'invalid_ads_filter'});
+  // A complete seller month slice uses the yearly month allocation, not the
+  // yearly total; exact observed ACoS and weighted scenario are independent.
+  await pool.request().query("INSERT dbo.Sellers VALUES('s4','Complete pacing','amazon.in'); INSERT dbo.GmsTargets VALUES('y4','s4','ADS','YEARLY',2026,NULL,36000),('a4','s4','ACOS','YEARLY',2026,NULL,25); INSERT dbo.GmsTargetBreakdowns VALUES('y4','MONTH',4,3000),('a4','MONTH',4,25),('y4','WEEK',41,700),('y4','WEEK',42,700),('y4','WEEK',43,700),('y4','WEEK',44,700),('y4','WEEK',45,200);");
+  const completeActor={...user,assignedSellers:['s4']};
+  await pool.request().query(prefix+Array.from({length:10},(_,i)=>row('s4','amazon.in','INR','B000000041','2026-04-'+String(i+1).padStart(2,'0'),500,400,120,1,1,2,10)).join(','));
+  const completePacing=await budget({startDate:'2026-04-08',endDate:'2026-04-10'},completeActor);
+  const cp=completePacing.rows[0];
+  assert.equal(cp.budget.target,'3000');assert.equal(cp.budget.targetSource,'YEARLY');assert.equal(cp.budget.plannedSpend,'1000');assert.equal(cp.budget.status,'comparable');
+  assert.equal(cp.budget.projectedMonthEnd,'3600');assert.equal(cp.budget.remainingDailyAllowance,'90');assert.equal(cp.budget.varianceToPlan,'200');
+  assert.equal(cp.acos.status,'above_target');assert.equal(cp.acos.gapPp,'5');
+  // A currency filter must not hide competing historical context.
+  await pool.request().query(prefix+row('s4','amazon.com','USD','B000000041','2026-04-01',2,2,1,1,1,1,10));
+  const conflict=await budget({startDate:'2026-04-01',endDate:'2026-04-10',currency:'INR'},completeActor);
+  assert.equal(conflict.rows.length,1);assert.equal(conflict.rows[0].contextStatus,'context_conflict');assert.equal(conflict.rows[0].budget.projectedMonthEnd,null);
+  // Duplicate same-priority allocation fails closed and a seller without facts
+  // retains its configured target.
+  await pool.request().query("INSERT dbo.GmsTargets VALUES('m4a','s4','ADS','MONTHLY',2026,12,100),('m4b','s4','ADS','MONTHLY',2026,12,150);");
+  const future=await budget({startDate:'2026-12-01',endDate:'2026-12-31'},completeActor);
+  assert.equal(future.rows[0].slice.elapsed,0);assert.equal(future.rows[0].budget.targetStatus,'conflicting_target');assert.equal(future.rows[0].budget.actualSpend,null);
+
+
   const empty=await read({startDate:'2026-11-01',endDate:'2026-11-30'});
   assert.equal(empty.empty,true);assert.equal(empty.total,0);
   // Two complete 2-day windows. Add 12 zero-sales entities to prove
