@@ -228,6 +228,8 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
     await mockPool.request().query("UPDATE dbo.Asins SET Title='Updated test catalog title' WHERE Id='A1'");
     const catalogRevision=await readReportRevision(mockPool);
     expect(catalogRevision).not.toBe(initialRevision);
+    await mockPool.request().query("UPDATE dbo.Asins SET Title=Title WHERE Id='A1'");
+    expect(await readReportRevision(mockPool)).toBe(catalogRevision);
     const remapped=await cachedReport(mockPool,global,{...options,page:1},{onTiming:t=>{timing=t;}});
     expect(timing.cacheStatus).toBe('miss');
     expect(remapped.kpis).toEqual(cachedFirst.kpis);
@@ -244,6 +246,20 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
     expect(timing.cacheStatus).toBe('miss');
     expect(changed.kpis.orderedRevenue).toBeCloseTo(cachedFirst.kpis.orderedRevenue+1,2);
     await mockPool.request().query("UPDATE dbo.GmsDailyPerformance SET OrderedRevenue=OrderedRevenue-1 WHERE Asin='B000000001'");
+    // Exercise a real import commit with triggers installed. NOCOUNT must
+    // preserve the importer's exact write-count assertion.
+    const beforeImport=await readReportRevision(mockPool);
+    const newImport=await preview('156.00');
+    expect(newImport.status).toBe('READY');
+    await service.confirm('U1',newImport.id);await service.processNext();
+    expect((await service.getJob('U1',newImport.id)).status).toBe('COMPLETED');
+    expect(await readReportRevision(mockPool)).not.toBe(beforeImport);
+    const imported=await cachedReport(mockPool,global,{...options,page:1},{onTiming:t=>{timing=t;}});
+    expect(timing.cacheStatus).toBe('miss');
+    expect(imported.kpis.orderedRevenue).toBeCloseTo(cachedFirst.kpis.orderedRevenue+1,2);
+    const restore=await preview('155.00');
+    await service.confirm('U1',restore.id);await service.processNext();
+    expect((await service.getJob('U1',restore.id)).status).toBe('COMPLETED');
     // Missing/disabled revision tracking must force the uncached query path.
     await mockPool.request().query("DISABLE TRIGGER dbo.TR_GmsReportRevision_Catalog ON dbo.Asins");
     expect(await readReportRevision(mockPool)).toBeNull();
