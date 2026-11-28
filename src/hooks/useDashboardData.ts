@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../lib/api-client';
-import { format } from 'date-fns';
+import { dashboardDateKey } from '../utils/dashboardRange.mjs';
 import { useAuth } from '../contexts/AuthContext';
 import { useDashboardOrchestration } from './useDashboardOrchestration';
 import { dashboardPrincipal,matchesDashboardScope,isDashboardGlobal,canDashboardPermission } from '../utils/dashboardScope.mjs';
@@ -67,8 +67,8 @@ export function useDashboardData(filters: DashboardFilters) {
     const orch=useDashboardOrchestration({
         sellerId:filters.sellerId==='all'?undefined:filters.sellerId,
         managerId:filters.managerId==='all'?undefined:filters.managerId,
-        startDate:filters.dateRange.start?format(filters.dateRange.start,'yyyy-MM-dd'):undefined,
-        endDate:filters.dateRange.end?format(filters.dateRange.end,'yyyy-MM-dd'):undefined,
+        startDate:dashboardDateKey(filters.dateRange.start),
+        endDate:dashboardDateKey(filters.dateRange.end),
     });
     const scope=orch.scope;
     // A role change invalidates authorization, not just a chart. Reload the
