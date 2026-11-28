@@ -151,7 +151,7 @@ async function readCanonicalReport({pool,sql,user,query,exportAll=false,insights
     if(!overviewOnly&&!completeExport)await tx.request().batch('CREATE CLUSTERED INDEX IX_AdsReportScope ON #AdsScope([SellerId],[Marketplace],[Currency],[EntityKey],[periodKey]);');
     const totals=analysisOnly?{recordset:[]}:await tx.request().query('SELECT p.[Currency] AS [currency],p.[periodKey],'+aggregateProjection+','+unmapped+','+dayCoverage+' FROM #AdsScope p GROUP BY p.[Currency],p.[periodKey] ORDER BY p.[Currency],p.[periodKey];');
     const bucket=bucketExpr(f.granularity);
-    const series=analysisOnly||analystOnly?{recordset:[]}:await tx.request().query('SELECT p.[Currency] AS [currency],p.[periodKey],'+bucket+' AS [bucket],'+aggregateProjection+','+unmapped+','+dayCoverage+
+    const series=analysisOnly?{recordset:[]}:await tx.request().query('SELECT p.[Currency] AS [currency],p.[periodKey],'+bucket+' AS [bucket],'+aggregateProjection+','+unmapped+','+dayCoverage+
       ' FROM #AdsScope p GROUP BY p.[Currency],p.[periodKey],'+bucket+' ORDER BY p.[Currency],p.[periodKey],[bucket];');
     let total=0,page=1,totalPages=1,rows=[];
     if(!f.entityKey&&!overviewOnly){
@@ -174,7 +174,7 @@ async function readCanonicalReport({pool,sql,user,query,exportAll=false,insights
         await tx.request().batch('DROP TABLE #AdsPage; DROP TABLE #AdsEntities; DROP TABLE #AdsGroups; DROP TABLE #AdsScope;');
         await tx.commit();
         const current=totals.recordset.filter(r=>r.periodKey==='current').map(shape),previous=totals.recordset.filter(r=>r.periodKey==='previous').map(shape);
-        return {...scopeMeta(f),current,previous,comparisons:compareCurrencies(current,previous,f.period.days),review,empty:!current.length&&!previous.length};
+        return {...scopeMeta(f),current,previous,comparisons:compareCurrencies(current,previous,f.period.days),series:series.recordset.map(r=>({periodKey:r.periodKey,bucket:r.bucket,...shape(r)})),review,empty:!current.length&&!previous.length};
       }
       if(analysisOnly){
         stage=reconciliationOnly?'analytics_reconciliation':portfolioOnly?'portfolio_analytics':'review_signals';
