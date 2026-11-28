@@ -219,7 +219,14 @@ export default function CanonicalAdsWorkspace(){
         ...RATIO_COLUMNS.filter(([,key])=>PRESETS[preset].includes(key)).map(([title,key,suffix])=>({title,key,width:140,align:'right',render:(_,r)=><><span className="ads-table-number" title={r.current?.ratios?.[key]?.value??'Unknown'}>{ratioValue(r.current?.ratios?.[key],suffix)}</span>{showPrior&&<><div className="ads-table-prior">Prior: {ratioValue(r.previous?.ratios?.[key],suffix)}</div><DeltaText change={r.comparison?.ratios?.[key]} currency={r.currency}/></>}{coverageLabel(r.current?.ratios?.[key])}</>}))
     ].map(c=>({...c,sortOrder:c.key===sort.sortBy?(sort.sortOrder==='asc'?'ascend':'descend'):undefined}));
     const selector=(label,values,value,onChange)=><Select aria-label={label} placeholder={label} allowClear showSearch value={value} onChange={onChange} options={(values||[]).map(v=>({value:v,label:v}))}/>;
-    const refresh=()=>{options.refetch();if(reportView&&hasDates)report.refetch();if(view==='budgets'&&targetsApplicable&&hasDates)targets.refetch();if(drillTarget)history.refetch();if(view==='opportunities'&&reviewRequested)review.refetch();if(view==='portfolio'&&portfolioRequested)portfolio.refetch();if(view==='quality'&&reconciliationRequested)reconciliation.refetch();};
+    const refresh=()=>{options.refetch();if(reportView&&hasDates){
+        const isOverview=view==='overview';
+        const key=isOverview?['ads-canonical',principal,'overview',overviewFilters]:['ads-canonical',principal,'report',filters,page,limit];
+        const params=isOverview?overviewFilters:{...filters,page,limit};
+        // Cancel the existing request and refresh the identical cache key.
+        // Never introduce a second client-side report identity for refresh.
+        void queryClient.cancelQueries({queryKey:key,exact:true}).then(()=>queryClient.fetchQuery({queryKey:key,queryFn:({signal})=>get(isOverview?'canonical-overview':'canonical-report',{...params,refresh:'true'},signal),staleTime:0,retry:false})).catch(()=>{});
+    }if(view==='budgets'&&targetsApplicable&&hasDates)targets.refetch();if(drillTarget)history.refetch();if(view==='opportunities'&&reviewRequested)review.refetch();if(view==='portfolio'&&portfolioRequested)portfolio.refetch();if(view==='quality'&&reconciliationRequested)reconciliation.refetch();};
     const refreshing=options.isFetching||(reportView&&report.isFetching)||(view==='budgets'&&targets.isFetching)||(view==='opportunities'&&review.isFetching)||(view==='portfolio'&&portfolio.isFetching)||(view==='quality'&&reconciliation.isFetching);
     const navigate=key=>{setView(key);setDrill(null);};
     if(!enabled)return <Alert type="warning" message="Advertising view permission is required." showIcon/>;
