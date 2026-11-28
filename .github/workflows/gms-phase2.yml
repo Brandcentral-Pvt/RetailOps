@@ -110,6 +110,15 @@ jobs:
           MSSQL_SA_PASSWORD: 'GmsDisposable#2026!'
         ports:
           - 1433:1433
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -126,6 +135,9 @@ jobs:
         env:
           GMS_SQLSERVER_SMOKE: '1'
           GMS_SQL_SCALE_ROWS: ${{ matrix.scale_rows }}
+          GMS_TEST_REDIS: '1'
+          REDIS_URL: 'redis://127.0.0.1:6379'
+          CACHE_PREFIX: 'gms-disposable-ci:'
           GMS_TEST_SQLSERVER_HOST: '127.0.0.1'
           GMS_TEST_SQLSERVER_PASSWORD: 'GmsDisposable#2026!'
           GMS_TEST_MSSQL_MODULE: '/tmp/gms-test-sql/node_modules/mssql'
