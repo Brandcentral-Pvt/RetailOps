@@ -13,3 +13,7 @@ The previous one-shot confirm endpoint returns 409; clients must update. Validat
 ## Release checklist
 
 Merge 288 first, then 289 after required checks. Verify /api/health/ads and /api/health/ads-imports return 200. Validate the real 96,900-row report against the correct seller with writes disabled. Confirm catalog ownership and configured marketplace/currency. Enable imports only after production acceptance. First import must reconcile all 63 fields and source totals; replay must insert zero new facts. Test cancellation, expiry, forbidden access, invalid CSV, and XLSX errors. No production database or real report import has been executed by this PR.
+
+## Empty spreadsheet rows
+
+After the exact 63-column header, fully blank logical CSV records (including bare empty lines, delimiter-only rows, and quoted/whitespace-only cells) are skipped before width/identity validation and during replay. Nonblank partial rows, zero-only rows and literal placeholders still require valid ASIN/date. The `rows` summary counts data records, `skippedBlankRows` records ignored blanks, and `sourceRecords` is their sum. Both original source record numbers and source byte hashes are preserved. The 200,000-data-record and 32 MiB bounds remain; a separate 1,000,000 scanned-record ceiling includes blank records. Header-only/all-blank reports still fail with `no_data`. Existing rejected previews remain historical; upload again to create a fresh preview. No migration or GMS changes.

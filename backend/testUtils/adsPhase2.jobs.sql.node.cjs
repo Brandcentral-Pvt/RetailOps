@@ -25,7 +25,7 @@ test('SQL durable Ads job lifecycle, scope, atomic confirmation, retries and exp
   await jobMigration(pool);assert.equal((await inspectAdsImportSchema(pool)).ready,true);
   const ctx={pool,sql,user};
   const preview=(rows,extra={})=>createPreview({...ctx,sellerId:'s1',input:csv(rows),fileName:'report.csv',...extra});
-  const ready=await preview([row]);assert.equal(ready.status,'READY');assert.equal(ready.summary.rows,1);assert.equal('SourceBytes' in ready,false);
+  const ready=await preview([{},row,{}]);assert.equal(ready.status,'READY');assert.equal(ready.summary.rows,1);assert.equal(ready.summary.skippedBlankRows,2);assert.equal(ready.summary.sourceRecords,3);assert.equal('SourceBytes' in ready,false);
   assert.equal((await listJobs(ctx)).total,1);
   assert.equal(await getJob({...ctx,id:ready.id,user:{...user,Id:'u2'}}),null);
   assert.equal(await getJob({...ctx,id:ready.id,user:{...user,assignedSellers:['s2']}}),null);
@@ -39,6 +39,7 @@ test('SQL durable Ads job lifecycle, scope, atomic confirmation, retries and exp
   assert.ok(results.every(r=>r.status==='COMPLETED'&&r.result.inserted===1));
   const stored=await pool.request().query("SELECT Status,DATALENGTH(SourceBytes) AS bytes FROM dbo.AdsImportJobs WHERE Id='"+ready.id+"'; SELECT COUNT(*) AS n FROM dbo.AdsProductDailyFacts;");
   assert.equal(stored.recordsets[0][0].bytes,null);assert.equal(stored.recordsets[1][0].n,1);
+  const lineage=await pool.request().query("SELECT SourceRowNumber FROM dbo.AdsProductDailyFacts WHERE SellerId='s1'");assert.equal(lineage.recordset[0].SourceRowNumber,3);
   const replay=await preview([row]);const replayed=await confirmJob({...ctx,id:replay.id});assert.equal(replayed.result.inserted,0);assert.equal(replayed.result.unchanged,1);
   const bad=await preview([{...row,'metrics.spend':'bad'}]);assert.equal(bad.status,'REJECTED');assert.equal(bad.summary.issueCount,1);
   const errors=await getIssues({...ctx,id:bad.id});assert.equal(errors.issues[0].asin,row.asin);assert.equal(errors.issues[0].row,2);
@@ -55,5 +56,10 @@ test('SQL durable Ads job lifecycle, scope, atomic confirmation, retries and exp
   const facts=await pool.request().query("SELECT COUNT(*) AS n FROM dbo.AdsProductDailyFacts; SELECT COUNT(*) AS payloads FROM dbo.AdsImportJobs WHERE SourceBytes IS NOT NULL;");
   assert.equal(facts.recordsets[0][0].n,1);assert.equal(facts.recordsets[1][0].payloads,0);
   assert.equal((await listJobs({...ctx,user:{...user,assignedSellers:[]}})).total,0);
+  const gaps=await preview([{...row,date:'2026-04-03'},{},{},{...row,date:'2026-04-04'}]);
+  assert.equal(gaps.status,'READY');assert.equal(gaps.summary.validRows,2);assert.equal(gaps.summary.skippedBlankRows,2);
+  const committed=await confirmJob({...ctx,id:gaps.id});assert.equal(committed.status,'COMPLETED');assert.equal(committed.result.inserted,2);
+  const gapFacts=await pool.request().query("SELECT SourceRowNumber FROM dbo.AdsProductDailyFacts WHERE SellerId='s1' AND [Date]>='2026-04-03' ORDER BY [Date]");
+  assert.deepEqual(gapFacts.recordset.map(r=>r.SourceRowNumber),[2,5]);
  }finally{if(prior===undefined)delete process.env.ADS_CANONICAL_IMPORT_ENABLED;else process.env.ADS_CANONICAL_IMPORT_ENABLED=prior;if(pool)await pool.close();await admin.request().query('ALTER DATABASE ['+database+'] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE ['+database+'];').catch(()=>{});await admin.close();}
 });

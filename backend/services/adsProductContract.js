@@ -6,6 +6,8 @@ const { createHash } = require('node:crypto');
 
 const MAX_FILE_BYTES = 32 * 1024 * 1024;
 const MAX_ROWS = 200000;
+// Retain a separate bound on scanned records, including blank sheet rows.
+const MAX_SOURCE_RECORDS = 1000000;
 const MAX_ISSUES = 100;
 const FIELDS = contract.fields;
 const HEADERS = FIELDS.map(f => f.header);
@@ -102,6 +104,25 @@ function* csvRecords(text) {
     finishCell(); yield { row: record, cells: row };
   }
 }
+// Shared by validation, catalog preflight and transactional replay. Test the
+// decoded cells before normalization and width checks: empty spreadsheet rows
+// may be bare newlines, comma-only records or quoted/whitespace cells.
+// A zero, a placeholder such as None, or any other nonblank text is DATA.
+function* dataRecords(it, onBlank) {
+  let scanned=0, rows=0;
+  for(let next=it.next();!next.done;next=it.next()){
+    const record=next.value;
+    if(++scanned>MAX_SOURCE_RECORDS)
+      reject('source_row_limit','Report exceeds 1,000,000 CSV records including empty rows; remove excess blank rows or split the file.',record.row);
+    if(record.cells.every(cell=>cell.trim()==='')){
+      onBlank?.();
+      continue;
+    }
+    if(++rows>MAX_ROWS)
+      reject('row_limit','Report exceeds 200,000 data records; split by date range.',record.row);
+    yield record;
+  }
+}
 function scaled(s) {
   const neg = s.startsWith('-');
   const [w,d=''] = s.replace(/^-/,'').split('.');
@@ -132,7 +153,7 @@ function validateReport(input,{onIssue}={}) {
   const seen = new Map(), asins = new Set(), dates = new Set();
   const issues = [], coverage = Object.fromEntries(HEADERS.map(h => [h,{populated:0,zero:0}]));
   const sums = Object.fromEntries(ADDITIVE.map(h => [h,0n]));
-  let issueCount=0, rows=0, validRows=0, invalidRows=0, exactDuplicates=0, conflictingDuplicates=0;
+  let issueCount=0, rows=0, skippedBlankRows=0, validRows=0, invalidRows=0, exactDuplicates=0, conflictingDuplicates=0;
   let adsRows=0, businessRows=0, bothRows=0;
   let issueContext={};
   const addIssue = (code,message,row,column=null) => {
@@ -141,10 +162,9 @@ function validateReport(input,{onIssue}={}) {
     if (issues.length < MAX_ISSUES) issues.push(issue);
     if(onIssue)onIssue(issue);
   };
-  for (let next=it.next(); !next.done; next=it.next()) {
-    const {row,cells} = next.value;
+  for (const {row,cells} of dataRecords(it,()=>{skippedBlankRows++;})) {
     issueContext={};
-    if (++rows > MAX_ROWS) reject('row_limit','Report exceeds 200,000 data records; split by date range.',row);
+    rows++;
     if (cells.length !== HEADERS.length) { invalidRows++; addIssue('row_width','Expected 63 fields.',row); continue; }
     const asin=identity(cells[positions[HEADERS.indexOf('asin')]]).toUpperCase(),date=identity(cells[positions[HEADERS.indexOf('date')]]);
     if(/^[A-Z0-9]{10}$/.test(asin))issueContext.asin=asin;
@@ -187,7 +207,7 @@ function validateReport(input,{onIssue}={}) {
   issueContext={};
   if (!rows) addIssue('no_data','The report contains no data rows.',1);
   const sortedDates=[...dates].sort();
-  return {schemaVersion:contract.schemaVersion,reportType:'daily',valid:issueCount===0,rows,validRows,invalidRows,
+  return {schemaVersion:contract.schemaVersion,reportType:'daily',valid:issueCount===0,rows,skippedBlankRows,sourceRecords:rows+skippedBlankRows,validRows,invalidRows,
     exactDuplicates,conflictingDuplicates,uniqueAsins:asins.size,uniqueDates:dates.size,
     startDate:sortedDates[0]||null,endDate:sortedDates.at(-1)||null,
     populations:{adsRows,businessRows,bothRows,neitherRows:validRows-adsRows-businessRows+bothRows},
@@ -200,10 +220,8 @@ function* replayValidatedRows(input, expectedSha256) {
   const {bytes,it,positions}=prepareReport(input);
   if(createHash('sha256').update(bytes).digest('hex')!==expectedSha256)
     reject('source_changed','The report changed after validation.');
-  let n=0;
-  for(let next=it.next();!next.done;next=it.next()){
-    const {row,cells}=next.value;
-    if(++n>MAX_ROWS||cells.length!==HEADERS.length)reject('row_width','Invalid validated record.',row);
+  for(const {row,cells} of dataRecords(it)){
+    if(cells.length!==HEADERS.length)reject('row_width','Invalid validated record.',row);
     const values=FIELDS.map((f,i)=>normalize(f,cells[positions[i]],row));
     yield [row,...values];
   }

@@ -103,7 +103,7 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
   <Upload.Dragger accept=".csv" maxCount={1} disabled={!!busy} fileList={file?[file]:[]}
    beforeUpload={f=>{if(!/\.csv$/i.test(f.name)||f.size>32*1024*1024||!f.size){setError('Select a nonempty CSV up to 32 MiB.');return Upload.LIST_IGNORE;}setFile(f);setError(null);return false;}}
    onRemove={()=>{setFile(null);return true;}}>
-   <p className="ant-upload-drag-icon"><InboxOutlined/></p><p>Choose or drop your daily product CSV</p><p>63 original headers • up to 200,000 records • 32 MiB</p>
+   <p className="ant-upload-drag-icon"><InboxOutlined/></p><p>Choose or drop your daily product CSV</p><p>63 original headers • up to 200,000 data records • 32 MiB</p>
   </Upload.Dragger>
   {busy==='validate'&&<><Progress percent={uploadPct} status="active"/><div>{uploadPct===100?'File received; validating and saving preview…':'Uploading CSV…'}</div></>}
  </Space>;
@@ -117,7 +117,7 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
     {title:'Seller',dataIndex:'sellerId',width:150,render:v=>sellers.find(s=>s.id===v)?.name||v},
     {title:'Status',dataIndex:'status',width:120,render:v=><Tag color={colors[v]}>{v}</Tag>},
     {title:'Created',dataIndex:'createdAt',width:160,render:time},
-    {title:'Rows',width:90,render:(_,r)=>count(r.summary?.rows)},
+    {title:'Data rows',width:90,render:(_,r)=>count(r.summary?.rows)},
     {title:'Action',width:90,render:(_,r)=><Button type="link" disabled={!!busy} onClick={()=>openJob(r.id)}>Open</Button>}
    ]}/>
  </Space>;
@@ -131,8 +131,11 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
    <Descriptions.Item label="Expires">{time(job.expiresAt)}</Descriptions.Item>
    <Descriptions.Item label="Completed">{time(job.completedAt)}</Descriptions.Item>
   </Descriptions>
-  <Row gutter={[10,10]}>{[['CSV rows',summary.rows],['Valid rows',summary.validRows],['Invalid rows',summary.invalidRows],['Issues',summary.issueCount]].map(([label,v])=>
+  <Row gutter={[10,10]}>{[['Data rows',summary.rows],['Valid rows',summary.validRows],['Invalid rows',summary.invalidRows],['Issues',summary.issueCount]].map(([label,v])=>
     <Col span={12} sm={6} key={label}><Card size="small"><div>{label}</div><strong style={{fontSize:18}}>{count(v)}</strong></Card></Col>)}</Row>
+  {summary.skippedBlankRows>0&&<Alert showIcon type="info"
+   message={count(summary.skippedBlankRows)+' completely blank rows skipped'}
+   description="Empty rows are excluded from the imported data and validation counts. Original CSV record numbers are retained."/>}
   {summary.totals&&<Descriptions bordered size="small" column={2}>
    <Descriptions.Item label="Ad spend">{money(summary.totals['metrics.spend'],job.currency)}</Descriptions.Item>
    <Descriptions.Item label="Ad sales">{money(summary.totals['metrics.sales'],job.currency)}</Descriptions.Item>
