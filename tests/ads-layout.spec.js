@@ -533,3 +533,36 @@ test('Ads uses the shared GMS report calendar and preserves filters across date 
  await expect.poll(()=>[lastBudget?.get('startDate'),lastBudget?.get('endDate')]).toEqual(['2026-10-01','2026-10-31']);
  await page.setViewportSize({width:768,height:900});await assertContained(page);
 });
+
+test('Ads export configures independent filters and keeps errors inside the drawer',async({page})=>{
+ await mock(page,{empty:true});
+ let calls=[];
+ await page.route('**/api/ads/canonical-export?*',route=>{
+  calls.push(Object.fromEntries(new URL(route.request().url()).searchParams));
+  return route.fulfill({status:422,contentType:'application/json',body:JSON.stringify({message:'Export exceeds capacity.'})});
+ });
+ await page.goto('/tests/fixtures/ads-layout.html');
+ await page.getByRole('button',{name:'Export XLSX',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'Export advertising report'});
+ await expect(dialog).toBeVisible();
+ expect(calls).toHaveLength(0);
+ await dialog.getByText('Choose seller and filters',{exact:true}).click();
+ await expect(dialog.getByRole('button',{name:'Export complete Excel'})).toBeDisabled();
+ await dialog.getByLabel('Export seller',{exact:true}).click();
+ await page.getByRole('option',{name:longName,exact:true}).click();
+ await dialog.getByLabel('Export product search').fill('B000000001');
+ await dialog.getByText('Weekly',{exact:true}).click();
+ await dialog.getByRole('button',{name:'Export complete Excel'}).click();
+ await expect(dialog.getByText('Export exceeds capacity.')).toBeVisible();
+ expect(calls).toHaveLength(1);
+ expect(calls[0]).toMatchObject({sellerId:'s1',search:'B000000001',granularity:'week'});
+ expect(calls[0]).not.toHaveProperty('page');
+ await dialog.getByText('All authorized sellers (no catalog filters)',{exact:true}).click();
+ await dialog.getByRole('button',{name:'Export complete Excel'}).click();
+ await expect.poll(()=>calls.length).toBe(2);
+ expect(calls[1]).not.toHaveProperty('sellerId');
+ expect(calls[1]).not.toHaveProperty('search');
+ await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
+ await expect(dialog).toHaveCount(0);
+ await expect(page.getByLabel('Search products',{exact:true})).toHaveValue('');
+});
