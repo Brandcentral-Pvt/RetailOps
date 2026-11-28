@@ -91,7 +91,7 @@ const dashboardPool = () => makeDashboardPool([
             Category: 'Home', CurrentPrice: 4999, SellerId: 's1', SellerName: 'ACME', Marketplace: 'Amazon',
             GmsRevenue: 250, GmsUnits: 5, ShippedRevenue: 200, Returns: 0,
             PrevGmsRevenue: 0, PrevGmsUnits: 0, ActiveDays: 1,
-            AdSales:100,AdSpend:25,Orders:5,TotalUnits:7,TotalUnitsCount:1,Conversions:2,ConversionsCount:1,cvrPairCount:1,FactRows:1,AdSalesCount:1,AdSpendCount:1,TotalSalesCount:1,OrganicSalesCount:1,OrdersCount:1,ImpressionsCount:1,ClicksCount:1,acosPairCount:1,tacosPairCount:1,adSharePairCount:1,roasPairCount:1,ctrPairCount:1,cpcPairCount:1,TotalSales:500,
+            AdSales:100,AdSpend:25,Orders:5,TotalUnits:7,TotalUnitsCount:1,Conversions:2,ConversionsCount:1,cvrPairCount:1,OrganicSales:150,Impressions:900,Clicks:40,FactRows:1,AdSalesCount:1,AdSpendCount:1,TotalSalesCount:1,OrganicSalesCount:1,OrdersCount:1,ImpressionsCount:1,ClicksCount:1,acosPairCount:1,tacosPairCount:1,adSharePairCount:1,roasPairCount:1,ctrPairCount:1,cpcPairCount:1,TotalSales:500,
         }],
     },
     // Manager assignments are looked up from the authoritative junction.
