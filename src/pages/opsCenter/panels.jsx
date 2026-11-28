@@ -107,28 +107,28 @@ export const KpiRow = ({ dashboardRaw, focus, onFocus, span = 2 }) => {
             key: 'adSales', label: 'Ad sales', tip: 'Observed ad-attributed sales in INR from canonical facts.',
             value: show(adSales,fmtINR),
             sub: adShare !== null ? `${fmtPct(adShare)} of reported total sales · ${show(adOrders,fmtNum)} ad orders` : `${show(adOrders,fmtNum)} ad orders`,
-            delta: <Delta value={metricDelta('AdSales',adSales,prev?.adSales)} label={vs} compact />,
+            delta: <Delta value={metricDelta('AdSales')} label={vs} compact />,
             spark: <Sparkline data={adsPerf[0]?.data || []} color={OPS_COLOR.pos} />,
         },
         {
             key: 'adSpend', label: 'Ad spend', tip: 'Observed advertising spend in INR. Missing observations are unknown.',
             value: show(adSpend,fmtINR),
             sub: tacos !== null ? `TACoS ${fmtPct(tacos)} · ${show(dailySpend,fmtINR)} / day` : `${show(dailySpend,fmtINR)} / day`,
-            delta: <Delta value={metricDelta('AdSpend',adSpend,prev?.adSpend)} label={vs} compact neutral />,
+            delta: <Delta value={metricDelta('AdSpend')} label={vs} compact neutral />,
             spark: <Sparkline data={adsPerf[1]?.data || []} color={OPS_COLOR.warn} />,
         },
         {
             key: 'acos', label: 'ACoS', tip: 'Ad spend ÷ ad sales. Lower is better; change shown in percentage points.',
             value: show(acos,fmtPct),
             sub: 'spend ÷ ad sales · lower is better',
-            delta: <Delta value={ratioDelta('acos',acos,prev?.acos,pointDelta)} label={vs} compact invert points />,
+            delta: <Delta value={ratioDelta('acos')} label={vs} compact invert points />,
             spark: <Sparkline data={dashboardRaw?.acosSeries || []} color={OPS_COLOR.warn} />,
         },
         {
             key: 'roas', label: 'ROAS', tip: 'Ad-attributed sales divided by spend. Trend uses the same ratio, not reciprocal ACoS.',
             value: roas==null?'N/A':roas.toFixed(2), unit: roas==null?'':'×',
             sub: 'ad sales ÷ spend',
-            delta: <Delta value={ratioDelta('roas',roas,prev?.roas,pctDelta)} label={vs} compact />,
+            delta: <Delta value={ratioDelta('roas')} label={vs} compact />,
             spark: <Sparkline data={dashboardRaw?.roasSeries||[]} color={OPS_COLOR.pos} />,
         },
     ];
@@ -291,66 +291,36 @@ export const MixPanel = ({ dashboardRaw, status, onRetry }) => {
     const [basis, setBasis] = useState('gms');
     const [showDonut, setShowDonut] = useState(false);
 
-    const normKey = (k) => String(k).toLowerCase().replace(/\.| /g, '');
-    const mpKeyMap = { amazonin: 'amazon', ajio: 'ajio', myntra: 'myntra' };
-    const getMpKey = (raw) => mpKeyMap[normKey(raw)] || normKey(raw);
-
-    const gmsByMp = (dashboardRaw?.gmsByMarketplace || [])
-        .reduce((acc, m) => {
-            const key = getMpKey(m.name);
-            acc[key] = { revenue: Number(m.revenue) || 0, sellers: m.sellers || 0 };
-            return acc;
-        }, {});
-
-    const asinsByMp = (dashboardRaw?.category || [])
-        .reduce((acc, c) => {
-            const key = getMpKey(c.name);
-            acc[key] = (c.data || [0])[0] || 0;
-            return acc;
-        }, {});
-
-    const trendByMp = (dashboardRaw?.gmsTrendByMarketplace || [])
-        .reduce((acc, m) => {
-            const key = getMpKey(m.marketplace);
-            acc[key] = m.points || [];
-            return acc;
-        }, {});
-
-    const rows = MP_ORDER.map((key) => {
-        const gms = gmsByMp[key]?.revenue || 0;
-        const sellers = gmsByMp[key]?.sellers || 0;
-        const asins = asinsByMp[key] || 0;
-        const trend = trendByMp[key] || [];
-        return {
-            key,
-            label: MP_LABELS[key] || key,
-            color: MP_COLORS[key] || '#94a3b8',
-            gms,
-            sellers,
-            asins,
-            trend,
-        };
-    });
-
-    const hasGms = rows.some(r => r.gms > 0);
-    const effective = basis === 'gms' && hasGms ? 'gms' : 'asins';
-
-    const sortedRows = [...rows].sort((a, b) => {
-        const av = effective === 'gms' ? a.gms : a.asins;
-        const bv = effective === 'gms' ? b.gms : b.asins;
-        return bv - av;
-    });
-
-    const total = rows.reduce((s, r) => s + (effective === 'gms' ? r.gms : r.asins), 0);
+    const keyOf=name=>{const k=String(name||'Other').trim().toLowerCase();return ['amazon','amazon.in','amazon india','amazon_in'].includes(k)?'amazon':k;};
+    const map=new Map();
+    const entry=name=>{
+        const key=keyOf(name);
+        if(!map.has(key))map.set(key,{key,label:MP_LABELS[key]||name||'Other',color:MP_COLORS[key]||OPS_COLOR.slate,gms:null,sellers:0,asins:0,hasGms:false,unknown:false,trend:[]});
+        return map.get(key);
+    };
+    for(const m of dashboardRaw?.gmsByMarketplace||[]){
+        const r=entry(m.name);r.hasGms=true;r.sellers+=Number(m.sellers)||0;
+        if(m.revenue==null)r.unknown=true;
+        else r.gms=((r.gms??0)*100+Math.round(Number(m.revenue)*100))/100;
+    }
+    for(const m of dashboardRaw?.category||[])entry(m.name).asins+=Number(m.data?.[0])||0;
+    for(const m of dashboardRaw?.gmsTrendByMarketplace||[])entry(m.marketplace).trend=m.points||[];
+    const rows=[...map.values()].map(r=>({...r,gms:r.unknown?null:r.gms}));
+    const hasGms=rows.some(r=>r.gms!=null);
+    const effective=basis;
+    const valueOf=r=>effective==='gms'?r.gms:r.asins;
+    const sortedRows=[...rows].sort((a,b)=>(valueOf(b)??-Infinity)-(valueOf(a)??-Infinity));
+    const validTotal=rows.length>0&&rows.every(r=>valueOf(r)!=null&&valueOf(r)>=0);
+    const total=validTotal?rows.reduce((s,r)=>s+valueOf(r),0):null;
     const fmt = effective === 'gms' ? fmtINR : fmtNum;
 
     const renderTrend = (points, color) => {
         if (!points?.length) return <span className="ops-muted">—</span>;
-        return <Sparkline data={points.map(p => p.revenue || p.value || 0)} width={80} height={18} color={color} />;
+        return <Sparkline data={points.map(p => p.revenue??p.value??null)} width={80} height={18} color={color} />;
     };
 
     const renderDonut = () => {
-        if (total === 0) return null;
+        if (!(total>0)) return null;
         const circumference = 2 * Math.PI * 40; // r=40
         let offset = 0;
         return (
@@ -416,15 +386,15 @@ export const MixPanel = ({ dashboardRaw, status, onRetry }) => {
                 <MiniState tone="empty" title={effective === 'gms' ? 'No GMS by marketplace' : 'No ASINs'} note="No data for this selection." />
             ) : (
                 <div style={{ paddingTop: 2 }}>
-                    {showDonut && (
+                    {showDonut&&total>0 && (
                         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
                             {renderDonut()}
                         </div>
                     )}
                     <div style={{ paddingTop: 2 }}>
-                        {rows.map((r) => {
+                        {sortedRows.map((r) => {
                             const value = effective === 'gms' ? r.gms : r.asins;
-                            const pct = total > 0 ? (value / total) * 100 : 0;
+                            const pct=total>0&&value!=null?value/total*100:null;
                             return (
                                 <div className="ops-hbar" key={r.key} style={{ marginBottom: 10 }}>
                                     <div className="ops-hbar__top" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -432,10 +402,10 @@ export const MixPanel = ({ dashboardRaw, status, onRetry }) => {
                                             <span style={{ width: 10, height: 10, borderRadius: '50%', background: r.color, flexShrink: 0 }} />
                                             <b>{r.label}{r.sellers ? <span className="ops-muted"> · {r.sellers} seller{r.sellers === 1 ? '' : 's'}</span> : null}</b>
                                         </div>
-                                        <span className="ops-num">{fmt(value)} · {pct.toFixed(0)}%</span>
+                                        <span className="ops-num">{fmt(value)} · {fmtPct(pct,0)}</span>
                                     </div>
                                     <div className="ops-hbar__track" style={{ height: 8, borderRadius: 4, background: '#e2e8f0', overflow: 'hidden' }}>
-                                        <span className="ops-hbar__fill" style={{ width: `${pct}%`, background: r.color, height: '100%', display: 'block', borderRadius: 4, transition: 'width 0.3s ease' }} />
+                                        <span className="ops-hbar__fill" style={{ width: `${pct??0}%`, background: r.color, height: '100%', display: 'block', borderRadius: 4, transition: 'width 0.3s ease' }} />
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6, fontSize: 11 }}>
                                         <span className="ops-muted">Trend:</span>
