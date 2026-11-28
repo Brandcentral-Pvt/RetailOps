@@ -1,6 +1,6 @@
 'use strict';
-const {validateWindow,AdsScopeError}=(()=>{const a=require('./adsCanonicalMetrics');return {...a,AdsScopeError:require('./adsCanonicalScope').AdsScopeError}})();
-const {resolveContext}=require('./adsCanonicalScope');
+const {validateWindow}=require('./adsCanonicalMetrics');
+const {resolveContext,AdsScopeError}=require('./adsCanonicalScope');
 const {buildOwnerBatch}=require('./dashboardFinancialRead');
 const {metricProjection,exactSum}=require('./dashboardFinancialMetrics');
 const {projection:adsProjection,summarize:adsSummary}=require('./dashboardAdsMetrics');
