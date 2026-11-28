@@ -48,6 +48,14 @@ for(const width of [1920,1440,1024,768]){
   await expect(page.getByRole('button',{name:'Export XLSX',exact:true})).toBeInViewport();
   await expect(page.getByRole('button',{name:'Refresh',exact:true})).toBeInViewport();
   await assertContained(page);
+  // Assert vertical dimensions, not only horizontal containment. Legacy
+  // flex-basis on a column child used to produce a 148px select.
+  const filters=page.getByTestId('ads-filters');
+  const dims=await filters.evaluate(root=>[...root.querySelectorAll('.ads-filter-field > .ant-select, .ads-search-control > .ant-input-affix-wrapper, .ads-search-control > .ant-btn')].map(e=>({name:e.getAttribute('aria-label')||e.className,height:e.getBoundingClientRect().height,top:e.getBoundingClientRect().top})));
+  expect(dims.length).toBeGreaterThanOrEqual(7);
+  for(const d of dims){expect(d.height,d.name+' height').toBeGreaterThanOrEqual(28);expect(d.height,d.name+' height').toBeLessThanOrEqual(36);}
+  const fields=await filters.locator('.ads-filter-field').evaluateAll(nodes=>nodes.map(e=>e.getBoundingClientRect().height));
+  expect(Math.max(...fields)).toBeLessThanOrEqual(76);
   await goView(page,'budgets');
   await expect(page.getByText('No seller targets in the selected period')).toBeVisible();
   await assertContained(page);
