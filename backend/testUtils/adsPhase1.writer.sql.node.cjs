@@ -56,7 +56,8 @@ test('SQL: full writer, shared ASIN isolation, exact replay, conflict rollback, 
   await assert.rejects(()=>summary('s1,foreign'),{code:'forbidden_seller'});
   // End-to-end source CSV -> exact persisted facts -> every canonical metric
   // and the actual analytics partition paths, including sparse and signed rows.
-  await pool.request().query("ALTER TABLE dbo.Sellers ADD Name nvarchar(255) NULL; UPDATE dbo.Sellers SET Name=Id;");
+  await pool.request().query("ALTER TABLE dbo.Sellers ADD Name nvarchar(255) NULL;");
+  await pool.request().query("UPDATE dbo.Sellers SET Name=Id;");
   const source=validateReport(csv([base,{...base,date:'2026-04-02','metrics.spend':'0','metrics.total_sales':'-1.25','metrics.ordered_revenue':'-1.25','metrics.new_to_brand_sales':''},{asin:base.asin,date:'2026-04-03'},concurrent[0]]));
   const audit=await readCanonicalReport({pool,sql,user,query:{sellerId:'s1',startDate:'2026-04-01',endDate:'2026-04-30'},reconciliationOnly:true});
   assert.equal(audit.status,'passed',JSON.stringify(audit.checks));assert.equal(audit.checks.length,9);
