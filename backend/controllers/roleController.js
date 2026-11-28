@@ -221,6 +221,8 @@ exports.updateRole = async (req, res) => {
       throw err;
     }
 
+    // Publish invalidation only after the authorized transaction commits.
+    try{require('../services/socketService').getIo()?.emit('access_profile_changed');}catch(_){}
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
