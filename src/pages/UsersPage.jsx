@@ -317,14 +317,10 @@ const UsersPage = () => {
 
     useEffect(() => {
         if (!socket) return;
-        const handler = (updatedRole) => {
-            setRoles(prev => prev.map(role =>
-                (role._id === updatedRole._id || role.id === updatedRole.id) ? updatedRole : role
-            ));
-        };
-        socket.on('role_permissions_updated', handler);
-        return () => socket.off('role_permissions_updated', handler);
-    }, [socket]);
+        const handler=()=>{void loadRolesAndPerms();};
+        socket.on('access_profile_changed',handler);
+        return ()=>socket.off('access_profile_changed',handler);
+    }, [socket,loadRolesAndPerms]);
 
     const handleToggleStatus = useCallback(async (userId) => {
         try {
@@ -573,7 +569,6 @@ const UsersPage = () => {
             for (const r of changed) {
                 const ids = toPermissionIds(r.permissions);
                 await roleApi.update(r._id || r.id, { permissions: ids });
-                if (socket) socket.emit('update_role_permissions', { roleId: r._id || r.id, permissions: ids });
             }
             notificationApi.success({
                 message: 'Permissions Saved',
