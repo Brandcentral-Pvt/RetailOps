@@ -192,7 +192,15 @@
 .ads-filter-field {display:flex;flex-direction:column;gap:5px;min-width:0;max-width:100%;}
 .ads-filter-field>span {font-size:11px;color:var(--ant-color-text-secondary,#64748b);font-weight:550;line-height:1.25;}
 .ads-filter-field .ant-select,.ads-filter-field .ant-btn,.ads-filter-field .ant-segmented {max-width:100%;min-width:0;}
-.ads-filters .ads-filter-field .ant-select,.ads-filters .ads-filter-field .ads-date-button {width:100%;}
+/* The pre-Phase-4 .ads-filter-select had flex-basis:148px (130px on
+   mobile). Inside a column field that basis becomes the control's height.
+   Explicitly neutralize legacy horizontal flex sizing at the control. */
+.ads-phase4 .ads-filter-grid>.ads-filter-field {align-self:stretch;justify-content:flex-end;}
+.ads-phase4 .ads-filter-grid>.ads-filter-field>.ant-select {flex:0 0 32px;width:100%;height:32px;min-height:32px;max-height:32px;align-self:stretch;}
+.ads-phase4 .ads-filter-grid>.ads-filter-field>.ant-select .ant-select-selector {min-height:0;}
+.ads-phase4 .ads-filter-grid>.ads-filter-field>.ads-date-button {flex:0 0 auto;width:100%;min-height:32px;height:auto;}
+.ads-phase4 .ads-filter-grid .ads-search-control {height:32px;align-items:stretch;}
+.ads-phase4 .ads-filter-grid .ads-search-control>.ant-btn {height:32px;}
 .ads-filters .ads-filter-field:first-child,.ads-filters .ads-filter-field:last-child {grid-column:span 2;}
 .ads-filters .ads-filter-field .ads-date-button {white-space:normal;height:auto;min-height:34px;}
 .ads-search-control {display:flex;gap:5px;min-width:0;}
@@ -279,3 +287,7 @@
 @container(max-width:900px){.ads-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @container(max-width:380px){.ads-kpi-grid{grid-template-columns:minmax(0,1fr);}}
 @media(max-width:900px){.ads-report-loading .ads-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+
+/* Product density is an explicit local visual setting, independent of Ant's internal size class names. */
+.ads-phase4 [data-testid="ads-product-table"][data-density="compact"] .ant-table-tbody>tr:not(.ant-table-measure-row)>td {padding-block:8px!important;}
+.ads-phase4 [data-testid="ads-product-table"][data-density="comfortable"] .ant-table-tbody>tr:not(.ant-table-measure-row)>td {padding-block:14px!important;}

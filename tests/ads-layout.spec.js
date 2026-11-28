@@ -48,6 +48,14 @@ for(const width of [1920,1440,1024,768]){
   await expect(page.getByRole('button',{name:'Export XLSX',exact:true})).toBeInViewport();
   await expect(page.getByRole('button',{name:'Refresh',exact:true})).toBeInViewport();
   await assertContained(page);
+  // Assert vertical dimensions, not only horizontal containment. Legacy
+  // flex-basis on a column child used to produce a 148px select.
+  const filters=page.getByTestId('ads-filters');
+  const dims=await filters.evaluate(root=>[...root.querySelectorAll('.ads-filter-field > .ant-select, .ads-search-control > .ant-input-affix-wrapper, .ads-search-control > .ant-btn')].map(e=>({name:e.getAttribute('aria-label')||e.className,height:e.getBoundingClientRect().height,top:e.getBoundingClientRect().top})));
+  expect(dims.length).toBeGreaterThanOrEqual(7);
+  for(const d of dims){expect(d.height,d.name+' height').toBeGreaterThanOrEqual(28);expect(d.height,d.name+' height').toBeLessThanOrEqual(36);}
+  const fields=await filters.locator('.ads-filter-field').evaluateAll(nodes=>nodes.map(e=>e.getBoundingClientRect().height));
+  expect(Math.max(...fields)).toBeLessThanOrEqual(76);
   await goView(page,'budgets');
   await expect(page.getByText('No seller targets in the selected period')).toBeVisible();
   await assertContained(page);
@@ -454,8 +462,11 @@ test('Phase 4 product presets and comparison controls preserve pinned identity a
  await expect(table.getByRole('columnheader',{name:/Ad sales/})).toHaveCount(0);
  await expect.poll(()=>lastReport?.get('sortBy')).toBe('clicks');
  await expect(table.getByRole('button',{name:'B000000001',exact:true})).toBeVisible();
+ const cell=table.locator('tr[data-row-key="row-0"]').getByTestId('ads-pinned-product');
+ const compactPadding=await cell.evaluate(e=>parseFloat(getComputedStyle(e).paddingTop));
  await page.getByText('Comfortable',{exact:true}).click();
- await expect(table.locator('.ant-table-middle')).toBeVisible();
+ await expect(table).toHaveAttribute('data-density','comfortable');
+ await expect.poll(()=>cell.evaluate(e=>parseFloat(getComputedStyle(e).paddingTop))).toBeGreaterThan(compactPadding);
  await assertContained(page);
  await table.getByRole('button',{name:'B000000001',exact:true}).click();
  const drawer=page.getByRole('dialog');
