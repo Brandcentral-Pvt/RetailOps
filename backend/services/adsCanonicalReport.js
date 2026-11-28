@@ -186,17 +186,20 @@ async function readCanonicalReport({pool,sql,user,query,exportAll=false,insights
         const currencies=[...new Set([...current,...previous].map(r=>r.currency))].map(currency=>({currency}));
         const aligned=pairTrends(await readAlignedTrendRows({tx,sql,period:f.period,granularity:f.granularity}),currencies,f.period,f.granularity);
         let advancedData=null;
-        if(advancedExport){
+        const loadAdvanced=advancedExport?async()=>{
           stage='export_advanced';
-          // Product-only opportunity and portfolio classifications cannot be applied
-          // to aggregated seller/parent entities. Explicitly label non-applicability.
-          const reconciliation=f.groupBy==='asin'?await readReconciliation({tx,sql,period:f.period}):null;
-          const portfolio=f.groupBy==='asin'?await readPortfolioAnalytics({tx,sql,period:f.period,granularity:f.granularity,exportMode:true}):null;
-          const review=f.groupBy==='asin'?await readReviewSignals({tx,sql,days:f.period.days,full:true}):null;
-          advancedData={portfolio,review,reconciliation};
-        }
+          // Entity comparison grouping is a display choice. Build true ASIN
+          // analytics from the same authorized facts after its cursors finish.
+          if(f.groupBy!=='asin'){
+            await tx.request().batch("DROP TABLE #AdsGroups; DROP TABLE #AdsEntities; SELECT p.[SellerId],p.[Marketplace],p.[Currency],CONVERT(nvarchar(50),p.[Asin]) AS [EntityKey],p.[periodKey],MAX(p.[SellerName]) AS [SellerName],MAX(p.[CatalogTitle]) AS [CatalogTitle],MAX(p.[CatalogBrand]) AS [CatalogBrand],MAX(p.[CatalogCategory]) AS [CatalogCategory],"+aggregateProjection+","+unmapped+","+dayCoverage+" INTO #AdsGroups FROM #AdsScope p GROUP BY p.[SellerId],p.[Marketplace],p.[Currency],p.[Asin],p.[periodKey]; SELECT DISTINCT [SellerId],[Marketplace],[Currency],[EntityKey] INTO #AdsEntities FROM #AdsGroups; CREATE UNIQUE CLUSTERED INDEX IX_AdsExportGroups ON #AdsGroups([SellerId],[Marketplace],[Currency],[EntityKey],[periodKey]);");
+          }
+          const reconciliation=await readReconciliation({tx,sql,period:f.period});
+          const portfolio=await readPortfolioAnalytics({tx,sql,period:f.period,granularity:f.granularity,exportMode:true});
+          const review=await readReviewSignals({tx,sql,days:f.period.days,full:true});
+          advancedData={portfolio,review,reconciliation};return advancedData;
+        }:null;
         stage='export_write';
-        const output=await exportWorkbook({report,rawCount,aligned,advancedData,rawRows:()=>exportSnapshot.rawRows({tx,sql,signal}),entityRows:()=>exportSnapshot.entityRows({tx,sql,signal,combineRows,days:f.period.days,comparePeriods})});
+        const output=await exportWorkbook({report,rawCount,aligned,loadAdvanced,rawRows:()=>exportSnapshot.rawRows({tx,sql,signal}),entityRows:()=>exportSnapshot.entityRows({tx,sql,signal,combineRows,days:f.period.days,comparePeriods})});
         exportSnapshot.abort(signal);
         if(advancedData?.portfolio?.products)await advancedData.portfolio.products.cleanup();
         await tx.request().batch('DROP TABLE #AdsRawExport; DROP TABLE #AdsPage; DROP TABLE #AdsEntities; DROP TABLE #AdsGroups; DROP TABLE #AdsScope;');
