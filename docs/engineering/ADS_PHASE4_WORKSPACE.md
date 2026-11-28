@@ -1,0 +1,9 @@
+# Phase 4A: Ads Intelligence workspace redesign
+
+Baseline c418def (merged Phase 3D). React/Ant Design implementation using RetailOps existing theme. Six focused views share seller/date/brand/category/marketplace/currency/search scope. Overview has eight current/prior KPI cards, exact-format values and evidence, currency selection, actual-calendar trend charts and source coverage. Portfolio retains aligned comparisons and existing analytical tabs. Opportunities and reconciliation remain explicit on-demand operations. Budgets load only in their own view. No navigation or control changes API authorization. Page filters persist between views; Clear filters leaves dates intact. Product column sets, comparison display and density are presentation controls; sorting and pagination remain server-side. Export uses the existing full matching report endpoint, not the visible table page or column preset.
+
+Product detail drawer preserves exact owner, marketplace and currency identity; separate overview, ASIN diagnostics and daily history tabs. Parent/seller drill remains supported without claiming ASIN diagnostics. Chart coordinates alone use Number; absent observations remain gaps, and labels/tooltips use the shared string formatter. No new claims about real-time delivery or source completeness.
+
+Import history is directly accessible from header, restricted to import permission. The wider responsive modal has bounded body scrolling, fixed header/footer and actual job stage indicators. Validation and commit controls retain the prior API and authorization. The workflow indicator is categorical, not a fabricated progress percentage. Closing the modal does not cancel a queued or active server job.
+
+No migrations, production data changes or deployment. Phase 4B will address findings from actual production visual and interaction acceptance, if needed. Full Excel export, database/cache optimization and AI remain later phases.
