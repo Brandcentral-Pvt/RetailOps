@@ -47,6 +47,24 @@ describe('bounded analytics contract',()=>{
     expect(search).toContain('COALESCE(g.ReportProductTitle,m.ProductTitle)');
     expect(search).toContain('CHARINDEX(@search');
   });
+  test('optimized ranking returns only the bounded page while retaining identical bound scope and ordering',()=>{
+    const db=makeFakePool(),spec=pageSpec({...options,page:17,sort:{key:'profit',direction:'asc'},sellerIds:['S1']});
+    const old=db.request(),next=db.request();
+    const baseline=buildPageQuery(old,scoped,spec,{strategy:'baseline'});
+    const optimized=buildPageQuery(next,scoped,spec,{strategy:'optimized'});
+    expect(next._inputs).toEqual(old._inputs);
+    expect(baseline).toContain('INTO #GmsOrder');
+    expect(optimized).not.toContain('#GmsOrder');
+    expect(optimized).toContain('OFFSET @pageOffset ROWS FETCH NEXT @pageSize ROWS ONLY');
+    expect(optimized).toContain('CASE WHEN SortValue IS NULL THEN 1 ELSE 0 END,SortValue ASC,EntityKey ASC');
+    expect(optimized).toContain('IX_GmsMap_Asin_Owner');
+    expect(optimized).toContain('CREATE CLUSTERED INDEX IX_GmsFacts_Entity_Date');
+    expect(optimized).toContain('IX_GmsPage_Entity');
+    expect(optimized).toContain('OPENJSON(@allowedSellerIds)');
+    expect(()=>buildPageQuery(db.request(),admin,spec,{strategy:'injected'})).toThrow();
+    // HTTP input cannot choose an internal implementation strategy.
+    expect(pageSpec({...options,strategy:'baseline'})).not.toHaveProperty('strategy');
+  });
   test('whole-filter daily aggregates, global month segments and page matrix stay consistent',()=>{
     const r=composePage([
       [metric('2024-12-30','10.01',3),metric('2024-12-31','-2.02',2),metric('2025-01-01','5.05',4)],

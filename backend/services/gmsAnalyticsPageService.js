@@ -75,7 +75,11 @@ const aggregateMetrics=[...money,...units].map(k=>
   'CASE WHEN COUNT_BIG(*)=COUNT_BIG('+k+') THEN CONVERT(varchar(80),SUM('+ (units.includes(k)?'CONVERT(bigint,'+k+')':k) +')) END AS '+lower(k)
 ).join(',\n');
 const current='ReportDate BETWEEN @currentFrom AND @currentTo';
-function buildPageQuery(q,user,spec){
+function buildPageQuery(q,user,spec,{strategy='optimized'}={}){
+  // The baseline is available to the diagnostic CLI and regression fixtures
+  // only. HTTP input never controls query strategies or SQL expressions.
+  if(!['optimized','baseline'].includes(strategy))throw new Error('Invalid internal query strategy');
+  const optimized=strategy==='optimized';
   const {window,filters,level,sortSql}=spec;
   const scope=resolveSellerScope(user);
   const prior=priorWindow(window);
@@ -114,25 +118,34 @@ function buildPageQuery(q,user,spec){
   const factTitle=searching?',COALESCE(g.ReportProductTitle,m.ProductTitle) AS ProductTitle':'';
   const pageTitle=searching?'x.ProductTitle':'COALESCE(original.ReportProductTitle,catalog.Title)';
   const pageTitleJoin=searching?'':' LEFT JOIN GmsDailyPerformance original ON original.Id=x.FactId LEFT JOIN Asins catalog ON catalog.Id=x.CatalogId';
+  const order='CASE WHEN SortValue IS NULL THEN 1 ELSE 0 END,SortValue '+sortSql.direction+',EntityKey ASC';
+  // Page selection must remain globally ranked with deterministic ties, but
+  // there is no reason to persist every ranked entity in a second temp table.
+  const rankPage=optimized
+    ?'DECLARE @pageOffset bigint=CONVERT(bigint,@actualPage-1)*@pageSize; SELECT EntityKey,ROW_NUMBER() OVER(ORDER BY '+order+') AS Ordinal INTO #GmsPage FROM (SELECT EntityKey,SortValue FROM #GmsGroups ORDER BY '+order+' OFFSET @pageOffset ROWS FETCH NEXT @pageSize ROWS ONLY) picked;\n'
+    :'SELECT EntityKey,ROW_NUMBER() OVER(ORDER BY '+order+') AS Ordinal INTO #GmsOrder FROM #GmsGroups;\n'+
+      'SELECT EntityKey,Ordinal INTO #GmsPage FROM #GmsOrder WHERE Ordinal>CONVERT(bigint,@actualPage-1)*@pageSize AND Ordinal<=CONVERT(bigint,@actualPage)*@pageSize;\n';
   return 'SET NOCOUNT ON;\n'+
   'SELECT g.Id AS FactId,g.Asin,g.SellerId,CONVERT(date,g.Date) AS ReportDate,g.Brand,g.StoreCode'+sourceTitle+',g.OrderedRevenue,g.OrderedUnits,g.ShippedRevenue,g.ShippedCOGS,g.ShippedUnits,g.CustomerReturns INTO #GmsSource FROM GmsDailyPerformance g WHERE g.Date>=@historyFrom AND g.Date<DATEADD(day,1,@currentTo)'+sourceWhere+';\n'+
   'SELECT DISTINCT Asin,SellerId INTO #GmsKeys FROM #GmsSource;\n'+
   'SELECT DISTINCT UPPER(LTRIM(RTRIM(Asin))) AS NormalizedAsin INTO #GmsNormalizedKeys FROM #GmsKeys;\n'+
+  (optimized?'CREATE UNIQUE CLUSTERED INDEX IX_GmsNormalizedKeys ON #GmsNormalizedKeys(NormalizedAsin);\n':'')+
   'SELECT c.Id,c.AsinCode,c.SellerId,k.NormalizedAsin INTO #GmsCatalog FROM Asins c INNER JOIN #GmsNormalizedKeys k ON UPPER(LTRIM(RTRIM(c.AsinCode)))=k.NormalizedAsin OPTION (HASH JOIN);\n'+
   'CREATE INDEX IX_GmsCatalog_Normalized_Owner ON #GmsCatalog(NormalizedAsin,SellerId,Id);\n'+
   'SELECT NormalizedAsin INTO #GmsUniqueOwner FROM #GmsCatalog GROUP BY NormalizedAsin HAVING COUNT_BIG(DISTINCT SellerId)=1 AND COUNT_BIG(*)=COUNT_BIG(NULLIF(LTRIM(RTRIM(SellerId)),\'\'));\n'+
   'CREATE UNIQUE INDEX IX_GmsUniqueOwner ON #GmsUniqueOwner(NormalizedAsin);\n'+
   'SELECT g.Asin,g.SellerId AS StoredSellerId,COALESCE(g.SellerId,a.SellerId) AS SellerId,a.CatalogId,s.Name AS DbBrand'+mapTitle+' INTO #GmsMap FROM #GmsKeys g LEFT JOIN #GmsUniqueOwner u ON u.NormalizedAsin=UPPER(LTRIM(RTRIM(g.Asin))) OUTER APPLY (SELECT TOP (1) c.Id AS CatalogId,c.AsinCode,c.SellerId FROM #GmsCatalog c WHERE c.NormalizedAsin=UPPER(LTRIM(RTRIM(g.Asin))) AND NULLIF(LTRIM(RTRIM(c.SellerId)),\'\') IS NOT NULL AND (g.SellerId=c.SellerId OR (g.SellerId IS NULL AND u.NormalizedAsin IS NOT NULL)) ORDER BY c.Id) a LEFT JOIN Sellers s ON COALESCE(g.SellerId,a.SellerId)=s.Id'+mapTitleJoin+' '+mappingWhere+';\n'+
+  (optimized?'CREATE UNIQUE CLUSTERED INDEX IX_GmsMap_Asin_Owner ON #GmsMap(Asin,StoredSellerId);\n':'')+
   'SELECT '+entity+' COLLATE Latin1_General_100_BIN2 AS EntityKey,g.FactId,g.Asin,m.SellerId,m.DbBrand,m.CatalogId'+factTitle+',g.Brand,g.StoreCode,g.ReportDate,g.OrderedRevenue,g.OrderedUnits,g.ShippedRevenue,g.ShippedCOGS,g.ShippedUnits,g.CustomerReturns INTO #GmsFacts FROM #GmsSource g JOIN #GmsMap m ON g.Asin=m.Asin AND (g.SellerId=m.StoredSellerId OR (g.SellerId IS NULL AND m.StoredSellerId IS NULL)) '+factWhere+';\n'+
-  'CREATE INDEX IX_GmsFacts_Entity_Date ON #GmsFacts(EntityKey,ReportDate);\n'+
+  (optimized?'CREATE CLUSTERED INDEX IX_GmsFacts_Entity_Date ON #GmsFacts(EntityKey,ReportDate DESC,Asin,FactId);\n':'CREATE INDEX IX_GmsFacts_Entity_Date ON #GmsFacts(EntityKey,ReportDate);\n')+
   // Result set 0: aggregate all matching selected and prior days in SQL, not Node.
   'SELECT CONVERT(char(10),ReportDate,23) AS date,COUNT_BIG(*) AS recordCount,'+aggregateMetrics+' FROM #GmsFacts GROUP BY ReportDate ORDER BY ReportDate;\n'+
   // Result set 1: exact selected-range fact/entity counts, not just the page.
   'SELECT COUNT_BIG(*) AS records,COUNT_BIG(DISTINCT Asin) AS asins,COUNT_BIG(DISTINCT SellerId) AS sellers,COUNT_BIG(CASE WHEN SellerId IS NULL THEN 1 END) AS unmatchedRecords FROM #GmsFacts WHERE '+current+';\n'+
   'SELECT EntityKey,'+sortSql.expr+' AS SortValue INTO #GmsGroups FROM '+(spec.sort.key==='dbBrand'?'(SELECT *,ROW_NUMBER() OVER(PARTITION BY EntityKey ORDER BY ReportDate DESC,Asin,FactId) AS MetadataRank FROM #GmsFacts WHERE '+current+') f':'#GmsFacts')+' WHERE '+current+' GROUP BY EntityKey;\n'+
   'DECLARE @totalRows bigint=(SELECT COUNT_BIG(*) FROM #GmsGroups); DECLARE @actualPage int=CASE WHEN @totalRows=0 THEN 1 WHEN @requestedPage>((@totalRows+@pageSize-1)/@pageSize) THEN CONVERT(int,(@totalRows+@pageSize-1)/@pageSize) ELSE @requestedPage END;\n'+
-  'SELECT EntityKey,ROW_NUMBER() OVER(ORDER BY CASE WHEN SortValue IS NULL THEN 1 ELSE 0 END,SortValue '+sortSql.direction+',EntityKey ASC) AS Ordinal INTO #GmsOrder FROM #GmsGroups;\n'+
-  'SELECT EntityKey,Ordinal INTO #GmsPage FROM #GmsOrder WHERE Ordinal>CONVERT(bigint,@actualPage-1)*@pageSize AND Ordinal<=CONVERT(bigint,@actualPage)*@pageSize;\n'+
+  rankPage+
+  (optimized?'CREATE UNIQUE CLUSTERED INDEX IX_GmsPage_Entity ON #GmsPage(EntityKey);\n':'')+
   // Result set 2: page info, including clamping after filtering or new data.
   'SELECT @totalRows AS totalRows,@actualPage AS page,@pageSize AS pageSize;\n'+
   // Result set 3: one compact aggregate per entity/date, including needed history.
@@ -179,11 +192,11 @@ function composePage(recordsets,spec){
 }
 // Only trusted server code may pass an internal spec larger than 100 rows.
 // Public requests still go through pageSpec's original limits.
-async function loadPageSpec(pool,user,spec,{signal,onTiming}={}){
+async function loadPageSpec(pool,user,spec,{signal,onTiming,strategy=process.env.GMS_QUERY_STRATEGY==='baseline'?'baseline':'optimized'}={}){
   const scope=resolveSellerScope(user);
   if(scope.empty||spec.filters.sellerIds?.length===0)return emptyPage(spec);
   if(signal?.aborted)throw new Error('Analytics request cancelled');
-  const q=pool.request(),query=buildPageQuery(q,user,spec);
+  const q=pool.request(),query=buildPageQuery(q,user,spec,{strategy});
   const cancel=()=>{try{q.cancel?.();}catch(_){/* request already ended */}};
   signal?.addEventListener('abort',cancel,{once:true});
   try{

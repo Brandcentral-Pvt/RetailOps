@@ -41,6 +41,7 @@ const revisionMigration=require('../../migrations/096_gms_report_revision');
 const redisCache=require('../../services/cacheService');
 const { loadGmsFilters } = require('../../services/gmsAnalyticsFilters');
 const analyticsIndex=require('../../migrations/094_gms_analytics_date_index');
+const reportCoverIndex=require('../../migrations/097_gms_report_covering_index');
 const service = require('../../services/gmsImportService');
 const real = process.env.GMS_SQLSERVER_SMOKE === '1' ? test : test.skip;
 const scaleRows=Number(process.env.GMS_SQL_SCALE_ROWS||0);
@@ -268,6 +269,27 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
     // Reapply migration to re-enable the trigger and rotate all revisions.
     await revisionMigration.up(mockPool);
     expect(await readReportRevision(mockPool)).toBeTruthy();
+    // The existing date index is not fully covering. Upgrade additively and
+    // verify that a second run does not create another index.
+    const preIndexPage=await loadPagedAnalytics(mockPool,global,options,{strategy:'baseline'});
+    await reportCoverIndex.up(mockPool);
+    await reportCoverIndex.up(mockPool);
+    const coveredIndex=await mockPool.request().query("SELECT c.name FROM sys.indexes i JOIN sys.index_columns ic ON i.object_id=ic.object_id AND i.index_id=ic.index_id JOIN sys.columns c ON c.object_id=ic.object_id AND c.column_id=ic.column_id WHERE i.object_id=OBJECT_ID('dbo.GmsDailyPerformance') AND i.name='IX_GmsDailyPerformance_Date_ReportCover'");
+    const coveredNames=coveredIndex.recordset.map(r=>r.name);
+    expect(coveredNames).toEqual(expect.arrayContaining(['Date','Asin','SellerId','Brand','StoreCode','OrderedRevenue','OrderedUnits','ShippedRevenue','ShippedCOGS','ShippedUnits','CustomerReturns']));
+    expect(coveredNames).not.toContain('ReportProductTitle');
+    expect(await loadPagedAnalytics(mockPool,global,options)).toEqual(preIndexPage);
+    const sortKeys=['dbBrand','asin','brand','storeCode','orderedRevenue','orderedUnits','shippedRevenue','shippedCOGS','shippedUnits','customerReturns','profit','marginPct','returnRatio','day-2026-11-27','week-total-2026-11|2026-W48','month-total-2026-11'];
+    for(const key of sortKeys){
+      for(const direction of ['asc','desc']){
+        const query={...options,page:2,sort:{key,direction}};
+        expect(await loadPagedAnalytics(mockPool,global,query,{strategy:'optimized'})).toEqual(await loadPagedAnalytics(mockPool,global,query,{strategy:'baseline'}));
+      }
+    }
+    for(const [actor,extra] of [[user,{sellerIds:['S1']}],[global,{search:'Original title from report'}],[user,{sellerIds:['S2']}],[global,{page:999}],[global,{level:'seller'}]]){
+      const query={...options,...extra};
+      expect(await loadPagedAnalytics(mockPool,actor,query,{strategy:'optimized'})).toEqual(await loadPagedAnalytics(mockPool,actor,query,{strategy:'baseline'}));
+    }
     const firstPage=await loadPagedAnalytics(mockPool,global,{...options,page:1});
     const secondPage=await loadPagedAnalytics(mockPool,global,{...options,page:2});
     expect(firstPage.pagination).toEqual({page:1,pageSize:1,totalRows:2});
@@ -398,6 +420,23 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
       expect(next.matrixRows).toHaveLength(100);
       expect(next.kpis).toEqual(large.kpis);
       expect(new Set([...large.matrixRows,...next.matrixRows].map(r=>r.key)).size).toBe(200);
+      // Same-database A/B benchmark. Both strategies use the identical
+      // permanent indexes; alternate ordering to reduce warm-buffer bias.
+      // Timing is reported, not asserted against hardware-specific SLAs.
+      const samples={baseline:[],optimized:[]};
+      for(const order of [['baseline','optimized'],['optimized','baseline']]){
+        for(const strategy of order){
+          let measured;
+          const started=Date.now();
+          const result=await loadPagedAnalytics(mockPool,global,{...scaleOptions,page:1},{strategy,onTiming:t=>{measured=t;}});
+          samples[strategy].push({elapsedMs:Date.now()-started,...measured});
+          expect(result).toEqual(large);
+        }
+      }
+      const selective={...scaleOptions,startDate:'2026-10-30',endDate:'2026-10-30'};
+      const selectiveBaseline=await loadPagedAnalytics(mockPool,global,selective,{strategy:'baseline'});
+      expect(await loadPagedAnalytics(mockPool,global,selective,{strategy:'optimized'})).toEqual(selectiveBaseline);
+      console.log('GMS same-fixture cold-query comparison',JSON.stringify({facts:scaleRows,samples}));
       // Measure cached adjacent-page latency separately. The normal SQL
       // benchmark above remains directly measurable.
       let cacheTiming;
