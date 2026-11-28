@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Button, Card, Drawer, Empty, Input, Select, Segmented, Skeleton, Spin, Table, Tabs, Tag, Typography } from 'antd';
+import { Alert, Button, Card, Drawer, Empty, Input, Select, Segmented, Form, Radio, Flex, Skeleton, Spin, Table, Tabs, Tag, Typography } from 'antd';
 import {AppstoreOutlined,BarChartOutlined,BulbOutlined,DashboardOutlined,DownloadOutlined,FilterOutlined,HistoryOutlined,ReloadOutlined,SafetyCertificateOutlined,UploadOutlined,WalletOutlined} from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
@@ -47,6 +47,48 @@ function ViewNav({view,onChange}){
   {VIEWS.map(([key,label,Icon])=><button type="button" key={key} aria-current={view===key?'page':undefined} data-testid={'ads-view-'+key} className={'ads-view-button'+(view===key?' active':'')} onClick={()=>onChange(key)}><Icon aria-hidden="true"/><span>{label}</span></button>)}
  </nav>;
 }
+function AdsExportDialog({open,onClose,initial,principal,onSubmit,busy,error}){
+ const [draft,setDraft]=useState(initial);
+ const [scope,setScope]=useState('current');
+ const [dateMode,setDateMode]=useState('current');
+ const change=(key,value)=>setDraft(old=>({...old,[key]:value}));
+ const sellerId=draft.sellerId;
+ const options=useQuery({queryKey:['ads-canonical',principal,'options',sellerId],queryFn:({signal})=>get('canonical-options',{sellerId},signal),enabled:open,staleTime:0,retry:false});
+ const choices=options.data||{};
+ const days=(Date.parse(draft.endDate)-Date.parse(draft.startDate))/86400000+1;
+ const validDates=days>=1&&days<=366;
+ const select=(label,key,values)=><Form.Item label={label}><Select aria-label={'Export '+label} allowClear showSearch optionFilterProp="label" placeholder={'All '+label.toLowerCase()+'s'} value={draft[key]} options={values} onChange={v=>change(key,v)} disabled={busy}/></Form.Item>;
+ const setScopeMode=value=>{
+  setScope(value);
+  setDraft(old=>({...old,sellerId:value==='current'?initial.sellerId:undefined,brand:value==='current'?initial.brand:undefined,category:value==='current'?initial.category:undefined,currency:value==='current'?initial.currency:undefined,marketplace:value==='current'?initial.marketplace:undefined,search:value==='current'?initial.search:undefined}));
+ };
+ const selectSeller=v=>setDraft(old=>({...old,sellerId:v,brand:undefined,category:undefined,currency:undefined,marketplace:undefined}));
+ return <Drawer title="Export advertising report" open={open} width="min(560px, 100vw)" onClose={()=>{if(!busy)onClose();}} keyboard={!busy} mask={{closable:!busy}}
+ footer={<Flex justify="flex-end" gap={8}><Button disabled={busy} onClick={onClose}>Cancel</Button><Button type="primary" icon={<DownloadOutlined/>} loading={busy} disabled={busy||!validDates||(scope==='custom'&&!sellerId)||(draft.groupBy==='parent'&&choices.parentAvailable!==true)} onClick={()=>onSubmit({...draft,search:draft.search?.trim()||undefined})}>Export complete Excel</Button></Flex>}>
+ <Form layout="vertical" requiredMark={false} disabled={busy}>
+ {error&&<Alert type="error" showIcon message={error} style={{marginBottom:16}}/>}
+ <Form.Item label="Report format"><Radio checked>Excel: complete advertising workbook</Radio></Form.Item>
+ <Alert type="info" showIcon message="Complete workbook" description="Includes Report Scope, Summary, Entity Comparisons, Entity Coverage, History, Aligned Trends, Daily Source (all 63 fields) and Data Dictionary. Every matching record is included, independent of table pagination." style={{marginBottom:16}}/>
+ <Form.Item label="Entity grouping"><Segmented block value={draft.groupBy} onChange={v=>change('groupBy',v)} options={[{label:'ASIN',value:'asin'},{label:'Parent ASIN',value:'parent',disabled:choices.parentAvailable!==true},{label:'Seller',value:'seller'}]}/></Form.Item>
+ <Form.Item label="Trend detail"><Segmented block value={draft.granularity} onChange={v=>change('granularity',v)} options={[{label:'Daily',value:'day'},{label:'Weekly',value:'week'},{label:'Monthly',value:'month'}]}/></Form.Item>
+ <Form.Item label="Report dates"><Radio.Group value={dateMode} onChange={e=>{setDateMode(e.target.value);if(e.target.value==='current')setDraft(old=>({...old,startDate:initial.startDate,endDate:initial.endDate}));}}><Flex vertical gap={8}><Radio value="current">Current report range ({initial.startDate||'Not selected'} to {initial.endDate||'Not selected'})</Radio><Radio value="custom">Custom dates</Radio></Flex></Radio.Group></Form.Item>
+ {dateMode==='custom'&&<Form.Item label="Custom reporting dates"><ReportDateRangePicker idPrefix="ads-export-range" ariaLabel="Export reporting dates" startDate={draft.startDate} endDate={draft.endDate} maxDays={366} onDateRangeChange={v=>setDraft(old=>({...old,startDate:iso(v.startDate),endDate:iso(v.endDate)}))}/></Form.Item>}
+ {!validDates&&<Alert type="warning" message="Select a valid range of up to 366 days." showIcon/>}
+ <Form.Item label="Seller and filter scope"><Radio.Group value={scope} onChange={e=>setScopeMode(e.target.value)}><Flex vertical gap={8}><Radio value="current">Use current page filters</Radio><Radio value="all">All authorized sellers (no catalog filters)</Radio><Radio value="custom">Choose seller and filters</Radio></Flex></Radio.Group></Form.Item>
+ {scope==='custom'&&<>
+ <Form.Item label="Seller" required><Select aria-label="Export seller" showSearch optionFilterProp="label" value={sellerId} onChange={selectSeller} options={(choices.sellers||[]).map(s=>({value:s.id,label:s.name||s.id}))} placeholder="Select a seller" loading={options.isFetching}/></Form.Item>
+ {select('Brand','brand',(choices.brands||[]).map(v=>({value:v,label:v})))}
+ {select('Category','category',(choices.categories||[]).map(v=>({value:v,label:v})))}
+ {select('Marketplace','marketplace',(choices.marketplaces||[]).map(v=>({value:v,label:v})))}
+ {select('Currency','currency',(choices.currencies||[]).map(v=>({value:v,label:v})))}
+ <Form.Item label="Product search"><Input aria-label="Export product search" value={draft.search||''} maxLength={120} allowClear onChange={e=>change('search',e.target.value)} placeholder="ASIN, SKU or title"/></Form.Item>
+ </>}
+ {scope==='current'&&<Typography.Paragraph type="secondary">{[['Seller',draft.sellerId],['Brand',draft.brand],['Category',draft.category],['Marketplace',draft.marketplace],['Currency',draft.currency],['Search',draft.search]].filter(([,v])=>v).map(([k,v])=>k+': '+v).join(' · ')||'No additional filters; all authorized sellers.'}</Typography.Paragraph>}
+ {options.isError&&<Alert type="error" message={errorText(options.error)} action={<Button onClick={()=>options.refetch()}>Retry</Button>}/>}
+ {choices.truncated&&<Alert type="warning" message="Filter options are capped. Select a seller to narrow catalog choices."/>}
+ <Alert type="warning" showIcon message="Synchronous export limits" description="Up to 250,000 daily records and 25,000 entities, including the preceding equal-length comparison period. Larger reports require a narrower scope until background exports are available."/>
+ </Form></Drawer>;
+}
 function ReportLoading(){return <div className="ads-report-loading" role="status" aria-label="Loading advertising report"><div className="ads-kpi-grid">{Array.from({length:8},(_,i)=><Card key={i} size="small"><Skeleton active title={{width:'55%'}} paragraph={{rows:2}}/></Card>)}</div><Card size="small"><Skeleton active paragraph={{rows:4}}/></Card></div>;}
 const TrendTable=({series})=>series.length===0?<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No historical records in this period"/>:<div className="ads-table-shell" data-testid="ads-trend-table"><Table tableLayout="fixed" size="small" rowKey={r=>JSON.stringify([r.currency,r.periodKey,r.bucket])} dataSource={series} pagination={{pageSize:10}} scroll={{x:760}}
     columns={[{title:'Period',dataIndex:'periodKey',width:100},{title:'Date / bucket',dataIndex:'bucket',width:125},{title:'Currency',dataIndex:'currency',width:90},
@@ -90,7 +132,9 @@ export default function CanonicalAdsWorkspace(){
     const [requestedReconciliation,setRequestedReconciliation]=useState(null);
     const [portfolioGranularity,setPortfolioGranularity]=useState('week');
     const [importOpen,setImportOpen]=useState(false);
-        const [exportBusy,setExportBusy]=useState(false);
+    const [exportConfig,setExportConfig]=useState(null);
+    const [exportBusy,setExportBusy]=useState(false);
+    const exportLock=useRef(false);
     const [exportError,setExportError]=useState(null);
     // Include principal and current scope in the client cache key. No stale
     // placeholder data is used across filters, pages, or account changes.
@@ -124,20 +168,21 @@ export default function CanonicalAdsWorkspace(){
     const targetsApplicable=!brand&&!category&&!search&&!marketplace;
     const targets=useQuery({queryKey:['ads-canonical',principal,'budget',targetFilters],queryFn:({signal})=>get('canonical-budget',targetFilters,signal),enabled:enabled&&view==='budgets'&&targetsApplicable&&hasDates,staleTime:0,retry:false});
     const data=report.data;
-    const exportReport=async()=>{
-        setExportBusy(true);setExportError(null);
+    const exportReport=async(exportFilters)=>{
+        if(exportLock.current||!hasPermission(PERMISSIONS.ADSREPORT_EXPORT))return;
+        exportLock.current=true;setExportBusy(true);setExportError(null);
         try{
-            const res=await apiClient.get('/ads/canonical-export',{params:filters,responseType:'blob',timeout:180000});
+            const res=await apiClient.get('/ads/canonical-export',{params:exportFilters,responseType:'blob',timeout:180000});
             const blob=res.data;
             if(!String(res.headers['content-type']||'').includes('spreadsheetml'))throw Error('Unexpected export response.');
             const url=URL.createObjectURL(blob),a=document.createElement('a');
-            a.href=url;a.download='ads-intelligence-'+filters.startDate+'-'+filters.endDate+'.xlsx';
-            document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+            a.href=url;a.download='ads-intelligence-'+exportFilters.startDate+'-'+exportFilters.endDate+'.xlsx';
+            document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);setExportConfig(null);
         }catch(e){
             let detail=e?.response?.data;
             if(detail instanceof Blob){try{detail=JSON.parse(await detail.text());}catch{detail=null;}}
             setExportError(detail?.message||e.message||'Export failed.');
-        }finally{setExportBusy(false);}
+        }finally{exportLock.current=false;setExportBusy(false);}
     };
     const imported=info=>{
         // Keep the completed modal visible. Move the report to the imported seller/date
@@ -172,12 +217,12 @@ export default function CanonicalAdsWorkspace(){
             <div className="ads-heading-copy"><div className="ads-eyebrow">REPORTS / ADVERTISING</div><h1>Ads Intelligence</h1><p>Performance, portfolio decisions and report quality in one workspace.</p></div>
             <div className="ads-heading-actions">
                 {hasPermission(PERMISSIONS.ADSREPORT_IMPORT)&&<><Button aria-label="Import history" icon={<HistoryOutlined aria-hidden="true"/>} onClick={()=>openImport('history')}>Import history</Button><Button aria-label="Import CSV" type="primary" icon={<UploadOutlined aria-hidden="true"/>} onClick={()=>openImport('upload')}>Import CSV</Button></>}
-                {hasPermission(PERMISSIONS.ADSREPORT_EXPORT)&&<Button aria-label="Export XLSX" icon={<DownloadOutlined aria-hidden="true"/>} onClick={exportReport} loading={exportBusy} disabled={!hasDates||exportBusy}>Export XLSX</Button>}
+                {hasPermission(PERMISSIONS.ADSREPORT_EXPORT)&&<Button aria-label="Export XLSX" icon={<DownloadOutlined aria-hidden="true"/>} onClick={()=>{setExportError(null);setExportConfig({principal,filters:{...filters}});}} loading={exportBusy} disabled={exportBusy}>Export XLSX</Button>}
                 <Button aria-label="Refresh" icon={<ReloadOutlined aria-hidden="true"/>} onClick={refresh} loading={refreshing}>Refresh</Button>
             </div>
         </header>
         <div className="ads-source-strip"><span className="ads-source-dot" aria-hidden="true"/><strong>Imported daily reports</strong><span>Currency groups remain separate. Data reflects uploaded reports, not live advertising delivery.</span></div>
-        {exportError&&<Alert type="error" showIcon message={exportError} closable onClose={()=>setExportError(null)}/>}
+        
         <Card size="small" className="ads-filter-card">
             <div className="ads-filter-header"><strong><FilterOutlined/> Report scope</strong><div className="ads-filter-meta">{activeFilters>0&&<span>{activeFilters} active</span>}<Button type="link" size="small" disabled={!activeFilters} onClick={clearFilters}>Clear filters</Button></div></div>
             <div className="ads-filters ads-filter-grid" data-testid="ads-filters">
@@ -231,6 +276,7 @@ export default function CanonicalAdsWorkspace(){
                 {key:'history',label:'Daily history',children:<Card size="small" title="Daily report records"><TrendTable series={history.data.series||[]}/></Card>}
             ]}/>}
         </Drawer>
+        {hasPermission(PERMISSIONS.ADSREPORT_EXPORT)&&exportConfig?.principal===principal&&<AdsExportDialog open initial={exportConfig.filters} principal={principal} onClose={()=>setExportConfig(null)} onSubmit={exportReport} busy={exportBusy} error={exportError}/>}
         {hasPermission(PERMISSIONS.ADSREPORT_IMPORT)&&<AdsImportModal key={principal} isOpen={importOpen} initialTab={importTab} onClose={()=>setImportOpen(false)} onComplete={imported}/>}
     </div>;
 }
