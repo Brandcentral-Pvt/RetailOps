@@ -42,20 +42,22 @@ const rawValues=r=>[...SOURCE_FIELDS.map(f=>['decimal','integer'].includes(f.typ
 const yieldTurn=()=>new Promise(resolve=>setImmediate(resolve));
 function styleHeader(row){row.font={bold:true,color:{argb:'FFFFFFFF'},size:10};row.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF243B53'}};row.alignment={vertical:'middle',wrapText:true};row.height=34;}
 function width(h){return /title/i.test(h)?42:/SHA-256/.test(h)?68:/status|coverage|remarks/i.test(h)?25:/Seller ID|ASIN|Entity|Date|Bucket/i.test(h)?20:Math.min(32,Math.max(14,h.length+1));}
-function add(sheet,items){
+function add(sheet,items,wrap=false){
  const r=sheet.addRow(items.map(x=>x&&typeof x==='object'&&Object.hasOwn(x,'value')?x.value:x??null));
  items.forEach((x,i)=>{if(x&&typeof x==='object'&&x.numFmt)r.getCell(i+1).numFmt=x.numFmt;});
+ if(wrap){r.alignment={vertical:'top',wrapText:true};r.height=Math.min(90,Math.max(18,15*Math.ceil(Math.max(...items.map(x=>typeof x==='string'?x.length:0))/65)));}
  r.commit();
 }
 function sheetWriter(book,expectedSheets,{name,headers,count,freeze=2}){
  if(count>1048575||!Number.isSafeInteger(count)||count<0)throw Error('Workbook sheet row limit exceeded: '+name);
  if(headers.length>16384)throw Error('Workbook sheet column limit exceeded');
  const sheet=book.addWorksheet(name,{views:[{state:'frozen',ySplit:1,xSplit:Math.min(freeze,headers.length)}]});
- sheet.columns=headers.map(h=>({width:width(h)}));
+ const wrap=name==='Report Scope'||name==='Data Dictionary';
+ sheet.columns=headers.map((h,i)=>({width:name==='Report Scope'?(i===0?36:96):name==='Data Dictionary'&&i===4?96:width(h)}));
  if(count)sheet.autoFilter={from:{row:1,column:1},to:{row:count+1,column:headers.length}};
  const h=sheet.addRow(headers);styleHeader(h);h.commit();
  let written=0;
- return {add(items){if(items.length!==headers.length)throw Error('Workbook column mismatch: '+name);if(written>=count)throw Error('Unexpected extra rows: '+name);add(sheet,items);written++;},finish(){if(written!==count)throw Error('Workbook row mismatch: '+name);sheet.commit();expectedSheets.set(name,written+1);}};
+ return {add(items){if(items.length!==headers.length)throw Error('Workbook column mismatch: '+name);if(written>=count)throw Error('Unexpected extra rows: '+name);add(sheet,items,wrap);written++;},finish(){if(written!==count)throw Error('Workbook row mismatch: '+name);sheet.commit();expectedSheets.set(name,written+1);}};
 }
 const identity=r=>[r.sellerId,r.sellerName,r.marketplace,r.currency,r.entityKey,r.title,r.brand,r.category];
 function coverageRow(r,period){
@@ -110,15 +112,22 @@ async function writeCompleteWorkbook({filePath,report,rawCount,rawRows,entityRow
   }
   w.finish();
   const entities=table('Entity Comparisons',['Seller ID','Seller','Marketplace','Currency','Entity','Title','Brand','Category',...compareHeaders],report.total,5);
-  const coverage=table('Entity Coverage',COVERAGE_HEADERS,report.total*2,6);
   let entityCount=0;
   for await(const r of entityRows()){
    check();const cmp=r.comparison||comparePeriods(r.current,r.previous,report.period.days);
    entities.add([...identity(r),...ALL.flatMap(k=>compareCells(r.current,r.previous,cmp,k))]);
-   for(const period of ['current','previous'])coverage.add(coverageRow(r,period));
    if(++entityCount%100===0)await yieldTurn();
   }
-  entities.finish();coverage.finish();
+  entities.finish();
+  // Finish one worksheet before beginning another. Interleaving streaming
+  // worksheets can buffer the later XML until the preceding entry closes.
+  const coverage=table('Entity Coverage',COVERAGE_HEADERS,report.total*2,6);
+  let coverageCount=0;
+  for await(const r of entityRows()){
+   check();for(const period of ['current','previous'])coverage.add(coverageRow(r,period));
+   if(++coverageCount%100===0)await yieldTurn();
+  }
+  coverage.finish();if(coverageCount!==entityCount)throw Error('Export entity coverage count mismatch');
   w=table('History',HISTORY_HEADERS,report.series.length,3);for(const r of report.series){check();w.add(historyRow(r));}w.finish();
   w=table('Aligned Trends',alignedHeaders,aligned.length,2);
   for(const r of aligned){check();w.add([r.currency,r.bucket,r.currentStart,r.currentEnd,r.previousStart,r.previousEnd,cell(r.days,'integer'),cell(r.current?.coveredDays,'integer'),cell(r.previous?.coveredDays,'integer'),...ALIGNED_KEYS.flatMap(k=>compareCells(r.current,r.previous,r.comparison,k))]);}w.finish();
