@@ -5,6 +5,8 @@ const {up:jobMigration}=require('../migrations/099_ads_import_jobs');
 const {up:queueMigration}=require('../migrations/101_ads_import_queue');
 const {up:previewMigration}=require('../migrations/102_ads_preview_queue');
 const {up:ownershipMigration}=require('../migrations/103_ads_auto_ownership');
+const {up:errorMigration}=require('../migrations/104_ads_import_error_retention');
+const {sweepRetainedErrors}=require('../services/adsImportIssueChunks');
 const {claimNext,refreshLease,processNext}=require('../services/adsImportWorker');
 const {inspectAdsImportSchema,ensureAdsImportSchema}=require('../database/adsImportSchema');
 const {HEADERS}=require('../services/adsProductContract');
@@ -31,7 +33,7 @@ test('SQL durable Ads job lifecycle, scope, atomic confirmation, retries and exp
   await pool.request().query("INSERT dbo.AdsImportJobs(Id,OwnerId,SellerId,Marketplace,Currency,FileName,SourceFileSha256,Status,SummaryJson,IssuesJson,ExpiresAt) VALUES('old-history','u1','s1','amazon.in','INR','old.csv',REPLICATE('a',64),'CANCELLED',N'{}',N'[]',SYSUTCDATETIME());");
   assert.equal((await inspectAdsImportSchema(pool)).ready,false);
   assert.equal((await ensureAdsImportSchema({pool,apply:true})).ready,true);
-  await jobMigration(pool);await queueMigration(pool);await previewMigration(pool);await previewMigration(pool);await ownershipMigration(pool);
+  await jobMigration(pool);await queueMigration(pool);await previewMigration(pool);await previewMigration(pool);await ownershipMigration(pool);await errorMigration(pool);await errorMigration(pool);
   assert.equal((await inspectAdsImportSchema(pool)).ready,true);
   assert.equal((await pool.request().query("SELECT Status FROM dbo.AdsImportJobs WHERE Id='old-history';")).recordset[0].Status,'CANCELLED');
   await pool.request().query("DELETE dbo.AdsImportJobs WHERE Id='old-history';");
@@ -198,6 +200,27 @@ test('SQL durable Ads job lifecycle, scope, atomic confirmation, retries and exp
   const conflictAuto=await auto([{...rowsAuto[0],date:'2026-05-03'},{...rowsAuto[1],'metrics.spend':'999'}]);await confirmJob({...multi,id:conflictAuto.id});await work();
   assert.equal((await getJob({...multi,id:conflictAuto.id})).status,'FAILED');
   assert.equal((await pool.request().query("SELECT COUNT(*) AS n FROM dbo.AdsProductDailyFacts WHERE [Date]='2026-05-03'")).recordset[0].n,0);
+  // Full error reports exceed the previous retention cap without keeping the
+  // entire issue array in the job payload or leaking partial failed attempts.
+  const many=await auto(Array.from({length:10025},()=>({...row,'metrics.spend':'bad'})));
+  assert.equal(many.status,'REJECTED');assert.equal(many.summary.issueCount,10025);
+  assert.equal(many.summary.storedIssueCount,10025);assert.equal(many.summary.issues.length,100);assert.equal(many.summary.issueReportTruncated,false);
+  const manyReport=await getIssues({...multi,id:many.id});assert.equal(manyReport.issueCount,10025);assert.equal(manyReport.issues.length,100);
+  let errorCount=0,lastRow;
+  for await(const e of manyReport.iterateIssues()){errorCount++;lastRow=e.row;}
+  assert.equal(errorCount,10025);assert.equal(lastRow,10026);
+  const retained=await pool.request().input('id',sql.VarChar(50),many.id).query("SELECT COUNT(*) AS chunks,SUM(IssueCount) AS issues FROM dbo.AdsImportIssueChunks WHERE JobId=@id;");
+  assert.equal(retained.recordset[0].chunks,11);assert.equal(retained.recordset[0].issues,10025);
+  await pool.request().input('id',sql.VarChar(50),many.id).query("UPDATE dbo.AdsImportJobs SET CompletedAt=DATEADD(day,-91,SYSUTCDATETIME()) WHERE Id=@id; UPDATE dbo.AdsImportIssueChunks SET CreatedAt=DATEADD(day,-91,SYSUTCDATETIME()) WHERE JobId=@id;");
+  await sweepRetainedErrors(pool);
+  const purged=await getJob({...multi,id:many.id});assert.equal(purged.errorReportExpired,true);assert.equal(purged.summary.issueCount,10025);
+  await assert.rejects(()=>getIssues({...multi,id:many.id}),{code:'issue_report_expired'});
+  assert.equal((await pool.request().input('id',sql.VarChar(50),many.id).query("SELECT COUNT(*) AS n FROM dbo.AdsImportIssueChunks WHERE JobId=@id;")).recordset[0].n,0);
+  // Unconfirmed uploads can expire; confirmed queued jobs must never expire
+  // merely because their original preview window has elapsed.
+  const waiting=await createPreview({...multi,input:csv(rowsAuto),fileName:'waiting.csv'});
+  await pool.request().input('id',sql.VarChar(50),waiting.id).query("UPDATE dbo.AdsImportJobs SET ExpiresAt=DATEADD(second,-1,SYSUTCDATETIME()) WHERE Id=@id;");
+  await expireJobs(pool);assert.equal((await getJob({...multi,id:waiting.id})).status,'EXPIRED');assert.equal(await validateNext(),false);
   // Historical facts cannot be silently moved to a newly mapped seller.
   await pool.request().query("UPDATE dbo.Asins SET SellerId='s2' WHERE AsinCode='B000000003';");
   const transfer=await auto([rowsAuto[0]]);await confirmJob({...multi,id:transfer.id});await work();

@@ -21,7 +21,7 @@ function publicJob(row){
  if(!row)return null;
  const summary=JSON.parse(row.SummaryJson);
  return {id:row.Id,sellerId:row.SellerId,marketplace:row.Marketplace??summary.marketplace??null,currency:row.Currency??summary.currency??null,ownershipMode:row.SellerId==null?'auto':'legacy',fileName:row.FileName,
-   sourceFileSha256:row.SourceFileSha256,status:row.Status==='READY'&&row.IsExpired?'EXPIRED':row.Status,
+   sourceFileSha256:row.SourceFileSha256,status:['READY','PREVIEW_QUEUED'].includes(row.Status)&&row.IsExpired?'EXPIRED':row.Status,
    summary,errorReportExpired:!!row.ErrorReportPurgedAt,result:row.ResultJson?JSON.parse(row.ResultJson):null,
    createdAt:row.CreatedAt,expiresAt:row.ExpiresAt,completedAt:row.CompletedAt,queuedAt:row.QueuedAt,startedAt:row.StartedAt,nextAttemptAt:row.NextAttemptAt,attemptCount:row.AttemptCount,validationAttempts:row.ValidationAttempts,validatedAt:row.ValidatedAt,stage:row.Stage,stagedRows:row.StagedRows,importsEnabled:importsEnabled()};
 }
@@ -52,7 +52,7 @@ async function listJobs({pool,sql,user,page=1,limit=25,status,search,sellerId}){
  if(status!==undefined){
   if(typeof status!=='string'||!JOB_STATUSES.includes(status))throw jobError('invalid_history_status','Invalid import status filter.',400);
   request.input('status',sql.VarChar(20),status);
-  where+=" AND (CASE WHEN j.Status='READY' AND j.ExpiresAt<=SYSUTCDATETIME() THEN 'EXPIRED' ELSE j.Status END)=@status";
+  where+=" AND (CASE WHEN j.Status IN ('READY','PREVIEW_QUEUED') AND j.ExpiresAt<=SYSUTCDATETIME() THEN 'EXPIRED' ELSE j.Status END)=@status";
  }
  if(search!==undefined){
   if(typeof search!=='string'||search.length>120)throw jobError('invalid_history_search','Invalid import search.',400);
@@ -63,7 +63,7 @@ async function listJobs({pool,sql,user,page=1,limit=25,status,search,sellerId}){
  const r=await request.query('SELECT COUNT_BIG(*) AS total FROM dbo.AdsImportJobs j'+where+'; SELECT '+cols+' FROM dbo.AdsImportJobs j'+where+' ORDER BY j.CreatedAt DESC,j.Id DESC OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY;');
  return {rows:r.recordsets[1].map(publicJob),total:Number(r.recordsets[0][0].total),page,limit};
 }
-const expireSql="UPDATE dbo.AdsImportJobs SET Status='EXPIRED',Stage='expired',SourceBytes=NULL,CompletedAt=SYSUTCDATETIME() WHERE Status='READY' AND ExpiresAt<=SYSUTCDATETIME();";
+const expireSql="UPDATE dbo.AdsImportJobs SET Status='EXPIRED',Stage='expired',SourceBytes=NULL,CompletedAt=SYSUTCDATETIME() WHERE Status IN ('READY','PREVIEW_QUEUED') AND ExpiresAt<=SYSUTCDATETIME();";
 async function expireJobs(pool){await pool.request().query(expireSql);}
 async function createPreview({pool,sql,user,sellerId,input,fileName}){
  const owner=ownerId(user);const scope=strictScope(user);
@@ -102,7 +102,7 @@ async function createPreview({pool,sql,user,sellerId,input,fileName}){
 async function cancelJob({pool,sql,user,id}){
  if(id===undefined)throw jobError('invalid_job_id','An import identifier is required.',400);
  const {request,where}=scopedRequest(pool,sql,user,id);
- await request.query("UPDATE j SET Status='CANCELLED',Stage='cancelled',SourceBytes=NULL,NextAttemptAt=NULL,CompletedAt=SYSUTCDATETIME() FROM dbo.AdsImportJobs j"+where+" AND (j.Status IN ('PREVIEW_QUEUED','QUEUED') OR (j.Status='READY' AND j.ExpiresAt>SYSUTCDATETIME()));");
+ await request.query("UPDATE j SET Status='CANCELLED',Stage='cancelled',SourceBytes=NULL,NextAttemptAt=NULL,CompletedAt=SYSUTCDATETIME() FROM dbo.AdsImportJobs j"+where+" AND (j.Status='QUEUED' OR (j.Status IN ('READY','PREVIEW_QUEUED') AND j.ExpiresAt>SYSUTCDATETIME()));");
  const job=await getJob({pool,sql,user,id});
  if(!job)throw jobError('job_not_found','Import not found.',404);
  if(job.status!=='CANCELLED')throw jobError('job_not_ready','Import cannot be cancelled in its current state.');

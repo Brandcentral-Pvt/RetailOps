@@ -21,6 +21,7 @@ async function claimNext({pool,sql,kind='commit'}){
  if(!['preview','commit'].includes(kind))throw Error('Invalid Ads queue kind');
  if(kind==='commit'&&!importsEnabled())return null;
  const states=statusFor(kind);
+ const previewExpiry=kind==='preview'?" AND ExpiresAt>SYSUTCDATETIME()":'';
  const token=randomUUID();
  const failure=JSON.stringify({code:'retry_exhausted',message:'Import interrupted repeatedly. Validate a new report.',persisted:false});
  const issues=JSON.stringify([{row:null,column:null,code:'retry_exhausted',message:'Import interrupted repeatedly. Validate a new report.'}]);
@@ -34,8 +35,9 @@ async function claimNext({pool,sql,kind='commit'}){
   if(Number(locked.recordset[0].acquired)<0){await tx.rollback();return null;}
   await tx.request().input('result',sql.NVarChar(sql.MAX),failure).input('issues',sql.NVarChar(sql.MAX),issues)
    .query("UPDATE dbo.AdsImportJobs SET Status='FAILED',Stage='failed',SourceBytes=NULL,LeaseToken=NULL,LeaseUntil=NULL,CompletedAt=SYSUTCDATETIME(),ResultJson=@result,IssuesJson=@issues,IssueToken=NULL WHERE Status='"+states.active+"' AND LeaseUntil<=SYSUTCDATETIME() AND AttemptCount>=3;");
+  if(kind==='preview')await tx.request().query("UPDATE dbo.AdsImportJobs SET Status='EXPIRED',Stage='expired',SourceBytes=NULL,NextAttemptAt=NULL,CompletedAt=SYSUTCDATETIME() WHERE Status='PREVIEW_QUEUED' AND ExpiresAt<=SYSUTCDATETIME();");
   const r=await tx.request().input('token',sql.VarChar(36),token).input('lease',sql.Int,LEASE_SECONDS)
-   .query(";WITH candidate AS (SELECT TOP (1) * FROM dbo.AdsImportJobs WITH (UPDLOCK,HOLDLOCK) WHERE AttemptCount<3 AND ((Status='"+states.queued+"' AND NextAttemptAt<=SYSUTCDATETIME()) OR (Status='"+states.active+"' AND LeaseUntil<=SYSUTCDATETIME())) ORDER BY QueuedAt,Id) UPDATE candidate SET Status='"+states.active+"',AttemptCount=AttemptCount+1,LeaseToken=@token,LeaseUntil=DATEADD(second,@lease,SYSUTCDATETIME()),StartedAt=SYSUTCDATETIME(),Stage='"+states.stage+"',StagedRows=0 OUTPUT inserted.Id,inserted.OwnerId,inserted.SellerId,inserted.Marketplace,inserted.Currency,inserted.SourceFileSha256,inserted.OwnershipHash,inserted.SourceBytes,inserted.LeaseToken,inserted.AttemptCount;");
+   .query(";WITH candidate AS (SELECT TOP (1) * FROM dbo.AdsImportJobs WITH (UPDLOCK,HOLDLOCK) WHERE AttemptCount<3 AND ((Status='"+states.queued+"' AND NextAttemptAt<=SYSUTCDATETIME()"+previewExpiry+") OR (Status='"+states.active+"' AND LeaseUntil<=SYSUTCDATETIME())) ORDER BY QueuedAt,Id) UPDATE candidate SET Status='"+states.active+"',AttemptCount=AttemptCount+1,LeaseToken=@token,LeaseUntil=DATEADD(second,@lease,SYSUTCDATETIME()),StartedAt=SYSUTCDATETIME(),Stage='"+states.stage+"',StagedRows=0 OUTPUT inserted.Id,inserted.OwnerId,inserted.SellerId,inserted.Marketplace,inserted.Currency,inserted.SourceFileSha256,inserted.OwnershipHash,inserted.SourceBytes,inserted.LeaseToken,inserted.AttemptCount;");
   await tx.commit();
   return r.recordset[0]?{...r.recordset[0],QueueKind:kind}:null;
  }catch(error){try{await tx.rollback();}catch{}throw error;}
@@ -107,6 +109,9 @@ async function processNext({pool,sql,resolveProfile,writer=ingestCanonicalReport
    previewScanning=false;
    if(inFlight)await inFlight;
    if(parsed.sourceFileSha256!==job.SourceFileSha256)throw new AdsIngestionError('job_source_changed','Staged source hash changed.');
+   // Final catalog validation is lease-fenced. Stop heartbeat writes before
+   // the final transaction acquires job/chunk locks; refresh the full lease.
+   stop();if(inFlight)await inFlight;
    await refresh('preview_catalog',parsed.summary.rows??scanned);
    const tx=new sql.Transaction(pool);
    await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
