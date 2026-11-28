@@ -77,7 +77,7 @@ function partitionWriter(book,expectedSheets,{name,headers,count,freeze,maxRows}
    if(written===plan[index].count){part.finish();index++;written=0;if(index>=plan.length)throw Error('Unexpected extra rows: '+name);part=sheetWriter(book,expectedSheets,{...plan[index],headers,freeze});}
    part.add(items);written++;
   },
-  finish(){if(index!==plan.length-1||written!==plan[index].count)throw Error('Workbook partition count mismatch: '+name);part.finish();}
+  finish(){if(index!==plan.length-1||written!==plan[index].count)throw Error('Workbook row mismatch: '+name);part.finish();}
  };
 }
 const textOrNull=v=>v==null?null:String(v);
