@@ -4,16 +4,21 @@
 const {randomUUID}=require('node:crypto');
 const {ingestCanonicalReport,AdsIngestionError}=require('./adsCanonicalIngestion');
 const {AdsValidationError}=require('./adsProductContract');
-const {explicitSeller,AdsScopeError}=require('./adsCanonicalScope');
+const {explicitSeller,resolveContext,AdsScopeError}=require('./adsCanonicalScope');
+const {parseInWorker,MAX_STORED_ISSUES}=require('./adsPreviewParser');
 const {importsEnabled}=require('./adsImportConfirmation');
 const LEASE_SECONDS=180,MAX_ATTEMPTS=3;
 const lost=()=>new AdsScopeError('lease_lost','Import lease no longer belongs to this worker.',409);
 function bind(request,sql,job){
  return request.input('id',sql.VarChar(50),job.Id).input('token',sql.VarChar(36),job.LeaseToken);
 }
-const fence="Id=@id AND Status='PROCESSING' AND LeaseToken=@token AND LeaseUntil>SYSUTCDATETIME()";
-async function claimNext({pool,sql}){
- if(!importsEnabled())return null;
+const kindOf=job=>job.QueueKind==='preview'?'preview':'commit';
+const statusFor=kind=>kind==='preview'?{queued:'PREVIEW_QUEUED',active:'VALIDATING',stage:'preview_scanning'}:{queued:'QUEUED',active:'PROCESSING',stage:'validating'};
+const fence=job=>"Id=@id AND Status='"+statusFor(kindOf(job)).active+"' AND LeaseToken=@token AND LeaseUntil>SYSUTCDATETIME()";
+async function claimNext({pool,sql,kind='commit'}){
+ if(!['preview','commit'].includes(kind))throw Error('Invalid Ads queue kind');
+ if(kind==='commit'&&!importsEnabled())return null;
+ const states=statusFor(kind);
  const token=randomUUID();
  const failure=JSON.stringify({code:'retry_exhausted',message:'Import interrupted repeatedly. Validate a new report.',persisted:false});
  const issues=JSON.stringify([{row:null,column:null,code:'retry_exhausted',message:'Import interrupted repeatedly. Validate a new report.'}]);
@@ -26,18 +31,18 @@ async function claimNext({pool,sql}){
   const locked=await tx.request().query("DECLARE @lock int; EXEC @lock=sp_getapplock @Resource='retailops:ads-queue-claim',@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=0; SELECT @lock AS acquired;");
   if(Number(locked.recordset[0].acquired)<0){await tx.rollback();return null;}
   await tx.request().input('result',sql.NVarChar(sql.MAX),failure).input('issues',sql.NVarChar(sql.MAX),issues)
-   .query("UPDATE dbo.AdsImportJobs SET Status='FAILED',Stage='failed',SourceBytes=NULL,LeaseToken=NULL,LeaseUntil=NULL,CompletedAt=SYSUTCDATETIME(),ResultJson=@result,IssuesJson=@issues WHERE Status='PROCESSING' AND LeaseUntil<=SYSUTCDATETIME() AND AttemptCount>=3;");
+   .query("UPDATE dbo.AdsImportJobs SET Status='FAILED',Stage='failed',SourceBytes=NULL,LeaseToken=NULL,LeaseUntil=NULL,CompletedAt=SYSUTCDATETIME(),ResultJson=@result,IssuesJson=@issues WHERE Status='"+states.active+"' AND LeaseUntil<=SYSUTCDATETIME() AND AttemptCount>=3;");
   const r=await tx.request().input('token',sql.VarChar(36),token).input('lease',sql.Int,LEASE_SECONDS)
-   .query(";WITH candidate AS (SELECT TOP (1) * FROM dbo.AdsImportJobs WITH (UPDLOCK,HOLDLOCK) WHERE AttemptCount<3 AND ((Status='QUEUED' AND NextAttemptAt<=SYSUTCDATETIME()) OR (Status='PROCESSING' AND LeaseUntil<=SYSUTCDATETIME())) ORDER BY QueuedAt,Id) UPDATE candidate SET Status='PROCESSING',AttemptCount=AttemptCount+1,LeaseToken=@token,LeaseUntil=DATEADD(second,@lease,SYSUTCDATETIME()),StartedAt=SYSUTCDATETIME(),Stage='validating',StagedRows=0 OUTPUT inserted.Id,inserted.OwnerId,inserted.SellerId,inserted.Marketplace,inserted.Currency,inserted.SourceFileSha256,inserted.SourceBytes,inserted.LeaseToken,inserted.AttemptCount;");
+   .query(";WITH candidate AS (SELECT TOP (1) * FROM dbo.AdsImportJobs WITH (UPDLOCK,HOLDLOCK) WHERE AttemptCount<3 AND ((Status='"+states.queued+"' AND NextAttemptAt<=SYSUTCDATETIME()) OR (Status='"+states.active+"' AND LeaseUntil<=SYSUTCDATETIME())) ORDER BY QueuedAt,Id) UPDATE candidate SET Status='"+states.active+"',AttemptCount=AttemptCount+1,LeaseToken=@token,LeaseUntil=DATEADD(second,@lease,SYSUTCDATETIME()),StartedAt=SYSUTCDATETIME(),Stage='"+states.stage+"',StagedRows=0 OUTPUT inserted.Id,inserted.OwnerId,inserted.SellerId,inserted.Marketplace,inserted.Currency,inserted.SourceFileSha256,inserted.SourceBytes,inserted.LeaseToken,inserted.AttemptCount;");
   await tx.commit();
-  return r.recordset[0]||null;
+  return r.recordset[0]?{...r.recordset[0],QueueKind:kind}:null;
  }catch(error){try{await tx.rollback();}catch{}throw error;}
 }
 async function refreshLease({pool,sql,job,stage,staged}){
  const req=bind(pool.request(),sql,job).input('lease',sql.Int,LEASE_SECONDS);
  let set='LeaseUntil=DATEADD(second,@lease,SYSUTCDATETIME())';
  if(stage!==undefined){req.input('stage',sql.VarChar(32),stage).input('staged',sql.Int,staged);set+=',Stage=@stage,StagedRows=@staged';}
- const r=await req.query('UPDATE dbo.AdsImportJobs SET '+set+' WHERE '+fence+'; SELECT @@ROWCOUNT AS changed;');
+ const r=await req.query('UPDATE dbo.AdsImportJobs SET '+set+' WHERE '+fence(job)+'; SELECT @@ROWCOUNT AS changed;');
  if(Number(r.recordset[0].changed)!==1)throw lost();
 }
 async function authorize({db,sql,job,resolveProfile}){
@@ -64,26 +69,64 @@ async function recordFailure({pool,sql,job,error}){
  if(terminal){
   req.input('result',sql.NVarChar(sql.MAX),JSON.stringify({code,message,persisted:false,details:permanent?error.details||null:null}));
   req.input('issues',sql.NVarChar(sql.MAX),JSON.stringify([{row:error.row??null,column:error.column??null,code,message}]));
-  await req.query("UPDATE dbo.AdsImportJobs SET Status='FAILED',Stage='failed',SourceBytes=NULL,LeaseToken=NULL,LeaseUntil=NULL,CompletedAt=SYSUTCDATETIME(),ResultJson=@result,IssuesJson=@issues WHERE "+fence);
+  await req.query("UPDATE dbo.AdsImportJobs SET Status='FAILED',Stage='failed',SourceBytes=NULL,LeaseToken=NULL,LeaseUntil=NULL,CompletedAt=SYSUTCDATETIME(),ResultJson=@result,IssuesJson=@issues WHERE "+fence(job));
  }else{
   const delay=pause?30:Math.min(120,15*2**(Number(job.AttemptCount)-1));
   req.input('delay',sql.Int,delay).input('pause',sql.Int,pause?1:0);
-  await req.query("UPDATE dbo.AdsImportJobs SET Status='QUEUED',Stage='retry_wait',StagedRows=0,LeaseToken=NULL,LeaseUntil=NULL,AttemptCount=AttemptCount-@pause,NextAttemptAt=DATEADD(second,@delay,SYSUTCDATETIME()) WHERE "+fence);
+  await req.query("UPDATE dbo.AdsImportJobs SET Status='"+statusFor(kindOf(job)).queued+"',Stage='retry_wait',StagedRows=0,LeaseToken=NULL,LeaseUntil=NULL,AttemptCount=AttemptCount-@pause,NextAttemptAt=DATEADD(second,@delay,SYSUTCDATETIME()) WHERE "+fence(job));
  }
 }
-async function processNext({pool,sql,resolveProfile,writer=ingestCanonicalReport}){
- const job=await claimNext({pool,sql});
+async function processNext({pool,sql,resolveProfile,writer=ingestCanonicalReport,kind='commit',parser=parseInWorker}){
+ const job=await claimNext({pool,sql,kind});
  if(!job)return false;
- let heartbeat=null,inFlight=null;
+ let heartbeat=null,inFlight=null,previewScanning=false,scanned=0;
  const refresh=(stage,staged)=>refreshLease({pool,sql,job,stage,staged});
  // Do not overlap heartbeat updates; progress writes are also token-fenced.
  const stop=()=>{if(heartbeat)clearInterval(heartbeat);heartbeat=null;};
  try{
   heartbeat=setInterval(()=>{
    if(inFlight)return;
-   inFlight=refresh().catch(()=>{/* Final SQL fence remains authoritative. */}).finally(()=>{inFlight=null;});
+   inFlight=(previewScanning?refresh('preview_scanning',scanned):refresh()).catch(()=>{/* Final SQL fence remains authoritative. */}).finally(()=>{inFlight=null;});
   },20000);heartbeat.unref?.();
   const user=await authorize({db:pool,sql,job,resolveProfile});
+  if(kind==='preview'){
+   // CPU work happens on a separate Node thread. Heartbeats and status reads
+   // remain responsive. Store actual scanned counts, never a guessed percent.
+   previewScanning=true;
+   const parsed=await parser(job.SourceBytes,{onProgress:rows=>{scanned=rows;}});
+   previewScanning=false;
+   if(inFlight)await inFlight;
+   if(parsed.sourceFileSha256!==job.SourceFileSha256)throw new AdsIngestionError('job_source_changed','Staged source hash changed.');
+   await refresh('preview_catalog',parsed.summary.rows??scanned);
+   const tx=new sql.Transaction(pool);
+   await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+   try{
+    await authorize({db:tx,sql,job,resolveProfile});
+    const seller=(await tx.request().input('seller',sql.VarChar(50),job.SellerId).query('SELECT Id,Marketplace FROM dbo.Sellers WHERE Id=@seller;')).recordset[0];
+    const context=seller?resolveContext(seller):null;
+    if(!context||context.marketplace!==job.Marketplace||context.currency!==job.Currency)throw new AdsIngestionError('seller_context_changed','Seller marketplace or currency changed after upload. Validate again.');
+    const issues=parsed.issues,summary=parsed.summary;
+    let count=parsed.issueCount;
+    if(summary.valid){
+     const keys=new Map(parsed.keys.map(r=>[r.asin,r]));
+     const bad=await tx.request().input('seller',sql.VarChar(50),job.SellerId).input('keys',sql.NVarChar(sql.MAX),JSON.stringify([...keys.keys()]))
+      .query("SELECT k.[asin],COUNT_BIG(a.AsinCode) AS matches FROM OPENJSON(@keys) WITH ([asin] varchar(10) '$') k LEFT JOIN dbo.Asins a ON a.AsinCode=k.[asin] AND a.SellerId=@seller GROUP BY k.[asin] HAVING COUNT_BIG(a.AsinCode)<>1 ORDER BY k.[asin];");
+     summary.invalidCatalogKeys=bad.recordset.length;
+     for(const r of bad.recordset){
+      count++;
+      if(issues.length<MAX_STORED_ISSUES)issues.push({...keys.get(r.asin),column:'asin',code:Number(r.matches)===0?'catalog_mapping_missing':'catalog_mapping_ambiguous',message:Number(r.matches)===0?'This ASIN is not mapped to the selected seller. Verify the catalog assignment.':'This ASIN has multiple catalog mappings under the selected seller. Resolve the duplicate assignment.'});
+     }
+    }
+    const final={...summary,valid:summary.valid&&count===0,issueCount:count,issues:issues.slice(0,100),issuesTruncated:count>100,storedIssueCount:issues.length,issueReportTruncated:count>issues.length};
+    const status=final.valid?'READY':'REJECTED';
+    stop();
+    const r=await bind(tx.request(),sql,job).input('status',sql.VarChar(20),status).input('summary',sql.NVarChar(sql.MAX),JSON.stringify(final)).input('issues',sql.NVarChar(sql.MAX),JSON.stringify(issues))
+     .query("UPDATE dbo.AdsImportJobs SET Status=@status,Stage=CASE WHEN @status='READY' THEN 'ready' ELSE 'rejected' END,SummaryJson=@summary,IssuesJson=@issues,SourceBytes=CASE WHEN @status='READY' THEN SourceBytes ELSE NULL END,ValidationAttempts=AttemptCount,AttemptCount=0,ValidatedAt=SYSUTCDATETIME(),ExpiresAt=DATEADD(hour,24,SYSUTCDATETIME()),CompletedAt=CASE WHEN @status='REJECTED' THEN SYSUTCDATETIME() ELSE NULL END,LeaseToken=NULL,LeaseUntil=NULL,NextAttemptAt=NULL,StagedRows=0 WHERE "+fence(job)+"; SELECT @@ROWCOUNT AS changed;");
+    if(Number(r.recordset[0].changed)!==1)throw lost();
+    await tx.commit();
+   }catch(e){try{await tx.rollback();}catch{}throw e;}
+   return true;
+  }
   const lifecycle={
    progress:refresh,
    begin:async(_tx,report)=>{
@@ -98,7 +141,7 @@ async function processNext({pool,sql,resolveProfile,writer=ingestCanonicalReport
     if(!importsEnabled())throw new AdsScopeError('ads_import_disabled','Import paused.',409);
     const output={sellerId:result.sellerId,marketplace:result.marketplace,currency:result.currency,inserted:result.inserted,unchanged:result.unchanged,sourceFileSha256:result.sourceFileSha256,startDate:result.report.startDate,endDate:result.report.endDate,totals:result.report.totals,persisted:true};
     const r=await bind(tx.request(),sql,job).input('result',sql.NVarChar(sql.MAX),JSON.stringify(output)).input('rows',sql.Int,result.report.validRows)
-     .query("UPDATE dbo.AdsImportJobs SET Status='COMPLETED',Stage='completed',StagedRows=@rows,SourceBytes=NULL,LeaseToken=NULL,LeaseUntil=NULL,CompletedAt=SYSUTCDATETIME(),ResultJson=@result WHERE "+fence+"; SELECT @@ROWCOUNT AS changed;");
+     .query("UPDATE dbo.AdsImportJobs SET Status='COMPLETED',Stage='completed',StagedRows=@rows,SourceBytes=NULL,LeaseToken=NULL,LeaseUntil=NULL,CompletedAt=SYSUTCDATETIME(),ResultJson=@result WHERE "+fence(job)+"; SELECT @@ROWCOUNT AS changed;");
     if(Number(r.recordset[0].changed)!==1)throw lost();
    }
   };
@@ -114,11 +157,11 @@ async function processNext({pool,sql,resolveProfile,writer=ingestCanonicalReport
 let started=false;
 function startWorker({getPool,sql,resolveProfile}){
  if(started)return;started=true;
- const tick=async()=>{
-  try{await processNext({pool:await getPool(),sql,resolveProfile});}
-  catch(e){console.error('[ads import worker]',e.code||e.name||'unknown');}
-  finally{const timer=setTimeout(tick,3000);timer.unref?.();}
+ const tick=kind=>async()=>{
+  try{await processNext({pool:await getPool(),sql,resolveProfile,kind});}
+  catch(e){console.error('[ads import worker '+kind+']',e.code||e.name||'unknown');}
+  finally{const timer=setTimeout(tick(kind),3000);timer.unref?.();}
  };
- const timer=setTimeout(tick,1000);timer.unref?.();
+ for(const kind of ['preview','commit']){const timer=setTimeout(tick(kind),1000);timer.unref?.();}
 }
 module.exports={claimNext,refreshLease,processNext,startWorker,authorize,LEASE_SECONDS,MAX_ATTEMPTS};
