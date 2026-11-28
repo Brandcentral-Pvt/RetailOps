@@ -17,7 +17,7 @@ const permission=u=>['adsreport_view','adsreport_export'].every(p=>u.permissions
 const publicJob=j=>({id:j.Id,format:j.Format,filters:JSON.parse(j.Filters),status:j.Status,stage:j.Stage,attemptCount:j.AttemptCount,createdAt:j.CreatedAt,startedAt:j.StartedAt,completedAt:j.CompletedAt,expiresAt:j.ExpiresAt,bytes:j.FileBytes==null?null:Number(j.FileBytes),rawCount:j.RawCount==null?null:Number(j.RawCount),entityCount:j.EntityCount==null?null:Number(j.EntityCount),errorCode:j.ErrorCode});
 const cols='Id,OwnerId,ClientId,Filters,AccessScope,Format,Status,Stage,AttemptCount,CreatedAt,StartedAt,CompletedAt,ExpiresAt,FileBytes,ArtifactSha256,ChunkCount,RawCount,EntityCount,ErrorCode,ArtifactToken,LeaseToken,LeaseUntil';
 function freezeScope(user,filters){
- const scope=parseReport(user,filters).scope;
+ const scope=parseReport(user,filters,true).scope;
  if(scope.empty)throw err('empty_scope','No authorized sellers match this export.',403);
  if(scope.sellerIds.length>1000)throw err('scope_too_large','Select up to 1,000 sellers.',422);
  return {global:scope.unrestricted,ids:scope.sellerIds};
@@ -120,7 +120,8 @@ async function processNext(pool,sql){
   const writer=j.Format==='csv'?writeDailyCsv:writeCompleteWorkbook;
   let budgetInfo=null;
   if(j.Format==='xlsx'){
-   if(filters.brand||filters.category||filters.search||filters.marketplace)budgetInfo={rows:[],reason:'Not applicable: seller-wide budget data cannot be attributed to catalog, marketplace or search filters.'};
+   if(filters.allHistory)budgetInfo={rows:[],reason:'Not applicable to unbounded history; choose a reporting window for seller-wide month budgets and targets.'};
+   else if(filters.brand||filters.category||filters.search||filters.marketplace)budgetInfo={rows:[],reason:'Not applicable: seller-wide budget data cannot be attributed to catalog, marketplace or search filters.'};
    else{const query=Object.fromEntries(['sellerId','startDate','endDate','currency'].filter(k=>filters[k]!=null).map(k=>[k,filters[k]]));budgetInfo=await readBudgetIntelligence({pool,sql,user,query});}
   }
   const result=await readCanonicalReport({pool,sql,user,query:filters,signal,backgroundExport:true,advancedExport:j.Format==='xlsx',exportWorkbook:snapshot=>writer({filePath,...snapshot,filters,signal,advanced:j.Format==='xlsx',budgetInfo})});
