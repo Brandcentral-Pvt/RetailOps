@@ -200,6 +200,9 @@ async function readCanonicalReport({pool,sql,user,query,exportAll=false,insights
           if(f.groupBy!=='asin'){
             await tx.request().batch("DROP TABLE #AdsGroups; DROP TABLE #AdsEntities; SELECT p.[SellerId],p.[Marketplace],p.[Currency],CONVERT(nvarchar(50),p.[Asin]) AS [EntityKey],p.[periodKey],MAX(p.[SellerName]) AS [SellerName],MAX(p.[CatalogTitle]) AS [CatalogTitle],MAX(p.[CatalogBrand]) AS [CatalogBrand],MAX(p.[CatalogCategory]) AS [CatalogCategory],"+aggregateProjection+","+unmapped+","+dayCoverage+" INTO #AdsGroups FROM #AdsScope p GROUP BY p.[SellerId],p.[Marketplace],p.[Currency],p.[Asin],p.[periodKey]; SELECT DISTINCT [SellerId],[Marketplace],[Currency],[EntityKey] INTO #AdsEntities FROM #AdsGroups; CREATE UNIQUE CLUSTERED INDEX IX_AdsExportGroups ON #AdsGroups([SellerId],[Marketplace],[Currency],[EntityKey],[periodKey]);");
           }
+          const asinCount=await tx.request().query('SELECT COUNT_BIG(*) AS n FROM #AdsEntities;');
+          exportSnapshot.checkCount(asinCount.recordset[0].n,exportSnapshot.BACKGROUND_ENTITIES,'ASIN analytical entities');
+          exportSnapshot.abort(signal);
           const reconciliation=await readReconciliation({tx,sql,period:f.period});
           const portfolio=await readPortfolioAnalytics({tx,sql,period:f.period,granularity:f.granularity,exportMode:true});
           const review=await readReviewSignals({tx,sql,days:f.period.days,full:true});
