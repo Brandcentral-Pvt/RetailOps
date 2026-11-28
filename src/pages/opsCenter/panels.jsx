@@ -81,23 +81,21 @@ export const KpiRow = ({ dashboardRaw, focus, onFocus, span = 2 }) => {
     const metricDelta=(key,a,b)=>a!=null&&b!=null&&adsBlock?.coverage?.[key]?.status==='complete'&&prev?.adsCoverage?.[key]?.status==='complete'?pctDelta(a,b):null;
     const ratioDelta=(key,a,b,fn)=>a!=null&&b!=null&&adsBlock?.ratioCoverage?.[key]==='complete'&&prev?.adsRatioCoverage?.[key]==='complete'?fn(a,b):null;
     const hasGms = !!gms;
-    const gmsRevenue = Number(gms?.revenue) || 0;
-    const gmsUnits = Number(gms?.units) || 0;
+    const gmsRevenue=numeric(gms?.revenue);
+    const gmsUnits=numeric(gms?.units);
     const tacos=numeric(adsBlock?.tacos),adShare=numeric(adsBlock?.adShare);
 
     const tiles = [
         {
             key: 'gms', label: 'GMS', tip: 'Gross merchandise sales — ordered revenue from the GMS daily feed (not ads data).',
-            value: hasGms ? fmtINR(gmsRevenue) : '—',
-            sub: hasGms
-                ? (gmsRevenue > 0 ? `${fmtINR(gms.dailyAverage)} / day · ${fmtNum(gms.asinsWithSales)} ASINs selling` : 'no GMS recorded in period')
-                : 'GMS feed unavailable',
+            value: show(gmsRevenue,fmtINR),
+            sub: gmsRevenue==null?'GMS unavailable':gms.coverage?.complete===false?`Observed ${gms.coverage.observedDays} of ${gms.coverage.expectedDays} days`:`${fmtINR(gms.dailyAverage)} / day · ${fmtNum(gms.asinsWithSales)} ASINs selling`,
             delta: hasGms ? <Delta value={gms.deltaPct} label={vs} compact /> : null,
             spark: <Sparkline data={gms?.series || []} color={OPS_COLOR.accent} />,
         },
         {
             key: 'units', label: 'Units', tip: 'Ordered units from the GMS daily feed.',
-            value: hasGms ? fmtNum(gmsUnits) : '—',
+            value: show(gmsUnits,fmtNum),
             sub: hasGms && gmsUnits > 0 ? `ASP ${fmtINRFull(gms.asp)} · returns ${fmtPct(gms.returnRate)}` : 'ordered units',
             delta: hasGms ? <Delta value={gms.unitsDeltaPct} label={vs} compact /> : null,
             spark: <Sparkline data={gms?.unitsSeries || []} color={OPS_COLOR.accent} />,
@@ -211,7 +209,7 @@ export const BrandLeaderboardPanel = ({ rows = [], status, onRetry, activeSeller
     const list = showAll ? rows : rows.slice(0, 8);
     const max = Math.max(...rows.map((r) => Number(r.revenue) || 0), 1);
     const vs = periodDays ? `vs prev ${periodDays}d` : 'vs prev period';
-    const canSelect = (r) => typeof onSelectSeller === 'function' && (!selectable || selectable.has(String(r.sellerId)));
+    const canSelect = (r) => r.sellerId!=null && typeof onSelectSeller === 'function' && (!selectable || selectable.has(String(r.sellerId)));
 
     return (
         <Panel
