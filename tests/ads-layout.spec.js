@@ -124,3 +124,31 @@ test('session restore retries a transient 502',async({page})=>{
  await expect(page.getByRole('button',{name:'Import CSV',exact:true})).toBeVisible();
  expect(calls).toBe(2);
 });
+
+test('confirmed import queues immediately and polls real stage progress',async({page})=>{
+ const id='00000000-0000-4000-8000-000000000002';
+ const ready={id,sellerId:'s1',marketplace:'amazon.in',currency:'INR',fileName:'queued.csv',status:'READY',importsEnabled:true,
+  summary:{rows:10,validRows:10,invalidRows:0,issueCount:0,startDate:'2026-11-01',endDate:'2026-11-01'}};
+ const result={sellerId:'s1',currency:'INR',inserted:10,unchanged:0,startDate:'2026-11-01',endDate:'2026-11-01',persisted:true};
+ let queued=false,polls=0,posts=0;
+ await mock(page,{empty:true});
+ await page.route('**/api/upload/ads-imports?*',route=>route.fulfill({json:{success:true,data:{rows:[ready],total:1,page:1,limit:10}}}));
+ await page.route('**/api/upload/ads-imports/'+id,route=>{
+  const job=!queued?ready:++polls===1?{...ready,status:'PROCESSING',stage:'staging',attemptCount:1,stagedRows:5}:{...ready,status:'COMPLETED',stage:'completed',attemptCount:1,stagedRows:10,result};
+  return route.fulfill({json:{success:true,data:job}});
+ });
+ await page.route('**/api/upload/ads-imports/'+id+'/confirm',route=>{
+  posts++;queued=true;return route.fulfill({status:202,json:{success:true,data:{...ready,status:'QUEUED',stage:'queued',attemptCount:0,stagedRows:0}}});
+ });
+ await page.goto('/tests/fixtures/ads-layout.html');
+ await page.getByRole('button',{name:'Import CSV',exact:true}).click();
+ const dialog=page.getByRole('dialog');
+ await dialog.getByRole('tab',{name:'Import history'}).click();
+ await dialog.getByRole('button',{name:'Open',exact:true}).click();
+ await dialog.getByRole('button',{name:'Confirm import',exact:true}).click();
+ await expect(dialog.getByText('Waiting for worker',{exact:true})).toBeVisible();
+ await expect(dialog.getByRole('button',{name:'Close',exact:true})).toBeEnabled();
+ await expect(dialog.getByText('50% staged',{exact:true})).toBeVisible();
+ await expect(dialog.getByText('10 inserted · 0 unchanged')).toBeVisible({timeout:12000});
+ expect(posts).toBe(1);
+});
