@@ -2,8 +2,11 @@ import { test, expect } from '@playwright/test';
 
 const user = { Id: 'u-test', id: 'u-test', firstName: 'Test', role: { name: 'admin' }, scope: 'global', permissions: ['*'] };
 
-async function setup(page, nonempty=false, {historyCount=0,issueCount=1,wideMatrix=false}={}) {
+async function setup(page, nonempty=false, {historyCount=0,issueCount=1,wideMatrix=false,holdFilters=false}={}) {
   let reads = 0, uploads = 0, commits = 0, fail = false, reject = false, status = 'READY', lastRequest=null, lastExport=null;
+  let filterRequests=0,legacyDirectoryRequests=0;
+  let releaseFilters;
+  const filterGate=holdFilters?new Promise(resolve=>{releaseFilters=resolve;}):Promise.resolve();
   const batch = () => ({ id:'batch1',fileName:'report.csv',status,createdAt:'2026-11-27T10:00:00Z',summary:{total:1,inserted:1,updated:0,unchanged:0,duplicates:0,invalid:reject?1:0,issues:reject?[{row:2,asin:'B000000001',date:'2026-11-27',column:'Ordered Revenue',code:'INVALID_ROW',message:'Invalid monetary value',remarks:'Enter a valid amount in Ordered Revenue, such as 1250.50 or -250.00.'}]:[],reportIssueCount:reject?1:0,reportComplete:true,sample:[],committed:status==='COMPLETED'?1:0} });
   const historyFixture=Array.from({length:historyCount},(_,i)=>({
     ...batch(),id:i===0?'batch1':'history-'+i,fileName:'report-history-'+String(i+1).padStart(2,'0')+'.xlsx',
@@ -14,6 +17,11 @@ async function setup(page, nonempty=false, {historyCount=0,issueCount=1,wideMatr
     const path = new URL(route.request().url()).pathname;
     const send = (data, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(data) });
     if (path.endsWith('/auth/me')) return send({ success: true, data: user });
+    if(path.endsWith('/upload/gms-filters')){
+      filterRequests++;
+      return filterGate.then(()=>send({success:true,data:{sellers:[{id:'S1',name:'Seller A'}],managers:[{id:'M1',firstName:'Test',lastName:'Manager',assignedSellers:['S1']}]}}));
+    }
+    if(path.endsWith('/users/managers')){legacyDirectoryRequests++;return send({success:true,data:[]});}
     if (path.endsWith('/upload/gms-analytics')) {
       reads++;
       lastRequest=route.request().postDataJSON();
@@ -66,13 +74,33 @@ async function setup(page, nonempty=false, {historyCount=0,issueCount=1,wideMatr
       if (status==='QUEUED') status='COMPLETED';
       return send({success:true,data:batch()});
     }
-    if (path.endsWith('/sellers')) return send({ success: true, data: { sellers: [] } });
+    if (path.endsWith('/sellers')){legacyDirectoryRequests++;return send({ success: true, data: { sellers: [] } });}
     return send({ success: true, data: [] });
   });
   await page.goto('/tests/fixtures/gms-phase1.html');
   await expect(nonempty?page.getByLabel('Key performance indicators',{exact:true}):page.getByText('No GMS records in this selection')).toBeVisible({ timeout:15000 });
-  return { reads: () => reads, lastRequest:()=>lastRequest,lastExport:()=>lastExport, uploads: () => uploads, commits: () => commits, setFailure: () => { fail = true; }, reject: () => { reject = true; } };
+  return { reads: () => reads, filterRequests:()=>filterRequests,legacyDirectoryRequests:()=>legacyDirectoryRequests,releaseFilters:()=>releaseFilters?.(),lastRequest:()=>lastRequest,lastExport:()=>lastExport, uploads: () => uploads, commits: () => commits, setFailure: () => { fail = true; }, reject: () => { reject = true; } };
 }
+
+test('report renders while filter directory is pending and manager selection stays scoped',async({page})=>{
+  const state=await setup(page,true,{holdFilters:true});
+  try{
+    // The directory route remains unresolved. The real analytics response
+    // and the first matrix row must already be visible.
+    await expect(page.getByText('B000000001',{exact:true})).toBeVisible();
+    expect(state.reads()).toBe(1);
+    expect(state.filterRequests()).toBe(1);
+    expect(state.legacyDirectoryRequests()).toBe(0);
+    expect(state.lastRequest().sellerIds).toBeNull();
+  }finally{state.releaseFilters();}
+  const manager=page.locator('#gms-manager-filter');
+  await manager.click();
+  await expect(page.getByRole('option',{name:'Test Manager',exact:true})).toBeVisible();
+  await page.getByRole('option',{name:'Test Manager',exact:true}).click();
+  await expect.poll(()=>state.lastRequest()?.sellerIds).toEqual(['S1']);
+  await expect(page.getByText('B000000001',{exact:true})).toBeVisible();
+  expect(state.filterRequests()).toBe(1);
+});
 
 test('manual refresh works after initial load and failures do not show zero KPIs', async ({ page }) => {
   const state = await setup(page);
@@ -234,6 +262,15 @@ async function modalGeometry(modal){
     };
   });
 }
+async function waitForModalMotion(modal){
+  await modal.evaluate(async el=>{
+    const root=el.closest('.gms-import-wrap')||el;
+    // Only finite, currently running entrance animations/transitions.
+    await Promise.allSettled(root.getAnimations({subtree:true})
+      .filter(a=>a.playState==='running'&&Number.isFinite(a.effect?.getComputedTiming().endTime))
+      .map(a=>a.finished));
+  });
+}
 function expectContained(g){
   expect(g.shell.top).toBeGreaterThanOrEqual(0);
   expect(g.shell.bottom).toBeLessThanOrEqual(g.viewport.height+1);
@@ -255,6 +292,7 @@ test('import modal remains fixed while history and validation content scroll',as
   await expect(history.getByText('1-10 of 23 batches',{exact:true})).toBeVisible();
   // Wait for the modal entrance animation before measuring layout.
   await expect.poll(async()=>{const g=await modalGeometry(modal);return g.shell.top>=0&&g.shell.bottom<=g.viewport.height+1;}).toBe(true);
+  await waitForModalMotion(modal);
   const first=await modalGeometry(modal);
   expectContained(first);
   expect(first.scroll.height).toBeGreaterThan(first.scroll.client);
@@ -297,6 +335,7 @@ test('mobile import dialog keeps footer and tabs accessible with long error repo
   const content=modal.getByRole('region',{name:'Import report content'});
   await expect(content.getByText('Report rejected',{exact:true})).toBeVisible();
   await expect.poll(async()=>(await modalGeometry(modal)).scroll.height>(await modalGeometry(modal)).scroll.client).toBe(true);
+  await waitForModalMotion(modal);
   const initial=await modalGeometry(modal);
   await content.hover({position:{x:18,y:Math.min(100,initial.scroll.client-10)}});
   await page.mouse.wheel(0,4000);

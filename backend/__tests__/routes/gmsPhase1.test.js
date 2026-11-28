@@ -210,6 +210,27 @@ describe('GMS route security', () => {
     expect((await request(app).post('/api/export/start-gms').send({ exportDateType: 'current', startDate: 'invalid', endDate: '2026-11-27' })).status).toBe(400);
     expect(mockPool.calls).toHaveLength(0);
   });
+  test('GMS filter directory is permission checked, narrow and seller scoped',async()=>{
+    mockUser.permissions=[];
+    expect((await request(app).get('/api/upload/gms-filters')).status).toBe(403);
+    expect(mockPool.calls).toHaveLength(0);
+    mockUser.permissions=['gms_tracker_view'];
+    mockPool=makeFakePool([{match:/SELECT s.Id AS id,s.Name AS name FROM Sellers/,recordsets:[
+      [{id:'S1',name:'Seller A'},{id:'S2',name:'Seller B'}],
+      [{id:'M1',firstName:'Test',lastName:'Manager',sellerId:'S1'},{id:'M1',firstName:'Test',lastName:'Manager',sellerId:'S2'},{id:'M2',firstName:'Other',sellerId:'S2'}]
+    ]}]);
+    const res=await request(app).get('/api/upload/gms-filters');
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({sellers:[{id:'S1',name:'Seller A'}],managers:[{id:'M1',firstName:'Test',lastName:'Manager',assignedSellers:['S1']}]});
+    expect(res.headers['cache-control']).toContain('no-store');
+    expect(res.headers['server-timing']).toMatch(/^filters;dur=/);
+    expect(mockPool.calls).toHaveLength(1);
+    expect(mockPool.calls[0].inputs.allowedSellerIds).toBe('["S1"]');
+    expect(mockPool.calls[0].sql).not.toMatch(/FROM Asins|ClientSecret|LastScrapedAt|COUNT\(/i);
+    mockUser.assignedSellers=[];
+    expect((await request(app).get('/api/upload/gms-filters')).body.data).toEqual({sellers:[],managers:[]});
+    expect(mockPool.calls).toHaveLength(1);
+  });
   test('analytics route requires view permission and validates filter input', async () => {
     mockUser.permissions=[];
     expect((await request(app).post('/api/upload/gms-analytics').send({startDate:'2026-11-27',endDate:'2026-11-27'})).status).toBe(403);
@@ -231,6 +252,8 @@ describe('GMS route security', () => {
     expect(mockPool.calls).toHaveLength(0);
     const res=await request(app).post('/api/upload/gms-analytics').send(input);
     expect(res.status).toBe(200);
+    expect(res.headers['server-timing']).toMatch(/pool;dur=.*sql;dur=.*compose;dur=.*total;dur=/);
+    expect(res.headers['cache-control']).toContain('no-store');
     expect(res.body.data.kpis.orderedRevenue).toBe(20);
     expect(res.body.data.comparison.changes.orderedRevenue).toBe(100);
     expect(res.body.data.matrixRows).toHaveLength(1);
