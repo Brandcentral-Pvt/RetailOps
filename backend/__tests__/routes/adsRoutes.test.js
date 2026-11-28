@@ -73,6 +73,12 @@ const WINDOW = '?startDate=2026-08-01&endDate=2026-08-28';
 beforeEach(() => { mockState.pool = buildAdsPool(); });
 
 describe('Canonical Ads route authorization and retirement',()=>{
+    test('lightweight overview validates authorization and scope before SQL',async()=>{
+      mockState.user=null;expect((await request(app).get('/api/ads/canonical-overview'+WINDOW)).status).toBe(401);
+      mockState.user=NO_PERMISSION;expect((await request(app).get('/api/ads/canonical-overview'+WINDOW)).status).toBe(403);
+      mockState.user=SCOPED;expect((await request(app).get('/api/ads/canonical-overview'+WINDOW+'&sellerId=S1,S9')).status).toBe(403);
+      mockState.user={...SCOPED,assignedSellers:[]};const r=await request(app).get('/api/ads/canonical-overview'+WINDOW);expect(r.status).toBe(200);expect(r.body.data.empty).toBe(true);expect(mockState.pool.calls).toHaveLength(0);
+    });
     test('anonymous canonical report is 401',async()=>{mockState.user=null;expect((await request(app).get('/api/ads/canonical-report'+WINDOW)).status).toBe(401);});
     test('view permission required',async()=>{mockState.user=NO_PERMISSION;expect((await request(app).get('/api/ads/canonical-report'+WINDOW)).status).toBe(403);});
     test('mixed seller scope fails before report SQL',async()=>{mockState.user=SCOPED;const r=await request(app).get('/api/ads/canonical-report'+WINDOW+'&sellerId=S1,S9');expect(r.status).toBe(403);expect(r.body.code).toBe('forbidden_seller');expect(mockState.pool.calls).toHaveLength(0);});

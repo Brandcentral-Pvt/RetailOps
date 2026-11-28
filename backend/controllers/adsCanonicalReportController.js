@@ -9,12 +9,34 @@ function failure(res,error){
   console.error('[canonical ads report]',error.message);
   return res.status(503).json({success:false,code:'canonical_report_unavailable',message:'Canonical advertising analytics could not be loaded. Verify the schema and retry.'});
 }
-async function report(req,res){
-  try{
-    parseReport(req.user,req.query);
-    return res.json({success:true,data:await readCanonicalReport({pool:await getPool(),sql,user:req.user,query:req.query})});
-  }catch(e){return failure(res,e);}
+// Coalesce only concurrent identical reads, never retain completed financial data.
+const flights=new Map();
+const MAX_READS=6;
+function requestKey(user,parsed,mode){
+ const scope={unrestricted:parsed.scope.unrestricted,ids:[...parsed.scope.sellerIds].sort()};
+ return JSON.stringify([user.Id||user.id||user._id,mode,{...parsed,scope}]);
 }
+async function runRead(req,res,mode){
+ try{
+  const parsed=parseReport(req.user,req.query);
+  if(mode==='overview'&&parsed.entityKey)throw new AdsScopeError('invalid_ads_filter','Overview requires report scope.');
+  if(mode==='insights'&&(parsed.groupBy!=='asin'||parsed.entityKey))throw new AdsScopeError('invalid_ads_filter','Product review requires ASIN grouping.');
+  res.set('Cache-Control','private, no-store');
+  const key=requestKey(req.user,parsed,mode);
+  let pending=flights.get(key);
+  if(!pending){
+   if(flights.size>=MAX_READS)throw new AdsScopeError('report_busy','Advertising reports are busy. Retry shortly.',429);
+   pending=(async()=>readCanonicalReport({pool:await getPool(),sql,user:req.user,query:req.query,overviewOnly:mode==='overview',insightsOnly:mode==='insights'}))();
+   flights.set(key,pending);
+   const clear=()=>{if(flights.get(key)===pending)flights.delete(key);};
+   pending.then(clear,clear);
+  }
+  const data=await pending;
+  if(!res.destroyed)return res.json({success:true,data});
+ }catch(e){if(!res.destroyed)return failure(res,e);}
+}
+const report=(req,res)=>runRead(req,res,'report');
+const overview=(req,res)=>runRead(req,res,'overview');
 async function options(req,res){
   try{
     if(Object.keys(req.query).some(k=>k!=='sellerId'))throw new AdsScopeError('invalid_ads_filter','Unsupported seller options filter.');
@@ -22,13 +44,7 @@ async function options(req,res){
     return res.json({success:true,data:await readCanonicalOptions({pool:await getPool(),sql,user:req.user,sellerId:req.query.sellerId})});
   }catch(e){return failure(res,e);}
 }
-async function insights(req,res){
-  try{
-    const filters=parseReport(req.user,req.query);
-    if(filters.groupBy!=='asin'||filters.entityKey)throw new AdsScopeError('invalid_ads_filter','Product review requires ASIN grouping.');
-    return res.json({success:true,data:await readCanonicalReport({pool:await getPool(),sql,user:req.user,query:req.query,insightsOnly:true})});
-  }catch(e){return failure(res,e);}
-}
+const insights=(req,res)=>runRead(req,res,'insights');
 // Explicit on-demand endpoint; bound concurrent analytical snapshots per API
 // process rather than turning every table pagination into a full scan.
 let portfolioInFlight=0;
@@ -54,4 +70,4 @@ async function reconciliation(req,res){
   return res.json({success:true,data:await readCanonicalReport({pool:await getPool(),sql,user:req.user,query:req.query,reconciliationOnly:true})});
  }catch(e){return failure(res,e);}finally{if(slot)reconciliationInFlight--;}
 }
-module.exports={report,options,insights,portfolio,reconciliation};
+module.exports={report,overview,options,insights,portfolio,reconciliation};

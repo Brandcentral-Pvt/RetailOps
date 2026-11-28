@@ -157,7 +157,10 @@ export default function CanonicalAdsWorkspace(){
     const selectedDays=(Date.parse(filters.endDate)-Date.parse(filters.startDate))/86400000+1;
     const hasDates=!!filters.startDate&&!!filters.endDate&&selectedDays>=1&&selectedDays<=366;
     const reportView=view==='overview'||view==='products';
-    const report=useQuery({queryKey:['ads-canonical',principal,'report',filters,page,limit],queryFn:({signal})=>get('canonical-report',{...filters,page,limit},signal),enabled:enabled&&hasDates&&reportView,staleTime:0,retry:false});
+    const overviewFilters=useMemo(()=>({startDate:filters.startDate,endDate:filters.endDate,sellerId:seller,brand,category,currency,marketplace,search:search||undefined,groupBy,granularity}),[filters.startDate,filters.endDate,seller,brand,category,currency,marketplace,search,groupBy,granularity]);
+    const overviewReport=useQuery({queryKey:['ads-canonical',principal,'overview',overviewFilters],queryFn:({signal})=>get('canonical-overview',overviewFilters,signal),enabled:enabled&&hasDates&&view==='overview',staleTime:0,retry:false,refetchOnWindowFocus:false});
+    const productReport=useQuery({queryKey:['ads-canonical',principal,'report',filters,page,limit],queryFn:({signal})=>get('canonical-report',{...filters,page,limit},signal),enabled:enabled&&hasDates&&view==='products',staleTime:0,retry:false,refetchOnWindowFocus:false});
+    const report=view==='overview'?overviewReport:productReport;
     const drillTarget=drill?.signature===signature?drill.row:null;
     const drillGrouping=drill?.groupBy||groupBy;
     const history=useQuery({queryKey:['ads-canonical',principal,'history',filters,drillGrouping,drillTarget?.key],queryFn:({signal})=>get('canonical-report',{...filters,groupBy:drillGrouping,granularity:'day',sellerId:drillTarget.sellerId,marketplace:drillTarget.marketplace,currency:drillTarget.currency,entityKey:drillTarget.entityKey,page:1},signal),enabled:enabled&&!!drillTarget,staleTime:0,retry:false});

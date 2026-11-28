@@ -34,6 +34,10 @@ test('SQL: canonical scope, duplicate catalog protection, current/prior comparis
   assert.equal(r.current[0].unmappedRows,'2');assert.equal(r.current[0].ratios.tacos.value,null);
   assert.equal(r.current[0].ratios.cvr.value,'14.285714');assert.equal(r.previous[0].totals.totalSales,'80');
   assert.equal(r.total,3);assert.equal(r.page,2);assert.equal(r.rows.length,1);assert.equal(r.rows[0].current,null);assert.equal(r.rows[0].previous.totals.totalSales,'80');
+  const overview=await readCanonicalReport({pool,sql,user,query:{...range,sellerId:'s1'},overviewOnly:true});
+  const normal=await read({sellerId:'s1'});
+  for(const key of ['current','previous','comparisons','series','period','empty'])assert.deepEqual(overview[key],normal[key],key);
+  assert.deepEqual(overview.rows,[]);
   const full=await readCanonicalReport({pool,sql,user,query:{...range,sellerId:'s1',limit:'1',page:'2'},exportAll:true});
   assert.equal(full.rows.length,3);assert.equal(full.total,3);assert.equal(full.page,1);
   await pool.request().query("UPDATE dbo.AdsProductDailyFacts SET AdvertisedSku=N'00123',ProductPrice=7100.0300000001,ACoS=0.255,ViewImpressions=9007199254740993,SourceRowNumber=7 WHERE SellerId='s1' AND Asin='B000000001' AND [Date]='2026-04-01';");
