@@ -12,6 +12,7 @@ export function calendarBuckets(period,periodKey,granularity){
  for(let date=start,n=0;date<=end&&n<366;date=shift(date,1),n++){
   const bucket=bucketOf(date,granularity);if(!out.has(bucket))out.set(bucket,{bucket,start:date,end:date,days:0});
   const b=out.get(bucket);b.end=date;b.days++;
+  if(date===end)break;
  }
  return [...out.values()];
 }

@@ -23,6 +23,7 @@ const mock=async(page,{empty=false,error=false,principal=user}={})=>{
  });
  await page.route('**/socket.io/**',route=>route.abort());
 };
+const goView=async(page,key)=>{await page.getByTestId('ads-view-'+key).click();await expect(page.getByTestId('ads-view-'+key)).toHaveAttribute('aria-current','page');};
 async function assertContained(page){
  const bounds=await page.evaluate(()=>{
   const shell=document.querySelector('.routes-container'),root=document.querySelector('.ads-workspace');
@@ -43,16 +44,19 @@ for(const width of [1920,1440,1024,768]){
   await page.setViewportSize({width,height:900});await mock(page,{empty:true});
   await page.goto('/tests/fixtures/ads-layout.html');
   await expect(page.getByText('No canonical advertising records in the selected dates.')).toBeVisible();
-  await expect(page.getByText('No seller targets in the selected period')).toBeVisible();
   await expect(page.getByRole('button',{name:'Import CSV',exact:true})).toBeInViewport();
   await expect(page.getByRole('button',{name:'Export XLSX',exact:true})).toBeInViewport();
   await expect(page.getByRole('button',{name:'Refresh',exact:true})).toBeInViewport();
+  await assertContained(page);
+  await goView(page,'budgets');
+  await expect(page.getByText('No seller targets in the selected period')).toBeVisible();
   await assertContained(page);
  });
 }
 test('wide tables scroll inside the workspace and preserve the pinned product column',async({page})=>{
  await page.setViewportSize({width:1440,height:900});await mock(page);
  await page.goto('/tests/fixtures/ads-layout.html');
+ await goView(page,'products');
  const table=page.getByTestId('ads-product-table');
  await expect(table.getByRole('button',{name:'B000000001',exact:true})).toBeVisible();
  await assertContained(page);
@@ -83,6 +87,7 @@ test('Ads actions follow effective permissions rather than global role labels',a
  await expect(page.getByText('No canonical advertising records in the selected dates.')).toBeVisible();
  await expect(page.getByRole('button',{name:'Import CSV',exact:true})).toHaveCount(0);
  await expect(page.getByRole('button',{name:'Import a report',exact:true})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Import history',exact:true})).toHaveCount(0);
  await expect(page.getByRole('button',{name:'Export XLSX',exact:true})).toHaveCount(0);
 });
 test('wildcard administrators retain Ads actions',async({page})=>{
@@ -212,6 +217,7 @@ test('Phase 3 comparisons and full-scope review load on demand without page trun
  await page.goto('/tests/fixtures/ads-layout.html');
  const panel=page.getByTestId('ads-comparison-panel');
  await expect(panel.getByText('Observed only',{exact:true})).toBeVisible();
+ await goView(page,'opportunities');
  const opportunities=page.getByTestId('ads-opportunities');
  await expect(opportunities.getByRole('button',{name:'Analyze products'})).toBeVisible();
  expect(requests).toBe(0);
@@ -246,6 +252,7 @@ test('Phase 3B portfolio analysis exposes full-population counts, segments, alig
   return route.fulfill({json:{success:true,data:{empty:false,groups:[group],trends:[trend,{...trend,bucket:'2026-05-03',currentStart:'2026-05-03',currentEnd:'2026-05-03',previousStart:'2026-05-01',previousEnd:'2026-05-01',days:1,current:null,previous:null}],breakdowns:[breakdown,{...breakdown,dimension:'brand',items:[{...breakdown.items[0],key:'brand-a',groupKey:'Brand A',label:'Brand A'}]}]}}});
  });
  await page.goto('/tests/fixtures/ads-layout.html');
+ await goView(page,'portfolio');
  const panel=page.getByTestId('ads-portfolio-panel');
  await expect(panel.getByRole('button',{name:'Analyze portfolio'})).toBeVisible();expect(requests).toBe(0);
  await panel.getByRole('button',{name:'Analyze portfolio'}).click();
@@ -274,8 +281,9 @@ test('Phase 3B portfolio analysis exposes full-population counts, segments, alig
  await assertContained(page);
  await page.setViewportSize({width:1024,height:900});await assertContained(page);
  await panel.getByRole('button',{name:'Seller One',exact:true}).click();
- await expect.poll(()=>[lastReport?.get('sellerId'),lastReport?.get('marketplace'),lastReport?.get('currency')]).toEqual(['s1','amazon.in','INR']);
  await expect(panel.getByRole('button',{name:'Analyze portfolio'})).toBeVisible();
+ await goView(page,'products');
+ await expect.poll(()=>[lastReport?.get('sellerId'),lastReport?.get('marketplace'),lastReport?.get('currency')]).toEqual(['s1','amazon.in','INR']);
 });
 
 test('Phase 3C seller budget pacing preserves incomplete coverage, details and scoped filters',async({page})=>{
@@ -289,6 +297,7 @@ test('Phase 3C seller budget pacing preserves incomplete coverage, details and s
   return route.fulfill({json:{success:true,data:{asOf:'2026-11-10',rows:[full,partial]}}});
  });
  await page.goto('/tests/fixtures/ads-layout.html');
+ await goView(page,'budgets');
  const panel=page.getByTestId('ads-budget-panel');
  await expect(panel.getByText('Reporting cutoff: 2026-11-10.',{exact:false})).toBeVisible();
  const table=panel.getByTestId('ads-target-table');
@@ -326,7 +335,9 @@ test('Phase 3C ASIN diagnostics compare against the same owner portfolio and pre
   return route.fulfill({json:{success:true,data:{period,empty:false,current:[summary],previous:[summary],series:[],rows:isDrill?[]:rows,total:isDrill?0:rows.length,page:1,limit:50,...(isDrill?{diagnostics:diag}:{})}}});
  });
  await page.goto('/tests/fixtures/ads-layout.html');
+ await goView(page,'products');
  await page.getByTestId('ads-product-table').getByRole('button',{name:'B000000001',exact:true}).click();
+ await page.getByRole('dialog').getByRole('tab',{name:'ASIN diagnostics'}).click();
  const d=page.getByTestId('ads-product-diagnostics');
  await expect(d.getByText('Product share of seller spend',{exact:true})).toBeVisible();
  await expect(d.getByText('-5 pp',{exact:true})).toBeVisible();
@@ -345,6 +356,7 @@ test('Ads numeric display uses grouped currency and integer counts without raw S
  await expect(page.getByText('INR 7,100.03',{exact:true}).first()).toBeVisible();
  await expect(page.getByText('INR 12,34,567.13',{exact:true}).first()).toBeVisible();
  await expect(page.getByText('12.35%',{exact:true}).first()).toBeVisible();
+ await goView(page,'products');
  const product=page.getByTestId('ads-product-table').locator('tr[data-row-key="row-0"]');
  await expect(product.getByText('11',{exact:false}).first()).toBeVisible();
  await expect(page.getByText('7100.0300000000',{exact:false})).toHaveCount(0);
@@ -360,6 +372,7 @@ test('Phase 3D reconciliation is on demand, scoped, exact and distinguishes data
   return route.fulfill({json:{success:true,data:{status:requests===1?'failed':'passed',empty:false,checks:requests===1?checks:[checks[0]],quality:[{currency:'INR',periodKey:'current',rowCount:'1000',missingSpend:'22',zeroSpend:'7',nonAdditiveRevenueRows:'15'}],baseline:[{...summary,periodKey:'current',coveredDays:20,totals:{...summary.totals,spend:'7100.0300000000'}}]}}});
  });
  await page.goto('/tests/fixtures/ads-layout.html');
+ await goView(page,'quality');
  const panel=page.getByTestId('ads-reconciliation-panel');
  await expect(panel.getByRole('button',{name:'Run reconciliation'})).toBeVisible();expect(requests).toBe(0);
  await panel.getByRole('button',{name:'Run reconciliation'}).click();
@@ -373,4 +386,88 @@ test('Phase 3D reconciliation is on demand, scoped, exact and distinguishes data
  await panel.getByRole('button',{name:'Run again'}).click();
  await expect(panel.getByText('Stored analytics checks passed',{exact:true})).toBeVisible();
  await expect(panel.getByText('Exact mismatch details',{exact:true})).toHaveCount(0);
+});
+
+test('Phase 4 overview and focused views keep filter scope and defer heavy requests',async({page})=>{
+ await page.setViewportSize({width:1440,height:900});await mock(page);
+ const requests=[];
+ page.on('request',r=>{if(r.url().includes('/api/ads/canonical-'))requests.push(new URL(r.url()));});
+ await page.goto('/tests/fixtures/ads-layout.html');
+ const overview=page.getByTestId('ads-overview');
+ await expect(overview).toBeVisible();
+ await expect(overview.locator('.ads-kpi')).toHaveCount(8);
+ await expect(overview.getByTestId('ads-kpi-spend').locator('.ads-kpi-value')).toHaveText('INR 1,23,45,67,89,012.12');
+ await expect(page.getByTestId('ads-product-table')).toHaveCount(0);
+ await expect(page.getByTestId('ads-budget-panel')).toHaveCount(0);
+ await expect(page.getByTestId('ads-reconciliation-panel')).toHaveCount(0);
+ expect(requests.some(r=>/canonical-(budget|portfolio|insights|reconciliation)$/.test(r.pathname))).toBe(false);
+ await expect(page.getByTestId('ads-overview-trend').getByRole('img',{name:'Ad sales & spend current trend in INR'})).toBeVisible();
+ await assertContained(page);
+ await page.locator('#ads-product-search').fill('B000000001');
+ await page.getByRole('button',{name:'Apply',exact:true}).click();
+ await expect.poll(()=>requests.filter(r=>r.pathname.endsWith('/canonical-report')).at(-1)?.searchParams.get('search')).toBe('B000000001');
+ await goView(page,'opportunities');
+ await expect(page.getByTestId('ads-opportunities').getByRole('button',{name:'Analyze products'})).toBeVisible();
+ expect(requests.some(r=>r.pathname.endsWith('/canonical-insights'))).toBe(false);
+ await goView(page,'portfolio');
+ await expect(page.getByTestId('ads-portfolio-panel').getByRole('button',{name:'Analyze portfolio'})).toBeVisible();
+ expect(requests.some(r=>r.pathname.endsWith('/canonical-portfolio'))).toBe(false);
+ await goView(page,'quality');
+ await expect(page.getByTestId('ads-reconciliation-panel').getByRole('button',{name:'Run reconciliation'})).toBeVisible();
+ expect(requests.some(r=>r.pathname.endsWith('/canonical-reconciliation'))).toBe(false);
+ await goView(page,'budgets');
+ await expect(page.getByText('Clear brand, category, marketplace and product search to compare seller-wide targets.')).toBeVisible();
+ expect(requests.some(r=>r.pathname.endsWith('/canonical-budget'))).toBe(false);
+ await page.getByRole('button',{name:'Clear filters',exact:true}).click();
+ await expect.poll(()=>requests.filter(r=>r.pathname.endsWith('/canonical-budget')).length).toBeGreaterThan(0);
+ await expect(page.locator('#ads-product-search')).toHaveValue('');
+ await goView(page,'overview');
+ await expect(overview).toBeVisible();
+ await page.setViewportSize({width:768,height:900});await assertContained(page);
+});
+test('Phase 4 product presets and comparison controls preserve pinned identity and server sorting',async({page})=>{
+ await page.setViewportSize({width:1440,height:900});await mock(page);
+ let lastReport;
+ page.on('request',r=>{if(r.url().includes('/api/ads/canonical-report?'))lastReport=new URL(r.url()).searchParams;});
+ await page.goto('/tests/fixtures/ads-layout.html');await goView(page,'products');
+ const table=page.getByTestId('ads-product-table');
+ await expect(table.getByRole('columnheader',{name:/Ad sales/})).toBeVisible();
+ await expect(table.locator('.ads-table-prior').first()).toBeVisible();
+ await page.getByText('Current only',{exact:true}).first().click();
+ await expect(table.locator('.ads-table-prior')).toHaveCount(0);
+ await page.locator('#ads-product-columns').click();
+ await page.getByRole('option',{name:'Traffic & conversion',exact:true}).click();
+ await expect(table.getByRole('columnheader',{name:/Impressions/})).toBeVisible();
+ await expect(table.getByRole('columnheader',{name:/Ad sales/})).toHaveCount(0);
+ await expect.poll(()=>lastReport?.get('sortBy')).toBe('clicks');
+ await expect(table.getByRole('button',{name:'B000000001',exact:true})).toBeVisible();
+ await page.getByText('Comfortable',{exact:true}).click();
+ await expect(table.locator('.ant-table-middle')).toBeVisible();
+ await assertContained(page);
+ await table.getByRole('button',{name:'B000000001',exact:true}).click();
+ const drawer=page.getByRole('dialog');
+ await expect(drawer.getByRole('tab',{name:'Overview',exact:true})).toBeVisible();
+ await drawer.getByRole('tab',{name:'Daily history',exact:true}).click();
+ await expect(drawer.getByText('Daily report records',{exact:true})).toBeVisible();
+});
+test('Phase 4 direct import history opens the saved job list with bounded modal body',async({page})=>{
+ await page.setViewportSize({width:1024,height:680});await mock(page,{empty:true});
+ let historyRequests=0;
+ await page.route('**/api/upload/ads-imports?*',route=>{
+  historyRequests++;
+  return route.fulfill({json:{success:true,data:{rows:[],page:1,total:0,limit:10}}});
+ });
+ await page.goto('/tests/fixtures/ads-layout.html');
+ await page.getByRole('button',{name:'Import history',exact:true}).click();
+ const dialog=page.getByRole('dialog');
+ await expect(dialog.getByRole('tab',{name:'Import history',exact:true})).toHaveAttribute('aria-selected','true');
+ await expect.poll(()=>historyRequests).toBe(1);
+ const body=dialog.locator('.ant-modal-body');
+ await expect(body).toBeVisible();
+ const bounds=await body.evaluate(e=>({overflow:getComputedStyle(e).overflowY,height:e.getBoundingClientRect().height,viewport:window.innerHeight}));
+ expect(bounds.overflow).toBe('auto');expect(bounds.height).toBeLessThanOrEqual(bounds.viewport*.66+2);
+ await expect(dialog.locator('.ant-modal-footer').getByRole('button',{name:'Close',exact:true})).toBeVisible();
+ await dialog.getByRole('tab',{name:'Upload CSV'}).click();
+ await expect(dialog.getByText('Automatic seller detection',{exact:true})).toBeVisible();
+ await expect(dialog.getByLabel('Import workflow')).toBeVisible();
 });
