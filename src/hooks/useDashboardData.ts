@@ -4,7 +4,7 @@ import { apiClient } from '../lib/api-client';
 import { format } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import { useDashboardOrchestration } from './useDashboardOrchestration';
-import { dashboardPrincipal,dashboardSellerParam,matchesDashboardScope,isDashboardGlobal } from '../utils/dashboardScope.mjs';
+import { dashboardPrincipal,matchesDashboardScope,isDashboardGlobal,canDashboardPermission } from '../utils/dashboardScope.mjs';
 import { useSocket } from '../contexts/SocketContext';
 import { computeBlendedAchievement, targetAchievementPct } from '../utils/targetMetrics';
 
@@ -61,7 +61,7 @@ export interface ModuleStats {
 }
 
 export function useDashboardData(filters: DashboardFilters) {
-    const { user,hasPermission }=useAuth();
+    const {user}=useAuth();
     const principal=dashboardPrincipal(user);
     const socket=useSocket();
     const orch=useDashboardOrchestration({
@@ -72,17 +72,16 @@ export function useDashboardData(filters: DashboardFilters) {
     });
     const scope=orch.scope;
     const scopeKey=scope?JSON.stringify([scope.unrestricted,scope.empty,scope.sellerIds]):'unresolved';
-    const sellerParam=dashboardSellerParam(scope);
-    const canTasks=hasPermission('tasks_view');
-    const canPipeline=hasPermission('scraping_view');
+    const canTasks=canDashboardPermission(user,'tasks_view');
+    const canPipeline=canDashboardPermission(user,'scraping_view');
     // Logs are system-wide, not seller/date filtered. Never request them for
     // a filtered or restricted dashboard even if the user has the permission.
-    const canLogs=!!principal&&isDashboardGlobal(user)&&hasPermission('activitylogs_view')&&!!scope?.unrestricted;
+    const canLogs=!!principal&&isDashboardGlobal(user)&&canDashboardPermission(user,'activitylogs_view')&&!!scope?.unrestricted;
     const optionsQuery=useQuery({
         queryKey:['dashboard','options',principal],
         enabled:!!principal,
         queryFn:async({signal})=>(await apiClient.get('/dashboard/options',{signal})).data.data,
-        staleTime:60_000,gcTime:60_000,
+        staleTime:60_000,gcTime:0,placeholderData:undefined,
         retry:false,
     });
     const sellers=optionsQuery.isError?[]:optionsQuery.data?.sellers??[];
@@ -106,8 +105,8 @@ export function useDashboardData(filters: DashboardFilters) {
         queryKey: ['tasks','dashboard',principal,scopeKey,filters.managerId,filters.sellerId],
         enabled:!!principal&&!!scope&&!scope.empty&&canTasks,
         queryFn: async ({signal}) => {
-            const params:any={limit:200,sellerId:sellerParam};
-            const r=await apiClient.get('/pems/instances',{params,signal});
+            const params={sellerId:filters.sellerId==='all'?undefined:filters.sellerId,managerId:filters.managerId==='all'?undefined:filters.managerId};
+            const r=await apiClient.get('/dashboard/tasks',{params,signal});
             const body: any = (r as any).data ?? r ?? {};
             const list = body?.data?.instances ?? body?.instances ?? body?.data ?? [];
             if (!Array.isArray(list)) return [];
@@ -150,7 +149,7 @@ export function useDashboardData(filters: DashboardFilters) {
             });
         },
         staleTime: 60_000,
-        gcTime: 5 * 60_000,
+        gcTime:0,placeholderData:undefined,
         refetchOnWindowFocus: false,
     });
 
@@ -169,16 +168,16 @@ export function useDashboardData(filters: DashboardFilters) {
             const r=await apiClient.get('/logs',{params:{limit:10},signal});
             return r.data?.data??[];
         },
-        staleTime:30_000,gcTime:30_000,retry:false,
+        staleTime:30_000,gcTime:0,placeholderData:undefined,retry:false,
     });
     const pipelineQuery=useQuery({
         queryKey:['dashboard','pipeline',principal,scopeKey,filters.sellerId,filters.managerId],
         enabled:!!principal&&!!scope&&!scope.empty&&canPipeline,
         queryFn:async({signal})=>{
-            const r=await apiClient.get('/market-sync/tasks',{params:{sellerId:sellerParam},signal});
+            const r=await apiClient.get('/market-sync/tasks',{params:{sellerId:filters.sellerId==='all'?undefined:filters.sellerId,managerId:filters.managerId==='all'?undefined:filters.managerId},signal});
             return r.data?.tasks??[];
         },
-        staleTime:30_000,gcTime:30_000,refetchInterval:30_000,retry:false,
+        staleTime:30_000,gcTime:0,placeholderData:undefined,refetchInterval:30_000,retry:false,
     });
     const activityLogs=canLogs&&!logsQuery.isError?logsQuery.data??[]:[];
     const scrapeTasks=canPipeline&&scope&&!scope.empty&&!pipelineQuery.isError?(pipelineQuery.data??[]).filter(t=>matchesDashboardScope(scope,t.sellerId)):[];
@@ -379,7 +378,7 @@ export function useDashboardData(filters: DashboardFilters) {
         tasksError,
         canTasks,canPipeline,canLogs,
         optionsError:optionsQuery.isError,
-        pipelineStatus:pipelineQuery.isError?'error':pipelineQuery.isPending?'loading':'ready',
+        pipelineStatus:scope?.empty?'ready':pipelineQuery.isError?'error':pipelineQuery.isPending?'loading':'ready',
         activityStatus:logsQuery.isError?'error':logsQuery.isPending?'loading':'ready',
         sectionStatus: orch.sectionStatus,
         
