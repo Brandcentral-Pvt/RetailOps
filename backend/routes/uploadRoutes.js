@@ -66,9 +66,11 @@ const adsCsvUpload = multer({
 router.get('/upload/ads-validation-sellers', authenticate, requirePermission('adsreport_import'), adsValidation.listSellers);
 const receiveAdsCsv=(req,res,next) => {
   adsCsvUpload(req,res,err => {
-    if(err) return res.status(err.code==='LIMIT_FILE_SIZE'?413:400).json({
-      success:false,code:'invalid_upload',message:'Select one UTF-8 CSV up to 32 MiB.'
-    });
+    if(err){
+      const code=err.code==='LIMIT_FILE_SIZE'?'file_too_large':err.code==='LIMIT_UNEXPECTED_FILE'?'unexpected_file_field':'invalid_multipart';
+      return res.status(code==='file_too_large'?413:400).json({success:false,code,message:code==='file_too_large'?'CSV exceeds 32 MiB. Split the report.':'Send one CSV as multipart/form-data in the file field.'});
+    }
+    if(!req.file)return res.status(400).json({success:false,code:'file_required',message:'No CSV was received. Select a file and send multipart/form-data.'});
     next();
   });
 };

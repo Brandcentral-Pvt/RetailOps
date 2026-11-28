@@ -4,6 +4,9 @@ on:
     branches: [main]
     paths:
       - 'backend/contracts/ads-*.json'
+      - 'backend/database/adsSchema.js'
+      - 'backend/server.js'
+      - 'Dockerfile.backend'
       - 'backend/services/ads*.js'
       - 'backend/controllers/ads*.js'
       - 'backend/routes/adsRoutes.js'
@@ -34,6 +37,8 @@ jobs:
         with:
           node-version: '22'
       - run: |
+          node --check backend/database/adsSchema.js
+          node --check backend/server.js
           node --check backend/services/adsProductContract.js
           node --check backend/controllers/adsProductValidationController.js
           node --check backend/routes/uploadRoutes.js

@@ -339,6 +339,17 @@ app.get('/api/health/gms', async (_req,res) => {
   }
 });
 
+// Feature readiness is separate from global health: older migration failures
+// must not look like an empty Ads report.
+app.get('/api/health/ads', async (_req,res) => {
+  try {
+    const state=await require('./database/adsSchema').inspectAdsSchema();
+    return res.status(state.ready?200:503).json({status:state.ready?'ready':'not-ready'});
+  } catch(error) {
+    logger.error('Ads schema health check failed',{error:error.message});
+    return res.status(503).json({status:'not-ready'});
+  }
+});
 app.get('/api/health/liveness', (req, res) => {
   res.status(200).json({ status: 'alive', uptime: Math.floor(process.uptime()) });
 });
@@ -899,7 +910,8 @@ server.listen(PORT, '0.0.0.0', () => {
 
   // Run DB migrations (idempotent; gated by RUN_MIGRATIONS_ON_STARTUP=false)
   const { runMigrationsAtStartup } = require('./database/migrate');
-  runMigrationsAtStartup().then(async () => {
+  const migrationStartup=runMigrationsAtStartup();
+  migrationStartup.then(async () => {
     if (!isPrimaryWorker) return;
     const { ensureGmsSchema } = require('./database/gmsSchema');
     // Repair only the independent additive GMS schema, even if an older
@@ -915,6 +927,13 @@ server.listen(PORT, '0.0.0.0', () => {
     require('./services/gmsImportService').startWorker();
     logger.info('GMS schema verified; import worker started');
   }).catch(err => logger.error('GMS schema/worker startup failed', { error: err.message }));
+  // Independent of the GMS worker, and honors the operator migration opt-out.
+  migrationStartup.then(async()=>{
+    if(!isPrimaryWorker)return;
+    const state=await require('./database/adsSchema').ensureAdsSchema({apply:process.env.RUN_MIGRATIONS_ON_STARTUP!=='false'});
+    if(!state.ready)logger.error('Ads schema is not ready',state);
+    else logger.info('Ads canonical schema verified');
+  }).catch(err=>logger.error('Ads schema startup failed',{error:err.message}));
 });
 
 // Make getPool available globally for socket handlers

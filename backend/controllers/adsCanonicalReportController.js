@@ -1,9 +1,11 @@
 'use strict';
+const {isAdsSchemaError,sendAdsSchemaUnavailable}=require('../database/adsSchema');
 const {getPool,sql}=require('../database/db');
 const {strictScope,AdsScopeError}=require('../services/adsCanonicalScope');
 const {parseReport,readCanonicalReport,readCanonicalOptions}=require('../services/adsCanonicalReport');
 function failure(res,error){
   if(error instanceof AdsScopeError)return res.status(error.status).json({success:false,code:error.code,message:error.message});
+  if(isAdsSchemaError(error))return sendAdsSchemaUnavailable(res);
   console.error('[canonical ads report]',error.message);
   return res.status(503).json({success:false,code:'canonical_report_unavailable',message:'Canonical advertising analytics could not be loaded. Verify the schema and retry.'});
 }
