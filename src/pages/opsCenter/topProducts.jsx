@@ -116,7 +116,7 @@ const ProductDetail = ({ row, labels, granularity, links, periodDays }) => {
                 <Stat label="GMS" value={fmtINRFull(row.gmsRevenue)} sub={`${fmtPct(row.share)} of period GMS`} />
                 <Stat label="Previous period" value={row.prevGmsRevenue > 0 ? fmtINRFull(row.prevGmsRevenue) : '—'} sub={row.prevGmsRevenue > 0 ? <Delta value={row.deltaPct} /> : 'no prior data'} />
                 <Stat label="Units · ASP" value={`${fmtNumFull(row.gmsUnits)} · ${fmtINRFull(row.asp)}`} sub={row.prevGmsUnits > 0 ? <Delta value={row.unitsDeltaPct} label="units" /> : null} />
-                <Stat label="Shipped revenue" value={fmtINRFull(row.shippedRevenue)} sub={row.gmsRevenue > 0 ? `${fmtPct((row.shippedRevenue / row.gmsRevenue) * 100, 0)} of ordered` : null} />
+                <Stat label="Shipped revenue" value={fmtINRFull(row.shippedRevenue)} sub={row.gmsRevenue > 0&&row.shippedRevenue!=null ? `${fmtPct((row.shippedRevenue / row.gmsRevenue) * 100, 0)} of ordered` : null} />
                 <Stat label="Returns" value={fmtNumFull(row.returns)} sub={`${fmtPct(row.returnRate)} of units`} tone={row.returnRate > 10 ? 'neg' : undefined} />
                 <Stat label="Ad sales" value={row.adSales==null?'N/A':fmtINRFull(row.adSales)} sub={`${row.adShare==null?'N/A':fmtPct(row.adShare)} of reported sales · ${row.adOrders==null?'N/A':fmtNumFull(row.adOrders)} ad orders`} />
                 <Stat label="Ad spend" value={row.adSpend==null?'N/A':fmtINRFull(row.adSpend)} sub={`TACoS ${row.tacos==null?'N/A':fmtPct(row.tacos)} · ACoS ${row.acos}`} tone={row.tacos > 20 ? 'neg' : undefined} />
@@ -159,22 +159,23 @@ export const TopProductsPanel = ({
 
     // Normalise once: older payloads only carry revenue/units/acos; the
     // GMS-first backend adds the full block. Never invent a prior value.
+    const numeric=v=>v==null?null:Number(v);
     const normalized = useMemo(() => products.map((p, i) => ({
         ...p,
         rank: p.rank ?? i + 1,
-        gmsRevenue: Number(p.gmsRevenue ?? p.revenue) || 0,
-        gmsUnits: Number(p.gmsUnits ?? p.units) || 0,
-        prevGmsRevenue: Number(p.prevGmsRevenue) || 0,
+        gmsRevenue: numeric(p.gmsRevenue ?? p.revenue),
+        gmsUnits: numeric(p.gmsUnits ?? p.units),
+        prevGmsRevenue: numeric(p.prevGmsRevenue),
         deltaPct: p.deltaPct === null || p.deltaPct === undefined ? null : Number(p.deltaPct),
-        asp: Number(p.asp) || ((Number(p.gmsUnits ?? p.units) || 0) > 0 ? (Number(p.gmsRevenue ?? p.revenue) || 0) / Number(p.gmsUnits ?? p.units) : 0),
-        share: Number(p.share) || 0,
+        asp: numeric(p.asp),
+        share: numeric(p.share),
         adSales: p.adSales==null?null:Number(p.adSales),
         adSpend: p.adSpend==null?null:Number(p.adSpend),
         adShare: p.adShare==null?null:Number(p.adShare),
         tacos: p.tacos==null?null:Number(p.tacos),
-        returns: Number(p.returns) || 0,
-        returnRate: Number(p.returnRate) || 0,
-        shippedRevenue: Number(p.shippedRevenue) || 0,
+        returns: numeric(p.returns),
+        returnRate: numeric(p.returnRate),
+        shippedRevenue: numeric(p.shippedRevenue),
         activeDays: Number(p.activeDays) || 0,
         acos: p.acos ?? '—',
     })), [products]);
@@ -191,20 +192,20 @@ export const TopProductsPanel = ({
     }, [normalized, query, sortKey, sortDir, limit]);
 
     const totals = useMemo(() => {
-        const gms = rows.reduce((s, r) => s + (Number(r.gmsRevenue) || 0), 0);
-        const units = rows.reduce((s, r) => s + (Number(r.gmsUnits) || 0), 0);
+        const sum=(key,scale=1)=>rows.length&&rows.every(r=>r[key]!=null)?rows.reduce((s,r)=>s+Math.round(r[key]*scale),0)/scale:null;
+        const gms=sum('gmsRevenue',100),units=sum('gmsUnits');
         const adSales=rows.length&&rows.every(r=>r.adSales!=null&&r.adsCoverage?.AdSales?.status==='complete')?rows.reduce((s,r)=>s+r.adSales,0):null;
         const adSpend=rows.length&&rows.every(r=>r.adSpend!=null&&r.adsCoverage?.AdSpend?.status==='complete')?rows.reduce((s,r)=>s+r.adSpend,0):null;
         const reportedTotal=rows.length&&rows.every(r=>r.adTotalSales!=null&&r.adsCoverage?.TotalSales?.status==='complete')?rows.reduce((s,r)=>s+Number(r.adTotalSales),0):null;
-        const prev = rows.reduce((s, r) => s + (Number(r.prevGmsRevenue) || 0), 0);
-        const base = periodTotal > 0 ? periodTotal : normalized.reduce((s, r) => s + r.gmsRevenue, 0);
+        const prev=sum('prevGmsRevenue',100);
+        const base=periodTotal;
         return {
             gms, units, adSales, adSpend, prev,
-            share: base > 0 ? (gms / base) * 100 : 0,
-            asp: units > 0 ? gms / units : 0,
+            share: base>0&&gms!=null?gms/base*100:null,
+            asp: units>0&&gms!=null?gms/units:null,
             adShare:reportedTotal>0&&adSales!=null?adSales/reportedTotal*100:null,
             tacos:reportedTotal>0&&adSpend!=null?adSpend/reportedTotal*100:null,
-            deltaPct: prev > 0 ? ((gms - prev) / prev) * 100 : null,
+            deltaPct: prev>0&&gms!=null&&rows.every(r=>r.deltaPct!=null)?(gms-prev)/prev*100:null,
         };
     }, [rows, normalized, periodTotal]);
 
@@ -274,12 +275,13 @@ export const TopProductsPanel = ({
                         </thead>
                         <tbody>
                             {rows.map((r) => {
-                                const open = expanded === r.asin;
+                                const rowKey=JSON.stringify([r.sellerId,r.asin]);
+                                const open = expanded === rowKey;
                                 return (
-                                    <React.Fragment key={r.id || r.asin}>
+                                    <React.Fragment key={rowKey}>
                                         <tr
                                             className={`ops-table__row ${open ? 'ops-table__row--open' : ''}`}
-                                            onClick={() => setExpanded(open ? null : r.asin)}
+                                            onClick={() => setExpanded(open ? null : rowKey)}
                                             aria-expanded={open}
                                         >
                                             <td className="ops-table__num ops-num ops-table__rank">{r.rank}</td>
