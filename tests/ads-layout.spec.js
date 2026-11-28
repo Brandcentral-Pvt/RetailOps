@@ -534,35 +534,58 @@ test('Ads uses the shared GMS report calendar and preserves filters across date 
  await page.setViewportSize({width:768,height:900});await assertContained(page);
 });
 
-test('Ads export configures independent filters and keeps errors inside the drawer',async({page})=>{
+test('Ads export configures independent filters, handles queue errors and downloads completed jobs',async({page})=>{
  await mock(page,{empty:true});
- let calls=[];
- await page.route('**/api/ads/canonical-export?*',route=>{
-  calls.push(Object.fromEntries(new URL(route.request().url()).searchParams));
-  return route.fulfill({status:422,contentType:'application/json',body:JSON.stringify({message:'Export exceeds capacity.'})});
+ const id='00000000-0000-4000-8000-000000000020';
+ let posts=[],reads=0,created=false,filters;
+ await page.route('**/api/ads/export-jobs',route=>{
+  if(route.request().method()!=='POST')return route.fallback();
+  const body=route.request().postDataJSON();posts.push(body);
+  if(posts.length===1)return route.fulfill({status:503,json:{success:false,message:'Queue unavailable. Retry.'}});
+  created=true;filters=body.filters;
+  return route.fulfill({status:202,json:{success:true,data:{id,status:'QUEUED'}}});
  });
+ await page.route('**/api/ads/export-jobs?*',route=>{
+  reads++;
+  const done=reads>1;
+  const row={id,format:'xlsx',filters,sellerScope:{global:false,ids:['s1']},status:done?'COMPLETED':'QUEUED',stage:done?'completed':'queued',createdAt:'2026-11-28T09:00:00Z',rawCount:done?12:null,bytes:done?1024:null,attemptCount:done?1:0};
+  return route.fulfill({json:{success:true,data:{rows:created?[row]:[],total:created?1:0,activeCount:done?0:1}}});
+ });
+ await page.route('**/api/ads/export-jobs/'+id+'/download',route=>route.fulfill({contentType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',body:Buffer.from('test artifact')}));
  await page.goto('/tests/fixtures/ads-layout.html');
  await page.getByRole('button',{name:'Export XLSX',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Export advertising report'});
- await expect(dialog).toBeVisible();
- expect(calls).toHaveLength(0);
+ await expect(dialog).toBeVisible();expect(posts).toHaveLength(0);
  await dialog.getByText('Choose seller and filters',{exact:true}).click();
- await expect(dialog.getByRole('button',{name:'Export complete Excel'})).toBeDisabled();
+ await expect(dialog.getByRole('button',{name:'Queue Excel export'})).toBeDisabled();
  await dialog.getByLabel('Export seller',{exact:true}).click();
  await page.getByRole('option',{name:longName,exact:true}).click();
  await dialog.getByLabel('Export product search').fill('B000000001');
  await dialog.getByText('Weekly',{exact:true}).click();
- await dialog.getByRole('button',{name:'Export complete Excel'}).click();
- await expect(dialog.getByText('Export exceeds capacity.')).toBeVisible();
- expect(calls).toHaveLength(1);
- expect(calls[0]).toMatchObject({sellerId:'s1',search:'B000000001',granularity:'week'});
- expect(calls[0]).not.toHaveProperty('page');
- await dialog.getByText('All authorized sellers (no catalog filters)',{exact:true}).click();
- await dialog.getByRole('button',{name:'Export complete Excel'}).click();
- await expect.poll(()=>calls.length).toBe(2);
- expect(calls[1]).not.toHaveProperty('sellerId');
- expect(calls[1]).not.toHaveProperty('search');
- await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
- await expect(dialog).toHaveCount(0);
+ await dialog.getByRole('button',{name:'Queue Excel export'}).click();
+ await expect(dialog.getByText('Queue unavailable. Retry.')).toBeVisible();
+ await dialog.getByRole('button',{name:'Queue Excel export'}).click();
+ const center=page.getByRole('dialog',{name:'Ads Download Center'});
+ await expect(center).toBeVisible();
+ expect(posts).toHaveLength(2);expect(posts[0].clientId).toBe(posts[1].clientId);
+ expect(posts[1].filters).toMatchObject({sellerId:'s1',search:'B000000001',granularity:'week'});
+ expect(posts[1].filters).not.toHaveProperty('page');
+ await expect(center.getByRole('button',{name:'Download',exact:true})).toBeVisible({timeout:12000});
+ const download=page.waitForEvent('download');await center.getByRole('button',{name:'Download',exact:true}).click();
+ expect((await download).suggestedFilename()).toMatch(/\.xlsx$/);
  await expect(page.getByLabel('Search products',{exact:true})).toHaveValue('');
+});
+test('Ads export all history CSV sends no invented date window',async({page})=>{
+ await mock(page,{empty:true});let body;
+ await page.route('**/api/ads/export-jobs',route=>{body=route.request().postDataJSON();return route.fulfill({status:422,json:{success:false,message:'Capacity test'}});});
+ await page.goto('/tests/fixtures/ads-layout.html');
+ await page.getByRole('button',{name:'Export XLSX',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'Export advertising report'});
+ await dialog.getByText('CSV: complete daily source records',{exact:true}).click();
+ await dialog.getByText('All available history',{exact:true}).click();
+ await dialog.getByText('All authorized sellers (no catalog filters)',{exact:true}).click();
+ await dialog.getByRole('button',{name:'Queue CSV export'}).click();
+ await expect(dialog.getByText('Capacity test')).toBeVisible();
+ expect(body.format).toBe('csv');expect(body.filters.allHistory).toBe(true);
+ expect(body.filters).not.toHaveProperty('startDate');expect(body.filters).not.toHaveProperty('endDate');expect(body.filters).not.toHaveProperty('sellerId');
 });
