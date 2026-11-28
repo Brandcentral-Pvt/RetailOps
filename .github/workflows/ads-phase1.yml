@@ -38,6 +38,10 @@ on:
       - 'backend/routes/dataRoutes.js'
       - 'backend/routes/exportRoutes.js'
       - 'backend/controllers/dashboardController.js'
+      - 'backend/services/dashboardFinancialMetrics.js'
+      - 'backend/testUtils/dashboardPhase1.*'
+      - 'backend/__tests__/unit/dashboardTopAsins.test.js'
+      - 'backend/__tests__/routes/dashboardAccess.test.js'
       - 'backend/controllers/targetController.js'
       - 'src/pages/opsCenter/**'
       - 'backend/utils/sellerScope.js'
@@ -114,6 +118,8 @@ jobs:
           node --check backend/controllers/adsCanonicalTargetsController.js
           node --check backend/services/adsConsumerMetrics.js
           node --check backend/controllers/dashboardController.js
+          node --check backend/services/dashboardFinancialMetrics.js
+          node --test backend/testUtils/dashboardPhase1.contract.node.cjs
           node --check backend/controllers/targetController.js
           node --check backend/controllers/adsCanonicalExportController.js
           node --check backend/services/adsExportSnapshot.js
@@ -149,7 +155,7 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --prefix /tmp/ads-test-sql --ignore-scripts --no-audit --no-fund mssql@12.7.11
-      - run: node --test --test-concurrency=1 backend/testUtils/adsPhase1.sql.node.cjs backend/testUtils/adsPhase1.writer.sql.node.cjs backend/testUtils/adsPhase1.report.sql.node.cjs backend/testUtils/adsPhase2.jobs.sql.node.cjs backend/testUtils/adsPhase2.permissions.sql.node.cjs backend/testUtils/adsPhase2.load.sql.node.cjs backend/testUtils/adsPhase6.index.sql.node.cjs
+      - run: node --test --test-concurrency=1 backend/testUtils/adsPhase1.sql.node.cjs backend/testUtils/adsPhase1.writer.sql.node.cjs backend/testUtils/adsPhase1.report.sql.node.cjs backend/testUtils/adsPhase2.jobs.sql.node.cjs backend/testUtils/adsPhase2.permissions.sql.node.cjs backend/testUtils/adsPhase2.load.sql.node.cjs backend/testUtils/adsPhase6.index.sql.node.cjs backend/testUtils/dashboardPhase1.sql.node.cjs
         env:
           ADS_SQL_SMOKE: '1'
           ADS_TEST_SQL_PASSWORD: 'AdsDisposable#2026!'
