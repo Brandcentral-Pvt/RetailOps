@@ -3,10 +3,10 @@
  */
 
 import {
-    useCallback, useEffect, useRef, useState, useMemo
+    useCallback, useEffect, useMemo
 } from 'react';
 import {
-    useQuery, useQueryClient, keepPreviousData, type QueryKey
+    useQuery, useQueryClient, type QueryKey
 } from '@tanstack/react-query';
 import { apiClient } from '../lib/api-client';
 import { useDashboardStore } from '../store/dashboardStore';
@@ -14,7 +14,8 @@ import { EVENT_BUS } from '../store/eventBus';
 
 import { useRealTimeDashboard } from './useRealTimeDashboard';
 import { useOptimisticMutation } from './useOptimisticMutation';
-import { useProgressiveLoad } from './useProgressiveLoad';
+import { useAuth } from '../contexts/AuthContext';
+import { dashboardPrincipal } from '../utils/dashboardScope.mjs';
 
 // ─── Segment enum ─────────────────────────────────────────────────────────────
 
@@ -27,17 +28,6 @@ export enum DashboardSegment {
     ALERTS = 'alerts',
     TARGETS = 'targets',
 }
-
-/** Minimum skeleton delay per segment (ms). */
-const SEGMENT_DELAYS: Record<DashboardSegment, number> = {
-    [DashboardSegment.KPIS]: 350,
-    [DashboardSegment.REVENUE_SERIES]: 400,
-    [DashboardSegment.ADS_PERFORMANCE]: 400,
-    [DashboardSegment.CATEGORIES]: 500,
-    [DashboardSegment.TOP_PRODUCTS]: 450,
-    [DashboardSegment.ALERTS]: 200,
-    [DashboardSegment.TARGETS]: 350,
-};
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -104,207 +94,48 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
     const alertsBackoff = useMemo(() => makeBackoffFn(500), []);
     const targetsBackoff = useMemo(() => makeBackoffFn(baseMs), [baseMs]);
 
-    // ── Zustand selectors ─────────────────────────────────────────────────────
-    const setKpis = useDashboardStore(s => s.setKpis);
-    const setAlerts = useDashboardStore(s => s.setAlerts);
-    const setTargets = useDashboardStore(s => s.setTargets);
-    const setSyncTime = useDashboardStore(s => s.setSyncTime);
-    const connection = useDashboardStore(s => s.connection);
-    const syncTimestamp = useDashboardStore(s => s.cache.syncTimestamp);
-
-    // ── 1 · Real-time ─────────────────────────────────────────────────────────
-    useRealTimeDashboard({
-        sseEndpoint,
-        unhealthyAfterSeconds: sseSilence,
+    const {user,hasPermission}=useAuth();
+    const principal=dashboardPrincipal(user);
+    const connection=useDashboardStore(s=>s.connection);
+    const canTargets=hasPermission('targets_view');
+    useRealTimeDashboard({sseEndpoint,unhealthyAfterSeconds:sseSilence});
+    // No placeholder data or progressive snapshots across authorization keys.
+    // Each request is independently authorized by its endpoint.
+    const filters={sellerId,managerId,startDate,endDate,period};
+    const dashboardQuery=useQuery({
+        queryKey:[...QK_DASHBOARD,'scoped',principal,sellerId??'all',managerId??'all',startDate,endDate,period],
+        enabled:!!principal,
+        queryFn:async({signal})=>(await apiClient.get('/dashboard',{params:filters,signal})).data,
+        staleTime:60_000,gcTime:60_000,refetchOnWindowFocus:false,refetchOnReconnect:true,
+        retry:(count,error:any)=>![400,401,403,404,422].includes(error?.response?.status)&&count<retries,
+        retryDelay:dashboardBackoff,refetchInterval:pollInt>0?pollInt*1000:false,
     });
-
-    // ── 2 · Progressive skeleton ──────────────────────────────────────────────
-    const loader = useProgressiveLoad(PROGRESSIVE_DEFINITIONS);
-
-    // ── 3 · Fetch targets first — needed to resolve manager → seller mapping ──
-    // ✅ Filter-consistency fix: key includes BOTH sellerId and managerId, and
-    // brandManager is forwarded so the backend can filter server-side too.
-    const targetsQuery = useQuery({
-        queryKey: [...QK_TARGETS, sellerId ?? 'all', managerId ?? 'all'],
-        queryFn: async () => {
-            const r = await apiClient.get('/targets', {
-                params: { sellerId, brandManager: managerId }
-            });
-            return (r as any).data?.data ?? (r as any).data;
+    const dashData=dashboardQuery.isError?null:dashboardQuery.data??null;
+    const scope=dashData?.scope;
+    const scopeKey=scope?JSON.stringify([scope.unrestricted,scope.empty,scope.sellerIds]):'unresolved';
+    const scopedEnabled=!!principal&&!!scope&&!scope.empty;
+    const targetsQuery=useQuery({
+        queryKey:[...QK_TARGETS,'dashboard',principal,sellerId??'all',managerId??'all',scopeKey],
+        enabled:scopedEnabled&&canTargets,
+        queryFn:async({signal})=>{
+            const r=await apiClient.get('/targets',{params:{sellerId,managerId},signal});
+            return r.data?.data??r.data;
         },
-        staleTime: 60_000,
-        gcTime: 8 * 60_000,
-        placeholderData: keepPreviousData,
-        refetchOnWindowFocus: false,
-        refetchOnReconnect: true,
-        retry: retries,
-        retryDelay: targetsBackoff,
+        staleTime:60_000,gcTime:60_000,refetchOnWindowFocus:false,
+        retry:(count,error:any)=>![400,401,403,404,422].includes(error?.response?.status)&&count<retries,
+        retryDelay:targetsBackoff,
     });
-
-    // ── 3b · Resolve effective seller IDs from seller + manager filters ────
-    // ✅ Manager matching now accepts BOTH the manager's UserId and their
-    // display name (the managers dropdown can carry either as its id).
-    const managerMatchesTarget = useCallback((t: any, mgrId?: string) => {
-        if (!mgrId || mgrId === 'all') return true;
-        if (String(t?.UserId ?? '') === String(mgrId)) return true;
-        return String(t?.BrandManager ?? '').toLowerCase() === String(mgrId).toLowerCase();
-    }, []);
-
-    const effectiveSellerId = useMemo(() => {
-        if (sellerId && sellerId !== 'all') return sellerId;
-        if (managerId && managerId !== 'all') {
-            const targetsData = targetsQuery.data ?? [];
-            const ids = Array.from(new Set(
-                targetsData
-                    .filter((t: any) => managerMatchesTarget(t, managerId))
-                    .map((t: any) => t.SellerId)
-                    .filter(Boolean)
-            ));
-            return ids.length > 0 ? ids.join(',') : undefined;
-        }
-        return undefined;
-    }, [sellerId, managerId, targetsQuery.data, managerMatchesTarget]);
-
-    // ── 4 · React Query — dashboard (includes resolved seller IDs in key) ───
-    // ✅ Fix 1: REMOVED withRetry — React Query handles retries natively.
-    // Double-retry (fetchWithRetry × React Query retry) = N² retry storm.
-    const dashboardQuery = useQuery({
-        queryKey: [...QK_DASHBOARD, effectiveSellerId, startDate, endDate, period],
-        queryFn: async () => {
-            const r = await apiClient.get('/dashboard', {
-                params: { sellerId: effectiveSellerId, startDate, endDate, period }
-            });
-            return (r as any).data;
+    const alertsQuery=useQuery({
+        queryKey:[...QK_ALERTS,'dashboard',principal,sellerId??'all',managerId??'all',scopeKey],
+        enabled:scopedEnabled,
+        queryFn:async({signal})=>{
+            const r=await apiClient.get('/alerts',{params:{sellerId,managerId},signal});
+            return r.data?.data??r.data;
         },
-        // ✅ Freshness fix: 5-minute staleTime left stale KPIs on long-lived
-        // tabs. 60s staleTime + 60s polling (below) keeps the dashboard live.
-        staleTime: 60_000,
-        gcTime: 10 * 60_000,
-        placeholderData: keepPreviousData,
-        refetchOnWindowFocus: false,
-        refetchOnReconnect: true,
-        retry: retries,
-        retryDelay: dashboardBackoff,
-        refetchInterval: pollInt > 0 ? pollInt * 1_000 : false,
+        staleTime:60_000,gcTime:60_000,refetchOnWindowFocus:false,
+        retry:(count,error:any)=>![400,401,403,404,422].includes(error?.response?.status)&&count<2,
+        retryDelay:alertsBackoff,
     });
-
-    // ✅ Fix 3: alerts query key includes filter params
-    const alertsQuery = useQuery({
-        queryKey: [...QK_ALERTS, sellerId],
-        queryFn: async () => {
-            const r = await apiClient.get('/alerts', { params: { sellerId } });
-            return (r as any).data?.data ?? (r as any).data;
-        },
-        staleTime: 2 * 60_000,
-        gcTime: 4 * 60_000,
-        placeholderData: keepPreviousData,
-        refetchOnWindowFocus: false,
-        refetchOnReconnect: true,
-        retry: 2,
-        retryDelay: alertsBackoff,
-    });
-
-    // ── 4 · Route query results into progressive loader ───────────────────────
-
-    const { receive: loaderReceive, reject: loaderReject } = loader;
-
-    const {
-        isFetched: dashFetched, isError: dashError,
-        data: dashData, error: dashErr
-    } = dashboardQuery;
-
-    const {
-        isFetched: alertsFetched, isError: alertsError,
-        data: alertsData, error: alertsErr
-    } = alertsQuery;
-
-    const {
-        isFetched: targetsFetched, isError: targetsError,
-        data: targetsData, error: targetsErr
-    } = targetsQuery;
-
-    useEffect(() => {
-        if (!dashFetched) return;
-        if (dashError) {
-            const msg = (dashErr as any)?.message ?? 'Load failed';
-            loaderReject(DashboardSegment.KPIS, msg);
-            loaderReject(DashboardSegment.REVENUE_SERIES, msg);
-            loaderReject(DashboardSegment.ADS_PERFORMANCE, msg);
-            loaderReject(DashboardSegment.CATEGORIES, msg);
-            loaderReject(DashboardSegment.TOP_PRODUCTS, msg);
-        } else if (dashData) {
-            loaderReceive(DashboardSegment.KPIS, dashData.kpi ?? dashData.kpis ?? []);
-            loaderReceive(DashboardSegment.REVENUE_SERIES, dashData.stackedBarSeries ?? []);
-            loaderReceive(DashboardSegment.ADS_PERFORMANCE, dashData.adsPerformanceSeries ?? []);
-            loaderReceive(DashboardSegment.CATEGORIES, dashData.category ?? []);
-            loaderReceive(DashboardSegment.TOP_PRODUCTS, dashData.tableData ?? dashData.topProducts ?? []);
-        }
-    }, [dashFetched, dashError, dashData, dashErr, loaderReceive, loaderReject]);
-
-    useEffect(() => {
-        if (!alertsFetched) return;
-        alertsError
-            ? loaderReject(DashboardSegment.ALERTS, (alertsErr as any)?.message ?? 'Load failed: alerts')
-            : loaderReceive(DashboardSegment.ALERTS, alertsData ?? []);
-    }, [alertsFetched, alertsError, alertsData, alertsErr, loaderReceive, loaderReject]);
-
-    useEffect(() => {
-        if (!targetsFetched) return;
-        targetsError
-            ? loaderReject(DashboardSegment.TARGETS, (targetsErr as any)?.message ?? 'Load failed: targets')
-            : loaderReceive(DashboardSegment.TARGETS, targetsData ?? []);
-    }, [targetsFetched, targetsError, targetsData, targetsErr, loaderReceive, loaderReject]);
-
-    // ── 5 · Sync Zustand AFTER loader resolves ─────────────────────────────
-    // ✅ Fix 4: hash compares full serialised content, not just length
-    // ✅ Fix 6: dashboardRaw derived from dashData (query cache) — never stale
-    const hashRef = useRef<string>('');
-
-    useEffect(() => {
-        if (!loader.isHydrated) return;
-
-        // Stringify actual content — catches same-length data changes
-        const h = [
-            JSON.stringify(loader.kpis),
-            JSON.stringify(loader.alerts),
-            JSON.stringify(loader.targets),
-        ].join('||');
-
-        if (h === hashRef.current) return;
-        hashRef.current = h;
-
-        setKpis(loader.kpis as any);
-        setAlerts(loader.alerts as any);
-        setTargets(loader.targets as any);
-        setSyncTime(new Date().toISOString());
-    }, [
-        loader.isHydrated,
-        loader.kpis,
-        loader.alerts,
-        loader.targets,
-        setKpis, setAlerts, setTargets, setSyncTime
-    ]);
-
-    // ── 6 · Polling ───────────────────────────────────────────────────────────
-    // ✅ Fix 7: use globalThis.setInterval — works in SSR and browser
-    const pollHandle = useRef<ReturnType<typeof setInterval> | null>(null);
-
-    useEffect(() => {
-        const ms = Math.max(pollInt, 0) * 1_000;
-        if (ms <= 0) return;
-
-        pollHandle.current = globalThis.setInterval(() => {
-            void qc.invalidateQueries({
-                queryKey: QK_DASHBOARD,
-                exact: false,
-                refetchType: 'active'
-            });
-        }, ms);
-
-        return () => {
-            if (pollHandle.current) clearInterval(pollHandle.current);
-        };
-    }, [pollInt, qc]);
 
     // ── 7 · Event bus → React Query bridge ───────────────────────────────────
     // ✅ Fix 8: cleanup returned directly — no unsubBridge ref needed
@@ -382,9 +213,8 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
         // stuck unresolved if a refetch failed). Now we only invalidate and
         // refetch — React Query keeps showing current data until fresh data
         // lands, and the progressive loader updates in place.
-        await qc.invalidateQueries({ type: 'active' } as any);
-        await qc.refetchQueries({ type: 'active' } as any);
-    }, [qc]);
+        await Promise.all([dashboardQuery.refetch(),...(scopedEnabled?[alertsQuery.refetch(),...(canTargets?[targetsQuery.refetch()]:[])]:[])]);
+    }, [dashboardQuery.refetch,alertsQuery.refetch,targetsQuery.refetch,scopedEnabled,canTargets]);
 
     // ✅ Fix 2 + Fix 14: correct mutation call signature + real async wait
     const updateAsinTag = useCallback(
@@ -432,40 +262,27 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
         [mutateTaskReassign],
     );
 
-    // ── 10 · dashboardRaw — derived from query cache, never stale ────────────
-    // ✅ Fix 6: replaced useState/setDashboardRaw with direct reference to
-    // dashboardQuery.data — always in sync with React Query cache, zero lag
-
-    // ✅ Fix 12: removed `as any ?? null` pattern — use proper null-safe access
-    const kpisData = loader.kpis ?? null;
-    const alertsData2 = loader.alerts ?? null;
-    const targetsData2 = loader.targets ?? null;
-    const topProductsData = loader.topProducts ?? null;
-
-    // ── 10b · Per-section status — drives explicit error/unavailable states ──
-    // ✅ Honest states: consumers can render "section unavailable" instead of
-    // silent zeros when a segment's query failed.
-    const sectionStatus = useMemo(() => {
-        const statusOf = (seg: DashboardSegment): 'loading' | 'ready' | 'error' => {
-            if (loader.errors?.[seg]) return 'error';
-            const sec = loader.sections.get(seg);
-            return sec && sec.snapshot !== null ? 'ready' : 'loading';
-        };
-        return {
-            kpis: statusOf(DashboardSegment.KPIS),
-            revenueSeries: statusOf(DashboardSegment.REVENUE_SERIES),
-            adsPerformance: statusOf(DashboardSegment.ADS_PERFORMANCE),
-            categories: statusOf(DashboardSegment.CATEGORIES),
-            topProducts: statusOf(DashboardSegment.TOP_PRODUCTS),
-            alerts: statusOf(DashboardSegment.ALERTS),
-            targets: statusOf(DashboardSegment.TARGETS),
-        };
-    }, [loader.sections, loader.errors]);
+    const kpisData=dashData?.kpi??null;
+    const alertsData2=scopedEnabled&&!alertsQuery.isError?(alertsQuery.data??null):[];
+    const targetsData2=scopedEnabled&&canTargets&&!targetsQuery.isError?(targetsQuery.data??null):[];
+    const topProductsData=dashData?.tableData??null;
+    const dashStatus=dashboardQuery.isError?'error':dashData?'ready':'loading';
+    const sectionStatus={
+        kpis:dashStatus,revenueSeries:dashStatus,adsPerformance:dashStatus,categories:dashStatus,topProducts:dashStatus,
+        alerts:!scope?'loading':scope.empty?'ready':alertsQuery.isError?'error':alertsQuery.isSuccess?'ready':'loading',
+        targets:!canTargets?'forbidden':!scope?'loading':scope.empty?'ready':targetsQuery.isError?'error':targetsQuery.isSuccess?'ready':'loading',
+    };
+    const errors:Record<string,string>={};
+    if(dashboardQuery.isError)errors.kpis='Dashboard unavailable';
+    if(scopedEnabled&&alertsQuery.isError)errors.alerts='Alerts unavailable';
+    if(scopedEnabled&&canTargets&&targetsQuery.isError)errors.targets='Targets unavailable';
 
     // ── 11 · Stable return surface ─────────────────────────────────────────────
     return {
         // Per-section load status ('loading' | 'ready' | 'error')
         sectionStatus,
+        scope,
+        principal,
         // Section data
         kpis: kpisData,
         alerts: alertsData2,
@@ -473,17 +290,17 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
         topProducts: topProductsData,
 
         // ✅ Fix 6: dashboardRaw comes from React Query cache directly — never stale
-        dashboardRaw: dashData ?? null,
+        dashboardRaw: dashData,
 
         // Loading states
-        isLoadingKpis: dashboardQuery.isLoading || kpisData == null,
-        isLoadingAlerts: alertsQuery.isLoading || alertsData2 == null,
-        isLoadingTargets: targetsQuery.isLoading || targetsData2 == null,
+        isLoadingKpis: dashboardQuery.isPending,
+        isLoadingAlerts: scopedEnabled&&alertsQuery.isPending,
+        isLoadingTargets: scopedEnabled&&canTargets&&targetsQuery.isPending,
 
         // Orchestration state
-        errors: loader.errors,
-        isHydrated: loader.isHydrated,
-        priorityFlood: loader.priorityFlood,
+        errors,
+        isHydrated: !dashboardQuery.isPending,
+        priorityFlood: false,
 
         // Actions
         updateAsinTag,
@@ -497,7 +314,261 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
         forceReload: forceRefresh,  // alias
 
         // Sync metadata
-        syncTimestamp,
+        syncTimestamp: dashData?new Date(dashboardQuery.dataUpdatedAt).toISOString():null,
+        connectionStatus: connection.connected
+            ? 'connected'
+            : connection.reconnecting
+                ? 'reconnecting'
+                : 'offline',
+    } as const;
+// ─── Main hook ────────────────────────────────────────────────────────────────
+
+export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
+    const {
+        pollIntervalSeconds: pollInt = 60, // ✅ default polling ON (60s) — dashboard was static before
+        sseEndpoint,
+        sseSilenceThresholdSeconds: sseSilence = 15,
+        defaultRetryAttempts: rawRetries = 3,
+        backoffBaseMs: rawBaseMs = 1_000,
+        sellerId,
+        managerId,
+        startDate,
+        endDate,
+        period,
+    } = cfg;
+
+    const retries = Math.max(rawRetries, 1);
+    const baseMs = Math.max(rawBaseMs, 100);
+
+    const qc = useQueryClient();
+    const relay = EVENT_BUS; // module singleton — stable reference
+
+    // ── Stable backoff functions (created once per hook invocation) ───────────
+    const dashboardBackoff = useMemo(() => makeBackoffFn(baseMs), [baseMs]);
+    const alertsBackoff = useMemo(() => makeBackoffFn(500), []);
+    const targetsBackoff = useMemo(() => makeBackoffFn(baseMs), [baseMs]);
+
+    const {user,hasPermission}=useAuth();
+    const principal=dashboardPrincipal(user);
+    const connection=useDashboardStore(s=>s.connection);
+    const canTargets=hasPermission('targets_view');
+    useRealTimeDashboard({sseEndpoint,unhealthyAfterSeconds:sseSilence});
+    // No placeholder data or progressive snapshots across authorization keys.
+    // Each request is independently authorized by its endpoint.
+    const filters={sellerId,managerId,startDate,endDate,period};
+    const dashboardQuery=useQuery({
+        queryKey:[...QK_DASHBOARD,'scoped',principal,sellerId??'all',managerId??'all',startDate,endDate,period],
+        enabled:!!principal,
+        queryFn:async({signal})=>(await apiClient.get('/dashboard',{params:filters,signal})).data,
+        staleTime:60_000,gcTime:60_000,refetchOnWindowFocus:false,refetchOnReconnect:true,
+        retry:(count,error:any)=>![400,401,403,404,422].includes(error?.response?.status)&&count<retries,
+        retryDelay:dashboardBackoff,refetchInterval:pollInt>0?pollInt*1000:false,
+    });
+    const dashData=dashboardQuery.isError?null:dashboardQuery.data??null;
+    const scope=dashData?.scope;
+    const scopeKey=scope?JSON.stringify([scope.unrestricted,scope.empty,scope.sellerIds]):'unresolved';
+    const scopedEnabled=!!principal&&!!scope&&!scope.empty;
+    const targetsQuery=useQuery({
+        queryKey:[...QK_TARGETS,'dashboard',principal,sellerId??'all',managerId??'all',scopeKey],
+        enabled:scopedEnabled&&canTargets,
+        queryFn:async({signal})=>{
+            const r=await apiClient.get('/targets',{params:{sellerId,managerId},signal});
+            return r.data?.data??r.data;
+        },
+        staleTime:60_000,gcTime:60_000,refetchOnWindowFocus:false,
+        retry:(count,error:any)=>![400,401,403,404,422].includes(error?.response?.status)&&count<retries,
+        retryDelay:targetsBackoff,
+    });
+    const alertsQuery=useQuery({
+        queryKey:[...QK_ALERTS,'dashboard',principal,sellerId??'all',managerId??'all',scopeKey],
+        enabled:scopedEnabled,
+        queryFn:async({signal})=>{
+            const r=await apiClient.get('/alerts',{params:{sellerId,managerId},signal});
+            return r.data?.data??r.data;
+        },
+        staleTime:60_000,gcTime:60_000,refetchOnWindowFocus:false,
+        retry:(count,error:any)=>![400,401,403,404,422].includes(error?.response?.status)&&count<2,
+        retryDelay:alertsBackoff,
+    });
+
+    // ── 7 · Event bus → React Query bridge ───────────────────────────────────
+    // ✅ Fix 8: cleanup returned directly — no unsubBridge ref needed
+    useEffect(() => {
+        const onInvalidate = (evt: any) => {
+            if (evt?.queryKey) void qc.invalidateQueries({ queryKey: evt.queryKey });
+        };
+        const onGlobal = () => {
+            void qc.invalidateQueries({ queryKey: QK_DASHBOARD as unknown as QueryKey, exact: false });
+        };
+
+        relay.on('realtime:dataUpdated', onInvalidate);
+        relay.on('realtime:invalidateAll', onGlobal);
+
+        return () => {
+            relay.off('realtime:dataUpdated', onInvalidate);
+            relay.off('realtime:invalidateAll', onGlobal);
+        };
+    }, [qc, relay]);
+
+    // ── 8 · Optimistic mutations ──────────────────────────────────────────────
+
+    const { mutate: mutateAsinTag } = useOptimisticMutation(
+        (id: string, payload: { tags: string[] }) =>
+            apiClient.put(`/asins/${id}/tags`, payload).then((r: any) => r.data),
+        {
+            cacheKey: ['asins'],
+            itemKey: 'id',
+            mutationType: 'asin-tag-update',
+            applyOptimistic: (cur: any, { tags }: any) => ({ ...cur, tags }),
+            onSuccessEvent: 'socket:asinUpdated',
+        },
+    );
+
+    const { mutate: mutateAck } = useOptimisticMutation(
+        (id: string) =>
+            apiClient.patch(`/alerts/${id}`, { acknowledged: true }).then((r: any) => r.data),
+        {
+            cacheKey: ['alerts'],
+            itemKey: 'id',
+            mutationType: 'alert-ack-toggle',
+            applyOptimistic: (cur: any) => ({ ...cur, acknowledged: true }),
+            onSuccessEvent: 'socket:alerts',
+        },
+    );
+
+    const { mutate: mutateTaskReassign } = useOptimisticMutation(
+        (id: string, payload: { userId: string }) =>
+            apiClient.put(`/tasks/${id}/assign`, payload).then((r: any) => r.data),
+        {
+            cacheKey: ['tasks'],
+            itemKey: 'id',
+            mutationType: 'task-reassign',
+            applyOptimistic: (cur: any, { userId }: any) => ({ ...cur, assignedTo: userId }),
+            onSuccessEvent: 'socket:taskUpdated',
+        },
+    );
+
+    // ── 9 · Public action helpers ─────────────────────────────────────────────
+    // ✅ Fix 2: async helpers now correctly await mutation completion
+    // Previously: new Promise((done) => { void mutate(); done(); })
+    // = promise resolved BEFORE mutation finished — fake async
+
+    const refetch = useCallback(
+        () => qc.invalidateQueries({
+            queryKey: QK_DASHBOARD as unknown as QueryKey,
+            exact: false
+        }),
+        [qc],
+    );
+
+    const forceRefresh = useCallback(async () => {
+        // ✅ Race fix: previously called loader.reset() BEFORE refetching,
+        // throwing every section back to skeleton mid-fetch (flash + sections
+        // stuck unresolved if a refetch failed). Now we only invalidate and
+        // refetch — React Query keeps showing current data until fresh data
+        // lands, and the progressive loader updates in place.
+        await Promise.all([dashboardQuery.refetch(),...(scopedEnabled?[alertsQuery.refetch(),...(canTargets?[targetsQuery.refetch()]:[])]:[])]);
+    }, [dashboardQuery.refetch,alertsQuery.refetch,targetsQuery.refetch,scopedEnabled,canTargets]);
+
+    // ✅ Fix 2 + Fix 14: correct mutation call signature + real async wait
+    const updateAsinTag = useCallback(
+        (id: string, tags: string[]): Promise<void> =>
+            new Promise((resolve, reject) => {
+                mutateAsinTag(
+                    id,
+                    { tags },
+                    {
+                        onSuccess: () => resolve(),
+                        onError: (e: any) => reject(e),
+                    } as any
+                );
+            }),
+        [mutateAsinTag],
+    );
+
+    const toggleAlertAck = useCallback(
+        (id: string): Promise<void> =>
+            new Promise((resolve, reject) => {
+                mutateAck(
+                    id,
+                    undefined as any,
+                    {
+                        onSuccess: () => resolve(),
+                        onError: (e: any) => reject(e),
+                    } as any
+                );
+            }),
+        [mutateAck],
+    );
+
+    const reassignTask = useCallback(
+        (id: string, userId: string): Promise<void> =>
+            new Promise((resolve, reject) => {
+                mutateTaskReassign(
+                    id,
+                    { userId },
+                    {
+                        onSuccess: () => resolve(),
+                        onError: (e: any) => reject(e),
+                    } as any
+                );
+            }),
+        [mutateTaskReassign],
+    );
+
+    const kpisData=dashData?.kpi??null;
+    const alertsData2=scopedEnabled&&!alertsQuery.isError?(alertsQuery.data??null):[];
+    const targetsData2=scopedEnabled&&canTargets&&!targetsQuery.isError?(targetsQuery.data??null):[];
+    const topProductsData=dashData?.tableData??null;
+    const dashStatus=dashboardQuery.isError?'error':dashData?'ready':'loading';
+    const sectionStatus={
+        kpis:dashStatus,revenueSeries:dashStatus,adsPerformance:dashStatus,categories:dashStatus,topProducts:dashStatus,
+        alerts:!scope?'loading':scope.empty?'ready':alertsQuery.isError?'error':alertsQuery.isSuccess?'ready':'loading',
+        targets:!canTargets?'forbidden':!scope?'loading':scope.empty?'ready':targetsQuery.isError?'error':targetsQuery.isSuccess?'ready':'loading',
+    };
+    const errors:Record<string,string>={};
+    if(dashboardQuery.isError)errors.kpis='Dashboard unavailable';
+    if(scopedEnabled&&alertsQuery.isError)errors.alerts='Alerts unavailable';
+    if(scopedEnabled&&canTargets&&targetsQuery.isError)errors.targets='Targets unavailable';
+
+    // ── 11 · Stable return surface ─────────────────────────────────────────────
+    return {
+        // Per-section load status ('loading' | 'ready' | 'error')
+        sectionStatus,
+        scope,
+        principal,
+        // Section data
+        kpis: kpisData,
+        alerts: alertsData2,
+        targets: targetsData2,
+        topProducts: topProductsData,
+
+        // ✅ Fix 6: dashboardRaw comes from React Query cache directly — never stale
+        dashboardRaw: dashData,
+
+        // Loading states
+        isLoadingKpis: dashboardQuery.isPending,
+        isLoadingAlerts: scopedEnabled&&alertsQuery.isPending,
+        isLoadingTargets: scopedEnabled&&canTargets&&targetsQuery.isPending,
+
+        // Orchestration state
+        errors,
+        isHydrated: !dashboardQuery.isPending,
+        priorityFlood: false,
+
+        // Actions
+        updateAsinTag,
+        toggleAlertAck,
+        reassignTask,
+        isMutating: dashboardQuery.isFetching,
+
+        // Refresh controls
+        refetch,
+        forceRefresh,
+        forceReload: forceRefresh,  // alias
+
+        // Sync metadata
+        syncTimestamp: dashData?new Date(dashboardQuery.dataUpdatedAt).toISOString():null,
         connectionStatus: connection.connected
             ? 'connected'
             : connection.reconnecting
