@@ -13,6 +13,7 @@ on:
       - 'backend/migrations/099_ads_import_jobs.js'
       - 'backend/migrations/101_ads_import_queue.js'
       - 'backend/migrations/102_ads_preview_queue.js'
+      - 'backend/migrations/103_ads_auto_ownership.js'
       - 'backend/services/accessProfileService.js'
       - 'backend/testUtils/adsPhase2.*'
       - 'backend/server.js'
@@ -63,6 +64,8 @@ jobs:
           node --check backend/migrations/099_ads_import_jobs.js
           node --check backend/migrations/101_ads_import_queue.js
           node --check backend/migrations/102_ads_preview_queue.js
+          node --check backend/migrations/103_ads_auto_ownership.js
+          node --check backend/services/adsOwnership.js
           node --check backend/services/adsPreviewParser.js
           node --check backend/services/adsImportWorker.js
           node --check backend/services/adsImportJobs.js

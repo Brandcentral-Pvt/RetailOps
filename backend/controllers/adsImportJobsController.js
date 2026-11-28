@@ -7,7 +7,7 @@ const service=require('../services/adsImportJobs');
 const {writeIssueReport}=require('../services/adsImportIssueReport');
 const failure=(res,e)=>{
  if(e instanceof AdsScopeError)return res.status(e.status).json({success:false,code:e.code,message:e.message});
- if(isAdsSchemaError(e))return res.status(503).json({success:false,code:'ADS_IMPORT_SCHEMA_NOT_READY',message:'Ads import job schema is not ready. Verify migrations 098, 099, 101 and 102.'});
+ if(isAdsSchemaError(e))return res.status(503).json({success:false,code:'ADS_IMPORT_SCHEMA_NOT_READY',message:'Ads import job schema is not ready. Verify Ads import migrations 098 through 103.'});
  console.error('[ads import jobs]',e.message);
  return res.status(503).json({success:false,code:'ads_import_unavailable',message:'Import service unavailable. Reopen history to verify the job status before retrying.'});
 };
@@ -17,9 +17,10 @@ async function preview(req,res){
  const file=req.file;let slot=false;
  try{
   if(!file||req.body?.reportType!=='daily')throw new AdsScopeError('invalid_upload','Select a daily v1 CSV.',400);
+  if(req.body?.sellerId!==undefined)throw new AdsScopeError('seller_selection_retired','Seller selection is no longer supported. Refresh the application and upload the CSV for automatic ownership detection.',400);
   if(previews>=2)throw new AdsScopeError('preview_busy','Two reports are being staged for validation. Retry shortly.',429);
   previews++;slot=true;
-  const data=await service.createPreview({...await args(req),sellerId:req.body.sellerId,input:await fs.readFile(file.path),fileName:file.originalname});
+  const data=await service.createPreview({...await args(req),input:await fs.readFile(file.path),fileName:file.originalname});
   return res.status(202).json({success:true,data,message:'Report queued for background validation.'});
  }catch(e){return failure(res,e);}
  finally{if(slot)previews--;if(file?.path)await fs.unlink(file.path).catch(()=>{});}

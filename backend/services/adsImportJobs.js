@@ -15,12 +15,13 @@ const ownerId=user=>{
  return id;
 };
 const normalizeName=name=>String(name||'report.csv').split(/[\\/]/).pop().replace(/[\u0000-\u001f\u007f]/g,'_').slice(0,255)||'report.csv';
-const cols="j.ValidationAttempts,CONVERT(varchar(33),j.ValidatedAt,126)+'Z' AS ValidatedAt,j.AttemptCount,j.Stage,j.StagedRows,CONVERT(varchar(33),j.QueuedAt,126)+'Z' AS QueuedAt,CONVERT(varchar(33),j.StartedAt,126)+'Z' AS StartedAt,CONVERT(varchar(33),j.NextAttemptAt,126)+'Z' AS NextAttemptAt,j.Id,j.OwnerId,j.SellerId,j.Marketplace,j.Currency,j.FileName,j.SourceFileSha256,j.Status,j.SummaryJson,j.ResultJson,CONVERT(varchar(33),j.CreatedAt,126)+'Z' AS CreatedAt,CONVERT(varchar(33),j.ExpiresAt,126)+'Z' AS ExpiresAt,CONVERT(varchar(33),j.CompletedAt,126)+'Z' AS CompletedAt,CASE WHEN j.ExpiresAt<=SYSUTCDATETIME() THEN 1 ELSE 0 END AS IsExpired";
+const cols="j.OwnershipHash,j.ValidationAttempts,CONVERT(varchar(33),j.ValidatedAt,126)+'Z' AS ValidatedAt,j.AttemptCount,j.Stage,j.StagedRows,CONVERT(varchar(33),j.QueuedAt,126)+'Z' AS QueuedAt,CONVERT(varchar(33),j.StartedAt,126)+'Z' AS StartedAt,CONVERT(varchar(33),j.NextAttemptAt,126)+'Z' AS NextAttemptAt,j.Id,j.OwnerId,j.SellerId,j.Marketplace,j.Currency,j.FileName,j.SourceFileSha256,j.Status,j.SummaryJson,j.ResultJson,CONVERT(varchar(33),j.CreatedAt,126)+'Z' AS CreatedAt,CONVERT(varchar(33),j.ExpiresAt,126)+'Z' AS ExpiresAt,CONVERT(varchar(33),j.CompletedAt,126)+'Z' AS CompletedAt,CASE WHEN j.ExpiresAt<=SYSUTCDATETIME() THEN 1 ELSE 0 END AS IsExpired";
 function publicJob(row){
  if(!row)return null;
- return {id:row.Id,sellerId:row.SellerId,marketplace:row.Marketplace,currency:row.Currency,fileName:row.FileName,
+ const summary=JSON.parse(row.SummaryJson);
+ return {id:row.Id,sellerId:row.SellerId,marketplace:row.Marketplace??summary.marketplace??null,currency:row.Currency??summary.currency??null,ownershipMode:row.SellerId==null?'auto':'legacy',fileName:row.FileName,
    sourceFileSha256:row.SourceFileSha256,status:row.Status==='READY'&&row.IsExpired?'EXPIRED':row.Status,
-   summary:JSON.parse(row.SummaryJson),result:row.ResultJson?JSON.parse(row.ResultJson):null,
+   summary,result:row.ResultJson?JSON.parse(row.ResultJson):null,
    createdAt:row.CreatedAt,expiresAt:row.ExpiresAt,completedAt:row.CompletedAt,queuedAt:row.QueuedAt,startedAt:row.StartedAt,nextAttemptAt:row.NextAttemptAt,attemptCount:row.AttemptCount,validationAttempts:row.ValidationAttempts,validatedAt:row.ValidatedAt,stage:row.Stage,stagedRows:row.StagedRows,importsEnabled:importsEnabled()};
 }
 function scopedRequest(pool,sql,user,id){
@@ -33,7 +34,7 @@ function scopedRequest(pool,sql,user,id){
  }
  if(!scope.unrestricted){
   request.input('sellerIds',sql.NVarChar(sql.MAX),JSON.stringify(scope.sellerIds));
-  where+=" AND EXISTS(SELECT 1 FROM OPENJSON(@sellerIds) WITH ([id] varchar(50) '$') s WHERE s.[id]=j.SellerId)";
+  where+=" AND ((j.SellerId IS NOT NULL AND EXISTS(SELECT 1 FROM OPENJSON(@sellerIds) WITH ([id] varchar(50) '$') s WHERE s.[id]=j.SellerId)) OR (j.SellerId IS NULL AND NOT EXISTS(SELECT 1 FROM dbo.AdsImportJobOwners o WHERE o.JobId=j.Id AND NOT EXISTS(SELECT 1 FROM OPENJSON(@sellerIds) WITH ([id] varchar(50) '$') s WHERE s.[id]=o.SellerId))))";
  }
  return {request,where};
 }
@@ -56,7 +57,7 @@ async function listJobs({pool,sql,user,page=1,limit=25,status,search,sellerId}){
   if(typeof search!=='string'||search.length>120)throw jobError('invalid_history_search','Invalid import search.',400);
   const value=search.trim();if(value){request.input('search',sql.NVarChar(120),value);where+=' AND (CHARINDEX(@search,j.FileName)>0 OR CHARINDEX(@search,j.Id)>0)';}
  }
- if(sellerId!==undefined){explicitSeller(user,sellerId);request.input('sellerFilter',sql.VarChar(50),sellerId);where+=' AND j.SellerId=@sellerFilter';}
+ if(sellerId!==undefined){explicitSeller(user,sellerId);request.input('sellerFilter',sql.VarChar(50),sellerId);where+=' AND (j.SellerId=@sellerFilter OR EXISTS(SELECT 1 FROM dbo.AdsImportJobOwners o WHERE o.JobId=j.Id AND o.SellerId=@sellerFilter))';}
  request.input('offset',sql.Int,(page-1)*limit).input('limit',sql.Int,limit);
  const r=await request.query('SELECT COUNT_BIG(*) AS total FROM dbo.AdsImportJobs j'+where+'; SELECT '+cols+' FROM dbo.AdsImportJobs j'+where+' ORDER BY j.CreatedAt DESC,j.Id DESC OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY;');
  return {rows:r.recordsets[1].map(publicJob),total:Number(r.recordsets[0][0].total),page,limit};
@@ -64,13 +65,21 @@ async function listJobs({pool,sql,user,page=1,limit=25,status,search,sellerId}){
 const expireSql="UPDATE dbo.AdsImportJobs SET Status='EXPIRED',Stage='expired',SourceBytes=NULL,CompletedAt=SYSUTCDATETIME() WHERE Status='READY' AND ExpiresAt<=SYSUTCDATETIME();";
 async function expireJobs(pool){await pool.request().query(expireSql);}
 async function createPreview({pool,sql,user,sellerId,input,fileName}){
- const owner=ownerId(user);explicitSeller(user,sellerId);
+ const owner=ownerId(user);const scope=strictScope(user);
+ if(scope.empty)throw jobError('forbidden_seller','You have no assigned sellers.',403);
+ // Internal compatibility for pre-103 explicit jobs/tests. HTTP never supplies sellerId.
+ const legacy=sellerId!==undefined&&sellerId!==null;
+ if(legacy)explicitSeller(user,sellerId);
  if(!Buffer.isBuffer(input)||!input.length||input.length>MAX_FILE_BYTES)throw jobError('invalid_file_size','Select a nonempty CSV up to 32 MiB.',400);
  const bytes=Buffer.from(input),hash=createHash('sha256').update(bytes).digest('hex');
- const seller=(await pool.request().input('seller',sql.VarChar(50),sellerId).query('SELECT Id,Marketplace FROM dbo.Sellers WHERE Id=@seller')).recordset[0];
- if(!seller||seller.Id!==sellerId)throw jobError('seller_not_found','Seller not found.',404);
- const context=resolveContext(seller);
- if(!context)throw jobError('seller_context_unverified','Seller marketplace/currency must be verified.');
+
+ let context={marketplace:null,currency:null};
+ if(legacy){
+  const seller=(await pool.request().input('seller',sql.VarChar(50),sellerId).query('SELECT Id,Marketplace FROM dbo.Sellers WHERE Id=@seller')).recordset[0];
+  if(!seller||seller.Id!==sellerId)throw jobError('seller_not_found','Seller not found.',404);
+  context=resolveContext(seller);
+  if(!context)throw jobError('seller_context_unverified','Seller marketplace/currency must be verified.');
+ }
  // Acceptance is durable; parsing/ownership preflight happens off-request.
  const id=randomUUID(),summary={schemaVersion:1,reportType:'daily',valid:null,scanComplete:null,rows:null,validRows:null,invalidRows:null,issueCount:null,sourceFileSha256:hash};
  const tx=new sql.Transaction(pool);await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
@@ -79,7 +88,7 @@ async function createPreview({pool,sql,user,sellerId,input,fileName}){
    await tx.request().query(expireSql);
    const limits=await tx.request().input('owner',sql.VarChar(50),owner).query("SELECT COUNT_BIG(*) AS total,COUNT_BIG(CASE WHEN OwnerId=@owner THEN 1 END) AS owned FROM dbo.AdsImportJobs WHERE Status IN ('PREVIEW_QUEUED','VALIDATING','READY','QUEUED','PROCESSING');");
    if(Number(limits.recordset[0].total)>=MAX_PENDING_GLOBAL||Number(limits.recordset[0].owned)>=MAX_PENDING_OWNER)throw jobError('import_capacity','Pending import capacity reached. Cancel an old preview or confirm it before staging another.',429);
-   await tx.request().input('id',sql.VarChar(50),id).input('owner',sql.VarChar(50),owner).input('seller',sql.VarChar(50),sellerId)
+   await tx.request().input('id',sql.VarChar(50),id).input('owner',sql.VarChar(50),owner).input('seller',sql.VarChar(50),legacy?sellerId:null)
     .input('marketplace',sql.NVarChar(50),context.marketplace).input('currency',sql.Char(3),context.currency)
     .input('fileName',sql.NVarChar(255),normalizeName(fileName)).input('hash',sql.Char(64),hash)
     .input('bytes',sql.VarBinary(sql.MAX),bytes)
@@ -104,7 +113,8 @@ async function confirmJob({pool,sql,user,id}){
  if(['QUEUED','PROCESSING','COMPLETED'].includes(job.status))return job;
  if(job.status!=='READY')throw jobError('job_not_ready','Import is not ready or has expired.');
  if(!importsEnabled())throw jobError('ads_import_disabled','Ads confirmation is paused by server configuration.');
- explicitSeller(user,job.sellerId);
+ if(job.sellerId!=null)explicitSeller(user,job.sellerId);
+ else if(!job.summary?.valid||!job.summary?.sellerBreakdown?.length)throw jobError('job_not_ready','Verified automatic seller mapping is required.');
  const {request,where}=scopedRequest(pool,sql,user,id);
  await request.query("UPDATE j SET Status='QUEUED',Stage='queued',QueuedAt=SYSUTCDATETIME(),StartedAt=NULL,NextAttemptAt=SYSUTCDATETIME(),StagedRows=0 FROM dbo.AdsImportJobs j"+where+" AND j.Status='READY' AND j.ExpiresAt>SYSUTCDATETIME();");
  const current=await getJob({pool,sql,user,id});
