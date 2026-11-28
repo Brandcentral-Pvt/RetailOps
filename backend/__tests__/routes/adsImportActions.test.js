@@ -42,9 +42,9 @@ test('repeated confirmation of completed job returns the saved result',async()=>
 
 test('multipart CSV acceptance returns a durable validation queue response',async()=>{
  mockPreview.mockResolvedValue({id,status:'PREVIEW_QUEUED'});
- const res=await request(app).post('/api/upload/ads-imports').field('sellerId','s1').field('reportType','daily').attach('file',Buffer.from('asin,date\n'),'report.csv');
+ const res=await request(app).post('/api/upload/ads-imports').field('reportType','daily').attach('file',Buffer.from('asin,date\n'),'report.csv');
  expect(res.status).toBe(202);expect(res.body.data.status).toBe('PREVIEW_QUEUED');
- expect(mockPreview.mock.calls[0][0]).toMatchObject({sellerId:'s1',fileName:'report.csv',user:mockUser});
+ expect(mockPreview.mock.calls[0][0]).toMatchObject({fileName:'report.csv',user:mockUser});
  expect(mockPreview.mock.calls[0][0].input.toString()).toBe('asin,date\n');
 });
 test('history forwards only supported query filters and remains permission-gated',async()=>{
@@ -52,4 +52,9 @@ test('history forwards only supported query filters and remains permission-gated
  const res=await request(app).get('/api/upload/ads-imports').query({page:1,limit:10,status:'READY',search:'April',sellerId:'s1'});
  expect(res.status).toBe(200);expect(mockList.mock.calls[0][0]).toMatchObject({page:1,limit:10,status:'READY',search:'April',sellerId:'s1'});
  mockUser.permissions=['adsreport_view'];expect((await request(app).get('/api/upload/ads-imports')).status).toBe(403);
+});
+
+test('public CSV upload cannot supply manual seller ownership',async()=>{
+ const res=await request(app).post('/api/upload/ads-imports').field('sellerId','s1').field('reportType','daily').attach('file',Buffer.from('asin,date\n'),'report.csv');
+ expect(res.status).toBe(400);expect(res.body.code).toBe('seller_selection_retired');expect(mockPreview).not.toHaveBeenCalled();
 });

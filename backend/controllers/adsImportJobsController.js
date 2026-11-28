@@ -4,10 +4,10 @@ const {getPool,sql}=require('../database/db');
 const {AdsScopeError}=require('../services/adsCanonicalScope');
 const {isAdsSchemaError}=require('../database/adsSchema');
 const service=require('../services/adsImportJobs');
-const {writeIssueReport}=require('../services/adsImportIssueReport');
+const {writeIssueReport,writeIssueCsv,XLSX_ISSUE_LIMIT}=require('../services/adsImportIssueReport');
 const failure=(res,e)=>{
  if(e instanceof AdsScopeError)return res.status(e.status).json({success:false,code:e.code,message:e.message});
- if(isAdsSchemaError(e))return res.status(503).json({success:false,code:'ADS_IMPORT_SCHEMA_NOT_READY',message:'Ads import job schema is not ready. Verify migrations 098, 099, 101 and 102.'});
+ if(isAdsSchemaError(e))return res.status(503).json({success:false,code:'ADS_IMPORT_SCHEMA_NOT_READY',message:'Ads import job schema is not ready. Verify Ads import migrations 098 through 104.'});
  console.error('[ads import jobs]',e.message);
  return res.status(503).json({success:false,code:'ads_import_unavailable',message:'Import service unavailable. Reopen history to verify the job status before retrying.'});
 };
@@ -17,9 +17,10 @@ async function preview(req,res){
  const file=req.file;let slot=false;
  try{
   if(!file||req.body?.reportType!=='daily')throw new AdsScopeError('invalid_upload','Select a daily v1 CSV.',400);
+  if(req.body?.sellerId!==undefined)throw new AdsScopeError('seller_selection_retired','Seller selection is no longer supported. Refresh the application and upload the CSV for automatic ownership detection.',400);
   if(previews>=2)throw new AdsScopeError('preview_busy','Two reports are being staged for validation. Retry shortly.',429);
   previews++;slot=true;
-  const data=await service.createPreview({...await args(req),sellerId:req.body.sellerId,input:await fs.readFile(file.path),fileName:file.originalname});
+  const data=await service.createPreview({...await args(req),input:await fs.readFile(file.path),fileName:file.originalname});
   return res.status(202).json({success:true,data,message:'Report queued for background validation.'});
  }catch(e){return failure(res,e);}
  finally{if(slot)previews--;if(file?.path)await fs.unlink(file.path).catch(()=>{});}
@@ -42,10 +43,15 @@ async function issues(req,res){let dir,slot=false;try{
  if(exportsInFlight>=2)throw new AdsScopeError('issue_export_busy','Error exports are busy. Retry shortly.',429);
  exportsInFlight++;slot=true;
  const report=await service.getIssues(await args(req));
- if(!report.issues.length)throw new AdsScopeError('no_issues','This import has no validation errors.',409);
- dir=await fs.mkdtemp(path.join(os.tmpdir(),'retailops-ads-issues-'));const filePath=path.join(dir,'errors.xlsx');
- await writeIssueReport({filePath,...report});
- const cleanup=dir;dir=null;res.set('Cache-Control','private, no-store');
- res.download(filePath,'ads-import-'+report.job.id+'-errors.xlsx',err=>{fs.rm(cleanup,{recursive:true,force:true}).catch(()=>{});if(err&&!res.headersSent)failure(res,err);});
+ if(!report.issueCount)throw new AdsScopeError('no_issues','This import has no validation errors.',409);
+ const format=req.query.format;
+ if(format!==undefined&&!['csv','xlsx'].includes(format))throw new AdsScopeError('invalid_format','Use csv or xlsx.',400);
+ if(format==='xlsx'&&report.issueCount>XLSX_ISSUE_LIMIT)throw new AdsScopeError('error_report_use_csv','This report has more than 100,000 errors. Download the complete CSV instead.',422);
+ const extension=format==='csv'||report.issueCount>XLSX_ISSUE_LIMIT?'csv':'xlsx';
+ dir=await fs.mkdtemp(path.join(os.tmpdir(),'retailops-ads-issues-'));const filePath=path.join(dir,'errors.'+extension);
+ await (extension==='csv'?writeIssueCsv:writeIssueReport)({filePath,...report});
+ res.set('Cache-Control','private, no-store');
+ const cleanup=dir;dir=null;
+ res.download(filePath,'ads-import-'+report.job.id+'-errors.'+extension,err=>{fs.rm(cleanup,{recursive:true,force:true}).catch(()=>{});if(err&&!res.headersSent)failure(res,err);});
 }catch(e){if(!res.headersSent)return failure(res,e);}finally{if(dir)await fs.rm(dir,{recursive:true,force:true}).catch(()=>{});if(slot)exportsInFlight--;}}
 module.exports={preview,list,get,confirm,cancel,issues};

@@ -4,6 +4,7 @@ const contract=require('../contracts/ads-product-daily-v1.json');
 const {validateReport,replayValidatedRows,AdsValidationError,MAX_FILE_BYTES}=require('./adsProductContract');
 const {explicitSeller,resolveContext,AdsScopeError}=require('./adsCanonicalScope');
 const {createHash}=require('node:crypto');
+const {resolveOwners,stageOwners}=require('./adsOwnership');
 const FIELDS=contract.fields;
 const COLUMNS=FIELDS.map(f=>'['+f.canonicalColumn+']');
 const stageColumns=['SourceRowNumber',...COLUMNS].join(',');
@@ -25,8 +26,10 @@ function actorId(user){
 function bindScope(request,sql,{sellerId,marketplace,currency}){
   return request.input('seller',sql.VarChar(50),sellerId).input('marketplace',sql.NVarChar(50),marketplace).input('currency',sql.Char(3),currency);
 }
-async function ingestCanonicalReport({pool,sql,user,sellerId,reportType,input,expectedContext=null,lifecycle=null}){
-  const seller=explicitSeller(user,sellerId);
+async function ingestCanonicalReport({pool,sql,user,sellerId,reportType,input,expectedContext=null,expectedOwnershipHash=null,lifecycle=null}){
+  const auto=sellerId==null;
+  const seller=auto?null:explicitSeller(user,sellerId);
+  if(auto&&!/^[a-f0-9]{64}$/.test(expectedOwnershipHash||''))throw new AdsIngestionError('ownership_snapshot_required','Validated automatic ownership snapshot is required.');
   const actor=actorId(user);
   if(reportType!=='daily')throw new AdsIngestionError('unsupported_report_type','Only product_daily v1 is supported.');
   if(!Buffer.isBuffer(input)||!input.length||input.length>MAX_FILE_BYTES)throw new AdsIngestionError('invalid_file_size','A bounded CSV Buffer is required.');
@@ -59,6 +62,56 @@ async function ingestCanonicalReport({pool,sql,user,sellerId,reportType,input,ex
     await flush();
     const actualStage=await tx.request().query('SELECT COUNT_BIG(*) AS n FROM #AdsStage;');
     if(staged!==report.validRows||Number(actualStage.recordset[0].n)!==staged)throw new AdsIngestionError('staging_mismatch','Validated and staged record counts disagree.');
+    if(auto){
+      stage='catalog_ownership';
+      if(lifecycle?.progress)await lifecycle.progress(stage,staged);
+      const keys=(await tx.request().query("SELECT Asin AS asin,MIN(SourceRowNumber) AS [row] FROM #AdsStage GROUP BY Asin ORDER BY Asin;")).recordset;
+      const resolved=await resolveOwners({db:tx,sql,user,keys});
+      if(resolved.invalid||!resolved.hash||resolved.hash!==expectedOwnershipHash)
+        throw new AdsIngestionError('ownership_changed','ASIN ownership, seller access or currency changed after validation. Validate again.');
+      await stageOwners(tx,sql,resolved.mapping);
+      stage='seller_lock';
+      if(lifecycle?.progress)await lifecycle.progress(stage,staged);
+      for(const owner of resolved.owners){
+        const lockKey='retailops:ads-writer:'+createHash('sha256').update(owner.sellerId).digest('hex');
+        await tx.request().input('resource',sql.NVarChar(255),lockKey).query("DECLARE @lock int; EXEC @lock=sp_getapplock @Resource=@resource,@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=30000; IF @lock<0 THROW 51030,'Ads import lock unavailable',1;");
+      }
+      const join=" FROM #AdsStage s JOIN #AdsOwners o ON o.Asin=s.Asin";
+      const match="t.SellerId=o.SellerId AND t.Marketplace=o.Marketplace AND t.ReportType='daily' AND t.Asin=s.Asin AND t.[Date]=s.[Date]";
+      const differs="(EXISTS (SELECT "+selectCols('s')+" EXCEPT SELECT "+selectCols('t')+") OR t.Currency<>o.Currency)";
+      stage='historical_conflict_check';
+      if(lifecycle?.progress)await lifecycle.progress(stage,staged);
+      const conflicts=await tx.request().query(
+        "SELECT COUNT_BIG(*) AS n"+join+" JOIN dbo.AdsProductDailyFacts t WITH(UPDLOCK,HOLDLOCK) ON t.Asin=s.Asin AND t.[Date]=s.[Date] AND t.ReportType='daily' WHERE t.SellerId<>o.SellerId OR t.Marketplace<>o.Marketplace; "+
+        "SELECT COUNT_BIG(*) AS n"+join+" JOIN dbo.AdsProductDailyFacts t WITH(UPDLOCK,HOLDLOCK) ON "+match+" WHERE "+differs+"; "+
+        "SELECT COUNT_BIG(*) AS n FROM (SELECT DISTINCT SellerId,Marketplace,Currency FROM #AdsOwners) o JOIN dbo.AdsProductDailyFacts t WITH(UPDLOCK,HOLDLOCK) ON t.SellerId=o.SellerId AND t.Marketplace=o.Marketplace WHERE t.Currency<>o.Currency;");
+      if(Number(conflicts.recordsets[0][0].n))throw new AdsIngestionError('historical_owner_conflict','Existing ASIN/date facts belong to a different seller or marketplace. No data was changed.');
+      if(Number(conflicts.recordsets[1][0].n))throw new AdsIngestionError('historical_conflict','Existing facts differ from this report. No rows were replaced.');
+      if(Number(conflicts.recordsets[2][0].n))throw new AdsIngestionError('currency_conflict','Existing seller facts use another currency; explicit migration is required.');
+      const counts=await tx.request().query("SELECT o.SellerId AS sellerId,COUNT_BIG(*) AS [rows],COUNT_BIG(t.Asin) AS unchanged"+join+" LEFT JOIN dbo.AdsProductDailyFacts t ON "+match+" GROUP BY o.SellerId;");
+      const bySeller=new Map(counts.recordset.map(r=>[r.sellerId,r]));
+      const breakdown=resolved.owners.map(o=>{
+        const r=bySeller.get(o.sellerId);
+        return {...o,rows:Number(r.rows),unchanged:Number(r.unchanged),inserted:Number(r.rows)-Number(r.unchanged)};
+      });
+      stage='insert';
+      if(lifecycle?.progress)await lifecycle.progress(stage,staged);
+      const result=await tx.request().input('hash',sql.Char(64),report.sourceFileSha256).input('actor',sql.VarChar(50),actor)
+        .query("INSERT dbo.AdsProductDailyFacts (SellerId,Marketplace,Currency,ReportType,"+COLUMNS.join(',')+",SourceFileSha256,SourceRowNumber,SourceSchemaVersion,ImportedBy) "+
+          "SELECT o.SellerId,o.Marketplace,o.Currency,'daily',"+COLUMNS.map(c=>'s.'+c).join(',')+",@hash,s.SourceRowNumber,1,@actor"+join+
+          " WHERE NOT EXISTS(SELECT 1 FROM dbo.AdsProductDailyFacts t WITH(UPDLOCK,HOLDLOCK) WHERE "+match+"); SELECT @@ROWCOUNT AS inserted;");
+      const inserted=Number(result.recordset[0].inserted);
+      if(inserted!==breakdown.reduce((a,r)=>a+r.inserted,0))throw new AdsIngestionError('staging_mismatch','Inserted count differs from the verified seller breakdown.');
+      stage='reconcile';
+      if(lifecycle?.progress)await lifecycle.progress(stage,staged);
+      const checked=await tx.request().query("SELECT COUNT_BIG(*) AS n"+join+" JOIN dbo.AdsProductDailyFacts t ON "+match+" WHERE t.Currency=o.Currency AND NOT EXISTS(SELECT "+selectCols('s')+" EXCEPT SELECT "+selectCols('t')+");");
+      if(Number(checked.recordset[0].n)!==staged)throw new AdsIngestionError('reconciliation_failed','Persisted facts do not match all validated source rows.');
+      await tx.request().batch('DROP TABLE #AdsOwners; DROP TABLE #AdsStage;');
+      const output={sellerId:breakdown.length===1?breakdown[0].sellerId:null,sellerBreakdown:breakdown,currency:resolved.currency,marketplace:resolved.marketplace,reportType:'daily',inserted,unchanged:staged-inserted,sourceFileSha256:report.sourceFileSha256,report};
+      if(lifecycle?.progress)await lifecycle.progress('commit',staged);
+      if(lifecycle?.complete){stage='job_complete';await lifecycle.complete(tx,output);}
+      stage='commit';await tx.commit();return output;
+    }
     // All writers using this service serialize per seller; database key/range locks
     // provide a second protection against conflicting concurrent writes.
     stage='seller_lock';

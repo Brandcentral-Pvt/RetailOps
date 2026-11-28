@@ -166,7 +166,9 @@ test('background validation can be reopened and becomes ready without reupload',
  await page.getByRole('button',{name:'Import CSV',exact:true}).click();
  const dialog=page.getByRole('dialog');
  await dialog.getByRole('tab',{name:'Import history'}).click();
- const search=dialog.getByRole('textbox',{name:'Search import history'});
+ const search=dialog.locator('#ads-history-search');
+ await expect(search).toBeVisible();
+ await expect(search).toHaveAttribute('aria-label','Search import history');
  await search.fill('preview');await search.press('Enter');
  await expect.poll(()=>lastQuery?.get('search')).toBe('preview');
  await dialog.getByRole('button',{name:'Open',exact:true}).click();
@@ -174,4 +176,23 @@ test('background validation can be reopened and becomes ready without reupload',
  await expect(dialog.getByRole('button',{name:'Confirm import',exact:true})).toHaveCount(0);
  await expect(dialog.getByText(/5 data records scanned/)).toBeVisible();
  await expect(dialog.getByRole('button',{name:'Confirm import',exact:true})).toBeEnabled({timeout:12000});
+});
+
+test('new Ads upload has no seller picker and submits automatic ownership CSV',async({page})=>{
+ await mock(page,{empty:true});
+ let submitted;
+ await page.route('**/api/upload/ads-imports',route=>{
+  if(route.request().method()!=='POST')return route.fallback();
+  submitted=route.request().postData();
+  return route.fulfill({status:202,json:{success:true,data:{id:'00000000-0000-4000-8000-000000000007',sellerId:null,status:'PREVIEW_QUEUED',stage:'preview_queued',fileName:'auto.csv',summary:{}}}});
+ });
+ await page.route('**/api/upload/ads-imports/00000000-0000-4000-8000-000000000007',route=>route.fulfill({json:{success:true,data:{id:'00000000-0000-4000-8000-000000000007',sellerId:null,status:'PREVIEW_QUEUED',stage:'preview_queued',fileName:'auto.csv',summary:{}}}}));
+ await page.goto('/tests/fixtures/ads-layout.html');await page.getByRole('button',{name:'Import CSV',exact:true}).click();
+ const dialog=page.getByRole('dialog');
+ await expect(dialog.getByText('Automatic seller detection',{exact:true})).toBeVisible();
+ await expect(dialog.locator('#ads-job-seller')).toHaveCount(0);
+ await dialog.locator('input[type=file]').setInputFiles({name:'auto.csv',mimeType:'text/csv',buffer:Buffer.from('asin,date\nB000000001,2026-04-01\n')});
+ await dialog.getByRole('button',{name:'Validate CSV',exact:true}).click();
+ await expect(dialog.getByText('Waiting for validation worker',{exact:true})).toBeVisible();
+ expect(submitted).toContain('name="reportType"');expect(submitted).not.toContain('name="sellerId"');
 });

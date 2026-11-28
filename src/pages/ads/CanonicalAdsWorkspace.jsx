@@ -57,8 +57,7 @@ export default function CanonicalAdsWorkspace(){
     const [paging,setPaging]=useState({key:'',page:1,limit:50});
     const [drill,setDrill]=useState(null);
     const [importOpen,setImportOpen]=useState(false);
-    const [importSeller,setImportSeller]=useState(null);
-    const [exportBusy,setExportBusy]=useState(false);
+        const [exportBusy,setExportBusy]=useState(false);
     const [exportError,setExportError]=useState(null);
     // Include principal and current scope in the client cache key. No stale
     // placeholder data is used across filters, pages, or account changes.
@@ -93,7 +92,7 @@ export default function CanonicalAdsWorkspace(){
     const imported=info=>{
         // Keep the completed modal visible. Move the report to the imported seller/date
         // and invalidate all affected local queries after the committed response.
-        setSeller(info.sellerId);setBrand(undefined);setCategory(undefined);setCurrency(info.currency);
+        setSeller(info.sellerId||undefined);setBrand(undefined);setCategory(undefined);setCurrency(info.currency);
         setSearch('');setSearchInput('');setDrill(null);setPaging({key:'',page:1,limit:50});
         const end=new Date(info.endDate+'T00:00:00'),start=new Date(info.startDate+'T00:00:00');
         const earliest=new Date(end);earliest.setDate(earliest.getDate()-365);
@@ -113,7 +112,7 @@ export default function CanonicalAdsWorkspace(){
     return <div className="ads-workspace" data-testid="ads-workspace">
         <Card size="small" className="ads-heading-card"><div className="ads-heading">
             <div className="ads-heading-copy"><Typography.Title level={4} style={{margin:0}}>Ads Intelligence</Typography.Title><Typography.Text type="secondary">Daily advertising and product performance</Typography.Text></div>
-            <div className="ads-heading-actions">{hasPermission(PERMISSIONS.ADSREPORT_IMPORT)&&<Button type="primary" onClick={()=>{setImportSeller(seller||null);setImportOpen(true);}}>Import CSV</Button>}{hasPermission(PERMISSIONS.ADSREPORT_EXPORT)&&<Button onClick={exportReport} loading={exportBusy} disabled={!data||report.isError||report.isFetching}>Export XLSX</Button>}<Button onClick={refresh} loading={report.isFetching}>Refresh</Button></div>
+            <div className="ads-heading-actions">{hasPermission(PERMISSIONS.ADSREPORT_IMPORT)&&<Button type="primary" onClick={()=>{setImportOpen(true);}}>Import CSV</Button>}{hasPermission(PERMISSIONS.ADSREPORT_EXPORT)&&<Button onClick={exportReport} loading={exportBusy} disabled={!data||report.isError||report.isFetching}>Export XLSX</Button>}<Button onClick={refresh} loading={report.isFetching}>Refresh</Button></div>
         </div></Card>
         <Alert showIcon type="info" message="Advertising report data" description="Totals use the original report values. Currency groups are separate. Validate a CSV before confirming an import."/>
         {exportError&&<Alert type="error" showIcon message={exportError} closable onClose={()=>setExportError(null)}/>} 
@@ -129,7 +128,7 @@ export default function CanonicalAdsWorkspace(){
         {choices.truncated&&<Typography.Paragraph className="ads-filter-note" type="secondary">Filter options are capped; select a seller to narrow catalog choices.</Typography.Paragraph>}</Card>
         {report.isError?<Alert type="error" showIcon message={errorText(report.error)} action={<Button onClick={()=>report.refetch()}>Retry</Button>}/>:report.isPending?<Card><Spin/> Loading canonical report…</Card>:data&&<>
             <Typography.Text className="ads-period-note" type="secondary">Current: {data.period.startDate} to {data.period.endDate}. Previous: {data.period.prevStart} to {data.period.prevEnd}.</Typography.Text>
-            {data.empty?<Card className="ads-empty-card"><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No canonical advertising records in the selected dates.">{hasPermission(PERMISSIONS.ADSREPORT_IMPORT)&&<Button type="primary" onClick={()=>{setImportSeller(seller||null);setImportOpen(true);}}>Import a report</Button>}</Empty></Card>:<>
+            {data.empty?<Card className="ads-empty-card"><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No canonical advertising records in the selected dates.">{hasPermission(PERMISSIONS.ADSREPORT_IMPORT)&&<Button type="primary" onClick={()=>{setImportOpen(true);}}>Import a report</Button>}</Empty></Card>:<>
                 <div className="ads-summary-grid">{[...new Set([...data.current,...data.previous].map(s=>s.currency))].map(c=><div className="ads-summary-group" key={c}>
                     {data.current.find(s=>s.currency===c)?<Summary summary={data.current.find(s=>s.currency===c)} title="Current"/>:<Card size="small">No current {c} data</Card>}
                     {data.previous.find(s=>s.currency===c)?<Summary summary={data.previous.find(s=>s.currency===c)} title="Previous"/>:<Card size="small">No previous {c} data</Card>}
@@ -161,6 +160,6 @@ export default function CanonicalAdsWorkspace(){
                 {history.data.current.map(s=><Summary key={'cur'+s.currency} summary={s} title="Current"/>)}{history.data.previous.map(s=><Summary key={'prev'+s.currency} summary={s} title="Previous"/>)}<TrendTable series={history.data.series}/>
             </>}
         </Drawer>
-        {hasPermission(PERMISSIONS.ADSREPORT_IMPORT)&&<AdsImportModal isOpen={importOpen} onClose={()=>setImportOpen(false)} selectedSeller={importSeller} onComplete={imported}/>}
+        {hasPermission(PERMISSIONS.ADSREPORT_IMPORT)&&<AdsImportModal isOpen={importOpen} onClose={()=>setImportOpen(false)} onComplete={imported}/>}
     </div>;
 }

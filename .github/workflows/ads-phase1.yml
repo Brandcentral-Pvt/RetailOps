@@ -13,6 +13,8 @@ on:
       - 'backend/migrations/099_ads_import_jobs.js'
       - 'backend/migrations/101_ads_import_queue.js'
       - 'backend/migrations/102_ads_preview_queue.js'
+      - 'backend/migrations/103_ads_auto_ownership.js'
+      - 'backend/migrations/104_ads_import_error_retention.js'
       - 'backend/services/accessProfileService.js'
       - 'backend/testUtils/adsPhase2.*'
       - 'backend/server.js'
@@ -63,6 +65,10 @@ jobs:
           node --check backend/migrations/099_ads_import_jobs.js
           node --check backend/migrations/101_ads_import_queue.js
           node --check backend/migrations/102_ads_preview_queue.js
+          node --check backend/migrations/103_ads_auto_ownership.js
+          node --check backend/migrations/104_ads_import_error_retention.js
+          node --check backend/services/adsImportIssueChunks.js
+          node --check backend/services/adsOwnership.js
           node --check backend/services/adsPreviewParser.js
           node --check backend/services/adsImportWorker.js
           node --check backend/services/adsImportJobs.js
@@ -104,7 +110,7 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --prefix /tmp/ads-test-sql --ignore-scripts --no-audit --no-fund mssql@12.7.11
-      - run: node --test --test-concurrency=1 backend/testUtils/adsPhase1.sql.node.cjs backend/testUtils/adsPhase1.writer.sql.node.cjs backend/testUtils/adsPhase1.report.sql.node.cjs backend/testUtils/adsPhase2.jobs.sql.node.cjs backend/testUtils/adsPhase2.permissions.sql.node.cjs
+      - run: node --test --test-concurrency=1 backend/testUtils/adsPhase1.sql.node.cjs backend/testUtils/adsPhase1.writer.sql.node.cjs backend/testUtils/adsPhase1.report.sql.node.cjs backend/testUtils/adsPhase2.jobs.sql.node.cjs backend/testUtils/adsPhase2.permissions.sql.node.cjs backend/testUtils/adsPhase2.load.sql.node.cjs
         env:
           ADS_SQL_SMOKE: '1'
           ADS_TEST_SQL_PASSWORD: 'AdsDisposable#2026!'

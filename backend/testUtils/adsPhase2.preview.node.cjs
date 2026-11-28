@@ -28,3 +28,15 @@ for(const n of [100000,200000])test('isolated worker parses '+n+' synthetic data
   console.log('Synthetic preview',n,'rows',input.length,'bytes',Math.round(performance.now()-start),'ms; main-loop ticks',ticks);
  }finally{clearInterval(timer);}
 });
+
+test('worker streams every detected issue beyond 10,000 with bounded batch size',async()=>{
+ const cells=HEADERS.map(h=>h==='asin'?'B000000001':h==='date'?'2026-04-01':h==='metrics.spend'?'bad':'');
+ const input=Buffer.from(HEADERS.join(',')+'\n'+Array.from({length:10025},()=>cells.join(',')).join('\n')+'\n');
+ let seen=0,batches=0,last;
+ const r=await parseInWorker(input,{onIssueBatch:async issues=>{
+  assert.ok(issues.length>0&&issues.length<=1000);batches++;seen+=issues.length;last=issues.at(-1).row;
+  await new Promise(resolve=>setTimeout(resolve,1));
+ }});
+ assert.equal(r.issueCount,10025);assert.equal(seen,10025);assert.equal(batches,11);
+ assert.equal(r.issues.length,100);assert.equal(last,10026);assert.equal(r.summary.valid,false);
+});

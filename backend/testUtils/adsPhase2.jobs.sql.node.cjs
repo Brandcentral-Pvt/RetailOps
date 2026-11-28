@@ -4,6 +4,9 @@ const {up:factMigration}=require('../migrations/098_ads_product_daily_facts');
 const {up:jobMigration}=require('../migrations/099_ads_import_jobs');
 const {up:queueMigration}=require('../migrations/101_ads_import_queue');
 const {up:previewMigration}=require('../migrations/102_ads_preview_queue');
+const {up:ownershipMigration}=require('../migrations/103_ads_auto_ownership');
+const {up:errorMigration}=require('../migrations/104_ads_import_error_retention');
+const {sweepRetainedErrors}=require('../services/adsImportIssueChunks');
 const {claimNext,refreshLease,processNext}=require('../services/adsImportWorker');
 const {inspectAdsImportSchema,ensureAdsImportSchema}=require('../database/adsImportSchema');
 const {HEADERS}=require('../services/adsProductContract');
@@ -30,7 +33,7 @@ test('SQL durable Ads job lifecycle, scope, atomic confirmation, retries and exp
   await pool.request().query("INSERT dbo.AdsImportJobs(Id,OwnerId,SellerId,Marketplace,Currency,FileName,SourceFileSha256,Status,SummaryJson,IssuesJson,ExpiresAt) VALUES('old-history','u1','s1','amazon.in','INR','old.csv',REPLICATE('a',64),'CANCELLED',N'{}',N'[]',SYSUTCDATETIME());");
   assert.equal((await inspectAdsImportSchema(pool)).ready,false);
   assert.equal((await ensureAdsImportSchema({pool,apply:true})).ready,true);
-  await jobMigration(pool);await queueMigration(pool);await previewMigration(pool);await previewMigration(pool);
+  await jobMigration(pool);await queueMigration(pool);await previewMigration(pool);await previewMigration(pool);await ownershipMigration(pool);await errorMigration(pool);await errorMigration(pool);
   assert.equal((await inspectAdsImportSchema(pool)).ready,true);
   assert.equal((await pool.request().query("SELECT Status FROM dbo.AdsImportJobs WHERE Id='old-history';")).recordset[0].Status,'CANCELLED');
   await pool.request().query("DELETE dbo.AdsImportJobs WHERE Id='old-history';");
@@ -169,6 +172,71 @@ test('SQL durable Ads job lifecycle, scope, atomic confirmation, retries and exp
   const readyOnly=await listJobs({...ctx,status:'READY'});assert.equal(readyOnly.total,0);
   const leaks=await pool.request().query("SELECT COUNT(*) AS n FROM dbo.AdsProductDailyFacts WHERE [Date]>='2026-04-11';");
   assert.equal(leaks.recordset[0].n,0);
+  // New public mode resolves owners globally and commits all sellers atomically.
+  await pool.request().query("INSERT dbo.Asins VALUES('B000000003','s1'),('B000000004','s2'); INSERT dbo.UserSellers VALUES('u1','s2');");
+  const multi={...ctx,user:{...user,assignedSellers:['s1','s2']}};
+  const auto=async(rows,actor=multi)=>{
+   const q=await createPreview({...actor,input:csv(rows),fileName:'auto.csv'});assert.equal(q.sellerId,null);assert.equal(q.status,'PREVIEW_QUEUED');
+   await validateNext();return getJob({...actor,id:q.id});
+  };
+  const rowsAuto=[{...row,asin:'B000000003',date:'2026-05-01'},{...row,asin:'B000000004',date:'2026-05-01'}];
+  const mixed=await auto(rowsAuto);assert.equal(mixed.status,'READY');assert.equal(mixed.summary.sellerBreakdown.length,2);assert.equal(mixed.currency,'INR');
+  assert.equal(await getJob({...ctx,id:mixed.id}),null);assert.equal((await listJobs({...multi,sellerId:'s2',status:'READY'})).total,1);
+  await confirmJob({...multi,id:mixed.id});await work();const all=await getJob({...multi,id:mixed.id});
+  assert.equal(all.status,'COMPLETED');assert.equal(all.result.inserted,2);assert.equal(all.result.sellerBreakdown.length,2);assert.equal(all.result.sellerId,null);
+  const storedAuto=await pool.request().query("SELECT SellerId,SourceRowNumber,CONVERT(varchar(80),AdSpend) AS spend FROM dbo.AdsProductDailyFacts WHERE [Date]='2026-05-01' ORDER BY SellerId");
+  assert.deepEqual(storedAuto.recordset.map(r=>[r.SellerId,r.SourceRowNumber,Number(r.spend)]),[['s1',2,10.25],['s2',3,10.25]]);
+  const again=await auto(rowsAuto);await confirmJob({...multi,id:again.id});await work();assert.equal((await getJob({...multi,id:again.id})).result.unchanged,2);
+  const ambiguous=await auto([{...row,date:'2026-05-02'}]);assert.equal(ambiguous.status,'REJECTED');assert.equal(ambiguous.summary.issues[0].code,'catalog_mapping_ambiguous');
+  const missing=await auto([{...row,asin:'B000000099'}]);assert.equal(missing.status,'REJECTED');assert.equal(missing.summary.issues[0].code,'catalog_mapping_missing');
+  await pool.request().query("DELETE FROM dbo.UserSellers WHERE SellerId='s2';");
+  const foreignAuto=await auto([{...row,asin:'B000000004'}],ctx);assert.equal(foreignAuto.status,'REJECTED');assert.equal(foreignAuto.summary.issues[0].code,'catalog_mapping_forbidden');
+  await pool.request().query("INSERT dbo.UserSellers VALUES('u1','s2');");
+  const changed=await auto(rowsAuto.map(r=>({...r,date:'2026-05-02'})));await confirmJob({...multi,id:changed.id});
+  await pool.request().query("UPDATE dbo.Asins SET SellerId='s2' WHERE AsinCode='B000000003';");await work();
+  assert.equal((await getJob({...multi,id:changed.id})).result.code,'ownership_changed');
+  assert.equal((await pool.request().query("SELECT COUNT(*) AS n FROM dbo.AdsProductDailyFacts WHERE [Date]='2026-05-02'")).recordset[0].n,0);
+  await pool.request().query("UPDATE dbo.Asins SET SellerId='s1' WHERE AsinCode='B000000003';");
+  const conflictAuto=await auto([{...rowsAuto[0],date:'2026-05-03'},{...rowsAuto[1],'metrics.spend':'999'}]);await confirmJob({...multi,id:conflictAuto.id});await work();
+  assert.equal((await getJob({...multi,id:conflictAuto.id})).status,'FAILED');
+  assert.equal((await pool.request().query("SELECT COUNT(*) AS n FROM dbo.AdsProductDailyFacts WHERE [Date]='2026-05-03'")).recordset[0].n,0);
+  // Full error reports exceed the previous retention cap without keeping the
+  // entire issue array in the job payload or leaking partial failed attempts.
+  const many=await auto(Array.from({length:10025},()=>({...row,'metrics.spend':'bad'})));
+  assert.equal(many.status,'REJECTED');assert.equal(many.summary.issueCount,10025);
+  assert.equal(many.summary.storedIssueCount,10025);assert.equal(many.summary.issues.length,100);assert.equal(many.summary.issueReportTruncated,false);
+  const manyReport=await getIssues({...multi,id:many.id});assert.equal(manyReport.issueCount,10025);assert.equal(manyReport.issues.length,100);
+  let errorCount=0,lastRow;
+  for await(const e of manyReport.iterateIssues()){errorCount++;lastRow=e.row;}
+  assert.equal(errorCount,10025);assert.equal(lastRow,10026);
+  const retained=await pool.request().input('id',sql.VarChar(50),many.id).query("SELECT COUNT(*) AS chunks,SUM(IssueCount) AS issues FROM dbo.AdsImportIssueChunks WHERE JobId=@id;");
+  assert.equal(retained.recordset[0].chunks,11);assert.equal(retained.recordset[0].issues,10025);
+  await pool.request().input('id',sql.VarChar(50),many.id).query("UPDATE dbo.AdsImportJobs SET CompletedAt=DATEADD(day,-91,SYSUTCDATETIME()) WHERE Id=@id; UPDATE dbo.AdsImportIssueChunks SET CreatedAt=DATEADD(day,-91,SYSUTCDATETIME()) WHERE JobId=@id;");
+  await sweepRetainedErrors(pool);
+  const purged=await getJob({...multi,id:many.id});assert.equal(purged.errorReportExpired,true);assert.equal(purged.summary.issueCount,10025);
+  await assert.rejects(()=>getIssues({...multi,id:many.id}),{code:'issue_report_expired'});
+  assert.equal((await pool.request().input('id',sql.VarChar(50),many.id).query("SELECT COUNT(*) AS n FROM dbo.AdsImportIssueChunks WHERE JobId=@id;")).recordset[0].n,0);
+  // Unconfirmed uploads can expire; confirmed queued jobs must never expire
+  // merely because their original preview window has elapsed.
+  const originalContext=process.env.ADS_SELLER_CONTEXT_JSON;
+  try{
+   await pool.request().query("UPDATE dbo.Sellers SET Marketplace='amazon.com' WHERE Id='s2';");
+   process.env.ADS_SELLER_CONTEXT_JSON=JSON.stringify({s2:{catalogMarketplace:'amazon.com',marketplace:'amazon.com',currency:'USD'}});
+   const mixedCurrency=await auto(rowsAuto.map(r=>({...r,date:'2026-05-06'})));
+   assert.equal(mixedCurrency.status,'REJECTED');assert.equal(mixedCurrency.summary.issues.at(-1).code,'mixed_currency_report');
+   assert.equal(mixedCurrency.summary.totals,null);
+  }finally{
+   await pool.request().query("UPDATE dbo.Sellers SET Marketplace='amazon.in' WHERE Id='s2';");
+   if(originalContext===undefined)delete process.env.ADS_SELLER_CONTEXT_JSON;else process.env.ADS_SELLER_CONTEXT_JSON=originalContext;
+  }
+  const waiting=await createPreview({...multi,input:csv(rowsAuto),fileName:'waiting.csv'});
+  await pool.request().input('id',sql.VarChar(50),waiting.id).query("UPDATE dbo.AdsImportJobs SET ExpiresAt=DATEADD(second,-1,SYSUTCDATETIME()) WHERE Id=@id;");
+  await expireJobs(pool);assert.equal((await getJob({...multi,id:waiting.id})).status,'EXPIRED');assert.equal(await validateNext(),false);
+  // Historical facts cannot be silently moved to a newly mapped seller.
+  await pool.request().query("UPDATE dbo.Asins SET SellerId='s2' WHERE AsinCode='B000000003';");
+  const transfer=await auto([rowsAuto[0]]);await confirmJob({...multi,id:transfer.id});await work();
+  assert.equal((await getJob({...multi,id:transfer.id})).result.code,'historical_owner_conflict');
+  await pool.request().query("UPDATE dbo.Asins SET SellerId='s1' WHERE AsinCode='B000000003';");
 
  }finally{if(prior===undefined)delete process.env.ADS_CANONICAL_IMPORT_ENABLED;else process.env.ADS_CANONICAL_IMPORT_ENABLED=prior;if(pool)await pool.close();await admin.request().query('ALTER DATABASE ['+database+'] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE ['+database+'];').catch(()=>{});await admin.close();}
 });
