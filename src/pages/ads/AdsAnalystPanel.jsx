@@ -30,7 +30,8 @@ export default function AdsAnalystPanel({filters,onOpen}){
  </Card>
  {error&&<Alert type="error" showIcon message={error}/>}
  {data&&<>
-  <Alert showIcon type={data.mode==='ai_ranked'?'success':'info'} message={data.mode==='ai_ranked'?'AI-prioritized verified findings':'Deterministic evidence review'} description={data.reason==='provider_unavailable_or_invalid'?'AI provider unavailable or response invalid. Verified findings are shown instead.':data.reason==='ai_disabled'?'AI ranking is disabled on the server.':undefined}/>
+  <Typography.Paragraph type="secondary">Report period: {data.period.startDate} to {data.period.endDate} · Generated: {new Date(data.generatedAt).toLocaleString()}</Typography.Paragraph>
+  <Alert showIcon type={data.mode==='ai_ranked'?'success':'info'} message={data.mode==='ai_ranked'?'AI-prioritized verified findings':'Deterministic evidence review'} description={data.reason==='provider_unavailable_or_invalid'?'AI provider unavailable or response invalid. Verified findings are shown instead.':data.reason==='ai_disabled'?'AI ranking is disabled on the server.':data.reason==='usage_control_unavailable'?'Distributed usage control is unavailable. Verified findings are shown instead.':undefined}/>
   <Card size="small" title="Prioritized action plan">
    {data.recommendations.length===0?<Empty description={data.empty?'No stored advertising evidence in this scope':'No matching review findings'}/>:data.recommendations.map((f,i)=><Card key={f.id} size="small" style={{marginBottom:12}} title={String(i+1)+'. '+(f.label||name(f.code))}>
     <Typography.Paragraph>{f.action}</Typography.Paragraph>
