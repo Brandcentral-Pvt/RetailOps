@@ -154,6 +154,20 @@ test('Dashboard SQL: seller ownership, duplicate catalog protection, exact cents
    assert.equal(optionResponse.success,true);
    assert.deepEqual(optionResponse.data.sellers.map(s=>s.id),['s1']);
    assert.deepEqual(optionResponse.data.managers.map(m=>m.id),['m1']);
+   // Portfolio denominator must include products outside the top 200 UI list.
+   await pool.request().query(`
+   ;WITH n AS (SELECT TOP (205) ROW_NUMBER() OVER(ORDER BY a.object_id,b.object_id) AS i FROM sys.all_objects a CROSS JOIN sys.all_objects b)
+   INSERT dbo.Asins(Id,AsinCode,SellerId,Title,Status)
+   SELECT 'pareto-'+CONVERT(varchar(10),i),'P'+RIGHT('000000000'+CONVERT(varchar(10),i),9),'s1','Portfolio product','Active' FROM n;
+   INSERT dbo.GmsDailyPerformance(Id,Asin,SellerId,[Date],OrderedRevenue,OrderedUnits,ShippedRevenue,CustomerReturns)
+   SELECT 'fact-'+Id,AsinCode,'s1','2026-04-01',1,1,1,0 FROM dbo.Asins WHERE Id LIKE 'pareto-%';
+   `);
+   const fullPortfolio=await request(manager,{mode:'products'});
+   assert.equal(fullPortfolio.tableData.length,200);
+   assert.equal(fullPortfolio.portfolio.positiveProducts,206);
+   assert.equal(fullPortfolio.portfolio.positiveRevenue,305.03);
+   assert.equal(fullPortfolio.portfolio.headProducts,145);
+   assert.equal(fullPortfolio.portfolio.tailProducts,61);
    await pool.request().query("DELETE FROM dbo.UserSellers WHERE UserId='m1'");
    assert.equal((await request(adminUser,{managerId:'m1'})).scope.empty,true);
   }finally{if(previous)require.cache[dbPath]=previous;else delete require.cache[dbPath];}
