@@ -1,7 +1,8 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {HEADERS,validateReport,validDate,numberText}=require('../services/adsProductContract');
+const {HEADERS,validateReport,replayValidatedRows,validDate,numberText}=require('../services/adsProductContract');
+const {createHash}=require('node:crypto');
 const contract=require('../contracts/ads-product-daily-v1.json');
 const quote=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
 const csv=(rows,headers=HEADERS)=>Buffer.from('\uFEFF'+headers.map(quote).join(',')+'\r\n'+rows.map(r=>headers.map(h=>quote(r[h])).join(',')).join('\r\n')+'\r\n');
@@ -46,4 +47,34 @@ test('signed precision, valid calendar and overflow checks',()=>{
  assert.equal(numberText('-000.1200',false),'-0.12');assert.equal(numberText('0.000',false),'0');
  assert.equal(numberText('-1',true),'-1');assert.throws(()=>numberText('9223372036854775808',true));
  assert.throws(()=>numberText('1.12345678901',false));assert.equal(validDate('2024-02-29'),true);assert.equal(validDate('2026-02-29'),false);
+});
+
+test('interspersed blank spreadsheet records are skipped in validation and replay',()=>{
+ const record=r=>HEADERS.map(h=>quote(r[h])).join(',');
+ const bare='',commas=','.repeat(62),quoted=HEADERS.map(()=>quote('')).join(','),whitespace=HEADERS.map(()=>quote(' \t ')).join(',');
+ const lines=[HEADERS.map(quote).join(','),bare,record(sample),commas,quoted,whitespace,record({...sample,date:'2026-04-02'}),',,','   '];
+ const input=Buffer.from('\uFEFF'+lines.join('\r\n'));
+ const r=validateReport(input);
+ assert.equal(r.valid,true);assert.equal(r.rows,2);assert.equal(r.sourceRecords,8);assert.equal(r.skippedBlankRows,6);
+ assert.equal(r.validRows,2);assert.equal(r.invalidRows,0);assert.equal(r.issueCount,0);
+ assert.equal(r.totals['metrics.spend'],'20.5');assert.equal(r.coverage.asin.populated,2);
+ assert.equal(r.sourceFileSha256,createHash('sha256').update(input).digest('hex'));
+ const replay=[...replayValidatedRows(input,r.sourceFileSha256)];
+ assert.deepEqual(replay.map(x=>x[0]),[3,7]);assert.equal(replay.length,2);
+ assert.equal(replay[1][HEADERS.indexOf('date')+1],'2026-04-02');
+});
+test('partial records and zeros are still validated at their original record numbers',()=>{
+ const record=r=>HEADERS.map(h=>quote(r[h])).join(',');
+ const input=Buffer.from([HEADERS.join(','),record(sample),'',record({'metrics.spend':'0'}),record({sku:'None'}),',,',record({asin:'B000000001'}),'',record({date:'2026-04-02'}),'value,',''].join('\n'));
+ const r=validateReport(input);
+ assert.equal(r.valid,false);assert.equal(r.rows,6);assert.equal(r.skippedBlankRows,3);assert.equal(r.validRows,1);assert.equal(r.invalidRows,5);
+ assert.deepEqual(r.issues.map(i=>[i.row,i.code]),[[4,'invalid_asin'],[4,'invalid_date'],[5,'invalid_asin'],[5,'invalid_date'],[7,'invalid_date'],[9,'invalid_asin'],[10,'row_width']]);
+});
+test('all-blank data is rejected as no_data; header validation and duplicate rules are unchanged',()=>{
+ const input=Buffer.from(HEADERS.join(',')+'\n'+','.repeat(62)+'\n\n'+HEADERS.map(()=>quote(' ')).join(',')+'\n');
+ const r=validateReport(input);
+ assert.equal(r.valid,false);assert.equal(r.rows,0);assert.equal(r.skippedBlankRows,3);assert.equal(r.issueCount,1);assert.equal(r.issues[0].code,'no_data');
+ const duplicates=validateReport(csv([sample,{},sample]));
+ assert.equal(duplicates.valid,false);assert.equal(duplicates.skippedBlankRows,1);assert.equal(duplicates.exactDuplicates,1);assert.equal(duplicates.issues[0].row,4);
+ assert.throws(()=>validateReport(Buffer.from('\n'+HEADERS.join(',')+'\n')),{code:'invalid_header'});
 });

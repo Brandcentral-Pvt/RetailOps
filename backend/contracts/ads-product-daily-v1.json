@@ -692,5 +692,6 @@
     "decimalType": "decimal(28,10)",
     "integerType": "bigint",
     "state": "canonical schema; ingestion activation pending"
-  }
+  },
+  "blankRowPolicy": "After the exact header, ignore logical CSV records whose decoded cells are all empty or whitespace, regardless of field count. Never ignore a nonblank placeholder, numeric zero or a partial record. Count nonempty records as rows and report skippedBlankRows separately. Keep original logical record numbers and exact source byte hash. Reject files with no data records."
 }
