@@ -86,9 +86,12 @@ async function writeCompleteWorkbook({filePath,report,rawCount,rawRows,entityRow
  const cancel=()=>stream.destroy(new Error('Export interrupted'));
  signal?.addEventListener('abort',cancel,{once:true});
  const check=()=>{abort(signal);if(streamError)throw streamError;};
- const book=createStreamingWorkbook({stream,useStyles:true,useSharedStrings:false});
- const table=(name,headers,count,freeze)=>sheetWriter(book,expectedSheets,{name,headers,count,freeze});
+ // The file may still be opening when an early row-count error occurs.
+ // Wait for its close before unlinking; otherwise a late open can recreate it.
+ const closed=new Promise(resolve=>stream.once('close',resolve));
  try{
+  const book=createStreamingWorkbook({stream,useStyles:true,useSharedStrings:false});
+  const table=(name,headers,count,freeze)=>sheetWriter(book,expectedSheets,{name,headers,count,freeze});
   const scope=[
    ['Report','Ads Intelligence | Complete stored report'],['Source','canonical_v1 / normalized persisted facts'],['Current start',report.period.startDate],['Current end',report.period.endDate],['Previous start',report.period.prevStart],['Previous end',report.period.prevEnd],
    ['Grouping',report.groupBy],['Granularity',report.granularity],['Complete entities',cell(report.total,'integer')],['Complete daily records (both windows)',cell(rawCount,'integer')],
@@ -141,7 +144,7 @@ async function writeCompleteWorkbook({filePath,report,rawCount,rawRows,entityRow
   for(const row of dict)w.add(row);w.finish();
   check();await Promise.race([book.commit(),failure]);await finished(stream,{cleanup:true});check();
   return {expectedSheets,rawCount,entityCount};
- }catch(e){if(!stream.destroyed)stream.destroy();await fs.unlink(filePath).catch(()=>{});throw e;}
+ }catch(e){if(!stream.destroyed)stream.destroy();await closed;await fs.unlink(filePath).catch(()=>{});throw e;}
  finally{signal?.removeEventListener('abort',cancel);}
 }
 module.exports={writeCompleteWorkbook,rawValues,RAW_META,compareCells,FORMAT};
