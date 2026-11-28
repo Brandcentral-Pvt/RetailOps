@@ -1,4 +1,5 @@
 'use strict';
+const {isAdsSchemaError,sendAdsSchemaUnavailable}=require('../database/adsSchema');
 const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path');
 const {getPool,sql}=require('../database/db');
 const {parseReport,readCanonicalReport}=require('../services/adsCanonicalReport');
@@ -29,6 +30,7 @@ async function download(req,res){
     });
   }catch(e){
     if(e instanceof AdsScopeError)return res.status(e.status).json({success:false,code:e.code,message:e.message});
+    if(isAdsSchemaError(e))return sendAdsSchemaUnavailable(res);
     console.error('[canonical ads export]',e.message);
     if(!res.headersSent)return res.status(503).json({success:false,code:'export_failed',message:'Advertising export could not be generated.'});
   }finally{

@@ -38,6 +38,8 @@ COPY backend/emails/ ./backend/emails/
 COPY backend/utils/ ./backend/utils/
 COPY backend/validation/ ./backend/validation/
 COPY backend/config/ ./backend/config/
+COPY backend/contracts/ ./backend/contracts/
+COPY backend/scripts/ ./backend/scripts/
 COPY backend/database/ ./backend/database/
 COPY backend/jobs/ ./backend/jobs/
 COPY backend/public/ ./backend/public/

@@ -1,4 +1,5 @@
 'use strict';
+const {isAdsSchemaError,sendAdsSchemaUnavailable}=require('../database/adsSchema');
 const fs = require('node:fs/promises');
 const { getPool,sql } = require('../database/db');
 const { validateReport,replayValidatedRows,AdsValidationError } = require('../services/adsProductContract');
@@ -18,7 +19,7 @@ async function listSellers(req,res) {
     const result=await request.query('SELECT Id,Name,Marketplace FROM dbo.Sellers'+
       (scope.unrestricted?'':' WHERE Id IN (SELECT [value] FROM OPENJSON(@ids))')+' ORDER BY Name,Id');
     return res.json({success:true,data:result.recordset.map(s=>({id:s.Id,name:s.Name,marketplace:s.Marketplace,context:resolveContext(s)}))});
-  } catch { return error(res,503,'seller_options_unavailable','Seller options are unavailable. Retry later.'); }
+  } catch(e) { if(isAdsSchemaError(e))return sendAdsSchemaUnavailable(res);return error(res,503,'seller_options_unavailable','Seller options are unavailable. Retry later.'); }
 }
 async function validate(req,res) {
   const file=req.file;
@@ -51,6 +52,7 @@ async function validate(req,res) {
       data:{...report,valid,sellerId,...context,persisted:false,invalidCatalogKeys:invalidKeys,importsEnabled:importsEnabled(),confirmationToken}});
   } catch(e) {
     if(e instanceof AdsScopeError)return error(res,e.status,e.code,e.message);
+    if(isAdsSchemaError(e))return sendAdsSchemaUnavailable(res);
     if (e instanceof AdsValidationError) return error(res,422,e.code,e.message,{row:e.row,column:e.column});
     return error(res,503,'validation_unavailable','Report validation is unavailable. No data was imported.');
   } finally {
@@ -76,6 +78,7 @@ async function confirm(req,res){
       sourceFileSha256:data.sourceFileSha256,startDate:data.report.startDate,endDate:data.report.endDate,totals:data.report.totals,persisted:true}});
   }catch(e){
     if(e instanceof AdsScopeError)return error(res,e.status,e.code,e.message);
+    if(isAdsSchemaError(e))return sendAdsSchemaUnavailable(res);
     if(e instanceof AdsValidationError)return error(res,422,e.code,e.message,{row:e.row,column:e.column});
     if(e instanceof AdsIngestionError)return error(res,409,e.code,e.message,{details:e.details});
     console.error('[ads canonical import]',e.message);

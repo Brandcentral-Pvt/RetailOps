@@ -32,7 +32,7 @@ const AdsImportModal = ({ isOpen, onClose, selectedSeller, onComplete }) => {
         try {
             const form=new FormData();
             form.append('sellerId',sellerId);form.append('reportType','daily');form.append('file',file);
-            const res=await apiClient.post('/upload/ads-validate',form,{timeout:120000});
+            const res=await apiClient.post('/upload/ads-validate',form,{timeout:120000,headers:{'Content-Type':undefined}});
             setResult(res.data?.data||null);
             if (!res.data?.success) setError(res.data?.message||'Validation failed.');
         } catch(e) {
@@ -45,7 +45,7 @@ const AdsImportModal = ({ isOpen, onClose, selectedSeller, onComplete }) => {
         setBusy(true);setError(null);
         try{
             const form=new FormData();form.append('sellerId',sellerId);form.append('reportType','daily');form.append('confirmationToken',result.confirmationToken);form.append('file',file);
-            const res=await apiClient.post('/upload/ads-confirm',form,{timeout:300000});
+            const res=await apiClient.post('/upload/ads-confirm',form,{timeout:300000,headers:{'Content-Type':undefined}});
             if(!res.data?.success||!res.data?.data?.persisted)throw Error('The import was not confirmed.');
             setCommitted(res.data.data);onComplete?.(res.data.data);
         }catch(e){setError(e.response?.data?.message||'Import outcome unavailable. Revalidate and replay the same file safely.');setResult(null);}

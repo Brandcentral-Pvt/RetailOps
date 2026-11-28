@@ -3,6 +3,7 @@
 const test=require('node:test'), assert=require('node:assert/strict');
 const {up}=require('../migrations/098_ads_product_daily_facts');
 const contract=require('../contracts/ads-product-daily-v1.json');
+const {ensureAdsSchema,inspectAdsSchema}=require('../database/adsSchema');
 test('real SQL: additive schema, all 63 columns, owner-aware keys, nullable source values, repeat migration', {skip:process.env.ADS_SQL_SMOKE!=='1'},async()=>{
  const sql=require(process.env.ADS_TEST_MSSQL_MODULE||'mssql');
  const config={server:'127.0.0.1',user:'sa',password:process.env.ADS_TEST_SQL_PASSWORD,options:{trustServerCertificate:true,encrypt:false}};
@@ -14,7 +15,10 @@ test('real SQL: additive schema, all 63 columns, owner-aware keys, nullable sour
   await admin.request().query('CREATE DATABASE ['+database+']');
   pool=await new sql.ConnectionPool({...config,database}).connect();
   await pool.request().query("CREATE TABLE dbo.Sellers (Id varchar(50) PRIMARY KEY); INSERT dbo.Sellers VALUES ('s1'),('s2'); CREATE TABLE dbo.AdsPerformance (Id int PRIMARY KEY); INSERT dbo.AdsPerformance VALUES (42);");
+  assert.equal((await ensureAdsSchema({pool,apply:false})).ready,false);
+  assert.equal((await ensureAdsSchema({pool,apply:true})).ready,true);
   await up(pool);await up(pool);
+  assert.equal((await inspectAdsSchema(pool)).ready,true);
   const columns=await pool.request().query("SELECT name FROM sys.columns WHERE object_id=OBJECT_ID('dbo.AdsProductDailyFacts')");
   const names=new Set(columns.recordset.map(r=>r.name));
   for(const f of contract.fields)assert.ok(names.has(f.canonicalColumn),f.header);
