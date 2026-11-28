@@ -218,6 +218,17 @@ test('SQL durable Ads job lifecycle, scope, atomic confirmation, retries and exp
   assert.equal((await pool.request().input('id',sql.VarChar(50),many.id).query("SELECT COUNT(*) AS n FROM dbo.AdsImportIssueChunks WHERE JobId=@id;")).recordset[0].n,0);
   // Unconfirmed uploads can expire; confirmed queued jobs must never expire
   // merely because their original preview window has elapsed.
+  const originalContext=process.env.ADS_SELLER_CONTEXT_JSON;
+  try{
+   await pool.request().query("UPDATE dbo.Sellers SET Marketplace='amazon.com' WHERE Id='s2';");
+   process.env.ADS_SELLER_CONTEXT_JSON=JSON.stringify({s2:{catalogMarketplace:'amazon.com',marketplace:'amazon.com',currency:'USD'}});
+   const mixedCurrency=await auto(rowsAuto.map(r=>({...r,date:'2026-05-06'})));
+   assert.equal(mixedCurrency.status,'REJECTED');assert.equal(mixedCurrency.summary.issues.at(-1).code,'mixed_currency_report');
+   assert.equal(mixedCurrency.summary.totals,null);
+  }finally{
+   await pool.request().query("UPDATE dbo.Sellers SET Marketplace='amazon.in' WHERE Id='s2';");
+   if(originalContext===undefined)delete process.env.ADS_SELLER_CONTEXT_JSON;else process.env.ADS_SELLER_CONTEXT_JSON=originalContext;
+  }
   const waiting=await createPreview({...multi,input:csv(rowsAuto),fileName:'waiting.csv'});
   await pool.request().input('id',sql.VarChar(50),waiting.id).query("UPDATE dbo.AdsImportJobs SET ExpiresAt=DATEADD(second,-1,SYSUTCDATETIME()) WHERE Id=@id;");
   await expireJobs(pool);assert.equal((await getJob({...multi,id:waiting.id})).status,'EXPIRED');assert.equal(await validateNext(),false);

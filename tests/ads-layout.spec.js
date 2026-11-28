@@ -166,7 +166,9 @@ test('background validation can be reopened and becomes ready without reupload',
  await page.getByRole('button',{name:'Import CSV',exact:true}).click();
  const dialog=page.getByRole('dialog');
  await dialog.getByRole('tab',{name:'Import history'}).click();
- const search=dialog.getByRole('textbox',{name:'Search import history'});
+ const search=dialog.locator('#ads-history-search');
+ await expect(search).toBeVisible();
+ await expect(search).toHaveAttribute('aria-label','Search import history');
  await search.fill('preview');await search.press('Enter');
  await expect.poll(()=>lastQuery?.get('search')).toBe('preview');
  await dialog.getByRole('button',{name:'Open',exact:true}).click();

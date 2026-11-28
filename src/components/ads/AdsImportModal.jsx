@@ -156,7 +156,8 @@ export default function AdsImportModal({isOpen,onClose,onComplete}){
  const historyContent=<Space direction="vertical" style={{width:'100%'}}>
   <Alert type="info" showIcon message="Your import history" description="Open a saved preview to confirm or cancel. Only jobs you created for sellers you can access are shown."/>
   <Space wrap>
-   <Input.Search aria-label="Search import history" placeholder="Filename or job ID" maxLength={120} allowClear value={historySearch} onChange={e=>{setHistorySearch(e.target.value);if(!e.target.value)applyHistoryFilters({...historyFilters,search:undefined});}} onSearch={value=>applyHistoryFilters({...historyFilters,search:value.trim()||undefined})} style={{width:210}}/>
+   <Input id="ads-history-search" aria-label="Search import history" placeholder="Filename or job ID" maxLength={120} allowClear value={historySearch} onChange={e=>{setHistorySearch(e.target.value);if(!e.target.value)applyHistoryFilters({...historyFilters,search:undefined});}} onPressEnter={()=>applyHistoryFilters({...historyFilters,search:historySearch.trim()||undefined})} style={{width:210}}/>
+   <Button onClick={()=>applyHistoryFilters({...historyFilters,search:historySearch.trim()||undefined})} disabled={historyLoading}>Search</Button>
    <Select aria-label="Import status" placeholder="All statuses" allowClear value={historyFilters.status} onChange={status=>applyHistoryFilters({...historyFilters,status})} options={historyStatuses.map(value=>({value,label:value.replaceAll('_',' ')}))} style={{width:160}}/>
    <Select aria-label="Import history seller" placeholder="All sellers" allowClear showSearch optionFilterProp="label" value={historyFilters.sellerId} onChange={sellerId=>applyHistoryFilters({...historyFilters,sellerId})} options={sellers.map(v=>({value:v.id,label:v.name}))} style={{width:185}}/>
    <Button icon={<ReloadOutlined/>} onClick={()=>loadHistory(history.page)} loading={historyLoading}>Refresh history</Button>
