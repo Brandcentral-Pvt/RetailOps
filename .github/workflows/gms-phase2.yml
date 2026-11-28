@@ -23,6 +23,7 @@ on:
       - 'backend/migrations/093_gms_import_issue_reports.js'
       - 'backend/migrations/094_gms_analytics_date_index.js'
       - 'backend/migrations/095_gms_report_product_title.js'
+      - 'backend/migrations/096_gms_report_revision.js'
       - 'backend/utils/gmsPhase1.js'
       - 'backend/__tests__/**/gmsPhase*.test.js'
       - 'src/components/gms/**'
@@ -70,6 +71,8 @@ jobs:
           node --check services/gmsAnalyticsService.js
           node --check services/gmsAnalyticsPageService.js
           node --check services/gmsAnalyticsFilters.js
+          node --check services/gmsAnalyticsReportCache.js
+          node --check migrations/096_gms_report_revision.js
           node --check services/gmsExportWriter.js
           node --check services/streamingWorkbook.js
           node --check services/exportFileIntegrity.js
@@ -90,7 +93,7 @@ jobs:
           node --check scripts/repairGmsSchema.js
       - name: Validation and route security regression
         working-directory: backend
-        run: npm test -- --runInBand __tests__/unit/gmsPhase2Ingestion.test.js __tests__/unit/gmsPhase3Analytics.test.js __tests__/unit/gmsPhase4Scalability.test.js __tests__/unit/gmsPhase4CompleteExport.test.js __tests__/unit/gmsPhase4ExportIntegrity.test.js __tests__/routes/gmsPhase1.test.js
+        run: npm test -- --runInBand __tests__/unit/gmsPhase2Ingestion.test.js __tests__/unit/gmsPhase3Analytics.test.js __tests__/unit/gmsPhase4Scalability.test.js __tests__/unit/gmsPhase4ReportCache.test.js __tests__/unit/gmsPhase4CompleteExport.test.js __tests__/unit/gmsPhase4ExportIntegrity.test.js __tests__/routes/gmsPhase1.test.js
   sql:
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -107,6 +110,15 @@ jobs:
           MSSQL_SA_PASSWORD: 'GmsDisposable#2026!'
         ports:
           - 1433:1433
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -123,6 +135,9 @@ jobs:
         env:
           GMS_SQLSERVER_SMOKE: '1'
           GMS_SQL_SCALE_ROWS: ${{ matrix.scale_rows }}
+          GMS_TEST_REDIS: '1'
+          REDIS_URL: 'redis://127.0.0.1:6379'
+          CACHE_PREFIX: 'gms-disposable-ci:'
           GMS_TEST_SQLSERVER_HOST: '127.0.0.1'
           GMS_TEST_SQLSERVER_PASSWORD: 'GmsDisposable#2026!'
           GMS_TEST_MSSQL_MODULE: '/tmp/gms-test-sql/node_modules/mssql'

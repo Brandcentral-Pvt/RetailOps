@@ -121,7 +121,7 @@ export default function GmsTrackerPage(){
     return entry.promise;
   },[authLoading,userKey]);
 
-  const load=useCallback(async({refreshMetadata=false}={})=>{
+  const load=useCallback(async({refreshMetadata=false,forceFresh=false}={})=>{
     if(!mounted.current||authLoading||!userKey)return false;
     abortRef.current?.abort();
     const controller=new AbortController(),requestId=++sequence.current;
@@ -140,7 +140,7 @@ export default function GmsTrackerPage(){
         if(!data?.managerOK)throw new Error('Manager assignments are unavailable. Refresh filter options or clear the manager filter.');
         managers=data.managers;
       }
-      const result=await gmsApi.analytics({startDate:from,endDate:to,sellerIds:selectedSellerIds(selectedSellers,selectedManagers,managers),search:debouncedSearch,level,page,pageSize,sort:{key:sortKey,direction:sortDirection}},{signal:controller.signal});
+      const result=await gmsApi.analytics({startDate:from,endDate:to,sellerIds:selectedSellerIds(selectedSellers,selectedManagers,managers),search:debouncedSearch,level,page,pageSize,sort:{key:sortKey,direction:sortDirection},refresh:refreshMetadata||forceFresh},{signal:controller.signal});
       if(!current())return false;
       if(!result?.success||!Array.isArray(result.data?.matrixRows)||!result.data?.meta||!result.data?.pagination)throw new Error(result?.message||'Invalid GMS analytics response.');
       setStored({data:result.data,filterKey,requestKey});setLastLoadedAt(Date.now());
@@ -202,7 +202,7 @@ export default function GmsTrackerPage(){
           {!reportLoading&&<GmsComparisonTable analytics={analytics}/>}</div>}
       ]}/>
     </>}
-    {can('gms_tracker_import')&&<GmsImportDialog open={importOpen} initialTab={importTab} onClose={()=>setImportOpen(false)} onCommitted={()=>latestLoad.current()}/>}
+    {can('gms_tracker_import')&&<GmsImportDialog open={importOpen} initialTab={importTab} onClose={()=>setImportOpen(false)} onCommitted={()=>latestLoad.current({forceFresh:true})}/>}
     {can('gms_tracker_export')&&<GmsExportDialog open={exportOpen} onClose={()=>setExportOpen(false)} onSubmit={submitExport}
       level={level} startDate={startDate} endDate={endDate} sellerOptions={sellerOptions} currentFilterCount={selectedSellers.length+selectedManagers.length+(search.trim()?1:0)}
       currentSellerIds={currentSellerIds} search={search} disabled={loading||!!error}/>}

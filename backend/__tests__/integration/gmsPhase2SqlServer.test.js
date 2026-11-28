@@ -36,6 +36,9 @@ const { buildCompleteExport }=require('../../services/gmsCompleteExport');
 const { writeGmsExport }=require('../../services/gmsExportWriter');
 const XLSX=require('xlsx');
 const { loadPagedAnalytics } = require('../../services/gmsAnalyticsPageService');
+const { createReportLoader,readReportRevision }=require('../../services/gmsAnalyticsReportCache');
+const revisionMigration=require('../../migrations/096_gms_report_revision');
+const redisCache=require('../../services/cacheService');
 const { loadGmsFilters } = require('../../services/gmsAnalyticsFilters');
 const analyticsIndex=require('../../migrations/094_gms_analytics_date_index');
 const service = require('../../services/gmsImportService');
@@ -185,6 +188,86 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
     const index=await mockPool.request().query("SELECT name FROM sys.indexes WHERE object_id=OBJECT_ID('dbo.GmsDailyPerformance') AND name='IX_GmsDailyPerformance_Date_Asin_Analytics'");
     expect(index.recordset).toHaveLength(1);
     const options={startDate:'2026-11-27',endDate:'2026-11-27',level:'asin',pageSize:1};
+    // Test the real transactional invalidation path in the disposable
+    // database. The cache adapter is in-memory; SQL revision reads are real.
+    await revisionMigration.up(mockPool);
+    await revisionMigration.up(mockPool);
+    const initialRevision=await readReportRevision(mockPool);
+    expect(initialRevision).toBeTruthy();
+    const values=new Map();
+    const reportCache={isEnabled:async()=>true,key:(...p)=>p.join(':'),get:async k=>values.get(k)||null,set:async(k,v)=>{values.set(k,JSON.parse(JSON.stringify(v)));}};
+    const cachedReport=createReportLoader({cache:reportCache});
+    let timing;
+    const cachedFirst=await cachedReport(mockPool,global,{...options,page:1},{onTiming:t=>{timing=t;}});
+    expect(timing.cacheStatus).toBe('miss');
+    const cachedNext=await cachedReport(mockPool,global,{...options,page:2},{onTiming:t=>{timing=t;}});
+    expect(timing.cacheStatus).toBe('hit');
+    expect(timing.sqlMs).toBe(0);
+    expect(cachedNext.kpis).toEqual(cachedFirst.kpis);
+    expect(cachedNext.matrixRows[0].asin).toBe('B000000002');
+    if(process.env.GMS_TEST_REDIS==='1'){
+      if(process.env.REDIS_URL!=='redis://127.0.0.1:6379'||process.env.CACHE_PREFIX!=='gms-disposable-ci:')throw new Error('Disposable local Redis configuration required');
+      await redisCache.connect();
+      expect(await redisCache.isEnabled()).toBe(true);
+      const firstWorker=createReportLoader(),secondWorker=createReportLoader();
+      const redisFirst=await firstWorker(mockPool,global,{...options,page:1,refresh:true},{onTiming:t=>{timing=t;}});
+      expect(timing.cacheStatus).toBe('refresh');
+      const redisSecond=await secondWorker(mockPool,global,{...options,page:2},{onTiming:t=>{timing=t;}});
+      expect(timing.cacheStatus).toBe('hit');
+      expect(redisSecond.kpis).toEqual(redisFirst.kpis);
+      expect(redisSecond.matrixRows[0].asin).toBe('B000000002');
+    }
+    // A rolled-back write must not invalidate an otherwise valid block.
+    const rollbackTx=new sql.Transaction(mockPool);
+    await rollbackTx.begin();
+    try {
+      await new sql.Request(rollbackTx).query("UPDATE dbo.GmsDailyPerformance SET OrderedRevenue=OrderedRevenue+1 WHERE Asin='B000000001'");
+    } finally { await rollbackTx.rollback(); }
+    expect(await readReportRevision(mockPool)).toBe(initialRevision);
+    // A committed relevant catalog or seller update changes the revision.
+    await mockPool.request().query("UPDATE dbo.Asins SET Title='Updated test catalog title' WHERE Id='A1'");
+    const catalogRevision=await readReportRevision(mockPool);
+    expect(catalogRevision).not.toBe(initialRevision);
+    await mockPool.request().query("UPDATE dbo.Asins SET Title=Title WHERE Id='A1'");
+    expect(await readReportRevision(mockPool)).toBe(catalogRevision);
+    const remapped=await cachedReport(mockPool,global,{...options,page:1},{onTiming:t=>{timing=t;}});
+    expect(timing.cacheStatus).toBe('miss');
+    expect(remapped.kpis).toEqual(cachedFirst.kpis);
+    await mockPool.request().query("UPDATE dbo.Sellers SET IsActive=1 WHERE Id='S1'");
+    expect(await readReportRevision(mockPool)).toBe(catalogRevision);
+    await mockPool.request().query("UPDATE dbo.Sellers SET Name='Renamed test seller' WHERE Id='S1'");
+    expect(await readReportRevision(mockPool)).not.toBe(catalogRevision);
+    const renamed=await cachedReport(mockPool,global,{...options,page:1},{onTiming:t=>{timing=t;}});
+    expect(timing.cacheStatus).toBe('miss');
+    expect(renamed.matrixRows[0].dbBrand).toBe('Renamed test seller');
+    // Restore fixture labels and validate fresh fact values after a commit.
+    await mockPool.request().query("UPDATE dbo.Sellers SET Name='Seller A',IsActive=0 WHERE Id='S1'; UPDATE dbo.GmsDailyPerformance SET OrderedRevenue=OrderedRevenue+1 WHERE Asin='B000000001'");
+    const changed=await cachedReport(mockPool,global,{...options,page:1},{onTiming:t=>{timing=t;}});
+    expect(timing.cacheStatus).toBe('miss');
+    expect(changed.kpis.orderedRevenue).toBeCloseTo(cachedFirst.kpis.orderedRevenue+1,2);
+    await mockPool.request().query("UPDATE dbo.GmsDailyPerformance SET OrderedRevenue=OrderedRevenue-1 WHERE Asin='B000000001'");
+    // Exercise a real import commit with triggers installed. NOCOUNT must
+    // preserve the importer's exact write-count assertion.
+    const beforeImport=await readReportRevision(mockPool);
+    const newImport=await preview('156.00');
+    expect(newImport.status).toBe('READY');
+    await service.confirm('U1',newImport.id);await service.processNext();
+    expect((await service.getJob('U1',newImport.id)).status).toBe('COMPLETED');
+    expect(await readReportRevision(mockPool)).not.toBe(beforeImport);
+    const imported=await cachedReport(mockPool,global,{...options,page:1},{onTiming:t=>{timing=t;}});
+    expect(timing.cacheStatus).toBe('miss');
+    expect(imported.kpis.orderedRevenue).toBeCloseTo(cachedFirst.kpis.orderedRevenue+1,2);
+    const restore=await preview('155.00');
+    await service.confirm('U1',restore.id);await service.processNext();
+    expect((await service.getJob('U1',restore.id)).status).toBe('COMPLETED');
+    // Missing/disabled revision tracking must force the uncached query path.
+    await mockPool.request().query("DISABLE TRIGGER dbo.TR_GmsReportRevision_Catalog ON dbo.Asins");
+    expect(await readReportRevision(mockPool)).toBeNull();
+    await cachedReport(mockPool,global,{...options,page:1},{onTiming:t=>{timing=t;}});
+    expect(timing.cacheStatus).toBe('no-revision');
+    // Reapply migration to re-enable the trigger and rotate all revisions.
+    await revisionMigration.up(mockPool);
+    expect(await readReportRevision(mockPool)).toBeTruthy();
     const firstPage=await loadPagedAnalytics(mockPool,global,{...options,page:1});
     const secondPage=await loadPagedAnalytics(mockPool,global,{...options,page:2});
     expect(firstPage.pagination).toEqual({page:1,pageSize:1,totalRows:2});
@@ -315,10 +398,28 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
       expect(next.matrixRows).toHaveLength(100);
       expect(next.kpis).toEqual(large.kpis);
       expect(new Set([...large.matrixRows,...next.matrixRows].map(r=>r.key)).size).toBe(200);
+      // Measure cached adjacent-page latency separately. The normal SQL
+      // benchmark above remains directly measurable.
+      let cacheTiming;
+      const scaleLoader=process.env.GMS_TEST_REDIS==='1'?createReportLoader():cachedReport;
+      const cacheStart=Date.now();
+      const primed=await scaleLoader(mockPool,global,{...scaleOptions,page:1},{onTiming:t=>{cacheTiming=t;}});
+      const primedMs=Date.now()-cacheStart;
+      expect(cacheTiming.cacheStatus).toBe('miss');
+      expect(primed.kpis).toEqual(large.kpis);
+      const hitStart=Date.now();
+      const hit=await scaleLoader(mockPool,global,{...scaleOptions,page:2},{onTiming:t=>{cacheTiming=t;}});
+      const hitMs=Date.now()-hitStart;
+      expect(cacheTiming.cacheStatus).toBe('hit');
+      expect(cacheTiming.sqlMs).toBe(0);
+      expect(hit.matrixRows.map(r=>r.key)).toEqual(next.matrixRows.map(r=>r.key));
+      expect(hit.kpis).toEqual(next.kpis);
+      console.log('GMS disposable report-cache result',JSON.stringify({facts:scaleRows,cacheBackend:process.env.GMS_TEST_REDIS==='1'?'redis':'memory-fixture',primedMs,hitMs,hitTiming:cacheTiming}));
       console.log('GMS disposable scale result',JSON.stringify({facts:scaleRows,catalogRows:50000+mappedEntities,mappedEntities,entities:large.pagination.totalRows,pageRows:100,firstMs,nextMs,firstTiming,nextTiming,responseBytes:Buffer.byteLength(JSON.stringify(large))}));
     }
   } finally {
     fs.rmSync(dir,{recursive:true,force:true});
+    if(process.env.GMS_TEST_REDIS==='1')await redisCache.disconnect().catch(()=>{});
     await mockPool.close();
   }
 }, scaleRows?600000:180000);

@@ -95,8 +95,11 @@ test('report renders while filter directory is pending and manager selection sta
   }finally{state.releaseFilters();}
   const manager=page.locator('#gms-manager-filter');
   await manager.click();
-  await expect(page.getByRole('option',{name:'Test Manager',exact:true})).toBeVisible();
-  await page.getByRole('option',{name:'Test Manager',exact:true}).click();
+  // Ant Select virtualizes its accessible option list. Interact with the
+  // actual visible option, not the hidden accessibility mirror.
+  const choice=page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option').filter({hasText:'Test Manager'});
+  await expect(choice).toBeVisible();
+  await choice.click();
   await expect.poll(()=>state.lastRequest()?.sellerIds).toEqual(['S1']);
   await expect(page.getByText('B000000001',{exact:true})).toBeVisible();
   expect(state.filterRequests()).toBe(1);
@@ -107,6 +110,7 @@ test('manual refresh works after initial load and failures do not show zero KPIs
   const initial = state.reads();
   await page.getByRole('button', { name: 'Refresh data' }).click();
   await expect.poll(state.reads).toBeGreaterThan(initial);
+  expect(state.lastRequest().refresh).toBe(true);
   await expect(page.getByText('No GMS records in this selection')).toBeVisible();
   state.setFailure();
   await page.getByRole('button', { name: 'Refresh data' }).click();
