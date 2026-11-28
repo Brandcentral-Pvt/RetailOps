@@ -31,7 +31,8 @@ const niceMax = (v) => {
 
 /** Axis / tooltip formatters per unit. */
 export const fmtByUnit = (v, unit, { full = false } = {}) => {
-    const n = Number(v) || 0;
+    if(v==null||!Number.isFinite(Number(v)))return 'N/A';
+    const n=Number(v);
     if (unit === 'pct') return `${n.toFixed(full ? 2 : 1)}%`;
     if (unit === 'x') return `${n.toFixed(2)}×`;
     if (unit === 'inr') {
@@ -52,7 +53,14 @@ export const fmtByUnit = (v, unit, { full = false } = {}) => {
 /** Tiny inline trend line. data: number[] */
 export const Sparkline = ({ data = [], width = 220, height = 30, color = '#1349c6', filled = true }) => {
     const gid = useId().replace(/[:]/g, '');
-    const clean = (data || []).map((v) => Number(v) || 0);
+    const clean=(data||[]).map(v=>v==null?null:Number(v));
+    if(clean.some(v=>v==null)){
+        const max=Math.max(...clean.filter(v=>v!=null),1);
+        const segments=[];let segment=[];
+        clean.forEach((v,i)=>{if(v==null){if(segment.length)segments.push(segment);segment=[];}else segment.push([1+i*(width-2)/Math.max(1,clean.length-1),height-3-v/max*(height-6)]);});
+        if(segment.length)segments.push(segment);
+        return <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">{segments.map((pts,i)=>pts.length===1?<circle key={i} cx={pts[0][0]} cy={pts[0][1]} r="1.5" fill={color}/>:<polyline key={i} points={toPolyline(pts)} fill="none" stroke={color} strokeWidth="1.6"/>)}</svg>;
+    }
     if (clean.length < 2) {
         return <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true" />;
     }
@@ -273,7 +281,7 @@ export const Bars = ({ labels = [], data = [], color = '#1349c6', height = 120, 
     const H = height;
     const padL = 46, padR = 6, padT = 8, padB = 20;
     const n = data.length;
-    const clean = data.map((v) => Number(v) || 0);
+    const clean=data.map(v=>v==null?null:Number(v));
     const max = niceMax(Math.max(...clean, 1));
     const { ref, hover, onMove, onLeave } = useHoverIndex(n, W, padL, padR);
     const inner = W - padL - padR;
@@ -300,6 +308,7 @@ export const Bars = ({ labels = [], data = [], color = '#1349c6', height = 120, 
                 })}
                 <line x1={padL} y1={H - padB} x2={W - padR} y2={H - padB} stroke="#e3e8ee" />
                 {clean.map((v, i) => {
+                    if(v==null)return null;
                     const h = (v / max) * (H - padT - padB);
                     const x = padL + i * slot + (slot - bw) / 2;
                     const active = hover && hover.idx === i;

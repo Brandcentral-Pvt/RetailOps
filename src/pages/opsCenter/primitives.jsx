@@ -12,7 +12,8 @@ import { Tooltip } from 'antd';
 
 /** Compact Indian currency: ₹12.3K / ₹4.56L / ₹7.89Cr */
 export const fmtINR = (n) => {
-    const v = Number(n) || 0;
+    if(n==null||!Number.isFinite(Number(n)))return 'N/A';
+    const v=Number(n);
     const a = Math.abs(v);
     if (a >= 1e7) return `₹${(v / 1e7).toFixed(2)}Cr`;
     if (a >= 1e5) return `₹${(v / 1e5).toFixed(2)}L`;
@@ -22,13 +23,15 @@ export const fmtINR = (n) => {
 
 /** Full Indian-grouped currency: ₹12,34,567 */
 export const fmtINRFull = (n, digits = 0) => {
-    const v = Number(n) || 0;
+    if(n==null||!Number.isFinite(Number(n)))return 'N/A';
+    const v=Number(n);
     return `₹${v.toLocaleString('en-IN', { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
 };
 
 /** Compact integer: 1.2K / 34.5K / 1.2M */
 export const fmtNum = (n) => {
-    const v = Number(n) || 0;
+    if(n==null||!Number.isFinite(Number(n)))return 'N/A';
+    const v=Number(n);
     const a = Math.abs(v);
     if (a >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
     if (a >= 1e3) return `${(v / 1e3).toFixed(1)}K`;
@@ -36,12 +39,13 @@ export const fmtNum = (n) => {
 };
 
 /** Full grouped integer: 12,34,567 */
-export const fmtNumFull = (n) => (Number(n) || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+export const fmtNumFull = n => n==null||!Number.isFinite(Number(n))?'N/A':Number(n).toLocaleString('en-IN',{maximumFractionDigits:0});
 
-export const fmtPct = (n, digits = 1) => `${(Number(n) || 0).toFixed(digits)}%`;
+export const fmtPct = (n,digits=1)=>n==null||!Number.isFinite(Number(n))?'N/A':Number(n).toFixed(digits)+'%';
 
 /** Relative change in % — null when there is no prior value (never a fake 0). */
 export const pctDelta = (cur, prev) => {
+    if(cur==null||prev==null)return null;
     const c = Number(cur) || 0;
     const p = Number(prev) || 0;
     if (p <= 0) return null;
@@ -50,9 +54,9 @@ export const pctDelta = (cur, prev) => {
 
 /** Absolute change in points for ratio metrics (ACoS, TACoS) — null when no prior. */
 export const pointDelta = (cur, prev) => {
-    if (prev === null || prev === undefined) return null;
+    if (cur==null||prev==null) return null;
     const p = Number(prev);
-    if (!Number.isFinite(p) || p === 0) return null;
+    if (!Number.isFinite(p)||!Number.isFinite(Number(cur))) return null;
     return (Number(cur) || 0) - p;
 };
 
