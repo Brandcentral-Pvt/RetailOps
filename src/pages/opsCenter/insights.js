@@ -152,11 +152,7 @@ export function buildInsights({ dashboardRaw, portfolio,taskSummary, products = 
     }
 
     // ── Overdue tasks ────────────────────────────────────────────────
-    const overdue = tasks.filter((t) => {
-        const s = String(t.status || '').toUpperCase();
-        if (s === 'COMPLETED' || s === 'CANCELLED') return false;
-        return t.dueDate && new Date(t.dueDate).getTime() < now;
-    }).length;
+    const overdue=taskSummary?.overdue??0;
     if (overdue > 0) {
         out.push({
             id: 'overdue',
