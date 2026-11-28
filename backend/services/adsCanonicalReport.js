@@ -107,7 +107,7 @@ function emptyReport(filters){
   return {...scopeMeta(filters),current:[],previous:[],comparisons:[],series:[],rows:[],total:0,page:1,limit:filters.limit,totalPages:1,empty:true};
 }
 const MAX_EXPORT_ENTITIES=5000;
-async function readCanonicalReport({pool,sql,user,query,exportAll=false,insightsOnly=false,portfolioOnly=false,reconciliationOnly=false,exportWorkbook=null,signal,backgroundExport=false}){
+async function readCanonicalReport({pool,sql,user,query,exportAll=false,insightsOnly=false,portfolioOnly=false,reconciliationOnly=false,exportWorkbook=null,signal,backgroundExport=false,advancedExport=false}){
   const f=parseReport(user,query),analysisOnly=insightsOnly||portfolioOnly||reconciliationOnly,completeExport=typeof exportWorkbook==='function';
   if(completeExport&&(analysisOnly||exportAll||f.entityKey))invalid('Complete export requires a report scope without entity drill-down.');
   const baseCols=completeExport?[...new Set([...canonicalBaseCols,...exportSnapshot.FULL_COLUMNS])]:canonicalBaseCols;
@@ -186,18 +186,19 @@ async function readCanonicalReport({pool,sql,user,query,exportAll=false,insights
         const currencies=[...new Set([...current,...previous].map(r=>r.currency))].map(currency=>({currency}));
         const aligned=pairTrends(await readAlignedTrendRows({tx,sql,period:f.period,granularity:f.granularity}),currencies,f.period,f.granularity);
         let advancedData=null;
-        if(backgroundExport){
+        if(advancedExport){
           stage='export_advanced';
           // Product-only opportunity and portfolio classifications cannot be applied
           // to aggregated seller/parent entities. Explicitly label non-applicability.
-          const portfolio=f.groupBy==='asin'?await readPortfolioAnalytics({tx,sql,period:f.period,granularity:f.granularity}):null;
-          const review=f.groupBy==='asin'?await readReviewSignals({tx,sql,days:f.period.days,full:true}):null;
           const reconciliation=f.groupBy==='asin'?await readReconciliation({tx,sql,period:f.period}):null;
+          const portfolio=f.groupBy==='asin'?await readPortfolioAnalytics({tx,sql,period:f.period,granularity:f.granularity,exportMode:true}):null;
+          const review=f.groupBy==='asin'?await readReviewSignals({tx,sql,days:f.period.days,full:true}):null;
           advancedData={portfolio,review,reconciliation};
         }
         stage='export_write';
         const output=await exportWorkbook({report,rawCount,aligned,advancedData,rawRows:()=>exportSnapshot.rawRows({tx,sql,signal}),entityRows:()=>exportSnapshot.entityRows({tx,sql,signal,combineRows,days:f.period.days,comparePeriods})});
         exportSnapshot.abort(signal);
+        if(advancedData?.portfolio?.products)await advancedData.portfolio.products.cleanup();
         await tx.request().batch('DROP TABLE #AdsRawExport; DROP TABLE #AdsPage; DROP TABLE #AdsEntities; DROP TABLE #AdsGroups; DROP TABLE #AdsScope;');
         await tx.commit();return output;
       }
