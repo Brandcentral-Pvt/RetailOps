@@ -32,6 +32,21 @@ describe('bounded analytics contract',()=>{
     expect(query).toContain('CHARINDEX(@search');
     expect(query).not.toContain("100%_['");
   });
+  test('common report path collects normalized catalog keys once and defers title LOB reads',()=>{
+    const db=makeFakePool();
+    const normal=buildPageQuery(db.request(),admin,pageSpec(options));
+    const search=buildPageQuery(db.request(),admin,pageSpec({...options,search:'Example'}));
+    expect(normal).toContain('INTO #GmsNormalizedKeys');
+    expect(normal).toContain('INTO #GmsCatalog FROM Asins c INNER JOIN #GmsNormalizedKeys');
+    expect(normal).toContain('OPTION (HASH JOIN)');
+    expect(normal).toContain('IX_GmsCatalog_Normalized_Owner');
+    expect(normal).toContain('COUNT_BIG(DISTINCT SellerId)=1');
+    expect(normal).not.toContain('g.ReportProductTitle');
+    expect(normal).toContain('COALESCE(original.ReportProductTitle,catalog.Title) AS productTitle');
+    expect(search).toContain('g.ReportProductTitle');
+    expect(search).toContain('COALESCE(g.ReportProductTitle,m.ProductTitle)');
+    expect(search).toContain('CHARINDEX(@search');
+  });
   test('whole-filter daily aggregates, global month segments and page matrix stay consistent',()=>{
     const r=composePage([
       [metric('2024-12-30','10.01',3),metric('2024-12-31','-2.02',2),metric('2025-01-01','5.05',4)],
