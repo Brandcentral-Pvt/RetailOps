@@ -6,6 +6,9 @@ on:
       - 'backend/contracts/ads-*.json'
       - 'backend/services/ads*.js'
       - 'backend/controllers/ads*.js'
+      - 'backend/routes/adsRoutes.js'
+      - 'backend/utils/sellerScope.js'
+      - 'backend/utils/roleUtils.js'
       - 'backend/migrations/098_ads_product_daily_facts.js'
       - 'backend/routes/uploadRoutes.js'
       - 'backend/testUtils/adsPhase1.*'
@@ -29,7 +32,11 @@ jobs:
           node --check backend/controllers/adsProductValidationController.js
           node --check backend/routes/uploadRoutes.js
           node --check backend/migrations/098_ads_product_daily_facts.js
-          node --test backend/testUtils/adsPhase1.contract.node.cjs
+          node --check backend/services/adsCanonicalIngestion.js
+          node --check backend/services/adsCanonicalMetrics.js
+          node --check backend/services/adsCanonicalScope.js
+          node --check backend/controllers/adsCanonicalSummaryController.js
+          node --test backend/testUtils/adsPhase1.contract.node.cjs backend/testUtils/adsPhase1.canonical.node.cjs
   sql:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -48,7 +55,7 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --prefix /tmp/ads-test-sql --ignore-scripts --no-audit --no-fund mssql@12.7.11
-      - run: node --test backend/testUtils/adsPhase1.sql.node.cjs
+      - run: node --test --test-concurrency=1 backend/testUtils/adsPhase1.sql.node.cjs backend/testUtils/adsPhase1.writer.sql.node.cjs
         env:
           ADS_SQL_SMOKE: '1'
           ADS_TEST_SQL_PASSWORD: 'AdsDisposable#2026!'
