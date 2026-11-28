@@ -1,7 +1,7 @@
 import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {Alert,App,Button,Tabs} from 'antd';
 import dayjs from 'dayjs';
-import {sellerApi,userApi,gmsApi,exportApi} from '../services/api';
+import {gmsApi,exportApi} from '../services/api';
 import {useDateRange} from '../contexts/DateRangeContext';
 import {useAuth} from '../contexts/AuthContext';
 import {useHeader} from '../contexts/HeaderContext';
@@ -52,6 +52,7 @@ export default function GmsTrackerPage(){
   const [metadataLoading,setMetadataLoading]=useState(false);
   const [directory,setDirectory]=useState({sellers:[],managers:[],error:'',userKey:null});
   const directoryRef=useRef({sellers:[],managers:[],error:'',userKey:null});
+  const directoryRequest=useRef(null);
   const [lastLoadedAt,setLastLoadedAt]=useState(null);
   const [importOpen,setImportOpen]=useState(false),[importTab,setImportTab]=useState('upload');
   const [exportOpen,setExportOpen]=useState(false);
@@ -76,6 +77,50 @@ export default function GmsTrackerPage(){
   },[setPageMeta]);
 
   const mounted=useRef(false),sequence=useRef(0),abortRef=useRef(null);
+  useEffect(()=>{
+    mounted.current=true;
+    return ()=>{
+      mounted.current=false;
+      abortRef.current?.abort();
+      directoryRequest.current?.controller.abort();
+      directoryRequest.current=null;
+      sequence.current++;
+    };
+  },[]);
+
+  // Directory loading has its own lifecycle: page/sort/search changes cancel
+  // the report request, not the independent filter request. A manager
+  // selection must await the current directory so it cannot widen scope.
+  const loadDirectory=useCallback(({force=false}={})=>{
+    if(!mounted.current||authLoading||!userKey)return Promise.resolve(null);
+    const pending=directoryRequest.current;
+    if(pending?.userKey===userKey&&!pending.controller.signal.aborted)return pending.promise;
+    if(!force&&directoryRef.current.userKey===userKey)return Promise.resolve(directoryRef.current);
+    pending?.controller.abort();
+    const controller=new AbortController();
+    const entry={userKey,controller,promise:null};
+    directoryRequest.current=entry;
+    setMetadataLoading(true);
+    entry.promise=(async()=>{
+      let data;
+      try{
+        const result=await gmsApi.filters({signal:controller.signal});
+        if(!result?.success||!Array.isArray(result.data?.sellers)||!Array.isArray(result.data?.managers))
+          throw new Error('Invalid report filter response');
+        data={userKey,sellers:result.data.sellers,managers:result.data.managers,sellerOK:true,managerOK:true,error:''};
+      }catch(err){
+        data={userKey,sellers:[],managers:[],sellerOK:false,managerOK:false,error:'Filter options could not load. Refresh to retry.'};
+      }
+      if(!mounted.current||controller.signal.aborted||directoryRequest.current!==entry)return null;
+      directoryRef.current=data;
+      setDirectory(data);
+      setMetadataLoading(false);
+      directoryRequest.current=null;
+      return data;
+    })();
+    return entry.promise;
+  },[authLoading,userKey]);
+
   const load=useCallback(async({refreshMetadata=false}={})=>{
     if(!mounted.current||authLoading||!userKey)return false;
     abortRef.current?.abort();
@@ -83,25 +128,19 @@ export default function GmsTrackerPage(){
     abortRef.current=controller;
     const current=()=>mounted.current&&requestId===sequence.current&&!controller.signal.aborted;
     setRequestLoading(true);setFailure(null);
-    if(refreshMetadata)setStored(null);
     try{
-      let data=directoryRef.current;
-      if(refreshMetadata||data.userKey!==userKey){
-        setMetadataLoading(true);
-        const [sellerResult,managerResult]=await Promise.all([
-          sellerApi.getAll({limit:1000}).catch(()=>null),
-          userApi.getManagers().catch(()=>null),
-        ]);
+      // Start both immediately. Reports with no manager filter do not depend
+      // on the directory and must not wait for it. A seller ID is already a
+      // complete filter, and the backend independently enforces authorization.
+      const directoryPending=loadDirectory({force:refreshMetadata});
+      let managers=[];
+      if(selectedManagers.length){
+        const data=await directoryPending;
         if(!current())return false;
-        const sellerOK=sellerResult?.success&&Array.isArray(sellerResult.data?.sellers);
-        const managerOK=managerResult?.success&&Array.isArray(managerResult.data);
-        // Do not silently use stale manager assignments after a failed refresh.
-        data={userKey,sellers:sellerOK?sellerResult.data.sellers:[],managers:managerOK?managerResult.data:[],
-          sellerOK,managerOK,error:[!sellerOK?'Seller options could not load.':'',!managerOK?'Manager options could not load.':''].filter(Boolean).join(' ')};
-        directoryRef.current=data;setDirectory(data);setMetadataLoading(false);
+        if(!data?.managerOK)throw new Error('Manager assignments are unavailable. Refresh filter options or clear the manager filter.');
+        managers=data.managers;
       }
-      if(selectedManagers.length&&!data.managerOK)throw new Error('Manager assignments are unavailable. Refresh filter options or clear the manager filter.');
-      const result=await gmsApi.analytics({startDate:from,endDate:to,sellerIds:selectedSellerIds(selectedSellers,selectedManagers,data.managers),search:debouncedSearch,level,page,pageSize,sort:{key:sortKey,direction:sortDirection}},{signal:controller.signal});
+      const result=await gmsApi.analytics({startDate:from,endDate:to,sellerIds:selectedSellerIds(selectedSellers,selectedManagers,managers),search:debouncedSearch,level,page,pageSize,sort:{key:sortKey,direction:sortDirection}},{signal:controller.signal});
       if(!current())return false;
       if(!result?.success||!Array.isArray(result.data?.matrixRows)||!result.data?.meta||!result.data?.pagination)throw new Error(result?.message||'Invalid GMS analytics response.');
       setStored({data:result.data,filterKey,requestKey});setLastLoadedAt(Date.now());
@@ -111,18 +150,18 @@ export default function GmsTrackerPage(){
       setFailure({requestKey,message:err.message||'Unable to load GMS analytics.'});setStored(null);setLastLoadedAt(null);
       return false;
     }finally{
-      if(current()){setRequestLoading(false);setMetadataLoading(false);}
+      if(current())setRequestLoading(false);
     }
-  },[authLoading,userKey,from,to,selectedSellers,selectedManagers,debouncedSearch,level,page,pageSize,sortKey,sortDirection,filterKey,requestKey]);
+  },[loadDirectory,authLoading,userKey,from,to,selectedSellers,selectedManagers,debouncedSearch,level,page,pageSize,sortKey,sortDirection,filterKey,requestKey]);
   useEffect(()=>{
-    mounted.current=true;load();
-    return ()=>{mounted.current=false;abortRef.current?.abort();sequence.current++;};
+    load();
+    return ()=>{abortRef.current?.abort();sequence.current++;};
   },[load]);
   const latestLoad=useRef(load);
   useEffect(()=>{latestLoad.current=load;},[load]);
 
-  const sellerOptions=useMemo(()=>optionsOf(directory.sellers,r=>r.name||r.Name),[directory.sellers]);
-  const managerOptions=useMemo(()=>optionsOf(directory.managers,r=>[r.firstName,r.lastName].filter(Boolean).join(' ').trim()||r.email||r.Email),[directory.managers]);
+  const sellerOptions=useMemo(()=>optionsOf(directory.userKey===userKey?directory.sellers:[],r=>r.name||r.Name),[directory.sellers,directory.userKey,userKey]);
+  const managerOptions=useMemo(()=>optionsOf(directory.userKey===userKey?directory.managers:[],r=>[r.firstName,r.lastName].filter(Boolean).join(' ').trim()||'Manager '+idOf(r)),[directory.managers,directory.userKey,userKey]);
   const currentSellerIds=useMemo(()=>selectedSellerIds(selectedSellers,selectedManagers,directory.managers),[selectedSellers,selectedManagers,directory.managers]);
   const resetFilters=()=>{setSelectedSellers([]);setSelectedManagers([]);setSearch('');setDebouncedSearch('');};
   const onPageChange=useCallback((next,size)=>setPager({key:filterKey,page:size===pageSize?next:1,pageSize:size,sort:{key:sortKey,direction:sortDirection}}),[filterKey,pageSize,sortKey,sortDirection]);
@@ -130,7 +169,7 @@ export default function GmsTrackerPage(){
   const showImport=tab=>{setImportTab(tab);setImportOpen(true);};
   const submitExport=async values=>{
     if(!can('gms_tracker_export')||loading||error)throw new Error('Wait for the active report to finish loading.');
-    if(values.exportBrandType==='current'&&selectedManagers.length&&!directory.managerOK)throw new Error('Manager assignments are unavailable. Refresh report filters.');
+    if(values.exportBrandType==='current'&&selectedManagers.length&&(metadataLoading||!directory.managerOK||directory.userKey!==userKey))throw new Error('Manager assignments are unavailable. Refresh report filters.');
     const custom=values.exportCustomDates;
     const result=await exportApi.startGmsExport({
       exportLevel:values.exportLevel,exportDataType:values.exportDataType,exportFileType:values.exportFileType,
@@ -163,7 +202,7 @@ export default function GmsTrackerPage(){
           {!reportLoading&&<GmsComparisonTable analytics={analytics}/>}</div>}
       ]}/>
     </>}
-    {can('gms_tracker_import')&&<GmsImportDialog open={importOpen} initialTab={importTab} onClose={()=>setImportOpen(false)} onCommitted={()=>latestLoad.current({refreshMetadata:true})}/>}
+    {can('gms_tracker_import')&&<GmsImportDialog open={importOpen} initialTab={importTab} onClose={()=>setImportOpen(false)} onCommitted={()=>latestLoad.current()}/>}
     {can('gms_tracker_export')&&<GmsExportDialog open={exportOpen} onClose={()=>setExportOpen(false)} onSubmit={submitExport}
       level={level} startDate={startDate} endDate={endDate} sellerOptions={sellerOptions} currentFilterCount={selectedSellers.length+selectedManagers.length+(search.trim()?1:0)}
       currentSellerIds={currentSellerIds} search={search} disabled={loading||!!error}/>}
