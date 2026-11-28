@@ -34,6 +34,8 @@ test('SQL: canonical scope, duplicate catalog protection, current/prior comparis
   await indexMigration.up(pool);await indexMigration.up(pool);
   const indexCheck=await pool.request().query("SELECT COUNT(*) AS n FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.AdsProductDailyFacts') AND name='IX_AdsProductDaily_Date_ReportCover' AND is_disabled=0;");
   assert.equal(indexCheck.recordset[0].n,1);
+  const catalogCheck=await pool.request().query("SELECT COUNT(*) AS n FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.Asins') AND name='IX_Asins_AdsOwnerLookup' AND is_unique=0 AND is_disabled=0;");
+  assert.equal(catalogCheck.recordset[0].n,1);
   assert.deepEqual(await read({sellerId:'s1'}),beforeIndex);
   const r=await read({sellerId:'s1',limit:'2',page:'99'});
   assert.equal(r.current[0].totals.totalSales,'148.76');assert.equal(r.current[0].rowCount,'3');
