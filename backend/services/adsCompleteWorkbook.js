@@ -59,6 +59,92 @@ function sheetWriter(book,expectedSheets,{name,headers,count,freeze=2}){
  let written=0;
  return {add(items){if(items.length!==headers.length)throw Error('Workbook column mismatch: '+name);if(written>=count)throw Error('Unexpected extra rows: '+name);add(sheet,items,wrap);written++;},finish(){if(written!==count)throw Error('Workbook row mismatch: '+name);sheet.commit();expectedSheets.set(name,written+1);}};
 }
+// One committed worksheet at a time; data capacity excludes the header row.
+function partitionPlan(name,count,maxRows=1048575){
+ if(!Number.isSafeInteger(count)||count<0||!Number.isSafeInteger(maxRows)||maxRows<1||maxRows>1048575)throw Error('Invalid workbook partition capacity');
+ const plan=[];let left=count,index=1;
+ do{
+  const suffix=index===1?'':' '+index,partName=name.slice(0,31-suffix.length)+suffix,n=Math.min(left,maxRows);
+  plan.push({name:partName,count:n});left-=n;index++;
+ }while(left>0);
+ return plan;
+}
+function partitionWriter(book,expectedSheets,{name,headers,count,freeze,maxRows}){
+ const plan=partitionPlan(name,count,maxRows);
+ let index=0,written=0,part=sheetWriter(book,expectedSheets,{...plan[0],headers,freeze});
+ return {
+  add(items){
+   if(written===plan[index].count){part.finish();index++;written=0;if(index>=plan.length)throw Error('Unexpected extra rows: '+name);part=sheetWriter(book,expectedSheets,{...plan[index],headers,freeze});}
+   part.add(items);written++;
+  },
+  finish(){if(index!==plan.length-1||written!==plan[index].count)throw Error('Workbook row mismatch: '+name);part.finish();}
+ };
+}
+const textOrNull=v=>v==null?null:String(v);
+async function advancedSheets(table,check,{data,budgetInfo,report,filters,expectedSheets}){
+ const portfolio=data?.portfolio,review=data?.review,audit=data?.reconciliation;
+ const summaryHeaders=['Currency','Marketplace','Dimension','Group ID','Group name','Period','Stored days','Stored rows',...ALL.flatMap(k=>[label(k),label(k)+' coverage'])];
+ const breakdowns=portfolio?.breakdowns;
+ let w=table('Portfolio Analysis',summaryHeaders,breakdowns?.count||0,5);
+ if(breakdowns?.rows)for await(const r of breakdowns.rows()){
+  check();const s=r.summary;
+  w.add([r.Currency,r.Marketplace,r.dimension,r.groupKey,r.groupName,r.periodKey,cell(r.coveredDays,'integer'),cell(s.rowCount,'integer'),...ALL.flatMap(k=>[cell(metricValue(s,k),kind(k)),evidence(s,k)?.status||'unknown'])]);
+ }
+ w.finish();
+ const groups=portfolio?.groups||[];
+ const segmentRows=groups.flatMap(g=>g.segments.map(s=>[g.currency,s.code,s.label,s.action,cell(s.count,'integer'),cell(s.completeObserved,'integer'),cell(s.observed?.spend?.value,'money'),cell(s.observed?.sales?.value,'money'),cell(s.observed?.totalSales?.value,'money'),cell(s.compatibleRoas?.value,'multiple'),cell(s.compatibleCvr?.value,'ratio')]));
+ w=table('Portfolio Segments',['Currency','Segment','Description','Review action','Entities','Complete observations','Observed spend','Observed ad sales','Observed total sales','Compatible ROAS','Compatible CVR'],segmentRows.length,3);
+ for(const row of segmentRows)w.add(row);w.finish();
+ const concentration=groups.flatMap(g=>g.concentration.map(c=>[g.currency,label(c.metric),cell(c.positiveTotal,'money'),cell(c.netObserved,'money'),cell(c.positiveEntities,'integer'),cell(c.zeroEntities,'integer'),cell(c.negativeEntities,'integer'),cell(c.unknownEntities,'integer'),cell(c.priorOnlyEntities,'integer'),cell(c.leadingCount,'integer'),cell(c.leadingAmount,'money'),cell(c.leadingSharePct,'ratio'),cell(c.remainingCount,'integer'),cell(c.remainingAmount,'money'),cell(c.remainingSharePct,'ratio'),cell(g.reference.roas,'multiple')]));
+ w=table('Portfolio Concentration',['Currency','Metric','Positive total','Net observed','Positive entities','Zero entities','Negative entities','Unknown entities','Prior-only entities','Leading 80% count','Leading amount','Leading share','Remaining count','Remaining amount','Remaining share','Weighted ROAS reference'],concentration.length,2);
+ for(const row of concentration)w.add(row);w.finish();
+ const products=portfolio?.products;
+ w=table('Portfolio Products',['Seller ID','Seller','Marketplace','Currency','ASIN','Title','Brand','Segment','Evidence','Ad spend','Ad sales','Total sales','ROAS','CVR','Observed days','Expected days'],products?.memberCount||0,5);
+ if(products)for await(const r of products.members()){check();w.add([r.sellerId,r.sellerName,r.marketplace,r.currency,r.entityKey,r.title,r.brand,r.segment,r.evidence,cell(r.spend,'money'),cell(r.sales,'money'),cell(r.totalSales,'money'),cell(r.roas,'multiple'),cell(r.cvr,'ratio'),cell(r.currentDays,'integer'),cell(r.expectedDays,'integer')]);}
+ w.finish();
+ w=table('Portfolio Ranks',['Currency','Metric','Rank','Tier','Seller ID','Seller','Marketplace','ASIN','Title','Amount','Share','Cumulative share','Coverage'],products?.rankCount||0,4);
+ if(products)for await(const r of products.ranking()){check();w.add([r.currency,label(r.metric),cell(r.rank,'integer'),r.tier,r.sellerId,r.sellerName,r.marketplace,r.entityKey,r.title,cell(r.amount,'money'),cell(r.sharePct,'ratio'),cell(r.cumulativePct,'ratio'),r.coverage]);}
+ w.finish();
+ const rules=new Map(require('./adsAnalyticsV3').RULES.map(r=>[r.code,r]));
+ w=table('Opportunities',['Currency','Seller ID','Seller','Marketplace','ASIN','Title','Rule','Description','Evidence','Review action','Spend','Ad sales','Total sales','Clicks','Conversions','Prior spend','Prior sales','Current days','Prior days'],review?.count||0,5);
+ if(review?.rows)for await(const r of review.rows()){
+  check();const rule=rules.get(r.code);
+  w.add([r.currency,r.sellerId,r.sellerName,r.marketplace,r.entityKey,r.title,r.code,rule?.label,r.evidenceStatus,rule?.action,cell(r.spend,'money'),cell(r.sales,'money'),cell(r.totalSales,'money'),cell(r.clicks,'integer'),cell(r.conversions,'integer'),cell(r.priorSpend,'money'),cell(r.priorSales,'money'),cell(r.currentDays,'integer'),cell(r.previousDays,'integer')]);
+ }
+ w.finish();
+ const checks=audit?.checks||[];
+ w=table('Reconciliation',['Check','Description','Status','Comparisons','Mismatch count','Detail rows shown'],checks.length+2,2);
+ w.add(['raw_source','Daily source counts, 24 additive metric totals and populated counts','passed',null,null,null]);
+ w.add(['analytics_scope','Canonical ASIN analytics reconciliation',audit?.status||'no_data',null,null,null]);
+ for(const r of checks)w.add([r.code,r.label,r.status,cell(r.comparisons,'integer'),cell(r.mismatchCount,'integer'),cell(r.mismatches?.length||0,'integer')]);
+ w.finish();
+ const details=checks.flatMap(r=>(r.mismatches||[]).map(x=>[r.code,x.currency,x.periodKey,x.field,textOrNull(x.expected),textOrNull(x.actual)]));
+ w=table('Reconciliation Details',['Check','Currency','Period','Field','Expected (exact)','Actual (exact)'],details.length,3);
+ for(const row of details)w.add(row);w.finish();
+ const quality=audit?.quality||[],qualityFields=[...new Set(quality.flatMap(r=>Object.keys(r).filter(k=>!['currency','periodKey'].includes(k))))];
+ w=table('Data Quality',['Currency','Period','Metric','Count'],quality.length*qualityFields.length,2);
+ for(const r of quality)for(const k of qualityFields)w.add([r.currency,r.periodKey,k,cell(r[k],'integer')]);w.finish();
+ const budgetRows=budgetInfo?.rows||[];
+ w=table('Budget Analysis',['Seller ID','Seller','Marketplace','Currency','Month','Cutoff UTC date','Month start','Through','Elapsed days','Observed days','Target','Target source','Target status','Actual spend','Planned spend','Utilization','Observed utilization','Remaining budget','Remaining daily allowance','Variance to plan','Pace status','Forecast','Forecast status','Coverage status','Plan source','Context status'],budgetRows.length,5);
+ for(const r of budgetRows){
+  const b=r.budget;
+  w.add([r.sellerId,r.sellerName,r.marketplace,r.currency,r.month,budgetInfo.asOf,r.slice.start,r.slice.through,cell(r.slice.elapsed,'integer'),cell(r.coverage.coveredDays,'integer'),cell(b.target,'money'),b.targetSource,b.targetStatus,cell(b.actualSpend,'money'),cell(b.plannedSpend,'money'),cell(b.utilizationPct,'ratio'),cell(b.observedUtilizationPct,'ratio'),cell(b.remainingBudget,'money'),cell(b.remainingDailyAllowance,'money'),cell(b.varianceToPlan,'money'),b.paceStatus,cell(b.projectedMonthEnd,'money'),b.forecastStatus,b.status,b.planSource,r.contextStatus]);
+ }
+ w.finish();
+ w=table('Target Analysis',['Seller ID','Seller','Marketplace','Currency','Month','Target type','Configured target','Actual','Gap (percentage points or currency)','Target source','Target status','Coverage / result','Cutoff UTC date'],budgetRows.length*2,5);
+ for(const r of budgetRows){
+  const b=r.budget,a=r.acos;
+  w.add([r.sellerId,r.sellerName,r.marketplace,r.currency,r.month,'ADS spend',cell(b.target,'money'),cell(b.actualSpend,'money'),cell(b.varianceToPlan,'money'),b.targetSource,b.targetStatus,b.status,budgetInfo.asOf]);
+  w.add([r.sellerId,r.sellerName,r.marketplace,r.currency,r.month,'ACoS',cell(a.target,'ratio'),cell(a.actual,'ratio'),cell(a.gapPp,'pp'),a.targetSource,a.targetStatus,a.status,budgetInfo.asOf]);
+ }
+ w.finish();
+ const entries=[...expectedSheets.entries()];
+ const manifest=[
+  ['Report scope',JSON.stringify(filters)],['Snapshot basis','Canonical stored facts read at worker execution; retry may read a newer snapshot.'],['Portfolio scope','All ASINs from canonical scope; positive Pareto ranks include the crossing ASIN.'],['Reconciliation details','Mismatch counts are complete; individual discrepancy details capped by the canonical audit.'],['Budget basis',budgetInfo?.reason||'Seller-wide month start through the cutoff; separate authorized snapshot, not product-level attribution.'],['Budget cutoff',budgetInfo?.asOf||null],['Current start',report.period.startDate],['Current end',report.period.endDate],['Prior start',report.period.prevStart],['Prior end',report.period.prevEnd],
+  ...entries.map(([name,n])=>['Worksheet: '+name,cell(n-1,'integer')])
+ ];
+ w=table('Export Manifest',['Property / partition','Value / data rows'],manifest.length,1);for(const row of manifest)w.add(row);w.finish();
+}
 const identity=r=>[r.sellerId,r.sellerName,r.marketplace,r.currency,r.entityKey,r.title,r.brand,r.category];
 function coverageRow(r,period){
  const s=r[period];
@@ -77,7 +163,7 @@ function dictionary(){
  const ratios=RATIO_KEYS.map(k=>['Analytics',label(k),RATIOS[k].join(' / '),kind(k),'Ratio of sums with compatible populated rows; not an average of source ratios.']);
  return [...raw,...lineage,...metrics,...ratios];
 }
-async function writeCompleteWorkbook({filePath,report,rawCount,rawRows,entityRows,aligned,filters,signal}){
+async function writeCompleteWorkbook({filePath,report,rawCount,rawRows,entityRows,aligned,filters,signal,advanced=false,loadAdvanced=null,budgetInfo=null,maxRows=1048575}){
  abort(signal);
  const expectedSheets=new Map(),stream=createWriteStream(filePath,{flags:'wx'});
  let streamError;
@@ -91,7 +177,7 @@ async function writeCompleteWorkbook({filePath,report,rawCount,rawRows,entityRow
  const closed=new Promise(resolve=>stream.once('close',resolve));
  try{
   const book=createStreamingWorkbook({stream,useStyles:true,useSharedStrings:false});
-  const table=(name,headers,count,freeze)=>sheetWriter(book,expectedSheets,{name,headers,count,freeze});
+  const table=(name,headers,count,freeze)=>partitionWriter(book,expectedSheets,{name,headers,count,freeze,maxRows});
   const scope=[
    ['Report','Ads Intelligence | Complete stored report'],['Source','canonical_v1 / normalized persisted facts'],['Current start',report.period.startDate],['Current end',report.period.endDate],['Previous start',report.period.prevStart],['Previous end',report.period.prevEnd],
    ['Grouping',report.groupBy],['Granularity',report.granularity],['Complete entities',cell(report.total,'integer')],['Complete daily records (both windows)',cell(rawCount,'integer')],
@@ -99,7 +185,7 @@ async function writeCompleteWorkbook({filePath,report,rawCount,rawRows,entityRow
    ['Source fields','All 63 v1 source columns in their original order, followed by persisted ownership and lineage. This is normalized stored data, not the original CSV bytes.'],
    ['Nulls','Blank numeric cells mean unknown. Explicit zero remains numeric zero. Missing periods remain blank.'],
    ['Precision','Excel numeric cells support 15 significant digits. Larger values are exact text; percentage-point text remains in points. Daily Source preserves original numeric scale, including source fractional rates.'],
-   ['Comparison','Current/prior periods are equal-length. Changes on incomplete data are labelled observed only by comparison status.'],
+   ['Comparison',report.period.allHistory?'All matching history; no preceding comparison period is defined.':'Current/prior periods are equal-length. Changes on incomplete data are labelled observed only by comparison status.'],
    ['Ratios','Recomputed from compatible populated numerator/denominator rows. Source ratios are preserved only in Daily Source.'],
    ['Completeness','All matching stored records; no table-page or column-preset truncation. Complete stored coverage does not prove all source reports were supplied.'],
    ['Ordering','Daily Source sorted by currency, owner, marketplace, ASIN and date. Source record retains original CSV position.'],
@@ -142,9 +228,10 @@ async function writeCompleteWorkbook({filePath,report,rawCount,rawRows,entityRow
   w.finish();reconcile.finish(rawCount);
   const dict=dictionary();w=table('Data Dictionary',['Sheet','Field','Canonical column / formula','Type','Definition'],dict.length,2);
   for(const row of dict)w.add(row);w.finish();
+  if(advanced){check();const data=loadAdvanced?await loadAdvanced():null;await advancedSheets(table,check,{data,budgetInfo,report,filters,expectedSheets});}
   check();await Promise.race([book.commit(),failure]);await finished(stream,{cleanup:true});check();
   return {expectedSheets,rawCount,entityCount};
  }catch(e){if(!stream.destroyed)stream.destroy();await closed;await fs.unlink(filePath).catch(()=>{});throw e;}
  finally{signal?.removeEventListener('abort',cancel);}
 }
-module.exports={writeCompleteWorkbook,rawValues,RAW_META,compareCells,FORMAT};
+module.exports={writeCompleteWorkbook,rawValues,RAW_META,compareCells,FORMAT,partitionPlan};

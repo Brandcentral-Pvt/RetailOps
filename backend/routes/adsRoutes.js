@@ -47,6 +47,14 @@ router.get('/canonical-options', authenticate, canViewAds, canonicalReport.optio
 router.get('/canonical-targets', authenticate, canViewAds, require('../controllers/adsCanonicalTargetsController').targets);
 router.get('/canonical-budget', authenticate, canViewAds, require('../controllers/adsCanonicalTargetsController').budget);
 // Separate export permission. Also require view, since this is a report read.
+const exportJobs=require('../controllers/adsExportJobsController');
+const canExportAds=requirePermission('adsreport_export');
+router.post('/export-jobs',authenticate,canViewAds,canExportAds,exportJobs.create);
+router.get('/export-jobs',authenticate,canViewAds,canExportAds,exportJobs.list);
+router.get('/export-jobs/:id',authenticate,canViewAds,canExportAds,exportJobs.get);
+router.post('/export-jobs/:id/retry',authenticate,canViewAds,canExportAds,exportJobs.retry);
+router.post('/export-jobs/:id/cancel',authenticate,canViewAds,canExportAds,exportJobs.cancel);
+router.get('/export-jobs/:id/download',authenticate,canViewAds,canExportAds,exportJobs.download);
 router.get('/canonical-export', authenticate, canViewAds, requirePermission('adsreport_export'), require('../controllers/adsCanonicalExportController').download);
 router.get('/series', authenticate, canViewAds, retired);
 router.get('/table', authenticate, canViewAds, retired);

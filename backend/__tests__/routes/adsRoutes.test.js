@@ -110,6 +110,22 @@ describe('Canonical Ads route authorization and retirement',()=>{
       expect(empty.status).toBe(200);expect(empty.body.data.status).toBe('no_data');expect(mockState.pool.calls).toHaveLength(0);
     });
     test('legacy ads reads and AI are retired for authorized users',async()=>{mockState.user=SCOPED;for(const p of ['overview','series','table','history','filter-options','insights','report'])expect((await request(app).get('/api/ads/'+p+WINDOW)).status).toBe(410);expect((await request(app).post('/api/ads/ai-review').send({})).status).toBe(410);expect(mockState.pool.calls).toHaveLength(0);});
+    test('all export job routes require both view and export permissions',async()=>{
+      const id='00000000-0000-4000-8000-000000000001';
+      for(const actor of [null,NO_PERMISSION,SCOPED]){
+        mockState.user=actor;
+        const expected=actor?403:401;
+        for(const [method,path] of [['post','/export-jobs'],['get','/export-jobs'],['get','/export-jobs/'+id],['post','/export-jobs/'+id+'/retry'],['post','/export-jobs/'+id+'/cancel'],['get','/export-jobs/'+id+'/download']]){
+          expect((await request(app)[method]('/api/ads'+path)).status).toBe(expected);
+        }
+      }
+      expect(mockState.pool.calls).toHaveLength(0);
+    });
+    test('queued exports reject mixed unauthorized seller scopes before SQL',async()=>{
+      mockState.user={...SCOPED,permissions:[...SCOPED.permissions,'adsreport_export']};
+      const r=await request(app).post('/api/ads/export-jobs').send({clientId:'00000000-0000-4000-8000-000000000001',format:'xlsx',filters:{sellerId:'S1,S9',startDate:'2026-08-01',endDate:'2026-08-28'}});
+      expect(r.status).toBe(403);expect(r.body.code).toBe('forbidden_seller');expect(mockState.pool.calls).toHaveLength(0);
+    });
     test('canonical export requires separate export permission',async()=>{mockState.user=SCOPED;expect((await request(app).get('/api/ads/canonical-export'+WINDOW)).status).toBe(403);});
     test('complete export rejects foreign scope before SQL or file generation',async()=>{mockState.user={...SCOPED,permissions:[...SCOPED.permissions,'adsreport_export']};const r=await request(app).get('/api/ads/canonical-export'+WINDOW+'&sellerId=S1,S9');expect(r.status).toBe(403);expect(mockState.pool.calls).toHaveLength(0);});
     test('authenticated capability metadata still available',async()=>{mockState.user=NO_PERMISSION;expect((await request(app).get('/api/ads/meta')).status).toBe(200);});

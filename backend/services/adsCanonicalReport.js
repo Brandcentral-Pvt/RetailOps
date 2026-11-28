@@ -31,11 +31,12 @@ function dateShift(value,days){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(s)||s.startsWith('0000'))invalid('The previous comparison window is outside the supported calendar.','invalid_date_range');
   return s;
 }
-function parseReport(user,query={}){
-  for(const k of Object.keys(query))if(!FILTERS.has(k))invalid('Unsupported filter: '+k+'.');
+function parseReport(user,query={},allowHistory=false){
+  const allHistory=allowHistory&&query.allHistory===true;
+  for(const k of Object.keys(query))if(!FILTERS.has(k)&&!(allHistory&&k==='allHistory'))invalid('Unsupported filter: '+k+'.');
   const scope=strictScope(user,query.sellerId);
-  const period=validateWindow(query.startDate,query.endDate);
-  period.prevStart=dateShift(period.startDate,-period.days);period.prevEnd=dateShift(period.startDate,-1);
+  const period=allHistory?{startDate:null,endDate:null,days:1,prevStart:null,prevEnd:null,allHistory:true}:validateWindow(query.startDate,query.endDate);
+  if(!allHistory){period.prevStart=dateShift(period.startDate,-period.days);period.prevEnd=dateShift(period.startDate,-1);}
   const groupBy=scalar(query,'groupBy',12)||'asin';
   const granularity=scalar(query,'granularity',12)||'day';
   const sortBy=scalar(query,'sortBy',40)||'totalSales';
@@ -107,8 +108,8 @@ function emptyReport(filters){
   return {...scopeMeta(filters),current:[],previous:[],comparisons:[],series:[],rows:[],total:0,page:1,limit:filters.limit,totalPages:1,empty:true};
 }
 const MAX_EXPORT_ENTITIES=5000;
-async function readCanonicalReport({pool,sql,user,query,exportAll=false,insightsOnly=false,portfolioOnly=false,reconciliationOnly=false,exportWorkbook=null,signal}){
-  const f=parseReport(user,query),analysisOnly=insightsOnly||portfolioOnly||reconciliationOnly,completeExport=typeof exportWorkbook==='function';
+async function readCanonicalReport({pool,sql,user,query,exportAll=false,insightsOnly=false,portfolioOnly=false,reconciliationOnly=false,exportWorkbook=null,signal,backgroundExport=false,advancedExport=false}){
+  const f=parseReport(user,query,backgroundExport),analysisOnly=insightsOnly||portfolioOnly||reconciliationOnly,completeExport=typeof exportWorkbook==='function';
   if(completeExport&&(analysisOnly||exportAll||f.entityKey))invalid('Complete export requires a report scope without entity drill-down.');
   const baseCols=completeExport?[...new Set([...canonicalBaseCols,...exportSnapshot.FULL_COLUMNS])]:canonicalBaseCols;
   const emptyRows=async function*(){};
@@ -125,7 +126,7 @@ async function readCanonicalReport({pool,sql,user,query,exportAll=false,insights
     const entity=entityExpr(f.groupBy);
     await tx.request().batch('SELECT TOP (0) '+baseCols.map(c=>'p.'+c).join(',')+','+metadataDDL+' INTO #AdsScope FROM dbo.AdsProductDailyFacts p;');
     const request=tx.request().input('start',sql.VarChar(10),f.period.startDate).input('end',sql.VarChar(10),f.period.endDate).input('prevStart',sql.VarChar(10),f.period.prevStart);
-    let where=" WHERE p.ReportType='daily' AND p.[Date]>=CONVERT(date,@prevStart,23) AND p.[Date]<=CONVERT(date,@end,23)"+scopeWhere(request,sql,f.scope,'p.SellerId');
+    let where=" WHERE p.ReportType='daily'"+(f.period.allHistory?'':" AND p.[Date]>=CONVERT(date,@prevStart,23) AND p.[Date]<=CONVERT(date,@end,23)")+scopeWhere(request,sql,f.scope,'p.SellerId');
     for(const [value,name,expr,max] of [[f.currency,'currency','p.Currency',3],[f.marketplace,'marketplace','p.Marketplace',50],[f.brand,'brand',metaValue('brand'),255],[f.category,'category',metaValue('category'),255],[f.entityKey,'entity',entity,50]]){
       if(value){request.input(name,sql.NVarChar(max),value);where+=' AND '+expr+'=@'+name;}
     }
@@ -134,10 +135,16 @@ async function readCanonicalReport({pool,sql,user,query,exportAll=false,insights
       where+=" AND (CHARINDEX(@search,p.Asin)>0 OR CHARINDEX(@search,COALESCE("+metaValue('title')+",''))>0 OR CHARINDEX(@search,COALESCE("+metaValue('sku')+",''))>0 OR CHARINDEX(@search,COALESCE(p.AdvertisedSku,''))>0 OR CHARINDEX(@search,"+entity+")>0)";
     }
     await request.query('INSERT #AdsScope ('+[...baseCols,...metadataCols].join(',')+') SELECT '+baseCols.map(c=>'p.'+c).join(',')+','+
-      [metaValue('title'),metaValue('brand'),metaValue('category'),'a.[matches]',entity,'CONVERT(nvarchar(255),s.Name)',"CASE WHEN p.[Date]>=CONVERT(date,@start,23) THEN 'current' ELSE 'previous' END"].join(',')+
+      [metaValue('title'),metaValue('brand'),metaValue('category'),'a.[matches]',entity,'CONVERT(nvarchar(255),s.Name)',f.period.allHistory?"'current'":"CASE WHEN p.[Date]>=CONVERT(date,@start,23) THEN 'current' ELSE 'previous' END"].join(',')+
       ' FROM dbo.AdsProductDailyFacts p JOIN dbo.Sellers s ON s.Id=p.SellerId '+catalogApply(columns)+where+';');
+    if(f.period.allHistory){
+      const bounds=(await tx.request().query('SELECT CONVERT(varchar(10),MIN([Date]),23) AS startDate,CONVERT(varchar(10),MAX([Date]),23) AS endDate FROM #AdsScope;')).recordset[0];
+      f.period.startDate=bounds.startDate;f.period.endDate=bounds.endDate;
+      f.period.days=bounds.startDate?(Date.parse(bounds.endDate+'T00:00:00Z')-Date.parse(bounds.startDate+'T00:00:00Z'))/86400000+1:1;
+      if(!Number.isSafeInteger(f.period.days)||f.period.days>36600)throw new AdsScopeError('history_range_too_large','Stored history spans more than 100 years. Use a custom date range.',422);
+    }
     let rawCount=0;
-    if(completeExport){stage='export_capacity';rawCount=await exportSnapshot.countRaw(tx);exportSnapshot.abort(signal);}
+    if(completeExport){stage='export_capacity';rawCount=await exportSnapshot.countRaw(tx,backgroundExport?exportSnapshot.BACKGROUND_RAW_ROWS:exportSnapshot.MAX_RAW_ROWS);exportSnapshot.abort(signal);}
     stage='aggregates';
     const totals=analysisOnly?{recordset:[]}:await tx.request().query('SELECT p.[Currency] AS [currency],p.[periodKey],'+aggregateProjection+','+unmapped+','+dayCoverage+' FROM #AdsScope p GROUP BY p.[Currency],p.[periodKey] ORDER BY p.[Currency],p.[periodKey];');
     const bucket=bucketExpr(f.granularity);
@@ -167,7 +174,7 @@ async function readCanonicalReport({pool,sql,user,query,exportAll=false,insights
       total=Number(n.recordset[0].total);
       if(!Number.isSafeInteger(total)||total<0)throw new Error('Entity count exceeds supported pagination range.');
       if(exportAll&&total>MAX_EXPORT_ENTITIES)throw new AdsScopeError('export_too_large','This export exceeds 5,000 entities. Narrow seller, currency, date or catalog filters; no rows were truncated.',422);
-      if(completeExport)exportSnapshot.checkCount(total,exportSnapshot.MAX_ENTITIES,'entities');
+      if(completeExport)exportSnapshot.checkCount(total,backgroundExport?exportSnapshot.BACKGROUND_ENTITIES:exportSnapshot.MAX_ENTITIES,'entities');
       const effectiveLimit=exportAll||completeExport?Math.max(1,total):f.limit;
       totalPages=Math.max(1,Math.ceil(total/effectiveLimit));page=exportAll||completeExport?1:Math.min(f.page,totalPages);
       const sort=f.sortBy==='entityKey'?'e.[EntityKey]':'TRY_CONVERT(decimal(38,10),c.['+f.sortBy+'])';
@@ -184,10 +191,27 @@ async function readCanonicalReport({pool,sql,user,query,exportAll=false,insights
         const current=totals.recordset.filter(r=>r.periodKey==='current').map(shape),previous=totals.recordset.filter(r=>r.periodKey==='previous').map(shape);
         const report={...scopeMeta(f),current,previous,comparisons:compareCurrencies(current,previous,f.period.days),series:series.recordset.map(r=>({periodKey:r.periodKey,bucket:r.bucket,...shape(r)})),total,page:1,limit:total,totalPages:1,empty:!current.length&&!previous.length};
         const currencies=[...new Set([...current,...previous].map(r=>r.currency))].map(currency=>({currency}));
-        const aligned=pairTrends(await readAlignedTrendRows({tx,sql,period:f.period,granularity:f.granularity}),currencies,f.period,f.granularity);
+        const aligned=f.period.allHistory?[]:pairTrends(await readAlignedTrendRows({tx,sql,period:f.period,granularity:f.granularity}),currencies,f.period,f.granularity);
+        let advancedData=null;
+        const loadAdvanced=advancedExport?async()=>{
+          stage='export_advanced';
+          // Entity comparison grouping is a display choice. Build true ASIN
+          // analytics from the same authorized facts after its cursors finish.
+          if(f.groupBy!=='asin'){
+            await tx.request().batch("DROP TABLE #AdsGroups; DROP TABLE #AdsEntities; SELECT p.[SellerId],p.[Marketplace],p.[Currency],CONVERT(nvarchar(50),p.[Asin]) AS [EntityKey],p.[periodKey],MAX(p.[SellerName]) AS [SellerName],MAX(p.[CatalogTitle]) AS [CatalogTitle],MAX(p.[CatalogBrand]) AS [CatalogBrand],MAX(p.[CatalogCategory]) AS [CatalogCategory],"+aggregateProjection+","+unmapped+","+dayCoverage+" INTO #AdsGroups FROM #AdsScope p GROUP BY p.[SellerId],p.[Marketplace],p.[Currency],p.[Asin],p.[periodKey]; SELECT DISTINCT [SellerId],[Marketplace],[Currency],[EntityKey] INTO #AdsEntities FROM #AdsGroups; CREATE UNIQUE CLUSTERED INDEX IX_AdsExportGroups ON #AdsGroups([SellerId],[Marketplace],[Currency],[EntityKey],[periodKey]);");
+          }
+          const asinCount=await tx.request().query('SELECT COUNT_BIG(*) AS n FROM #AdsEntities;');
+          exportSnapshot.checkCount(asinCount.recordset[0].n,exportSnapshot.BACKGROUND_ENTITIES,'ASIN analytical entities');
+          exportSnapshot.abort(signal);
+          const reconciliation=await readReconciliation({tx,sql,period:f.period});
+          const portfolio=await readPortfolioAnalytics({tx,sql,period:f.period,granularity:f.granularity,exportMode:true});
+          const review=await readReviewSignals({tx,sql,days:f.period.days,full:true});
+          advancedData={portfolio,review,reconciliation};return advancedData;
+        }:null;
         stage='export_write';
-        const output=await exportWorkbook({report,rawCount,aligned,rawRows:()=>exportSnapshot.rawRows({tx,sql,signal}),entityRows:()=>exportSnapshot.entityRows({tx,sql,signal,combineRows,days:f.period.days,comparePeriods})});
+        const output=await exportWorkbook({report,rawCount,aligned,loadAdvanced,rawRows:()=>exportSnapshot.rawRows({tx,sql,signal}),entityRows:()=>exportSnapshot.entityRows({tx,sql,signal,combineRows,days:f.period.days,comparePeriods})});
         exportSnapshot.abort(signal);
+        if(advancedData?.portfolio?.products)await advancedData.portfolio.products.cleanup();
         await tx.request().batch('DROP TABLE #AdsRawExport; DROP TABLE #AdsPage; DROP TABLE #AdsEntities; DROP TABLE #AdsGroups; DROP TABLE #AdsScope;');
         await tx.commit();return output;
       }

@@ -91,3 +91,37 @@ test('empty scope exports headers only and cannot claim a fabricated zero total'
   assert.equal(result.expectedSheets.get('Summary'),1);
  }finally{await fs.rm(dir,{recursive:true,force:true});}
 });
+
+test('partition plan respects Excel header capacity and background workbook manifest records every part',async()=>{
+ const {partitionPlan}=require('../services/adsCompleteWorkbook');
+ assert.deepEqual(partitionPlan('Daily Source',1048576),[{name:'Daily Source',count:1048575},{name:'Daily Source 2',count:1}]);
+ assert.deepEqual(partitionPlan('Daily Source',0),[{name:'Daily Source',count:0}]);
+ assert.throws(()=>partitionPlan('Daily Source',1,1048576),/Invalid/);
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'ads-partitions-'));
+ try{
+  const filePath=path.join(dir,'partitioned.xlsx');
+  const result=await writeCompleteWorkbook({filePath,...fixture(),filters:{sellerId:'s1'},advanced:true,maxRows:2});
+  await verifyXlsx(filePath,{expectedSheets:result.expectedSheets});
+  const book=XLSX.readFile(filePath);
+  assert.equal(result.expectedSheets.get('Daily Source'),3);
+  assert.equal(result.expectedSheets.get('Daily Source 2'),3);
+  assert.ok(book.SheetNames.includes('Export Manifest'));
+  const manifest=book.SheetNames.filter(n=>n.startsWith('Export Manifest')).flatMap(n=>XLSX.utils.sheet_to_json(book.Sheets[n],{header:1}).slice(1));
+  assert.ok(manifest.some(row=>row[0]==='Worksheet: Daily Source 2'&&row[1]===2));
+ }finally{await fs.rm(dir,{recursive:true,force:true});}
+});
+test('streaming CSV preserves exact raw decimals, all source rows and safe formula-like text',async()=>{
+ const {writeDailyCsv,csvCell}=require('../services/adsExportCsv');
+ assert.equal(csvCell('=1+2'),'"\'=1+2"');
+ assert.equal(csvCell('-1.25',true),'"-1.25"');
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'ads-csv-'));
+ try{
+  const filePath=path.join(dir,'complete.csv'),f=fixture();
+  const out=await writeDailyCsv({filePath,...f});
+  assert.equal(out.rawCount,4);
+  const data=await fs.readFile(filePath,'utf8');
+  assert.match(data,/9007199254740993\.1234567891/);
+  assert.match(data,/"'=1\+2"/);
+  assert.equal(data.trim().split('\n').length,5);
+ }finally{await fs.rm(dir,{recursive:true,force:true});}
+});

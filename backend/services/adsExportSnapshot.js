@@ -6,11 +6,12 @@ const SOURCE_FIELDS=contract.fields;
 const LINEAGE=['ReportType','SourceFileSha256','SourceRowNumber','SourceSchemaVersion','ImportedBy','ImportedAt'];
 const FULL_COLUMNS=[...new Set([...SOURCE_FIELDS.map(f=>f.canonicalColumn),...LINEAGE])].map(c=>'['+c+']');
 const MAX_RAW_ROWS=250000,MAX_ENTITIES=25000,RAW_PAGE=1000,ENTITY_PAGE=250;
+const BACKGROUND_RAW_ROWS=2000000,BACKGROUND_ENTITIES=250000;
 const abort=signal=>{if(signal?.aborted)throw new AdsScopeError('export_interrupted','Export was interrupted or exceeded its time limit. Narrow the scope and retry.',408);};
 function checkCount(value,max,label){
  const n=Number(value);
  if(!Number.isSafeInteger(n)||n<0)throw Error('Invalid '+label+' count');
- if(n>max)throw new AdsScopeError('export_too_large','Complete synchronous export exceeds '+max.toLocaleString('en-US')+' '+label+'. Narrow the dates, seller or currency. No rows were truncated.',422);
+ if(n>max)throw new AdsScopeError('export_too_large','Complete export exceeds '+max.toLocaleString('en-US')+' '+label+'. Narrow the dates, seller or currency. No rows were truncated.',422);
  return n;
 }
 const keys=['SellerId','Marketplace','Currency','Asin','Date'];
@@ -27,9 +28,9 @@ const rawProjection=[
  'CONVERT(varchar(30),p.[SourceSchemaVersion]) AS [SourceSchemaVersion]','p.[ImportedBy]',
  "CONVERT(varchar(33),p.[ImportedAt],126)+'Z' AS [ImportedAt]"
 ].join(',');
-async function countRaw(tx){
+async function countRaw(tx,max=MAX_RAW_ROWS){
  const r=await tx.request().query('SELECT CONVERT(varchar(30),COUNT_BIG(*)) AS n FROM #AdsScope;');
- return checkCount(r.recordset[0].n,MAX_RAW_ROWS,'daily records (current plus prior)');
+ return checkCount(r.recordset[0].n,max,'daily records (current plus prior)');
 }
 async function prepareRaw(tx){
  await tx.request().batch('CREATE UNIQUE CLUSTERED INDEX IX_AdsExportScope ON #AdsScope([SellerId],[Marketplace],[Currency],[Asin],[Date]); SELECT ROW_NUMBER() OVER(ORDER BY p.[Currency],p.[SellerId],p.[Marketplace],p.[Asin],p.[Date]) AS [exportRank],'+keys.map(k=>'p.['+k+']').join(',')+' INTO #AdsRawExport FROM #AdsScope p; CREATE UNIQUE CLUSTERED INDEX IX_AdsRawExportRank ON #AdsRawExport([exportRank]);');
@@ -78,4 +79,4 @@ function rawReconciler(report){
   }
  };
 }
-module.exports={SOURCE_FIELDS,FULL_COLUMNS,LINEAGE,MAX_RAW_ROWS,MAX_ENTITIES,RAW_PAGE,ENTITY_PAGE,abort,checkCount,countRaw,prepareRaw,rawRows,entityRows,rawReconciler};
+module.exports={SOURCE_FIELDS,FULL_COLUMNS,LINEAGE,MAX_RAW_ROWS,MAX_ENTITIES,BACKGROUND_RAW_ROWS,BACKGROUND_ENTITIES,RAW_PAGE,ENTITY_PAGE,abort,checkCount,countRaw,prepareRaw,rawRows,entityRows,rawReconciler};

@@ -951,6 +951,8 @@ server.listen(PORT, '0.0.0.0', () => {
     if(!state.ready)logger.error('Ads schema is not ready',state);
     else {
       logger.info('Ads canonical schema verified');
+      const exportJobs=require('./services/adsExportJobs');
+      try{if(await exportJobs.ensureSchema(await getPool(),process.env.RUN_MIGRATIONS_ON_STARTUP!=='false')){exportJobs.startWorker(getPool);logger.info('Ads export worker started');}else logger.error('Ads export job schema not ready');}catch(error){logger.error('Ads export job startup failed',{error:error.message});}
       const imports=await require('./database/adsImportSchema').ensureAdsImportSchema({apply:process.env.RUN_MIGRATIONS_ON_STARTUP!=='false'});
       if(!imports.ready)logger.error('Ads import job schema is not ready',imports);
       else {require('./services/adsImportJobs').startExpirySweep(getPool);require('./services/adsImportWorker').startWorker({getPool,sql,resolveProfile:require('./services/accessProfileService').resolveAccessProfile});logger.info('Ads import job schema verified; background worker started');}
