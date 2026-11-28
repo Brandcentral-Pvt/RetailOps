@@ -71,7 +71,7 @@ async function createJob({pool,sql,user,body}){
 }
 async function ownJob(db,sql,user,id,lock=false){
  if(!idValid(id))throw err('export_not_found','Export not found.',404);
- const r=await db.request().input('id',sql.VarChar(36),id).input('owner',sql.VarChar(50),uid(user)).query('SELECT '+cols+' FROM dbo.AdsExportJobs'+(lock?' WITH (UPDLOCK,HOLDLOCK)':'')+' WHERE Id=@id AND OwnerId=@owner;');
+ const r=await db.request().input('id',sql.VarChar(36),id).input('owner',sql.VarChar(50),uid(user)).query('SELECT '+cols+',CASE WHEN ExpiresAt>SYSUTCDATETIME() THEN 1 ELSE 0 END AS ArtifactAvailable FROM dbo.AdsExportJobs'+(lock?' WITH (UPDLOCK,HOLDLOCK)':'')+' WHERE Id=@id AND OwnerId=@owner;');
  const j=r.recordset[0];if(!j)throw err('export_not_found','Export not found.',404);
  scopedFilters(user,JSON.parse(j.Filters),JSON.parse(j.AccessScope));return j;
 }
@@ -163,7 +163,7 @@ async function spoolDownload({pool,sql,user,id,filePath,signal}){
  let handle;
  try{
   const j=await ownJob(tx,sql,user,id,true);
-  if(j.Status!=='COMPLETED'||!j.ArtifactToken||!j.ExpiresAt||new Date(j.ExpiresAt)<=new Date())throw err('artifact_unavailable','Export is not available for download.',409);
+  if(j.Status!=='COMPLETED'||!j.ArtifactToken||!j.ArtifactAvailable)throw err('artifact_unavailable','Export is not available for download.',409);
   handle=await fs.open(filePath,'wx');let bytes=0;const hash=createHash('sha256');
   for(let i=1;i<=j.ChunkCount;i++){
    if(signal?.aborted)throw err('download_interrupted','Export download interrupted.',408);
