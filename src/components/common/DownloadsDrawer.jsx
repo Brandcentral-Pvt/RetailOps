@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import {
     Drawer, Typography, Tag, Button, Empty, Spin, Tooltip, message,
     ConfigProvider, Segmented, Progress, Card, List, Space, Row, Col,
-    Statistic, Alert
+    Statistic, Alert, Pagination
 } from 'antd';
 import {
     Download, FileText, FileSpreadsheet, Clock, CheckCircle2,
@@ -12,6 +12,7 @@ import {
     Database, Zap, Filter, HardDrive, TrendingUp, X
 } from 'lucide-react';
 import { exportApi } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
 
 const { Text, Paragraph, Title } = Typography;
@@ -93,6 +94,9 @@ const getStatusConfig = (status) => {
                 colorCode: '#faad14',
                 icon: Clock
             };
+        case 'expired':
+        case 'cancelled':
+            return {label:s.toUpperCase(),color:'default',colorCode:'#94a3b8',icon:Clock};
         default:
             return {
                 label: 'PENDING',
@@ -111,6 +115,40 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
     const [loading, setLoading] = useState(false);
     const [filterStatus, setFilterStatus] = useState('all');
     const socket = useSocket();
+    const {user}=useAuth();
+    const permissions=user?.permissions||[];
+    const canAds=['adsreport_view','adsreport_export'].every(p=>permissions.includes('*')||permissions.includes(p));
+    const principal=JSON.stringify([user?.Id||user?.id||user?._id,user?.role?.name,user?.assignedSellers,permissions]);
+    const [ads,setAds]=useState({principal:null,rows:[],total:0,activeCount:0});
+    const [adsPage,setAdsPage]=useState(1);
+    const [adsError,setAdsError]=useState(null);
+    const [action,setAction]=useState(null);
+    const actionLock=useRef(false);
+    const [source,setSource]=useState('all');
+    const [refreshRevision,setRefreshRevision]=useState(0);
+    const activeCount=ads.principal===principal?ads.activeCount:0;
+    useEffect(()=>{setAdsPage(1);setSource('all');setAdsError(null);},[principal]);
+    useEffect(()=>{
+        if(!isOpen||!canAds)return;
+        let stopped=false,timer,controller;
+        const load=async()=>{
+            controller=new AbortController();
+            let delay=15000;
+            try{
+                const res=await exportApi.getAdsDownloads({page:adsPage,signal:controller.signal});
+                if(stopped)return;
+                if(!res.success||!Array.isArray(res.data?.rows))throw Error('Invalid Ads export history response');
+                setAds({principal,...res.data});setAdsError(null);
+                delay=res.data.activeCount>0?3000:15000;
+            }catch(e){if(!stopped){setAds({principal,rows:[],total:0,activeCount:0});setAdsError(e.message);}}
+            finally{if(!stopped)timer=setTimeout(load,delay);}
+        };
+        const refresh=()=>{clearTimeout(timer);controller?.abort();};
+        // Each effect has a single request chain; refresh restarts it below.
+        void load();
+        return ()=>{stopped=true;refresh();};
+    },[isOpen,canAds,principal,adsPage,refreshRevision]);
+
 
     // Normalize schema
     const normalize = useCallback((d) => {
@@ -181,14 +219,22 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
 
     // Normalize all downloads
     const normalizedDownloads = useMemo(() => {
-        return downloads.map(normalize);
-    }, [downloads, normalize]);
+        const legacy=downloads.map(normalize).map(d=>({...d,source:'legacy',key:'legacy:'+d.id}));
+        const canonical=canAds&&ads.principal===principal?ads.rows.map(j=>({
+            id:j.id,key:'ads:'+j.id,source:'ads',status:String(j.status).toLowerCase(),
+            fileName:'ads-intelligence-'+(j.filters?.allHistory?'all-history':j.filters?.startDate+'-'+j.filters?.endDate)+'.'+j.format,
+            format:j.format,rowCount:j.rawCount,fileSize:j.bytes,createdAt:j.createdAt,
+            expiresAt:j.expiresAt,stage:j.stage,attemptCount:j.attemptCount,errorMessage:j.errorCode,
+            scope:j.filters?.sellerId||'All authorized sellers'
+        })):[];
+        return [...legacy,...canonical].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+    }, [downloads, normalize, ads, canAds, principal]);
 
     // Compute stats
     const stats = useMemo(() => {
         const total = normalizedDownloads.length;
         const completed = normalizedDownloads.filter(d => d.status === 'completed').length;
-        const processing = normalizedDownloads.filter(d => d.status === 'processing').length;
+        const processing = normalizedDownloads.filter(d => ['processing','pending','queued'].includes(d.status)).length;
         const failed = normalizedDownloads.filter(d => d.status === 'failed').length;
         const totalSize = normalizedDownloads
             .filter(d => d.fileSize)
@@ -198,14 +244,15 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
 
     // Filter downloads
     const filteredDownloads = useMemo(() => {
-        if (filterStatus === 'all') return normalizedDownloads;
-        return normalizedDownloads.filter(d => {
-            if (filterStatus === 'processing') return d.status === 'processing';
+        const selected=normalizedDownloads.filter(d=>source==='all'||d.source===source);
+        if (filterStatus === 'all') return selected;
+        return selected.filter(d => {
+            if (filterStatus === 'processing') return ['processing','pending','queued'].includes(d.status);
             if (filterStatus === 'completed') return d.status === 'completed';
             if (filterStatus === 'failed') return d.status === 'failed';
             return true;
         });
-    }, [normalizedDownloads, filterStatus]);
+    }, [normalizedDownloads, filterStatus,source]);
 
     const handleDownloadTrigger = async (item) => {
         if (item.status !== 'completed') return;
@@ -214,7 +261,7 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
         message.loading({ content: `Preparing ${item.fileName}...`, key, duration: 0 });
 
         try {
-            const blob = await exportApi.downloadFile(item.id,{fileName:item.fileName,fileSize:item.fileSize});
+            const blob = await (item.source==='ads'?exportApi.downloadAdsFile:exportApi.downloadFile)(item.id,{fileName:item.fileName,fileSize:item.fileSize});
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
@@ -230,7 +277,15 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
         }
     };
 
+    const handleAdsAction=async(item,operation)=>{
+        if(actionLock.current)return;
+        actionLock.current=true;setAction(item.id+operation);
+        try{await exportApi.mutateAdsDownload(item.id,operation);message.success(operation==='retry'?'Export queued again':'Export cancelled');}
+        catch(e){message.error(e.message);}
+        finally{actionLock.current=false;setAction(null);setRefreshRevision(v=>v+1);}
+    };
     const handleRefresh = () => {
+        setRefreshRevision(v=>v+1);
         setLoading(true);
         fetchDownloads().finally(() => setLoading(false));
     };
@@ -347,6 +402,8 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                             </Row>
                         )}
 
+                        {canAds&&<Segmented block value={source} onChange={setSource} options={[{label:'All reports',value:'all'},{label:'Ads',value:'ads'},{label:'Other exports',value:'legacy'}]}/>}
+                        {canAds&&adsError&&<Alert type="error" showIcon message={adsError} action={<Button size="small" onClick={handleRefresh}>Retry</Button>}/>}
                         {/* Navigation Tabs */}
                         {stats.total > 0 && (
                             <Segmented
@@ -366,6 +423,7 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                         {/* Downloads List using Ant Design Components */}
                         <div style={{ flex: 1, overflowY: 'auto' }}>
                             <List
+                                rowKey={item=>item.key}
                                 dataSource={filteredDownloads}
                                 locale={{
                                     emptyText: stats.total === 0 ? (
@@ -447,8 +505,15 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                                                             <span style={{ color: '#bfbfbf' }}>{formatRelativeTime(item.createdAt)}</span>
                                                         </Space>
 
+                                                        {item.source==='ads'&&<div style={{marginTop:6}}>
+                                                            <Text type="secondary">Ads report · {item.scope}</Text>
+                                                            {['queued','processing'].includes(item.status)&&<div role="status"><Space size={6}><Loader2 size={14} className="spin-animation"/><Text>{({queued:'Waiting for worker',generating:'Reading and reconciling reports',storing:'Validating and saving artifact',retry_wait:'Waiting to retry'})[item.stage]||'Processing export'}</Text></Space></div>}
+                                                            {item.attemptCount>0&&<div><Text type="secondary">Attempt {item.attemptCount}/3</Text></div>}
+                                                            {item.expiresAt&&item.status==='completed'&&<div><Text type="secondary">Expires {new Date(item.expiresAt).toLocaleString()}</Text></div>}
+                                                            {['queued','processing','failed'].includes(item.status)&&<Button size="small" style={{marginTop:6}} disabled={!!action} loading={action===item.id+(item.status==='failed'?'retry':'cancel')} onClick={e=>{e.stopPropagation();handleAdsAction(item,item.status==='failed'?'retry':'cancel');}}>{item.status==='failed'?'Retry':'Cancel'}</Button>}
+                                                        </div>}
                                                         {/* Native Ant Design Progress */}
-                                                        {item.status === 'processing' && (
+                                                        {item.status === 'processing' && item.source!=='ads' && (
                                                             <div style={{ marginTop: 6 }}>
                                                                 <Progress
                                                                     percent={Math.round(item.progress || 0)}
@@ -504,6 +569,7 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                             />
                         </div>
 
+                        {canAds&&source!=='legacy'&&ads.principal===principal&&ads.total>50&&<Pagination size="small" current={adsPage} pageSize={50} total={ads.total} showSizeChanger={false} onChange={setAdsPage}/>}
                         {/* Footer Status Metadata */}
                         {stats.total > 0 && (
                             <div style={{
