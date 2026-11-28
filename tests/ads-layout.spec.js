@@ -1,0 +1,74 @@
+import {test,expect} from '@playwright/test';
+
+const user={Id:'ads-layout-user',_id:'ads-layout-user',role:{name:'super_admin'},permissions:['adsreport_view','adsreport_import','adsreport_export']};
+const longName='Seller '+ 'LongCatalogName'.repeat(18);
+const period={startDate:'2026-10-29',endDate:'2026-11-28',prevStart:'2026-09-28',prevEnd:'2026-10-28',days:31};
+const metricKeys=['spend','sales','totalSales','organicSales','orders','totalOrders','conversions','clicks','impressions'];
+const summary={currency:'INR',rowCount:'30',unmappedRows:'0',
+ totals:Object.fromEntries(metricKeys.map(k=>[k,'123456789012.1234567890'])),
+ coverage:Object.fromEntries(metricKeys.map(k=>[k,{status:'partial'}])),
+ ratios:Object.fromEntries(['acos','tacos','roas','cvr'].map(k=>[k,{value:'12.3456',status:'partial'}]))};
+const rows=Array.from({length:20},(_,i)=>({key:'row-'+i,entityKey:'B'+String(i+1).padStart(9,'0'),sellerId:'s1',sellerName:longName,marketplace:'amazon.in',currency:'INR',title:'LongProductTitle'.repeat(25),current:summary,previous:summary}));
+const mock=async(page,{empty=false,error=false}={})=>{
+ await page.route('**/api/**',route=>{
+  const path=new URL(route.request().url()).pathname;
+  const send=(data,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify({success:status===200,data,message:status!==200?'Report unavailable. Retry.':undefined})});
+  if(path.endsWith('/auth/me'))return send(user);
+  if(path.endsWith('/canonical-options'))return send({sellers:[{id:'s1',name:longName}],brands:['B'.repeat(230)],categories:['C'.repeat(240)],currencies:['INR'],truncated:true,parentAvailable:true});
+  if(path.endsWith('/canonical-report'))return error?send(null,503):send({period,empty,current:empty?[]:[summary],previous:empty?[]:[summary],series:empty?[]:[{...summary,periodKey:'current',bucket:'2026-11-01'}],rows:empty?[]:rows,total:empty?0:rows.length,page:1,limit:50});
+  if(path.endsWith('/canonical-targets'))return send({rows:empty?[]:[{sellerId:'s1',sellerName:longName,month:'2026-11',goalType:'ADS',currency:'INR',target:'10000',actual:'1234',attainmentPct:'12.34',status:'insufficient_coverage'}]});
+  if(path.endsWith('/ads-validation-sellers'))return send([{id:'s1',name:longName,marketplace:'Amazon India',context:{marketplace:'amazon.in',currency:'INR'}}]);
+  if(path.endsWith('/ads-imports'))return send({rows:[],page:1,total:0,limit:10});
+  return send([]);
+ });
+ await page.route('**/socket.io/**',route=>route.abort());
+};
+async function assertContained(page){
+ const bounds=await page.evaluate(()=>{
+  const shell=document.querySelector('.routes-container'),root=document.querySelector('.ads-workspace');
+  const edge=Math.min(shell.getBoundingClientRect().right,window.innerWidth);
+  const rects=[root,...root.querySelectorAll(':scope > *, .ads-heading-actions > *, .ads-filters > *, .ads-table-shell')].map(e=>{
+   const r=e.getBoundingClientRect();return {name:e.className?.toString().slice(0,90),right:r.right,left:r.left};
+  });
+  return {edge,left:shell.getBoundingClientRect().left,rootWidth:root.clientWidth,rootScrollWidth:root.scrollWidth,shellWidth:shell.clientWidth,shellScrollWidth:shell.scrollWidth,rects};
+ });
+ expect(bounds.rootScrollWidth).toBeLessThanOrEqual(bounds.rootWidth+2);
+ expect(bounds.shellScrollWidth).toBeLessThanOrEqual(bounds.shellWidth+2);
+ for(const r of bounds.rects){expect(r.right,r.name+' right edge').toBeLessThanOrEqual(bounds.edge+2);expect(r.left,r.name+' left edge').toBeGreaterThanOrEqual(bounds.left-2);}
+}
+for(const width of [1920,1440,1024,768]){
+ test('empty report and filters fit the shell at '+width+'px',async({page})=>{
+  await page.setViewportSize({width,height:900});await mock(page,{empty:true});
+  await page.goto('/tests/fixtures/ads-layout.html');
+  await expect(page.getByText('No canonical advertising records in the selected dates.')).toBeVisible();
+  await expect(page.getByText('No seller targets in the selected period')).toBeVisible();
+  await expect(page.getByRole('button',{name:'Import CSV',exact:true})).toBeInViewport();
+  await expect(page.getByRole('button',{name:'Export XLSX',exact:true})).toBeInViewport();
+  await expect(page.getByRole('button',{name:'Refresh',exact:true})).toBeInViewport();
+  await assertContained(page);
+ });
+}
+test('wide tables scroll inside the workspace and preserve the pinned product column',async({page})=>{
+ await page.setViewportSize({width:1440,height:900});await mock(page);
+ await page.goto('/tests/fixtures/ads-layout.html');
+ const table=page.getByTestId('ads-product-table');
+ await expect(table.getByRole('button',{name:'B000000001',exact:true})).toBeVisible();
+ await assertContained(page);
+ const body=table.locator('.ant-table-body');
+ const pin=table.locator('tbody tr').first().locator('td.ads-pinned-cell');
+ const before=await pin.evaluate(e=>e.getBoundingClientRect().left);
+ const sizes=await body.evaluate(e=>{const result={width:e.clientWidth,scrollWidth:e.scrollWidth};e.scrollLeft=600;return {...result,scrollLeft:e.scrollLeft};});
+ expect(sizes.scrollWidth).toBeGreaterThan(sizes.width+300);expect(sizes.scrollLeft).toBeGreaterThan(0);
+ await expect.poll(()=>pin.evaluate(e=>e.getBoundingClientRect().left)).toBeCloseTo(before,0);
+ await expect(page.getByRole('button',{name:'Import CSV',exact:true})).toBeInViewport();
+ await assertContained(page);
+ // Resizing the application must not make the report width follow its content.
+ await page.setViewportSize({width:1024,height:900});await assertContained(page);
+});
+test('error state stays inside the workspace and exposes retry',async({page})=>{
+ await page.setViewportSize({width:1024,height:768});await mock(page,{error:true});
+ await page.goto('/tests/fixtures/ads-layout.html');
+ await expect(page.getByText('Report unavailable. Retry.')).toBeVisible();
+ await expect(page.getByRole('button',{name:'Retry',exact:true})).toBeVisible();
+ await assertContained(page);
+});
