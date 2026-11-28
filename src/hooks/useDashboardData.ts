@@ -6,7 +6,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useDashboardOrchestration } from './useDashboardOrchestration';
 import { dashboardPrincipal,matchesDashboardScope,isDashboardGlobal,canDashboardPermission } from '../utils/dashboardScope.mjs';
 import { useSocket } from '../contexts/SocketContext';
-import { computeBlendedAchievement, targetAchievementPct } from '../utils/targetMetrics';
 
 export interface DashboardFilters {
     sellerId: string;
@@ -21,7 +20,7 @@ export interface ModuleStats {
         onTrack: number;
         atRisk: number;
         completed: number;
-        rate: number;
+        rate: number|null;
     };
     asins: {
         total: number;
@@ -30,10 +29,10 @@ export interface ModuleStats {
         newThisMonth: number;
     };
     ads: {
-        totalSpend: number;
-        totalSales: number;
-        acos: number;
-        roas: number;
+        totalSpend: number|null;
+        totalSales: number|null;
+        acos: number|null;
+        roas: number|null;
         campaigns: number;
     };
     tasks: {
@@ -228,54 +227,14 @@ export function useDashboardData(filters: DashboardFilters) {
             );
         }
 
-        // Targets stats
-        let totalTarget = 0;
-        let totalAchieved = 0;
-        let onTrack = 0;
-        let atRisk = 0;
-        let completed = 0;
-
-        filteredTargets.forEach((t: any) => {
-            // ✅ Goal-separation: inverted math for lower-is-better (ACoS)
-            // goals; currency goals classified by their own ratio.
-            const pct = targetAchievementPct(t);
-            if (pct >= 100) completed++;
-            else if (pct >= 50) onTrack++;
-            else atRisk++;
-        });
-
-        // ✅ Blended rate: currency goals (GMS/ADS) summed; ratio goals no
-        // longer pollute the combined percentage.
-        const blended = computeBlendedAchievement(filteredTargets);
-        totalTarget = blended.totalTarget;
-        totalAchieved = blended.totalAchieved;
-
-        // Ads stats from dashboard raw
-        const adsPerf = orch.dashboardRaw?.adsPerformanceSeries || [];
-        const adSalesData = adsPerf[0]?.data || [];
-        const adSpendData = adsPerf[1]?.data || [];
-        const totalAdSales = adSalesData.reduce((a: number, b: number) => a + b, 0);
-        const totalAdSpend = adSpendData.reduce((a: number, b: number) => a + b, 0);
-
-        // Get sellerIds for selected manager (match UserId OR BrandManager name)
+        const completed=filteredTargets.filter(t=>t.status==='met'||(t.closed&&t.status==='within_limit')).length;
+        const atRisk=filteredTargets.filter(t=>['below_target','over_limit'].includes(t.status)).length;
+        const onTrack=filteredTargets.filter(t=>!t.closed&&t.status==='within_limit').length;
+        const classified=filteredTargets.filter(t=>!['unknown','not_started','in_progress'].includes(t.status)).length;
+        const rate=classified?completed/classified*100:null;
+        const ad=orch.dashboardRaw?.ads;
+        const totalAdSales=ad?.adSales??null,totalAdSpend=ad?.adSpend??null;
         const managerSellers=new Set(scope?.sellerIds??[]);
-
-        // Tasks stats
-        let tasks = optimizationTasks;
-        if (filters.managerId && filters.managerId !== 'all') {
-            tasks = tasks.filter((t: any) => managerSellers.has(t.sellerId));
-        }
-        // Statuses arrive normalized from the task instances mapping above.
-        const isStatus = (t: any, ...names: string[]) => names.includes(String(t.status || '').toUpperCase());
-        const taskCompleted = tasks.filter((t: any) => isStatus(t, 'COMPLETED')).length;
-        const taskPending = tasks.filter((t: any) => isStatus(t, 'PENDING')).length;
-        const taskOverdue = tasks.filter((t: any) => {
-            if (isStatus(t, 'COMPLETED', 'CANCELLED')) return false;
-            if (t.dueDate) return new Date(t.dueDate) < new Date();
-            return false;
-        }).length;
-        const taskInProgress = tasks.filter((t: any) => isStatus(t, 'IN_PROGRESS')).length;
-        const taskTodo = tasks.filter((t: any) => isStatus(t, 'TODO')).length;
 
         // Pipeline stats
         let finalScrapeTasks = scrapeTasks;
@@ -322,7 +281,7 @@ export function useDashboardData(filters: DashboardFilters) {
                 onTrack,
                 atRisk,
                 completed,
-                rate: blended.rate,
+                rate,
             },
             asins: {
                 total: orch.dashboardRaw?.stats?.totalAsins || 0,
@@ -333,8 +292,8 @@ export function useDashboardData(filters: DashboardFilters) {
             ads: {
                 totalSpend: totalAdSpend,
                 totalSales: totalAdSales,
-                acos: totalAdSales > 0 ? (totalAdSpend / totalAdSales) * 100 : 0,
-                roas: totalAdSpend > 0 ? totalAdSales / totalAdSpend : 0,
+                acos:ad?.acos??null,
+                roas:ad?.roas??null,
                 campaigns: 0,
             },
             tasks: {
