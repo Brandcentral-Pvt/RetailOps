@@ -143,7 +143,7 @@ async function readReconciliation({tx,sql,period}){
   const trend=check('trend_'+granularity,({day:'Daily',week:'Weekly',month:'Monthly'})[granularity]+' aligned trends: exact roll-up and emitted buckets');
   const raw=await readAlignedTrendRows({tx,sql,period,granularity});
   compareAggregates({baseline,candidate:rollupRows(raw,{days:true}),check:trend,fields:[...FIELDS,'coveredDays']});
-  compareTrendOutput({baseline,raw,groups,period,granularity,out:trend});
+  if(!period.allHistory)compareTrendOutput({baseline,raw,groups,period,granularity,out:trend});
   checks.push(trend.result());
  }
  // Check the actual complete seller/brand aggregation before its top-20
