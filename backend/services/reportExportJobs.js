@@ -10,6 +10,7 @@ function createReportExportJobs({kind,permission,freezeScope,scopedFilters,valid
  if(!['ads','gms'].includes(kind))throw Error('Unsupported report queue');
  const table=kind==='ads'?'dbo.AdsExportJobs':'dbo.GmsExportJobs';
  const chunksTable=kind==='ads'?'dbo.AdsExportChunks':'dbo.GmsExportChunks';
+const MAX_ACTIVE=kind==='ads'?1:2;
 const LEASE=120,MAX_BYTES=512*1024*1024,CHUNK=1024*1024;
 const configuredRetention=Number(process.env[kind.toUpperCase()+'_EXPORT_RETENTION_DAYS']||7);
 const RETENTION_DAYS=Number.isInteger(configuredRetention)&&configuredRetention>=1&&configuredRetention<=30?configuredRetention:7;
@@ -88,7 +89,7 @@ async function mutate({pool,sql,user,id,action}){
 async function claimNext(pool,sql){
  return queueTx(pool,sql,async tx=>{
   await tx.request().query("UPDATE "+table+" SET Status='FAILED',Stage='failed',ErrorCode='retry_exhausted',CompletedAt=SYSUTCDATETIME(),LeaseToken=NULL,LeaseUntil=NULL WHERE Status='PROCESSING' AND LeaseUntil<=SYSUTCDATETIME() AND AttemptCount>=3;");
-  const r=await tx.request().input('token',sql.VarChar(36),randomUUID()).input('lease',sql.Int,LEASE).query("IF (SELECT COUNT(*) FROM "+table+" WHERE Status='PROCESSING' AND LeaseUntil>SYSUTCDATETIME())<2 BEGIN ;WITH candidate AS (SELECT TOP(1) * FROM "+table+" WITH(UPDLOCK,HOLDLOCK) WHERE AttemptCount<3 AND ((Status='QUEUED' AND NextAttemptAt<=SYSUTCDATETIME()) OR (Status='PROCESSING' AND LeaseUntil<=SYSUTCDATETIME())) ORDER BY CreatedAt,Id) UPDATE candidate SET Status='PROCESSING',Stage='generating',AttemptCount=AttemptCount+1,StartedAt=SYSUTCDATETIME(),LeaseToken=@token,LeaseUntil=DATEADD(second,@lease,SYSUTCDATETIME()) OUTPUT inserted.*; END");
+  const r=await tx.request().input('token',sql.VarChar(36),randomUUID()).input('lease',sql.Int,LEASE).query("IF (SELECT COUNT(*) FROM "+table+" WHERE Status='PROCESSING' AND LeaseUntil>SYSUTCDATETIME())<"+MAX_ACTIVE+" BEGIN ;WITH candidate AS (SELECT TOP(1) * FROM "+table+" WITH(UPDLOCK,HOLDLOCK) WHERE AttemptCount<3 AND ((Status='QUEUED' AND NextAttemptAt<=SYSUTCDATETIME()) OR (Status='PROCESSING' AND LeaseUntil<=SYSUTCDATETIME())) ORDER BY CreatedAt,Id) UPDATE candidate SET Status='PROCESSING',Stage='generating',AttemptCount=AttemptCount+1,StartedAt=SYSUTCDATETIME(),LeaseToken=@token,LeaseUntil=DATEADD(second,@lease,SYSUTCDATETIME()) OUTPUT inserted.*; END");
   return r.recordset?.[0]||null;
  });
 }
