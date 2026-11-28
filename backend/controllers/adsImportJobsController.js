@@ -7,7 +7,7 @@ const service=require('../services/adsImportJobs');
 const {writeIssueReport}=require('../services/adsImportIssueReport');
 const failure=(res,e)=>{
  if(e instanceof AdsScopeError)return res.status(e.status).json({success:false,code:e.code,message:e.message});
- if(isAdsSchemaError(e))return res.status(503).json({success:false,code:'ADS_IMPORT_SCHEMA_NOT_READY',message:'Ads import job schema is not ready. Verify migrations 098, 099 and 101.'});
+ if(isAdsSchemaError(e))return res.status(503).json({success:false,code:'ADS_IMPORT_SCHEMA_NOT_READY',message:'Ads import job schema is not ready. Verify migrations 098, 099, 101 and 102.'});
  console.error('[ads import jobs]',e.message);
  return res.status(503).json({success:false,code:'ads_import_unavailable',message:'Import service unavailable. Reopen history to verify the job status before retrying.'});
 };
@@ -17,16 +17,16 @@ async function preview(req,res){
  const file=req.file;let slot=false;
  try{
   if(!file||req.body?.reportType!=='daily')throw new AdsScopeError('invalid_upload','Select a daily v1 CSV.',400);
-  if(previews>=2)throw new AdsScopeError('preview_busy','Two reports are validating. Retry shortly.',429);
+  if(previews>=2)throw new AdsScopeError('preview_busy','Two reports are being staged for validation. Retry shortly.',429);
   previews++;slot=true;
   const data=await service.createPreview({...await args(req),sellerId:req.body.sellerId,input:await fs.readFile(file.path),fileName:file.originalname});
-  return res.status(201).json({success:true,data});
+  return res.status(202).json({success:true,data,message:'Report queued for background validation.'});
  }catch(e){return failure(res,e);}
  finally{if(slot)previews--;if(file?.path)await fs.unlink(file.path).catch(()=>{});}
 }
 async function list(req,res){try{
  const page=req.query.page===undefined?1:Number(req.query.page),limit=req.query.limit===undefined?25:Number(req.query.limit);
- return res.json({success:true,data:await service.listJobs({...await args(req),page,limit})});
+ return res.json({success:true,data:await service.listJobs({...await args(req),page,limit,status:req.query.status,search:req.query.search,sellerId:req.query.sellerId})});
 }catch(e){return failure(res,e);}}
 async function get(req,res){try{
  const data=await service.getJob(await args(req));

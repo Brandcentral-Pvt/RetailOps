@@ -148,7 +148,7 @@ function prepareReport(input) {
   const positions = HEADERS.map(h => headers.indexOf(h));
   return {bytes,it,positions};
 }
-function validateReport(input,{onIssue}={}) {
+function validateReport(input,{onIssue,onProgress,onValidRow}={}) {
   const {bytes,it,positions}=prepareReport(input);
   const seen = new Map(), asins = new Set(), dates = new Set();
   const issues = [], coverage = Object.fromEntries(HEADERS.map(h => [h,{populated:0,zero:0}]));
@@ -165,6 +165,7 @@ function validateReport(input,{onIssue}={}) {
   for (const {row,cells} of dataRecords(it,()=>{skippedBlankRows++;})) {
     issueContext={};
     rows++;
+    if(rows%5000===0)onProgress?.(rows-1);
     if (cells.length !== HEADERS.length) { invalidRows++; addIssue('row_width','Expected 63 fields.',row); continue; }
     const asin=identity(cells[positions[HEADERS.indexOf('asin')]]).toUpperCase(),date=identity(cells[positions[HEADERS.indexOf('date')]]);
     if(/^[A-Z0-9]{10}$/.test(asin))issueContext.asin=asin;
@@ -195,6 +196,7 @@ function validateReport(input,{onIssue}={}) {
       continue;
     }
     seen.set(key,fingerprint); asins.add(values.asin); dates.add(values.date); validRows++;
+    onValidRow?.({row,asin:values.asin,date:values.date});
     for (const h of HEADERS) {
       if (values[h] !== null) coverage[h].populated++;
       if (values[h] === '0' && h !== 'sku') coverage[h].zero++;
@@ -206,6 +208,7 @@ function validateReport(input,{onIssue}={}) {
   }
   issueContext={};
   if (!rows) addIssue('no_data','The report contains no data rows.',1);
+  onProgress?.(rows);
   const sortedDates=[...dates].sort();
   return {schemaVersion:contract.schemaVersion,reportType:'daily',valid:issueCount===0,rows,skippedBlankRows,sourceRecords:rows+skippedBlankRows,validRows,invalidRows,
     exactDuplicates,conflictingDuplicates,uniqueAsins:asins.size,uniqueDates:dates.size,

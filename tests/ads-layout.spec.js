@@ -153,3 +153,25 @@ test('confirmed import queues immediately and polls real stage progress',async({
  await expect(dialog.getByText('10 inserted · 0 unchanged')).toBeVisible({timeout:12000});
  expect(posts).toBe(1);
 });
+
+test('background validation can be reopened and becomes ready without reupload',async({page})=>{
+ const id='00000000-0000-4000-8000-000000000003';
+ const queued={id,sellerId:'s1',marketplace:'amazon.in',currency:'INR',fileName:'preview.csv',status:'PREVIEW_QUEUED',stage:'preview_queued',importsEnabled:true,summary:{valid:null,rows:null,validRows:null,issueCount:null}};
+ const ready={...queued,status:'READY',stage:'ready',summary:{valid:true,rows:12,validRows:12,invalidRows:0,issueCount:0}};
+ let reads=0,lastQuery;
+ await mock(page,{empty:true});
+ await page.route('**/api/upload/ads-imports?*',route=>{lastQuery=new URL(route.request().url()).searchParams;return route.fulfill({json:{success:true,data:{rows:[queued],total:1,page:1,limit:10}}});});
+ await page.route('**/api/upload/ads-imports/'+id,route=>route.fulfill({json:{success:true,data:++reads===1?queued:reads===2?{...queued,status:'VALIDATING',stage:'preview_scanning',stagedRows:5,attemptCount:1}:ready}}));
+ await page.goto('/tests/fixtures/ads-layout.html');
+ await page.getByRole('button',{name:'Import CSV',exact:true}).click();
+ const dialog=page.getByRole('dialog');
+ await dialog.getByRole('tab',{name:'Import history'}).click();
+ const search=dialog.getByRole('textbox',{name:'Search import history'});
+ await search.fill('preview');await search.press('Enter');
+ await expect.poll(()=>lastQuery?.get('search')).toBe('preview');
+ await dialog.getByRole('button',{name:'Open',exact:true}).click();
+ await expect(dialog.getByText('Waiting for validation worker',{exact:true})).toBeVisible();
+ await expect(dialog.getByRole('button',{name:'Confirm import',exact:true})).toHaveCount(0);
+ await expect(dialog.getByText(/5 data records scanned/)).toBeVisible();
+ await expect(dialog.getByRole('button',{name:'Confirm import',exact:true})).toBeEnabled({timeout:12000});
+});

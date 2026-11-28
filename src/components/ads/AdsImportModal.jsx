@@ -1,12 +1,14 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Alert,Button,Card,Col,Descriptions,Modal,Progress,Row,Select,Space,Table,Tabs,Tag,Upload} from 'antd';
+import {Alert,Button,Card,Col,Descriptions,Input,Modal,Progress,Row,Select,Space,Table,Tabs,Tag,Upload} from 'antd';
 import {InboxOutlined,DownloadOutlined,ReloadOutlined} from '@ant-design/icons';
 import {apiClient} from '../../lib/api-client';
 
 const endpoint='/upload/ads-imports';
-const colors={QUEUED:'warning',PROCESSING:'processing',READY:'processing',REJECTED:'error',COMPLETED:'success',FAILED:'error',CANCELLED:'default',EXPIRED:'default'};
-const activeJob=status=>['QUEUED','PROCESSING'].includes(status);
-const stageNames={queued:'Waiting for worker',retry_wait:'Waiting to retry',validating:'Revalidating source and access',staging:'Staging source records',seller_lock:'Acquiring seller lock',catalog_ownership:'Checking catalog ownership',historical_conflict_check:'Checking historical records',insert:'Inserting facts',reconcile:'Reconciling persisted records',commit:'Committing transaction',completed:'Completed'};
+const colors={PREVIEW_QUEUED:'warning',VALIDATING:'processing',QUEUED:'warning',PROCESSING:'processing',READY:'processing',REJECTED:'error',COMPLETED:'success',FAILED:'error',CANCELLED:'default',EXPIRED:'default'};
+const previewJob=status=>['PREVIEW_QUEUED','VALIDATING'].includes(status);
+const activeJob=status=>previewJob(status)||['QUEUED','PROCESSING'].includes(status);
+const historyStatuses=['PREVIEW_QUEUED','VALIDATING','READY','QUEUED','PROCESSING','COMPLETED','REJECTED','FAILED','CANCELLED','EXPIRED'];
+const stageNames={preview_queued:'Waiting for validation worker',preview_scanning:'Scanning CSV records',preview_catalog:'Validating catalog ownership',queued:'Waiting for worker',retry_wait:'Waiting to retry',validating:'Revalidating source and access',staging:'Staging source records',seller_lock:'Acquiring seller lock',catalog_ownership:'Checking catalog ownership',historical_conflict_check:'Checking historical records',insert:'Inserting facts',reconcile:'Reconciling persisted records',commit:'Committing transaction',completed:'Completed'};
 const count=v=>v==null?'Unknown':Number(v).toLocaleString('en-IN');
 const time=v=>v?new Date(v).toLocaleString():'N/A';
 const errText=(e,fallback)=>{
@@ -22,6 +24,8 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
  const [file,setFile]=useState(null),[job,setJob]=useState(null);
  const [history,setHistory]=useState({rows:[],page:1,total:0,limit:10});
  const [historyLoading,setHistoryLoading]=useState(false),[sellerLoading,setSellerLoading]=useState(false);
+ const [historyFilters,setHistoryFilters]=useState({}),[historySearch,setHistorySearch]=useState('');
+ const historyRequest=useRef(0);
  const [busy,setBusy]=useState(null),[error,setError]=useState(null),[uploadPct,setUploadPct]=useState(0);
  const seller=sellers.find(s=>s.id===sellerId);
  const summary=job?.summary||{};
@@ -49,23 +53,26 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
   timer=setTimeout(tick,1500);
   return ()=>{controller.abort();clearTimeout(timer);};
  },[isOpen,tab,job?.id,job?.status,busy]);
- const loadHistory=async(page=1)=>{
+ const loadHistory=async(page=1,filters=historyFilters)=>{
+  const request=++historyRequest.current;
   setHistoryLoading(true);
   try{
-   const res=await apiClient.get(endpoint,{params:{page,limit:10}});
-   setHistory(res.data.data);
-  }catch(e){setError(errText(e,'Import history could not be loaded.'));}
-  finally{setHistoryLoading(false);}
+   const res=await apiClient.get(endpoint,{params:{page,limit:10,...filters}});
+   if(request===historyRequest.current)setHistory(res.data.data);
+  }catch(e){if(request===historyRequest.current)setError(errText(e,'Import history could not be loaded.'));}
+  finally{if(request===historyRequest.current)setHistoryLoading(false);}
  };
+ const applyHistoryFilters=filters=>{setHistoryFilters(filters);setError(null);loadHistory(1,filters);};
  useEffect(()=>{
   if(!isOpen)return undefined;
   let active=true;
   setTab('upload');setSellerId(selectedSeller||null);setSellers([]);setFile(null);setJob(null);setError(null);setUploadPct(0);
+  setHistoryFilters({});setHistorySearch('');setHistory({rows:[],page:1,total:0,limit:10});setHistoryLoading(false);
   setSellerLoading(true);
   apiClient.get('/upload/ads-validation-sellers').then(r=>{if(active)setSellers(r.data?.data||[]);})
    .catch(e=>{if(active)setError(errText(e,'Seller options could not be loaded.'));})
    .finally(()=>{if(active)setSellerLoading(false);});
-  return ()=>{active=false;};
+  return ()=>{active=false;historyRequest.current++;};
  },[isOpen,selectedSeller]);
  const openJob=async id=>{
   setBusy('load');setError(null);
@@ -114,7 +121,7 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
   }finally{setBusy(null);}
  };
  const cancel=async()=>{
-  if(!job||!['READY','QUEUED'].includes(job.status)||busy)return;
+  if(!job||!['PREVIEW_QUEUED','READY','QUEUED'].includes(job.status)||busy)return;
   setBusy('cancel');setError(null);
   try{const r=await apiClient.post(endpoint+'/'+encodeURIComponent(job.id)+'/cancel',{});setJob(r.data.data);}
   catch(e){setError(errText(e,'Cancellation failed. Refresh the job to check its current state.'));}
@@ -139,7 +146,7 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
  const handleTab=key=>{if(busy)return;setError(null);setTab(key);if(key==='history')loadHistory(1);};
  const uploadContent=<Space direction="vertical" size="middle" style={{width:'100%'}}>
   <Alert showIcon type="info" message="Validate once, confirm from history"
-   description="Select the seller that owns the CSV. Valid reports are staged privately for 24 hours. No Ads facts are written until you confirm."/>
+   description="Select the seller that owns the CSV. Validation runs in the background after upload. Validated reports remain available for confirmation for 24 hours. No Ads facts are written until you confirm."/>
   <div><label htmlFor="ads-job-seller">Seller</label><Select id="ads-job-seller" value={sellerId||undefined} placeholder="Select seller"
    loading={sellerLoading} showSearch optionFilterProp="label" disabled={!!busy} style={{width:'100%',marginTop:6}}
    options={sellers.map(s=>({value:s.id,label:s.name+' ('+s.marketplace+')',disabled:!s.context}))}
@@ -151,13 +158,18 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
    onRemove={()=>{setFile(null);return true;}}>
    <p className="ant-upload-drag-icon"><InboxOutlined/></p><p>Choose or drop your daily product CSV</p><p>63 original headers • up to 200,000 data records • 32 MiB</p>
   </Upload.Dragger>
-  {busy==='validate'&&<><Progress percent={uploadPct} status="active"/><div>{uploadPct===100?'File received; validating and saving preview…':'Uploading CSV…'}</div></>}
+  {busy==='validate'&&<><Progress percent={uploadPct} status="active"/><div>{uploadPct===100?'File received; saving validation job…':'Uploading CSV…'}</div></>}
  </Space>;
  const historyContent=<Space direction="vertical" style={{width:'100%'}}>
   <Alert type="info" showIcon message="Your import history" description="Open a saved preview to confirm or cancel. Only jobs you created for sellers you can access are shown."/>
-  <Button icon={<ReloadOutlined/>} onClick={()=>loadHistory(history.page)} loading={historyLoading}>Refresh history</Button>
+  <Space wrap>
+   <Input.Search aria-label="Search import history" placeholder="Filename or job ID" maxLength={120} allowClear value={historySearch} onChange={e=>{setHistorySearch(e.target.value);if(!e.target.value)applyHistoryFilters({...historyFilters,search:undefined});}} onSearch={value=>applyHistoryFilters({...historyFilters,search:value.trim()||undefined})} style={{width:210}}/>
+   <Select aria-label="Import status" placeholder="All statuses" allowClear value={historyFilters.status} onChange={status=>applyHistoryFilters({...historyFilters,status})} options={historyStatuses.map(value=>({value,label:value.replaceAll('_',' ')}))} style={{width:160}}/>
+   <Select aria-label="Import history seller" placeholder="All sellers" allowClear showSearch optionFilterProp="label" value={historyFilters.sellerId} onChange={sellerId=>applyHistoryFilters({...historyFilters,sellerId})} options={sellers.map(v=>({value:v.id,label:v.name}))} style={{width:185}}/>
+   <Button icon={<ReloadOutlined/>} onClick={()=>loadHistory(history.page)} loading={historyLoading}>Refresh history</Button>
+  </Space>
   <Table size="small" rowKey="id" loading={historyLoading} dataSource={history.rows} scroll={{x:730}}
-   pagination={{current:history.page,pageSize:history.limit,total:history.total,showSizeChanger:false,onChange:loadHistory}}
+   pagination={{current:history.page,pageSize:history.limit,total:history.total,showSizeChanger:false,onChange:page=>loadHistory(page)}}
    columns={[
     {title:'Report',dataIndex:'fileName',width:205,ellipsis:true},
     {title:'Seller',dataIndex:'sellerId',width:150,render:v=>sellers.find(s=>s.id===v)?.name||v},
@@ -174,7 +186,8 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
    <Descriptions.Item label="Marketplace">{job.marketplace} · {job.currency}</Descriptions.Item>
    <Descriptions.Item label="Report dates">{summary.startDate||'N/A'} to {summary.endDate||'N/A'}</Descriptions.Item>
    <Descriptions.Item label="Created">{time(job.createdAt)}</Descriptions.Item>
-   <Descriptions.Item label="Preview expires">{time(job.expiresAt)}</Descriptions.Item>
+   <Descriptions.Item label="Preview expires">{previewJob(job.status)?'After validation':time(job.expiresAt)}</Descriptions.Item>
+   <Descriptions.Item label="Validated">{time(job.validatedAt)}</Descriptions.Item>
    <Descriptions.Item label="Queued">{time(job.queuedAt)}</Descriptions.Item>
    <Descriptions.Item label="Worker started">{time(job.startedAt)}</Descriptions.Item>
    <Descriptions.Item label="Completed">{time(job.completedAt)}</Descriptions.Item>
@@ -192,7 +205,14 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
   </Descriptions>}
   {job.status==='READY'&&<Alert showIcon type={job.importsEnabled?'success':'warning'} message={job.importsEnabled?'Ready to confirm':'Import confirmation paused'}
    description={job.importsEnabled?'Confirm inserts new records and retains identical records. Changed historical facts are rejected.':'The server has explicitly paused import confirmation. Ask an administrator to check ADS_CANONICAL_IMPORT_ENABLED, then refresh this saved job. Validation and history remain available.'}/>}
-  {activeJob(job.status)&&<Card size="small" title={stageNames[job.stage]||'Import processing'}>
+  {previewJob(job.status)&&<Card size="small" title={stageNames[job.stage]||'Background validation'}>
+   <Space direction="vertical" style={{width:'100%'}}>
+    <Alert type="info" showIcon message="Background validation is active" description="You may close this window and reopen import history. No advertising facts are written during validation."/>
+    <div>{count(job.stagedRows||0)} data records scanned · Attempt {job.attemptCount||0} of 3</div>
+    {job.stage==='retry_wait'&&<div>Next retry: {time(job.nextAttemptAt)}</div>}
+   </Space>
+  </Card>}
+  {!previewJob(job.status)&&activeJob(job.status)&&<Card size="small" title={stageNames[job.stage]||'Import processing'}>
    <Space direction="vertical" style={{width:'100%'}}>
     <Alert type={job.importsEnabled?'info':'warning'} showIcon message={job.importsEnabled?'Background import is active':'Imports are paused by server configuration'}
      description="You may close this window. Reopen import history to see the current status. Only unclaimed queued jobs can be cancelled."/>
@@ -220,7 +240,7 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
   footer={<Space wrap>
    <Button disabled={!!busy} onClick={onClose}>Close</Button>
    {tab==='upload'&&<Button type="primary" loading={busy==='validate'} disabled={!!busy||!file||!seller?.context||sellerLoading} onClick={validate}>Validate CSV</Button>}
-   {tab==='detail'&&['READY','QUEUED'].includes(job?.status)&&<Button danger loading={busy==='cancel'} disabled={!!busy} onClick={cancel}>Cancel import</Button>}
+   {tab==='detail'&&['PREVIEW_QUEUED','READY','QUEUED'].includes(job?.status)&&<Button danger loading={busy==='cancel'} disabled={!!busy} onClick={cancel}>Cancel import</Button>}
    {tab==='detail'&&job?.status==='READY'&&<Button type="primary" loading={busy==='confirm'} disabled={!!busy||!job.importsEnabled} onClick={confirm}>Confirm import</Button>}
    {tab==='detail'&&job?.status==='COMPLETED'&&<Button type="primary" disabled={!!busy} onClick={()=>onComplete?.(job.result)}>View imported report</Button>}
    {tab==='detail'&&<Button disabled={!!busy} onClick={newImport}>New import</Button>}

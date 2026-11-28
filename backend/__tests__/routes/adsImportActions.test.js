@@ -2,7 +2,7 @@
 const express=require('express'),request=require('supertest');
 const {errorHandler}=require('../../utils/errors');
 let mockUser;
-const mockConfirm=jest.fn(),mockCancel=jest.fn();
+const mockConfirm=jest.fn(),mockCancel=jest.fn(),mockPreview=jest.fn(),mockList=jest.fn();
 jest.mock('../../database/db',()=>({sql:require('../../testUtils/fakePool').FAKE_SQL,getPool:async()=>({}),generateId:()=> 'test-id'}));
 jest.mock('../../middleware/auth',()=>({
  authenticate:(req,res,next)=>{if(!mockUser)return res.sendStatus(401);req.user=mockUser;next();},
@@ -12,7 +12,7 @@ jest.mock('../../middleware/rateLimiter',()=>({createLimiter:()=> (_req,_res,nex
 jest.mock('../../services/marketDataSyncService',()=>({}));
 jest.mock('../../services/SystemLogService',()=>({}));
 jest.mock('../../services/socketService',()=>({}));
-jest.mock('../../services/adsImportJobs',()=>({confirmJob:(...args)=>mockConfirm(...args),cancelJob:(...args)=>mockCancel(...args)}));
+jest.mock('../../services/adsImportJobs',()=>({confirmJob:(...args)=>mockConfirm(...args),cancelJob:(...args)=>mockCancel(...args),createPreview:(...args)=>mockPreview(...args),listJobs:(...args)=>mockList(...args)}));
 const app=express();app.use(express.json({limit:'10mb'}));app.use('/api',require('../../routes/uploadRoutes'));app.use(errorHandler);
 const id='00000000-0000-4000-8000-000000000001',path='/api/upload/ads-imports/'+id;
 beforeEach(()=>{jest.clearAllMocks();mockUser={Id:'u1',role:{name:'brand_manager'},assignedSellers:['s1'],permissions:['adsreport_import']};mockConfirm.mockResolvedValue({id,status:'QUEUED'});mockCancel.mockResolvedValue({id,status:'CANCELLED'});});
@@ -38,4 +38,18 @@ test('cancel accepts an empty JSON object; permission checks still gate writes',
 test('repeated confirmation of completed job returns the saved result',async()=>{
  mockConfirm.mockResolvedValue({id,status:'COMPLETED',result:{persisted:true,inserted:1}});
  const res=await request(app).post(path+'/confirm').send({});expect(res.status).toBe(200);expect(res.body.data.result.persisted).toBe(true);
+});
+
+test('multipart CSV acceptance returns a durable validation queue response',async()=>{
+ mockPreview.mockResolvedValue({id,status:'PREVIEW_QUEUED'});
+ const res=await request(app).post('/api/upload/ads-imports').field('sellerId','s1').field('reportType','daily').attach('file',Buffer.from('asin,date\n'),'report.csv');
+ expect(res.status).toBe(202);expect(res.body.data.status).toBe('PREVIEW_QUEUED');
+ expect(mockPreview.mock.calls[0][0]).toMatchObject({sellerId:'s1',fileName:'report.csv',user:mockUser});
+ expect(mockPreview.mock.calls[0][0].input.toString()).toBe('asin,date\n');
+});
+test('history forwards only supported query filters and remains permission-gated',async()=>{
+ mockList.mockResolvedValue({rows:[],total:0,page:1,limit:10});
+ const res=await request(app).get('/api/upload/ads-imports').query({page:1,limit:10,status:'READY',search:'April',sellerId:'s1'});
+ expect(res.status).toBe(200);expect(mockList.mock.calls[0][0]).toMatchObject({page:1,limit:10,status:'READY',search:'April',sellerId:'s1'});
+ mockUser.permissions=['adsreport_view'];expect((await request(app).get('/api/upload/ads-imports')).status).toBe(403);
 });
