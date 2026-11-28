@@ -1,11 +1,14 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
+import { Alert, Button } from 'antd';
 import { useAuth } from '../contexts/AuthContext';
 import Spinner from './Spinner';
 
 const ProtectedRoute = ({ children, permission, requiredRole }) => {
     const {
         isAuthenticated,
+        sessionError,
+        retrySession,
         loading,             // general auth loading (user still being fetched)
         loadingPermissions,  // true while permissions are loaded after login
         hasPermission,
@@ -17,6 +20,14 @@ const ProtectedRoute = ({ children, permission, requiredRole }) => {
         return <Spinner fullPage tip="Verifying access..." />;
     }
 
+    if (!isAuthenticated && sessionError) {
+        return <main style={{minHeight:'100vh',display:'grid',placeItems:'center',padding:24}}>
+            <div style={{width:'100%',maxWidth:460}}>
+                <Alert showIcon type="warning" message="Session verification unavailable" description={sessionError}
+                    action={<Button onClick={retrySession}>Retry</Button>}/>
+            </div>
+        </main>;
+    }
     if (!isAuthenticated) {
         return <Navigate to="/login" replace />;
     }

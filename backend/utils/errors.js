@@ -60,6 +60,10 @@ class DependencyError extends AppError {
 }
 
 function errorHandler(err, req, res, _next) {
+  if(err.type==='entity.parse.failed'&&(err.status===400||err.statusCode===400)){
+    if(res.headersSent)return;
+    return res.status(400).json({success:false,code:'INVALID_JSON',message:'Request body must contain valid JSON. Use an object for JSON actions.',requestId:req.requestId||req.headers?.['x-request-id']||null});
+  }
   const statusCode = err.statusCode || err.status || 500;
   const code = err.code || 'INTERNAL_ERROR';
   const requestId = req.requestId || req.headers?.['x-request-id'] || null;

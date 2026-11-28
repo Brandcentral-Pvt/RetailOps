@@ -87,3 +87,38 @@ test('wildcard administrators retain Ads actions',async({page})=>{
  await expect(page.getByRole('button',{name:'Import CSV',exact:true})).toBeVisible();
  await expect(page.getByRole('button',{name:'Export XLSX',exact:true})).toBeVisible();
 });
+
+test('confirmation sends valid JSON and reconciles a lost response from job history',async({page})=>{
+ const id='00000000-0000-4000-8000-000000000001';
+ const ready={id,sellerId:'s1',marketplace:'amazon.in',currency:'INR',fileName:'report.csv',status:'READY',importsEnabled:true,
+  summary:{rows:1,validRows:1,invalidRows:0,issueCount:0,startDate:'2026-11-01',endDate:'2026-11-01'},createdAt:'2026-11-28T00:00:00Z',expiresAt:'2026-11-29T00:00:00Z'};
+ let confirmed=false,posts=0,body;
+ const result={sellerId:'s1',currency:'INR',inserted:1,unchanged:0,startDate:'2026-11-01',endDate:'2026-11-01',persisted:true};
+ await mock(page,{empty:true});
+ await page.route('**/api/upload/ads-imports?*',route=>route.fulfill({json:{success:true,data:{rows:[ready],total:1,page:1,limit:10}}}));
+ await page.route('**/api/upload/ads-imports/'+id,route=>route.fulfill({json:{success:true,data:confirmed?{...ready,status:'COMPLETED',result}:ready}}));
+ await page.route('**/api/upload/ads-imports/'+id+'/confirm',route=>{
+  posts++;body=route.request().postDataJSON();confirmed=true;
+  return route.fulfill({status:502,contentType:'text/html',body:'Bad Gateway'});
+ });
+ await page.goto('/tests/fixtures/ads-layout.html');
+ await page.getByRole('button',{name:'Import CSV',exact:true}).click();
+ const dialog=page.getByRole('dialog');
+ await dialog.getByRole('tab',{name:'Import history'}).click();
+ await dialog.getByRole('button',{name:'Open',exact:true}).click();
+ await dialog.getByRole('button',{name:'Confirm import',exact:true}).click();
+ await expect(dialog.getByText('1 inserted · 0 unchanged')).toBeVisible();
+ expect(posts).toBe(1);expect(body).toEqual({});
+});
+test('session restore retries a transient 502',async({page})=>{
+ await mock(page,{empty:true});
+ let calls=0;
+ await page.route('**/api/auth/me',route=>{
+  calls++;
+  if(calls===1)return route.fulfill({status:502,contentType:'text/html',body:'Bad Gateway'});
+  return route.fulfill({json:{success:true,data:user}});
+ });
+ await page.goto('/tests/fixtures/ads-layout.html');
+ await expect(page.getByRole('button',{name:'Import CSV',exact:true})).toBeVisible();
+ expect(calls).toBe(2);
+});
