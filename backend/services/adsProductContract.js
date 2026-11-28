@@ -112,7 +112,7 @@ function unscaled(n) {
   const d = s.slice(-10).replace(/0+$/,'');
   return (neg ? '-' : '') + s.slice(0,-10) + (d ? '.' + d : '');
 }
-function validateReport(input) {
+function prepareReport(input) {
   const bytes = Buffer.isBuffer(input) ? input : Buffer.from(input);
   if (!bytes.length || bytes.length > MAX_FILE_BYTES) reject('invalid_file_size','Select a nonempty CSV no larger than 32 MiB.');
   let text;
@@ -125,6 +125,10 @@ function validateReport(input) {
   if (headers.length !== HEADERS.length || new Set(headers).size !== headers.length ||
       headers.some(h => !HEADERS.includes(h))) reject('invalid_header','Expected exactly the 63 unique product_daily v1 headers.');
   const positions = HEADERS.map(h => headers.indexOf(h));
+  return {bytes,it,positions};
+}
+function validateReport(input) {
+  const {bytes,it,positions}=prepareReport(input);
   const seen = new Map(), asins = new Set(), dates = new Set();
   const issues = [], coverage = Object.fromEntries(HEADERS.map(h => [h,{populated:0,zero:0}]));
   const sums = Object.fromEntries(ADDITIVE.map(h => [h,0n]));
@@ -182,4 +186,18 @@ function validateReport(input) {
     coverage,totals:Object.fromEntries(ADDITIVE.map(h=>[h,coverage[h].populated?unscaled(sums[h]):null])),
     issueCount,issues,issuesTruncated:issueCount>issues.length,sourceFileSha256:createHash('sha256').update(bytes).digest('hex')};
 }
-module.exports={validateReport,AdsValidationError,MAX_FILE_BYTES,MAX_ROWS,HEADERS,normalize,validDate,numberText};
+// Internal replay of the exact validated bytes. The writer validates first and
+// keeps the same private Buffer; any replay inconsistency aborts its transaction.
+function* replayValidatedRows(input, expectedSha256) {
+  const {bytes,it,positions}=prepareReport(input);
+  if(createHash('sha256').update(bytes).digest('hex')!==expectedSha256)
+    reject('source_changed','The report changed after validation.');
+  let n=0;
+  for(let next=it.next();!next.done;next=it.next()){
+    const {row,cells}=next.value;
+    if(++n>MAX_ROWS||cells.length!==HEADERS.length)reject('row_width','Invalid validated record.',row);
+    const values=FIELDS.map((f,i)=>normalize(f,cells[positions[i]],row));
+    yield [row,...values];
+  }
+}
+module.exports={validateReport,replayValidatedRows,AdsValidationError,MAX_FILE_BYTES,MAX_ROWS,HEADERS,normalize,validDate,numberText};

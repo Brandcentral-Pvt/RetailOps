@@ -34,6 +34,8 @@ const aiLimiter = createLimiter('STRICT');
 router.get('/meta', authenticate, cacheRoute('ads:meta', 300), controller.getMeta);
 
 router.get('/overview', authenticate, canViewAds, controller.getOverview);
+// Isolated read-only diagnostic. Existing page continues to use legacy endpoints until cutover.
+router.get('/canonical-summary', authenticate, canViewAds, require('../controllers/adsCanonicalSummaryController').getSummary);
 router.get('/series', authenticate, canViewAds, controller.getSeries);
 router.get('/table', authenticate, canViewAds, controller.getTable);
 router.get('/history', authenticate, canViewAds, controller.getHistory);
