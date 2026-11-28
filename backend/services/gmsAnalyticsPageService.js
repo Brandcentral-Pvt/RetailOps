@@ -1,5 +1,6 @@
 const { sql }=require('../database/db');
-const { dateWindow,gmsCatalogApplySql,unambiguousSellerSql }=require('../utils/gmsPhase1');
+const { performance }=require('node:perf_hooks');
+const { dateWindow,unambiguousSellerSql }=require('../utils/gmsPhase1');
 const { resolveSellerScope }=require('../utils/sellerScope');
 const { filterSpec,literalSearchSql,priorWindow,isoWeek,weekKey,buildGroups,buildOverview,buildAnalytics }=require('./gmsAnalyticsService');
 
@@ -100,14 +101,29 @@ function buildPageQuery(q,user,spec){
   }
   if(sortSql.range)q.input('sortFrom',sql.Date,sortSql.range.from).input('sortTo',sql.Date,sortSql.range.to);
   const entity=level==='asin'?'CONVERT(nvarchar(300),g.Asin)':"CONVERT(nvarchar(300),CASE WHEN m.SellerId IS NOT NULL THEN N'seller:'+CONVERT(nvarchar(100),m.SellerId) ELSE N'unmatched:'+COALESCE(NULLIF(g.Brand,N''),N'-') END)";
-  // Resolve catalog metadata once per distinct stored ASIN/owner, not once per
-  // fact. All output derives from a single materialized, permission-scoped
-  // dataset in this batch; no pagination or date filter changes the KPIs.
+  // Scan the catalog once for the relevant normalized keys. The old
+  // correlated UPPER/LTRIM/RTRIM predicate could scan the entire ASIN
+  // catalog for every distinct fact ASIN/owner. Keep exact legacy matching
+  // and ownership semantics, including duplicate same-owner catalog rows.
+  // Only carry the large title columns through the temporary fact set when
+  // the search predicate actually needs them.
+  const searching=Boolean(filters.search);
+  const sourceTitle=searching?',g.ReportProductTitle':'';
+  const mapTitle=searching?',catalog.Title AS ProductTitle':'';
+  const mapTitleJoin=searching?' LEFT JOIN Asins catalog ON catalog.Id=a.CatalogId':'';
+  const factTitle=searching?',COALESCE(g.ReportProductTitle,m.ProductTitle) AS ProductTitle':'';
+  const pageTitle=searching?'x.ProductTitle':'COALESCE(original.ReportProductTitle,catalog.Title)';
+  const pageTitleJoin=searching?'':' LEFT JOIN GmsDailyPerformance original ON original.Id=x.FactId LEFT JOIN Asins catalog ON catalog.Id=x.CatalogId';
   return 'SET NOCOUNT ON;\n'+
-  'SELECT g.Id AS FactId,g.Asin,g.SellerId,CONVERT(date,g.Date) AS ReportDate,g.Brand,g.ReportProductTitle,g.StoreCode,g.OrderedRevenue,g.OrderedUnits,g.ShippedRevenue,g.ShippedCOGS,g.ShippedUnits,g.CustomerReturns INTO #GmsSource FROM GmsDailyPerformance g WHERE g.Date>=@historyFrom AND g.Date<DATEADD(day,1,@currentTo)'+sourceWhere+';\n'+
+  'SELECT g.Id AS FactId,g.Asin,g.SellerId,CONVERT(date,g.Date) AS ReportDate,g.Brand,g.StoreCode'+sourceTitle+',g.OrderedRevenue,g.OrderedUnits,g.ShippedRevenue,g.ShippedCOGS,g.ShippedUnits,g.CustomerReturns INTO #GmsSource FROM GmsDailyPerformance g WHERE g.Date>=@historyFrom AND g.Date<DATEADD(day,1,@currentTo)'+sourceWhere+';\n'+
   'SELECT DISTINCT Asin,SellerId INTO #GmsKeys FROM #GmsSource;\n'+
-  'SELECT g.Asin,g.SellerId AS StoredSellerId,COALESCE(g.SellerId,a.SellerId) AS SellerId,s.Name AS DbBrand,a.Title AS ProductTitle INTO #GmsMap FROM #GmsKeys g '+gmsCatalogApplySql+' LEFT JOIN Sellers s ON COALESCE(g.SellerId,a.SellerId)=s.Id '+mappingWhere+';\n'+
-  'SELECT '+entity+' COLLATE Latin1_General_100_BIN2 AS EntityKey,g.FactId,g.Asin,m.SellerId,m.DbBrand,COALESCE(g.ReportProductTitle,m.ProductTitle) AS ProductTitle,g.Brand,g.StoreCode,g.ReportDate,g.OrderedRevenue,g.OrderedUnits,g.ShippedRevenue,g.ShippedCOGS,g.ShippedUnits,g.CustomerReturns INTO #GmsFacts FROM #GmsSource g JOIN #GmsMap m ON g.Asin=m.Asin AND (g.SellerId=m.StoredSellerId OR (g.SellerId IS NULL AND m.StoredSellerId IS NULL)) '+factWhere+';\n'+
+  'SELECT DISTINCT UPPER(LTRIM(RTRIM(Asin))) AS NormalizedAsin INTO #GmsNormalizedKeys FROM #GmsKeys;\n'+
+  'SELECT c.Id,c.AsinCode,c.SellerId,k.NormalizedAsin INTO #GmsCatalog FROM Asins c INNER JOIN #GmsNormalizedKeys k ON UPPER(LTRIM(RTRIM(c.AsinCode)))=k.NormalizedAsin OPTION (HASH JOIN);\n'+
+  'CREATE INDEX IX_GmsCatalog_Normalized_Owner ON #GmsCatalog(NormalizedAsin,SellerId,Id);\n'+
+  'SELECT NormalizedAsin INTO #GmsUniqueOwner FROM #GmsCatalog GROUP BY NormalizedAsin HAVING COUNT_BIG(DISTINCT SellerId)=1 AND COUNT_BIG(*)=COUNT_BIG(NULLIF(LTRIM(RTRIM(SellerId)),\'\'));\n'+
+  'CREATE UNIQUE INDEX IX_GmsUniqueOwner ON #GmsUniqueOwner(NormalizedAsin);\n'+
+  'SELECT g.Asin,g.SellerId AS StoredSellerId,COALESCE(g.SellerId,a.SellerId) AS SellerId,a.CatalogId,s.Name AS DbBrand'+mapTitle+' INTO #GmsMap FROM #GmsKeys g LEFT JOIN #GmsUniqueOwner u ON u.NormalizedAsin=UPPER(LTRIM(RTRIM(g.Asin))) OUTER APPLY (SELECT TOP (1) c.Id AS CatalogId,c.AsinCode,c.SellerId FROM #GmsCatalog c WHERE c.NormalizedAsin=UPPER(LTRIM(RTRIM(g.Asin))) AND NULLIF(LTRIM(RTRIM(c.SellerId)),\'\') IS NOT NULL AND (g.SellerId=c.SellerId OR (g.SellerId IS NULL AND u.NormalizedAsin IS NOT NULL)) ORDER BY c.Id) a LEFT JOIN Sellers s ON COALESCE(g.SellerId,a.SellerId)=s.Id'+mapTitleJoin+' '+mappingWhere+';\n'+
+  'SELECT '+entity+' COLLATE Latin1_General_100_BIN2 AS EntityKey,g.FactId,g.Asin,m.SellerId,m.DbBrand,m.CatalogId'+factTitle+',g.Brand,g.StoreCode,g.ReportDate,g.OrderedRevenue,g.OrderedUnits,g.ShippedRevenue,g.ShippedCOGS,g.ShippedUnits,g.CustomerReturns INTO #GmsFacts FROM #GmsSource g JOIN #GmsMap m ON g.Asin=m.Asin AND (g.SellerId=m.StoredSellerId OR (g.SellerId IS NULL AND m.StoredSellerId IS NULL)) '+factWhere+';\n'+
   'CREATE INDEX IX_GmsFacts_Entity_Date ON #GmsFacts(EntityKey,ReportDate);\n'+
   // Result set 0: aggregate all matching selected and prior days in SQL, not Node.
   'SELECT CONVERT(char(10),ReportDate,23) AS date,COUNT_BIG(*) AS recordCount,'+aggregateMetrics+' FROM #GmsFacts GROUP BY ReportDate ORDER BY ReportDate;\n'+
@@ -122,7 +138,7 @@ function buildPageQuery(q,user,spec){
   // Result set 3: one compact aggregate per entity/date, including needed history.
   'SELECT f.EntityKey AS entityKey,CONVERT(char(10),f.ReportDate,23) AS date,'+aggregateMetrics+' FROM #GmsFacts f JOIN #GmsPage p ON f.EntityKey=p.EntityKey GROUP BY f.EntityKey,f.ReportDate ORDER BY f.EntityKey,f.ReportDate DESC;\n'+
   // Result set 4: newest metadata for each selected entity, deterministic order.
-  'SELECT p.EntityKey AS entityKey,p.Ordinal AS ordinal,x.Asin AS asin,x.SellerId AS sellerId,x.DbBrand AS dbBrand,x.ProductTitle AS productTitle,x.Brand AS brand,x.StoreCode AS storeCode FROM #GmsPage p CROSS APPLY (SELECT TOP (1) f.Asin,f.SellerId,f.DbBrand,f.ProductTitle,f.Brand,f.StoreCode FROM #GmsFacts f WHERE f.EntityKey=p.EntityKey AND f.'+current+' ORDER BY f.ReportDate DESC,f.Asin,f.FactId) x ORDER BY p.Ordinal;\n'+
+  'SELECT p.EntityKey AS entityKey,p.Ordinal AS ordinal,x.Asin AS asin,x.SellerId AS sellerId,x.DbBrand AS dbBrand,'+pageTitle+' AS productTitle,x.Brand AS brand,x.StoreCode AS storeCode FROM #GmsPage p CROSS APPLY (SELECT TOP (1) f.Asin,f.SellerId,f.DbBrand,f.FactId,f.CatalogId'+(searching?',f.ProductTitle':'')+',f.Brand,f.StoreCode FROM #GmsFacts f WHERE f.EntityKey=p.EntityKey AND f.'+current+' ORDER BY f.ReportDate DESC,f.Asin,f.FactId) x'+pageTitleJoin+' ORDER BY p.Ordinal;\n'+
   // Result set 5: distinct labels for page rows only. Avoid shipping full ASIN
   // membership lists for seller groups (the tracker doesn't consume them).
   'SELECT DISTINCT f.EntityKey AS entityKey,f.Brand AS brand,f.StoreCode AS storeCode FROM #GmsFacts f JOIN #GmsPage p ON f.EntityKey=p.EntityKey WHERE f.'+current+';\n';
@@ -161,7 +177,7 @@ function composePage(recordsets,spec){
   return {...overview,meta:{...overview.meta,records:Number(count.records||0),asins:Number(count.asins||0),sellers:Number(count.sellers||0),unmatchedRecords:Number(count.unmatchedRecords||0)},
     matrixRows,monthGroups,pagination:{page:Number(p.page||1),pageSize:spec.pageSize,totalRows:Number(p.totalRows||0)},sort:spec.sort};
 }
-async function loadPagedAnalytics(pool,user,options,{signal}={}){
+async function loadPagedAnalytics(pool,user,options,{signal,onTiming}={}){
   const spec=pageSpec(options),scope=resolveSellerScope(user);
   if(scope.empty||spec.filters.sellerIds?.length===0)return emptyPage(spec);
   if(signal?.aborted)throw new Error('Analytics request cancelled');
@@ -169,8 +185,13 @@ async function loadPagedAnalytics(pool,user,options,{signal}={}){
   const cancel=()=>{try{q.cancel?.();}catch(_){/* request already ended */}};
   signal?.addEventListener('abort',cancel,{once:true});
   try{
+    const sqlStart=performance.now();
     const result=await q.query(query);
-    return composePage(result.recordsets,spec);
+    const sqlMs=performance.now()-sqlStart;
+    const composeStart=performance.now();
+    const page=composePage(result.recordsets,spec);
+    onTiming?.({sqlMs,composeMs:performance.now()-composeStart});
+    return page;
   }finally{
     signal?.removeEventListener('abort',cancel);
   }
