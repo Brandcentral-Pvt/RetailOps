@@ -177,8 +177,10 @@ function composePage(recordsets,spec){
   return {...overview,meta:{...overview.meta,records:Number(count.records||0),asins:Number(count.asins||0),sellers:Number(count.sellers||0),unmatchedRecords:Number(count.unmatchedRecords||0)},
     matrixRows,monthGroups,pagination:{page:Number(p.page||1),pageSize:spec.pageSize,totalRows:Number(p.totalRows||0)},sort:spec.sort};
 }
-async function loadPagedAnalytics(pool,user,options,{signal,onTiming}={}){
-  const spec=pageSpec(options),scope=resolveSellerScope(user);
+// Only trusted server code may pass an internal spec larger than 100 rows.
+// Public requests still go through pageSpec's original limits.
+async function loadPageSpec(pool,user,spec,{signal,onTiming}={}){
+  const scope=resolveSellerScope(user);
   if(scope.empty||spec.filters.sellerIds?.length===0)return emptyPage(spec);
   if(signal?.aborted)throw new Error('Analytics request cancelled');
   const q=pool.request(),query=buildPageQuery(q,user,spec);
@@ -196,4 +198,7 @@ async function loadPagedAnalytics(pool,user,options,{signal,onTiming}={}){
     signal?.removeEventListener('abort',cancel);
   }
 }
-module.exports={pageSpec,periodRange,buildPageQuery,composePage,loadPagedAnalytics,MAX_PAGE_SIZE};
+async function loadPagedAnalytics(pool,user,options,requestOptions={}){
+  return loadPageSpec(pool,user,pageSpec(options),requestOptions);
+}
+module.exports={pageSpec,periodRange,buildPageQuery,composePage,loadPagedAnalytics,loadPageSpec,MAX_PAGE_SIZE};
