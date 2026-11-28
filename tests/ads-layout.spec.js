@@ -367,7 +367,7 @@ test('Phase 3D reconciliation is on demand, scoped, exact and distinguishes data
  await expect(panel.getByText('0.0000000001',{exact:true})).toBeVisible();
  expect(params.get('groupBy')).toBe('asin');expect(params.has('page')).toBe(false);expect(params.has('limit')).toBe(false);
  await panel.getByRole('button',{name:'View source details'}).click();
- await expect(panel.getByText('Ad + organic differs from total sales',{exact:true})).toBeVisible();
+ await expect(panel.getByRole('columnheader',{name:'Ad + organic differs from total sales',exact:true})).toBeVisible();
  await expect(panel.getByText('INR 7,100.03',{exact:true})).toBeVisible();
  await assertContained(page);
  await panel.getByRole('button',{name:'Run again'}).click();
