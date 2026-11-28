@@ -1,0 +1,55 @@
+name: Ads Phase 1 Foundation
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/contracts/ads-*.json'
+      - 'backend/services/ads*.js'
+      - 'backend/controllers/ads*.js'
+      - 'backend/migrations/098_ads_product_daily_facts.js'
+      - 'backend/routes/uploadRoutes.js'
+      - 'backend/testUtils/adsPhase1.*'
+      - 'backend/scripts/validateAdsProductReport.js'
+      - 'src/components/ads/**'
+      - '.github/workflows/ads-phase1.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          node --check backend/services/adsProductContract.js
+          node --check backend/controllers/adsProductValidationController.js
+          node --check backend/routes/uploadRoutes.js
+          node --check backend/migrations/098_ads_product_daily_facts.js
+          node --test backend/testUtils/adsPhase1.contract.node.cjs
+  sql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_PID: Developer
+          MSSQL_SA_PASSWORD: 'AdsDisposable#2026!'
+        ports:
+          - 1433:1433
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix /tmp/ads-test-sql --ignore-scripts --no-audit --no-fund mssql@12.7.11
+      - run: node --test backend/testUtils/adsPhase1.sql.node.cjs
+        env:
+          ADS_SQL_SMOKE: '1'
+          ADS_TEST_SQL_PASSWORD: 'AdsDisposable#2026!'
+          ADS_TEST_MSSQL_MODULE: '/tmp/ads-test-sql/node_modules/mssql'

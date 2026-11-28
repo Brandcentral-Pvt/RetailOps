@@ -50,7 +50,29 @@ const upload = multer({
 });
 
 router.post('/upload/upload-monthly', authenticate, upload.single('file'), uploadController.uploadMonthlyData);
-router.post('/upload/upload-ads', authenticate, requirePermission('adsreport_import'), upload.single('file'), uploadController.uploadAdsData);
+// The v1 fact model is not yet connected to the transactional writer or all readers.
+// Fail closed instead of letting old clients bypass owner-aware ingestion.
+router.post('/upload/upload-ads', authenticate, requirePermission('adsreport_import'), (_req,res) =>
+  res.status(409).json({success:false,code:'ads_import_paused',message:'Advertising imports are paused until canonical ingestion is enabled. Use report validation instead.'}));
+const adsValidation = require('../controllers/adsProductValidationController');
+const { MAX_FILE_BYTES: ADS_MAX_FILE_BYTES } = require('../services/adsProductContract');
+const adsCsvUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req,_file,cb) => cb(null,os.tmpdir()),
+    filename: (_req,_file,cb) => cb(null,'retailops-ads-'+randomUUID())
+  }),
+  limits: {fileSize:ADS_MAX_FILE_BYTES,files:1,fields:3,parts:4,fieldSize:1024},
+  fileFilter: (_req,file,cb) => /\.csv$/i.test(file.originalname)?cb(null,true):cb(new Error('Only CSV supported'))
+}).single('file');
+router.get('/upload/ads-validation-sellers', authenticate, requirePermission('adsreport_import'), adsValidation.listSellers);
+router.post('/upload/ads-validate', authenticate, requirePermission('adsreport_import'), (req,res,next) => {
+  adsCsvUpload(req,res,err => {
+    if(err) return res.status(err.code==='LIMIT_FILE_SIZE'?413:400).json({
+      success:false,code:'invalid_upload',message:'Select one UTF-8 CSV up to 32 MiB.'
+    });
+    next();
+  });
+}, adsValidation.validate);
 router.post('/upload/octoparse', authenticate, upload.single('file'), uploadController.uploadOctoparseData);
 router.get('/upload/upload-stats', authenticate, uploadController.getUploadStats);
 
