@@ -30,7 +30,9 @@
       "type": "asin",
       "requiredValue": true,
       "legacyColumn": "Asin",
-      "legacyHandling": "read"
+      "legacyHandling": "read",
+      "canonicalColumn": "Asin",
+      "sqlType": "varchar(10)"
     },
     {
       "header": "sku",
@@ -38,7 +40,9 @@
       "type": "string",
       "requiredValue": false,
       "legacyColumn": "AdvertisedSku",
-      "legacyHandling": "read"
+      "legacyHandling": "read",
+      "canonicalColumn": "AdvertisedSku",
+      "sqlType": "nvarchar(255)"
     },
     {
       "header": "date",
@@ -46,7 +50,9 @@
       "type": "date",
       "requiredValue": true,
       "legacyColumn": "Date",
-      "legacyHandling": "read"
+      "legacyHandling": "read",
+      "canonicalColumn": "Date",
+      "sqlType": "date"
     },
     {
       "header": "metrics.sales",
@@ -54,7 +60,9 @@
       "type": "decimal",
       "requiredValue": false,
       "legacyColumn": "AdSales",
-      "legacyHandling": "read"
+      "legacyHandling": "read",
+      "canonicalColumn": "AdSales",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.spend",
@@ -62,7 +70,9 @@
       "type": "decimal",
       "requiredValue": false,
       "legacyColumn": "AdSpend",
-      "legacyHandling": "read"
+      "legacyHandling": "read",
+      "canonicalColumn": "AdSpend",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.clicks",
@@ -70,7 +80,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": "Clicks",
-      "legacyHandling": "read"
+      "legacyHandling": "read",
+      "canonicalColumn": "Clicks",
+      "sqlType": "bigint"
     },
     {
       "header": "metrics.impressions",
@@ -78,7 +90,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": "Impressions",
-      "legacyHandling": "read"
+      "legacyHandling": "read",
+      "canonicalColumn": "Impressions",
+      "sqlType": "bigint"
     },
     {
       "header": "metrics.view_impressions",
@@ -86,7 +100,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "ViewImpressions",
+      "sqlType": "bigint"
     },
     {
       "header": "metrics.orders",
@@ -94,7 +110,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": "Orders",
-      "legacyHandling": "read"
+      "legacyHandling": "read",
+      "canonicalColumn": "Orders",
+      "sqlType": "bigint"
     },
     {
       "header": "metrics.conversions",
@@ -102,7 +120,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": "Conversions",
-      "legacyHandling": "read"
+      "legacyHandling": "read",
+      "canonicalColumn": "Conversions",
+      "sqlType": "bigint"
     },
     {
       "header": "metrics.conversion_rate",
@@ -111,7 +131,9 @@
       "requiredValue": false,
       "legacyColumn": "ConversionRate",
       "legacyHandling": "recomputed",
-      "sourceScale": "fraction"
+      "sourceScale": "fraction",
+      "canonicalColumn": "ConversionRate",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.acos",
@@ -120,7 +142,9 @@
       "requiredValue": false,
       "legacyColumn": "ACoS",
       "legacyHandling": "recomputed",
-      "sourceScale": "fraction"
+      "sourceScale": "fraction",
+      "canonicalColumn": "ACoS",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.roas",
@@ -129,7 +153,9 @@
       "requiredValue": false,
       "legacyColumn": "RoAS",
       "legacyHandling": "recomputed",
-      "sourceScale": "ratio"
+      "sourceScale": "ratio",
+      "canonicalColumn": "RoAS",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.ctr",
@@ -138,7 +164,9 @@
       "requiredValue": false,
       "legacyColumn": "CTR",
       "legacyHandling": "recomputed",
-      "sourceScale": "fraction"
+      "sourceScale": "fraction",
+      "canonicalColumn": "CTR",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.cpc",
@@ -147,7 +175,9 @@
       "requiredValue": false,
       "legacyColumn": "CPC",
       "legacyHandling": "recomputed",
-      "sourceScale": "currency_per_click"
+      "sourceScale": "currency_per_click",
+      "canonicalColumn": "CPC",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.aov",
@@ -156,7 +186,9 @@
       "requiredValue": false,
       "legacyColumn": "Aov",
       "legacyHandling": "read",
-      "sourceScale": "currency_per_conversion"
+      "sourceScale": "currency_per_conversion",
+      "canonicalColumn": "Aov",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.tos_is",
@@ -165,7 +197,9 @@
       "requiredValue": false,
       "legacyColumn": "TosIs",
       "legacyHandling": "read",
-      "sourceScale": "unverified"
+      "sourceScale": "unverified",
+      "canonicalColumn": "TosIs",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.same_sku_sales",
@@ -173,7 +207,9 @@
       "type": "decimal",
       "requiredValue": false,
       "legacyColumn": "SameSkuSales",
-      "legacyHandling": "read"
+      "legacyHandling": "read",
+      "canonicalColumn": "SameSkuSales",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.same_sku_orders",
@@ -181,7 +217,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": "SameSkuOrders",
-      "legacyHandling": "read"
+      "legacyHandling": "read",
+      "canonicalColumn": "SameSkuOrders",
+      "sqlType": "bigint"
     },
     {
       "header": "metrics.new_to_brand_sales",
@@ -189,7 +227,9 @@
       "type": "decimal",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "NewToBrandSales",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.new_to_brand_orders",
@@ -197,7 +237,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "NewToBrandOrders",
+      "sqlType": "bigint"
     },
     {
       "header": "metrics.new_to_brand_units",
@@ -205,7 +247,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "NewToBrandUnits",
+      "sqlType": "bigint"
     },
     {
       "header": "metrics.new_to_brand_sales_percentage",
@@ -214,7 +258,9 @@
       "requiredValue": false,
       "legacyColumn": null,
       "legacyHandling": "not_read",
-      "sourceScale": "fraction"
+      "sourceScale": "fraction",
+      "canonicalColumn": "NewToBrandSalesPercentage",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.new_to_brand_orders_percentage",
@@ -223,7 +269,9 @@
       "requiredValue": false,
       "legacyColumn": null,
       "legacyHandling": "not_read",
-      "sourceScale": "fraction"
+      "sourceScale": "fraction",
+      "canonicalColumn": "NewToBrandOrdersPercentage",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.new_to_brand_units_percentage",
@@ -232,7 +280,9 @@
       "requiredValue": false,
       "legacyColumn": null,
       "legacyHandling": "not_read",
-      "sourceScale": "fraction"
+      "sourceScale": "fraction",
+      "canonicalColumn": "NewToBrandUnitsPercentage",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.daily_budget",
@@ -240,7 +290,9 @@
       "type": "decimal",
       "requiredValue": false,
       "legacyColumn": "DailyBudget",
-      "legacyHandling": "read"
+      "legacyHandling": "read",
+      "canonicalColumn": "DailyBudget",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.total_budget",
@@ -248,7 +300,9 @@
       "type": "decimal",
       "requiredValue": false,
       "legacyColumn": "TotalBudget",
-      "legacyHandling": "read"
+      "legacyHandling": "read",
+      "canonicalColumn": "TotalBudget",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.max_spend",
@@ -256,7 +310,9 @@
       "type": "decimal",
       "requiredValue": false,
       "legacyColumn": "MaxSpend",
-      "legacyHandling": "read"
+      "legacyHandling": "read",
+      "canonicalColumn": "MaxSpend",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.avg_spend",
@@ -264,7 +320,9 @@
       "type": "decimal",
       "requiredValue": false,
       "legacyColumn": "AvgSpend",
-      "legacyHandling": "read"
+      "legacyHandling": "read",
+      "canonicalColumn": "AvgSpend",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.total_sales",
@@ -272,7 +330,9 @@
       "type": "decimal",
       "requiredValue": false,
       "legacyColumn": "TotalSales",
-      "legacyHandling": "read"
+      "legacyHandling": "read",
+      "canonicalColumn": "TotalSales",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.total_acos",
@@ -281,7 +341,9 @@
       "requiredValue": false,
       "legacyColumn": "TotalAcos",
       "legacyHandling": "read",
-      "sourceScale": "percentage_points"
+      "sourceScale": "percentage_points",
+      "canonicalColumn": "TotalAcos",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.total_orders",
@@ -289,7 +351,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "TotalOrders",
+      "sqlType": "bigint"
     },
     {
       "header": "metrics.total_units",
@@ -297,7 +361,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": "TotalUnits",
-      "legacyHandling": "read"
+      "legacyHandling": "read",
+      "canonicalColumn": "TotalUnits",
+      "sqlType": "bigint"
     },
     {
       "header": "metrics.organic_sales",
@@ -305,7 +371,9 @@
       "type": "decimal",
       "requiredValue": false,
       "legacyColumn": "OrganicSales",
-      "legacyHandling": "read"
+      "legacyHandling": "read",
+      "canonicalColumn": "OrganicSales",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.organic_orders",
@@ -313,7 +381,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": "OrganicOrders",
-      "legacyHandling": "read"
+      "legacyHandling": "read",
+      "canonicalColumn": "OrganicOrders",
+      "sqlType": "bigint"
     },
     {
       "header": "metrics.ad_sales_perc",
@@ -322,7 +392,9 @@
       "requiredValue": false,
       "legacyColumn": "AdSalesPerc",
       "legacyHandling": "read",
-      "sourceScale": "percentage_points"
+      "sourceScale": "percentage_points",
+      "canonicalColumn": "AdSalesPerc",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.ordered_revenue",
@@ -330,7 +402,9 @@
       "type": "decimal",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "OrderedRevenue",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.units_ordered",
@@ -338,7 +412,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "UnitsOrdered",
+      "sqlType": "bigint"
     },
     {
       "header": "metrics.ordered_orders",
@@ -346,7 +422,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "OrderedOrders",
+      "sqlType": "bigint"
     },
     {
       "header": "metrics.shipped_revenue",
@@ -354,7 +432,9 @@
       "type": "decimal",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "ShippedRevenue",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.shipped_cogs",
@@ -362,7 +442,9 @@
       "type": "decimal",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "ShippedCogs",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.shipped_units",
@@ -370,7 +452,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "ShippedUnits",
+      "sqlType": "bigint"
     },
     {
       "header": "metrics.page_views",
@@ -378,7 +462,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": "PageViews",
-      "legacyHandling": "read"
+      "legacyHandling": "read",
+      "canonicalColumn": "PageViews",
+      "sqlType": "bigint"
     },
     {
       "header": "metrics.browser_page_views",
@@ -386,7 +472,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "BrowserPageViews",
+      "sqlType": "bigint"
     },
     {
       "header": "metrics.mobile_page_views",
@@ -394,7 +482,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "MobilePageViews",
+      "sqlType": "bigint"
     },
     {
       "header": "metrics.sessions",
@@ -402,7 +492,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": "Sessions",
-      "legacyHandling": "read"
+      "legacyHandling": "read",
+      "canonicalColumn": "Sessions",
+      "sqlType": "bigint"
     },
     {
       "header": "metrics.browser_sessions",
@@ -410,7 +502,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": "BrowserSessions",
-      "legacyHandling": "read"
+      "legacyHandling": "read",
+      "canonicalColumn": "BrowserSessions",
+      "sqlType": "bigint"
     },
     {
       "header": "metrics.mobile_app_sessions",
@@ -418,7 +512,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": "MobileAppSessions",
-      "legacyHandling": "read"
+      "legacyHandling": "read",
+      "canonicalColumn": "MobileAppSessions",
+      "sqlType": "bigint"
     },
     {
       "header": "metrics.buy_box_percentage",
@@ -427,7 +523,9 @@
       "requiredValue": false,
       "legacyColumn": "BuyBoxPercentage",
       "legacyHandling": "read",
-      "sourceScale": "unverified"
+      "sourceScale": "unverified",
+      "canonicalColumn": "BuyBoxPercentage",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.ordered_items_session_percentage",
@@ -436,7 +534,9 @@
       "requiredValue": false,
       "legacyColumn": null,
       "legacyHandling": "not_read",
-      "sourceScale": "unverified"
+      "sourceScale": "unverified",
+      "canonicalColumn": "OrderedItemsSessionPercentage",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.average_offer_count",
@@ -444,7 +544,9 @@
       "type": "decimal",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "AverageOfferCount",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.feedback_received",
@@ -452,7 +554,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "FeedbackReceived",
+      "sqlType": "bigint"
     },
     {
       "header": "metrics.received_negative_feedback_rate",
@@ -461,7 +565,9 @@
       "requiredValue": false,
       "legacyColumn": null,
       "legacyHandling": "not_read",
-      "sourceScale": "unverified"
+      "sourceScale": "unverified",
+      "canonicalColumn": "ReceivedNegativeFeedbackRate",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.claims_granted",
@@ -469,7 +575,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "ClaimsGranted",
+      "sqlType": "bigint"
     },
     {
       "header": "metrics.claims_amount",
@@ -477,7 +585,9 @@
       "type": "decimal",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "ClaimsAmount",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.gross_profit",
@@ -485,7 +595,9 @@
       "type": "decimal",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "GrossProfit",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.net_profit",
@@ -493,7 +605,9 @@
       "type": "decimal",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "NetProfit",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "metrics.margin",
@@ -502,7 +616,9 @@
       "requiredValue": false,
       "legacyColumn": null,
       "legacyHandling": "not_read",
-      "sourceScale": "unverified"
+      "sourceScale": "unverified",
+      "canonicalColumn": "Margin",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "product_detail.priceToPay.amount",
@@ -510,7 +626,9 @@
       "type": "decimal",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "ProductPrice",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "product_detail.bestSellerRank",
@@ -518,7 +636,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "BestSellerRank",
+      "sqlType": "bigint"
     },
     {
       "header": "product_detail.inventoryData.afn.daysOfSupply",
@@ -526,7 +646,9 @@
       "type": "decimal",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "AfnDaysOfSupply",
+      "sqlType": "decimal(28,10)"
     },
     {
       "header": "product_detail.inventoryData.afn.quantity",
@@ -534,7 +656,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "AfnQuantity",
+      "sqlType": "bigint"
     },
     {
       "header": "product_detail.inventoryData.mfn.quantity",
@@ -542,7 +666,9 @@
       "type": "integer",
       "requiredValue": false,
       "legacyColumn": null,
-      "legacyHandling": "not_read"
+      "legacyHandling": "not_read",
+      "canonicalColumn": "MfnQuantity",
+      "sqlType": "bigint"
     }
   ],
   "metricContract": {
@@ -560,5 +686,11 @@
     "adSalesShare": "sum(ad sales)/sum(explicit total sales)*100; may exceed 100",
     "coverage": "Track populated versus missing values per metric, seller, period and row family. Missing denominator or unknown aggregate is null, not zero. Partial coverage is explicitly labelled; ratio numerator and denominator population must be documented and comparable.",
     "monthly": "Calendar-month rollup of validated daily facts; legacy monthly records isolated until a separate source contract and reconciliation are approved."
+  },
+  "storage": {
+    "table": "dbo.AdsProductDailyFacts",
+    "decimalType": "decimal(28,10)",
+    "integerType": "bigint",
+    "state": "canonical schema; ingestion activation pending"
   }
 }
