@@ -16,6 +16,7 @@ on:
       - 'backend/migrations/103_ads_auto_ownership.js'
       - 'backend/migrations/104_ads_import_error_retention.js'
       - 'backend/migrations/105_ads_export_jobs.js'
+      - 'backend/migrations/107_ads_report_covering_index.js'
       - 'backend/services/accessProfileService.js'
       - 'backend/testUtils/adsPhase2.*'
       - 'backend/testUtils/adsPhase3.*'
@@ -111,6 +112,7 @@ jobs:
           node --check backend/services/adsExportSnapshot.js
           node --check backend/services/adsCompleteWorkbook.js
           node --check backend/migrations/105_ads_export_jobs.js
+          node --check backend/migrations/107_ads_report_covering_index.js
           node --check backend/services/adsExportJobs.js
           node --check backend/services/reportExportJobs.js
           node --check backend/controllers/reportExportJobsController.js
