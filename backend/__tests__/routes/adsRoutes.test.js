@@ -112,6 +112,10 @@ describe('route wiring', () => {
 
     test('ads upload requires adsreport_import', () => {
         expect(uploadSrc).toMatch(/router\.post\('\/upload\/upload-ads', authenticate, requirePermission\('adsreport_import'\)/);
+        expect(uploadSrc).toContain("const adsJobPermission=requirePermission('adsreport_import')");
+        const jobRoutes=uploadSrc.split('\n').filter(l=>/router\.(get|post)\('\/upload\/ads-imports/.test(l));
+        expect(jobRoutes).toHaveLength(6);
+        for(const line of jobRoutes)expect(line).toContain('authenticate, adsJobPermission');
     });
 
     test('the ads manager data routes moved off the legacy /data path', () => {

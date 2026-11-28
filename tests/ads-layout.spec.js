@@ -9,11 +9,11 @@ const summary={currency:'INR',rowCount:'30',unmappedRows:'0',
  coverage:Object.fromEntries(metricKeys.map(k=>[k,{status:'partial'}])),
  ratios:Object.fromEntries(['acos','tacos','roas','cvr'].map(k=>[k,{value:'12.3456',status:'partial'}]))};
 const rows=Array.from({length:20},(_,i)=>({key:'row-'+i,entityKey:'B'+String(i+1).padStart(9,'0'),sellerId:'s1',sellerName:longName,marketplace:'amazon.in',currency:'INR',title:'LongProductTitle'.repeat(25),current:summary,previous:summary}));
-const mock=async(page,{empty=false,error=false}={})=>{
+const mock=async(page,{empty=false,error=false,principal=user}={})=>{
  await page.route('**/api/**',route=>{
   const path=new URL(route.request().url()).pathname;
   const send=(data,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify({success:status===200,data,message:status!==200?'Report unavailable. Retry.':undefined})});
-  if(path.endsWith('/auth/me'))return send(user);
+  if(path.endsWith('/auth/me'))return send(principal);
   if(path.endsWith('/canonical-options'))return send({sellers:[{id:'s1',name:longName}],brands:['B'.repeat(230)],categories:['C'.repeat(240)],currencies:['INR'],truncated:true,parentAvailable:true});
   if(path.endsWith('/canonical-report'))return error?send(null,503):send({period,empty,current:empty?[]:[summary],previous:empty?[]:[summary],series:empty?[]:[{...summary,periodKey:'current',bucket:'2026-11-01'}],rows:empty?[]:rows,total:empty?0:rows.length,page:1,limit:50});
   if(path.endsWith('/canonical-targets'))return send({rows:empty?[]:[{sellerId:'s1',sellerName:longName,month:'2026-11',goalType:'ADS',currency:'INR',target:'10000',actual:'1234',attainmentPct:'12.34',status:'insufficient_coverage'}]});
@@ -71,4 +71,19 @@ test('error state stays inside the workspace and exposes retry',async({page})=>{
  await expect(page.getByText('Report unavailable. Retry.')).toBeVisible();
  await expect(page.getByRole('button',{name:'Retry',exact:true})).toBeVisible();
  await assertContained(page);
+});
+
+test('Ads actions follow effective permissions rather than global role labels',async({page})=>{
+ await mock(page,{empty:true,principal:{...user,role:{name:'operational_manager'},permissions:['adsreport_view']}});
+ await page.goto('/tests/fixtures/ads-layout.html');
+ await expect(page.getByText('No canonical advertising records in the selected dates.')).toBeVisible();
+ await expect(page.getByRole('button',{name:'Import CSV',exact:true})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Import a report',exact:true})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Export XLSX',exact:true})).toHaveCount(0);
+});
+test('wildcard administrators retain Ads actions',async({page})=>{
+ await mock(page,{empty:true,principal:{...user,permissions:['*']}});
+ await page.goto('/tests/fixtures/ads-layout.html');
+ await expect(page.getByRole('button',{name:'Import CSV',exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Export XLSX',exact:true})).toBeVisible();
 });

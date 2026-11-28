@@ -28,5 +28,8 @@ function verifyConfirmation({token,user,sellerId,sourceFileSha256,now=Date.now()
     typeof p.marketplace!=='string'||typeof p.currency!=='string')fail();
   return {marketplace:p.marketplace,currency:p.currency};
 }
-const importsEnabled=()=>process.env.ADS_CANONICAL_IMPORT_ENABLED==='true';
+// The durable importer is now released behind adsreport_import and seller
+// authorization. An unset setting permits authorized confirmation. An explicit
+// false (or malformed configured value) remains a server-side safety stop.
+const importsEnabled=(env=process.env)=>env.ADS_CANONICAL_IMPORT_ENABLED===undefined||String(env.ADS_CANONICAL_IMPORT_ENABLED).trim().toLowerCase()==='true';
 module.exports={issueConfirmation,verifyConfirmation,importsEnabled,TTL_MS};

@@ -34,7 +34,8 @@ test('SQL durable Ads job lifecycle, scope, atomic confirmation, retries and exp
   process.env.ADS_CANONICAL_IMPORT_ENABLED='false';
   await assert.rejects(()=>confirmJob({...ctx,id:ready.id}),{code:'ads_import_disabled'});
   const before=await pool.request().query('SELECT COUNT(*) AS n FROM dbo.AdsProductDailyFacts');assert.equal(before.recordset[0].n,0);
-  process.env.ADS_CANONICAL_IMPORT_ENABLED='true';
+  delete process.env.ADS_CANONICAL_IMPORT_ENABLED;
+  assert.equal((await getJob({...ctx,id:ready.id})).importsEnabled,true);
   const results=await Promise.all([confirmJob({...ctx,id:ready.id}),confirmJob({...ctx,id:ready.id})]);
   assert.ok(results.every(r=>r.status==='COMPLETED'&&r.result.inserted===1));
   const stored=await pool.request().query("SELECT Status,DATALENGTH(SourceBytes) AS bytes FROM dbo.AdsImportJobs WHERE Id='"+ready.id+"'; SELECT COUNT(*) AS n FROM dbo.AdsProductDailyFacts;");

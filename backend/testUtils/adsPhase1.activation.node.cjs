@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {issueConfirmation,verifyConfirmation,TTL_MS}=require('../services/adsImportConfirmation');
+const {issueConfirmation,verifyConfirmation,importsEnabled,TTL_MS}=require('../services/adsImportConfirmation');
 const {chooseTargets,targetResult}=require('../services/adsCanonicalTargets');
 const {numericCell}=require('../services/adsCanonicalExport');
 test('confirmation is signed, actor/seller/hash bound, expiring, and tamper resistant',()=>{
@@ -38,4 +38,11 @@ test('dashboard consumer aggregates preserve unknown metrics and matched ratios'
  const unknown=summarize([]); assert.equal(unknown.totals.AdSpend,null);assert.equal(unknown.ratios.tacos,null);
  const actual=summarize([{FactRows:2,AdSpend:20,AdSpendCount:2,AdSales:100,AdSalesCount:1,acosPairCount:1,TotalSales:250,TotalSalesCount:2,tacosPairCount:2}]);
  assert.equal(actual.ratios.acos,null);assert.equal(actual.ratios.tacos,8);assert.equal(actual.coverage.AdSales.status,'partial');
+});
+
+test('Ads confirmation defaults on but honors explicit pause and rejects invalid configuration',()=>{
+ assert.equal(importsEnabled({}),true);
+ assert.equal(importsEnabled({ADS_CANONICAL_IMPORT_ENABLED:'true'}),true);
+ assert.equal(importsEnabled({ADS_CANONICAL_IMPORT_ENABLED:' TRUE '}),true);
+ for(const value of ['false','FALSE','0','','yes'])assert.equal(importsEnabled({ADS_CANONICAL_IMPORT_ENABLED:value}),false);
 });

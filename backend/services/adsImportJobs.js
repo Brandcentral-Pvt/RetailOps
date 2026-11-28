@@ -114,7 +114,7 @@ async function confirmJob({pool,sql,user,id}){
  const initial=publicJob(row);
  if(initial.status==='COMPLETED')return initial;
  if(initial.status!=='READY'||!row.SourceBytes)throw jobError('job_not_ready','Import is not ready or has expired.');
- if(!importsEnabled())throw jobError('ads_import_disabled','Canonical import has not been enabled.');
+ if(!importsEnabled())throw jobError('ads_import_disabled','Ads confirmation is paused by server configuration. An administrator must set ADS_CANONICAL_IMPORT_ENABLED=true or remove the explicit pause and restart the backend.');
  explicitSeller(user,row.SellerId);
  const owner=ownerId(user);
  const lifecycle={
@@ -124,7 +124,7 @@ async function confirmJob({pool,sql,user,id}){
       .query("SELECT SellerId,Marketplace,Currency,SourceFileSha256,Status,CASE WHEN ExpiresAt<=SYSUTCDATETIME() THEN 1 ELSE 0 END AS expired FROM dbo.AdsImportJobs WITH(UPDLOCK,HOLDLOCK) WHERE Id=@id AND OwnerId=@owner;");
     const current=r.recordset[0];
     if(!current||current.Status!=='READY'||current.expired)throw jobError('job_not_ready','Import is no longer ready.');
-    if(!importsEnabled())throw jobError('ads_import_disabled','Canonical import has not been enabled.');
+    if(!importsEnabled())throw jobError('ads_import_disabled','Ads confirmation is paused by server configuration. An administrator must set ADS_CANONICAL_IMPORT_ENABLED=true or remove the explicit pause and restart the backend.');
     if(current.SellerId!==row.SellerId||current.Marketplace!==row.Marketplace||current.Currency!==row.Currency||current.SourceFileSha256!==report.sourceFileSha256)
       throw jobError('job_source_changed','Staged source or seller context changed. Validate again.');
   },
