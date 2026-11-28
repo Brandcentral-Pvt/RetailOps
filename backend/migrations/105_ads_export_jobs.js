@@ -19,6 +19,7 @@ module.exports={up:async pool=>{
  FileBytes bigint NULL,ArtifactSha256 varchar(64) NULL,ChunkCount int NULL,RawCount bigint NULL,EntityCount bigint NULL,ErrorCode varchar(64) NULL,
  CONSTRAINT UQ_AdsExportJobs_Client UNIQUE(OwnerId,ClientId),
  CONSTRAINT CK_AdsExportJobs_Status CHECK(Status IN ('QUEUED','PROCESSING','COMPLETED','FAILED','CANCELLED','EXPIRED')),
+ CONSTRAINT CK_AdsExportJobs_Json CHECK(ISJSON(Filters)=1 AND ISJSON(AccessScope)=1),
  CONSTRAINT CK_AdsExportJobs_Format CHECK(Format IN ('xlsx','csv')),
  CONSTRAINT CK_AdsExportJobs_Attempts CHECK(AttemptCount BETWEEN 0 AND 3));
  CREATE INDEX IX_AdsExportJobs_Queue ON dbo.AdsExportJobs(Status,NextAttemptAt,LeaseUntil,CreatedAt);
