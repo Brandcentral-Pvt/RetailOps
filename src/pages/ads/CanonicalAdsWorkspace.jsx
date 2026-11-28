@@ -169,7 +169,7 @@ export default function CanonicalAdsWorkspace(){
     const report=view==='overview'?overviewReport:productReport;
     const drillTarget=drill?.signature===signature?drill.row:null;
     const drillGrouping=drill?.groupBy||groupBy;
-    const history=useQuery({queryKey:['ads-canonical',principal,'history',filters,drillGrouping,drillTarget?.key],queryFn:({signal})=>get('canonical-report',{...filters,groupBy:drillGrouping,granularity:'day',sellerId:drillTarget.sellerId,marketplace:drillTarget.marketplace,currency:drillTarget.currency,entityKey:drillTarget.entityKey,page:1},signal),enabled:enabled&&!!drillTarget,staleTime:0,retry:false});
+    const history=useQuery({queryKey:['ads-canonical',principal,'history',filters,drillGrouping,drillTarget?JSON.stringify([drillTarget.sellerId,drillTarget.marketplace,drillTarget.currency,drillTarget.entityKey]):null],queryFn:({signal})=>get('canonical-report',{...filters,groupBy:drillGrouping,granularity:'day',sellerId:drillTarget.sellerId,marketplace:drillTarget.marketplace,currency:drillTarget.currency,entityKey:drillTarget.entityKey,page:1},signal),enabled:enabled&&!!drillTarget,staleTime:0,retry:false});
     const reviewFilters={startDate:filters.startDate,endDate:filters.endDate,sellerId:seller,brand,category,currency,marketplace,search:search||undefined,groupBy:'asin'};
     const reviewSignature=JSON.stringify([principal,reviewFilters]);
     const {groupBy:analystGroup,...analystFilters}=reviewFilters;

@@ -4,7 +4,7 @@ const {AdsScopeError}=require('../services/adsCanonicalScope');
 const {parseAnalystRequest,loadEvidence}=require('../services/adsAnalystEvidence');
 const {reviewSnapshot}=require('../services/adsAnalystReview');
 let active=0;
-const lastAI=new Map();
+const {createHash}=require('node:crypto');
 async function run(req,res,useAI=false){
  let reserved=false;
  try{
@@ -13,14 +13,19 @@ async function run(req,res,useAI=false){
   if(active>=2)throw new AdsScopeError('analyst_busy','Analyst evidence is busy. Retry shortly.',429);
   active++;reserved=true;
   const owner=String(req.user.Id||req.user.id||req.user._id||'');
+  let admissionReason=null;
   if(useAI&&process.env.ADS_ANALYST_AI_ENABLED==='true'){
-   const now=Date.now();for(const [id,at] of lastAI)if(now-at>=60000)lastAI.delete(id);
-   if(lastAI.has(owner)||lastAI.size>=1000)throw new AdsScopeError('analyst_rate_limited','Wait one minute before requesting another AI ranking.',429);
-   lastAI.set(owner,now);
+   const cache=require('../services/cacheService');
+   const admitted=owner?await cache.reserveOnce(cache.key('ads-analyst-cooldown',createHash('sha256').update(owner).digest('hex')),60):null;
+   if(admitted===false)throw new AdsScopeError('analyst_rate_limited','Wait one minute before requesting another AI ranking.',429);
+   if(admitted!==true)admissionReason='usage_control_unavailable';
   }
   const snapshot=await loadEvidence({pool:await getPool(),sql,user:req.user,body:req.body});
   if(res.destroyed)return;
-  const data=await reviewSnapshot(snapshot,{useAI});
+  const started=Date.now();
+  const data=await reviewSnapshot(snapshot,{useAI:useAI&&!admissionReason});
+  if(admissionReason)data.reason=admissionReason;
+  console.info('[ads analyst outcome]',{mode:data.mode,reason:data.reason,durationMs:Date.now()-started,candidates:data.findings.length});
   if(!res.destroyed)return res.json({success:true,data});
  }catch(e){
   if(res.destroyed)return;
