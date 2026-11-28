@@ -1,7 +1,8 @@
 const { getPool } = require('../database/db');
 const { performance } = require('node:perf_hooks');
 const { loadGmsFilters } = require('../services/gmsAnalyticsFilters');
-const { pageSpec,loadPagedAnalytics } = require('../services/gmsAnalyticsPageService');
+const { pageSpec } = require('../services/gmsAnalyticsPageService');
+const { loadReportAnalytics } = require('../services/gmsAnalyticsReportCache');
 const { isGmsSchemaError, sendGmsSchemaUnavailable } = require('../database/gmsSchema');
 
 const configured=Number(process.env.GMS_ANALYTICS_CONCURRENCY||8);
@@ -26,12 +27,13 @@ exports.overview = async (req,res) => {
     const poolStarted=performance.now();
     const pool=await getPool();
     const poolMs=performance.now()-poolStarted;
-    let timings={sqlMs:0,composeMs:0};
-    const data=await loadPagedAnalytics(pool,req.user,options,{signal:controller.signal,onTiming:value=>{timings=value;}});
+    let timings={sqlMs:0,composeMs:0,cacheMs:0,cacheStatus:'bypass'};
+    const data=await loadReportAnalytics(pool,req.user,options,{signal:controller.signal,onTiming:value=>{timings=value;}});
     const totalMs=performance.now()-started;
     res.set('Cache-Control','private, no-store');
-    res.set('Server-Timing',`pool;dur=${poolMs.toFixed(1)}, sql;dur=${timings.sqlMs.toFixed(1)}, compose;dur=${timings.composeMs.toFixed(1)}, total;dur=${totalMs.toFixed(1)}`);
-    if(totalMs>=1000)console.info('[GMS ANALYTICS TIMING]',JSON.stringify({poolMs:Math.round(poolMs),sqlMs:Math.round(timings.sqlMs),composeMs:Math.round(timings.composeMs),totalMs:Math.round(totalMs),records:data.meta.records,pageSize:data.pagination.pageSize}));
+    res.set('X-GMS-Cache',timings.cacheStatus);
+    res.set('Server-Timing',`pool;dur=${poolMs.toFixed(1)}, sql;dur=${timings.sqlMs.toFixed(1)}, compose;dur=${timings.composeMs.toFixed(1)}, cache;dur=${timings.cacheMs.toFixed(1)}, total;dur=${totalMs.toFixed(1)}`);
+    if(totalMs>=1000)console.info('[GMS ANALYTICS TIMING]',JSON.stringify({poolMs:Math.round(poolMs),sqlMs:Math.round(timings.sqlMs),composeMs:Math.round(timings.composeMs),cacheMs:Math.round(timings.cacheMs),cacheStatus:timings.cacheStatus,totalMs:Math.round(totalMs),records:data.meta.records,pageSize:data.pagination.pageSize}));
     if(timedOut&&!res.destroyed)return res.status(504).json({success:false,message:'This report took too long. Choose a shorter reporting period or try again.'});
     if(!controller.signal.aborted)return res.json({success:true,data});
   } catch(error) {
