@@ -84,6 +84,7 @@ router.get('/upload/gms-imports/:id/errors', authenticate, importPermission, gms
 router.get('/upload/gms-imports/:id', authenticate, importPermission, gmsImport.get);
 router.post('/upload/gms-imports/:id/confirm', authenticate, importPermission, gmsImport.confirm);
 router.post('/upload/gms-imports/:id/cancel', authenticate, importPermission, gmsImport.cancel);
+    router.get('/upload/gms-filters', authenticate, requirePermission('gms_tracker_view'), gmsAnalytics.filters);
     router.post('/upload/gms-analytics', authenticate, requirePermission('gms_tracker_view'), gmsAnalytics.overview);
     router.get('/upload/gms-data', authenticate, requirePermission('gms_tracker_view'), uploadController.getGmsData);
     router.get('/upload/gms-asins', authenticate, requirePermission('gms_tracker_view'), uploadController.getGmsAsins);
