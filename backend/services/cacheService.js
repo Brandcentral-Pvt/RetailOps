@@ -137,6 +137,12 @@ async function invalidateNamespace(namespace) {
   await delPattern(`route:${namespace}:*`);
 }
 
+// Atomic distributed admission. Null means unavailable, not admitted.
+async function reserveOnce(cacheKey,ttl){
+ if(!enabled||!client)return null;
+ let timer;
+ try{return await Promise.race([client.set(cacheKey,'1','EX',ttl,'NX').then(v=>v==='OK').catch(()=>null),new Promise(resolve=>{timer=setTimeout(()=>resolve(null),500);})]);}finally{clearTimeout(timer);}
+}
 async function isEnabled() {
   return enabled && client !== null;
 }
@@ -172,5 +178,6 @@ module.exports = {
   invalidateNamespace,
   key,
   isEnabled,
+  reserveOnce,
   disconnect,
 };
