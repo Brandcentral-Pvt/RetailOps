@@ -90,7 +90,7 @@ function AdsExportDialog({open,onClose,initial,principal,onSubmit,busy,error}){
  {scope==='current'&&<Typography.Paragraph type="secondary">{[['Seller',draft.sellerId],['Brand',draft.brand],['Category',draft.category],['Marketplace',draft.marketplace],['Currency',draft.currency],['Search',draft.search]].filter(([,v])=>v).map(([k,v])=>k+': '+v).join(' · ')||'No additional filters; all authorized sellers.'}</Typography.Paragraph>}
  {options.isError&&<Alert type="error" message={errorText(options.error)} action={<Button onClick={()=>options.refetch()}>Retry</Button>}/>}
  {choices.truncated&&<Alert type="warning" message="Filter options are capped. Select a seller to narrow catalog choices."/>}
- <Alert type="info" showIcon message="Background export" description="Up to 2 million stored daily records and 250,000 comparison entities per job. Follow progress in Download Center; files are available for seven days. Oversized jobs fail explicitly without truncation."/>
+ <Alert type="info" showIcon message="Background export" description="Up to 2 million stored daily records and 250,000 comparison entities per job. Follow progress in Download Center; files expire according to the configured retention policy. Oversized jobs fail explicitly without truncation."/>
  </Form></Drawer>;
 }
 const exportErrorText=async e=>{
@@ -125,7 +125,7 @@ function AdsDownloadCenter({open,onClose,principal,onNew}){
  const fmtDate=v=>v?new Date(v).toLocaleString():'—';
  const bytes=v=>v==null?'—':v>=1048576?(v/1048576).toFixed(1)+' MB':Math.ceil(v/1024)+' KB';
  return <Drawer open={open} title="Ads Download Center" width="min(1040px, 100vw)" onClose={onClose}
- footer={<Flex justify="space-between" align="center"><Typography.Text type="secondary">Private exports expire after seven days.</Typography.Text><Button type="primary" onClick={onNew}>New export</Button></Flex>}>
+ footer={<Flex justify="space-between" align="center"><Typography.Text type="secondary">Private exports expire at their displayed expiry time.</Typography.Text><Button type="primary" onClick={onNew}>New export</Button></Flex>}>
  <Flex vertical gap={16}>
  <Alert type="info" showIcon message="Background exports" description="Exports continue after this drawer is closed. Progress represents actual worker stages; completed reports are validated before download."/>
  <Flex wrap="wrap" gap={8} align="center">
@@ -136,10 +136,10 @@ function AdsDownloadCenter({open,onClose,principal,onNew}){
  </Flex>
  {error&&<Alert type="error" showIcon message={error} closable onClose={()=>setError(null)}/>}
  {jobs.isError&&<Alert type="error" showIcon message={errorText(jobs.error)} action={<Button onClick={()=>jobs.refetch()}>Retry</Button>}/>}
- {data?.historyCapped&&<Alert type="warning" message="History shows the latest 1,000 jobs."/>}
+ 
  <Table size="small" rowKey="id" loading={jobs.isPending} dataSource={data?.rows||[]} scroll={{x:850}} locale={{emptyText:'No export jobs match this view'}} pagination={{current:page,pageSize:20,total:data?.total||0,showSizeChanger:false,onChange:setPage}}
  columns={[
- {title:'Report',width:245,render:(_,j)=><><strong>{j.format==='xlsx'?'Complete Excel':'Daily source CSV'}</strong><div>{j.filters.allHistory?'All stored history':j.filters.startDate+' to '+j.filters.endDate}</div><Typography.Text type="secondary">{j.filters.sellerId?'Seller: '+j.filters.sellerId:'All authorized sellers'}</Typography.Text>{j.filters.search&&<div>Search: {j.filters.search}</div>}</>},
+ {title:'Report',width:245,render:(_,j)=><><strong>{j.format==='xlsx'?'Complete Excel':'Daily source CSV'}</strong><div>{j.filters.allHistory?'All stored history':j.filters.startDate+' to '+j.filters.endDate}</div><Typography.Text type="secondary">{j.sellerScope?.global?'All authorized sellers':j.sellerScope?.ids?.length?j.sellerScope.ids.length+' authorized seller(s)':j.filters.sellerId?'Seller: '+j.filters.sellerId:'All authorized sellers'}</Typography.Text>{j.filters.search&&<div>Search: {j.filters.search}</div>}</>},
  {title:'Status / stage',width:180,render:(_,j)=><><Tag color={colors[j.status]}>{j.status}</Tag><div>{labels[j.stage]||j.stage}</div>{j.errorCode&&<Typography.Text type="secondary">{j.errorCode}</Typography.Text>}{j.attemptCount>0&&<div>Attempt {j.attemptCount}/3</div>}</>},
  {title:'Created / completed',width:165,render:(_,j)=><><div>{fmtDate(j.createdAt)}</div><Typography.Text type="secondary">{fmtDate(j.completedAt)}</Typography.Text></>},
  {title:'Records / size',width:125,render:(_,j)=><><div>{j.rawCount==null?'—':adsCount(j.rawCount)} records</div><Typography.Text type="secondary">{bytes(j.bytes)}</Typography.Text></>},
