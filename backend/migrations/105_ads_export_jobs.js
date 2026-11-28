@@ -16,7 +16,7 @@ module.exports={up:async pool=>{
  CreatedAt datetime2(3) NOT NULL DEFAULT SYSUTCDATETIME(),NextAttemptAt datetime2(3) NOT NULL DEFAULT SYSUTCDATETIME(),
  StartedAt datetime2(3) NULL,CompletedAt datetime2(3) NULL,ExpiresAt datetime2(3) NULL,
  LeaseToken varchar(36) NULL,LeaseUntil datetime2(3) NULL,ArtifactToken varchar(36) NULL,
- FileBytes bigint NULL,ChunkCount int NULL,RawCount bigint NULL,EntityCount bigint NULL,ErrorCode varchar(64) NULL,
+ FileBytes bigint NULL,ArtifactSha256 varchar(64) NULL,ChunkCount int NULL,RawCount bigint NULL,EntityCount bigint NULL,ErrorCode varchar(64) NULL,
  CONSTRAINT UQ_AdsExportJobs_Client UNIQUE(OwnerId,ClientId),
  CONSTRAINT CK_AdsExportJobs_Status CHECK(Status IN ('QUEUED','PROCESSING','COMPLETED','FAILED','CANCELLED','EXPIRED')),
  CONSTRAINT CK_AdsExportJobs_Format CHECK(Format IN ('xlsx','csv')),
