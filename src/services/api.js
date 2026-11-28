@@ -2061,6 +2061,9 @@ export const targetsApi = {
 };
 
 export const gmsApi = {
+  filters: async ({signal}={}) => handleResponse(await fetch(API_BASE+'/upload/gms-filters',{
+    credentials:'include',cache:'no-store',headers:{...getAuthHeader()},signal,
+  }), 'Failed to load GMS report filters'),
   analytics: async (params, {signal} = {}) => handleResponse(await fetch(API_BASE + '/upload/gms-analytics', {
     method:'POST', credentials:'include', headers:{'Content-Type':'application/json', ...getAuthHeader()}, body:JSON.stringify(params), signal,
   }), 'Failed to load GMS analytics'),
