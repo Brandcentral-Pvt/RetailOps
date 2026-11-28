@@ -129,7 +129,7 @@ async function readCanonicalReport({pool,sql,user,query,exportAll=false,insights
     const request=tx.request().input('start',sql.VarChar(10),f.period.startDate).input('end',sql.VarChar(10),f.period.endDate).input('prevStart',sql.VarChar(10),f.period.prevStart);
     let where=" WHERE p.ReportType='daily'"+(f.period.allHistory?'':" AND p.[Date]>=CONVERT(date,@prevStart,23) AND p.[Date]<=CONVERT(date,@end,23)")+scopeWhere(request,sql,f.scope,'p.SellerId');
     for(const [value,name,expr,max] of [[f.currency,'currency','p.Currency',3],[f.marketplace,'marketplace','p.Marketplace',50],[f.brand,'brand',metaValue('brand'),255],[f.category,'category',metaValue('category'),255],[f.entityKey,'entity',entity,50]]){
-      if(value){request.input(name,sql.NVarChar(max),value);where+=' AND '+expr+'=@'+name;}
+      if(value){request.input(name,name==='currency'?sql.Char(3):name==='entity'&&f.groupBy==='asin'?sql.VarChar(10):sql.NVarChar(max),value);where+=' AND '+(name==='entity'&&f.groupBy==='asin'?'p.Asin':expr)+'=@'+name;}
     }
     if(f.search){
       request.input('search',sql.NVarChar(120),f.search);

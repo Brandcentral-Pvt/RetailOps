@@ -29,6 +29,14 @@ test('SQL: canonical scope, duplicate catalog protection, current/prior comparis
    row('s3','amazon.in','INR','B000000001','2026-04-01','9999','9','1',1,1,1,1)
   ].join(','));
   const read=(extra={},actor=user)=>readCanonicalReport({pool,sql,user:actor,query:{...range,...extra}});
+  const beforeIndex=await read({sellerId:'s1'});
+  const indexMigration=require('../migrations/107_ads_report_covering_index');
+  await indexMigration.up(pool);await indexMigration.up(pool);
+  const indexCheck=await pool.request().query("SELECT COUNT(*) AS n FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.AdsProductDailyFacts') AND name='IX_AdsProductDaily_Date_ReportCover' AND is_disabled=0;");
+  assert.equal(indexCheck.recordset[0].n,1);
+  const catalogCheck=await pool.request().query("SELECT COUNT(*) AS n FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.Asins') AND name='IX_Asins_AdsOwnerLookup' AND is_unique=0 AND is_disabled=0;");
+  assert.equal(catalogCheck.recordset[0].n,1);
+  assert.deepEqual(await read({sellerId:'s1'}),beforeIndex);
   const r=await read({sellerId:'s1',limit:'2',page:'99'});
   assert.equal(r.current[0].totals.totalSales,'148.76');assert.equal(r.current[0].rowCount,'3');
   assert.equal(r.current[0].unmappedRows,'2');assert.equal(r.current[0].ratios.tacos.value,null);
