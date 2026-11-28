@@ -1,0 +1,564 @@
+{
+  "schemaVersion": 1,
+  "reportKind": "product_daily",
+  "encoding": "UTF-8 (optional BOM)",
+  "delimiter": ",",
+  "headerPolicy": "Exact 63 unique headers; order independent; missing, duplicate, unknown headers require rejection or a new explicitly versioned adapter.",
+  "grain": [
+    "sellerId",
+    "marketplace",
+    "reportType",
+    "asin",
+    "date"
+  ],
+  "reportType": "daily",
+  "requiredContext": [
+    "sellerId",
+    "marketplace",
+    "currency",
+    "reportType"
+  ],
+  "contextPolicy": "Resolve seller/marketplace/currency from authorized server-side configuration; do not trust filename or infer arbitrary ownership. No cross-currency totals without an explicit conversion policy.",
+  "identityPolicy": "ASIN trim and uppercase, validate Amazon 10-character identifier. Strip one balanced literal quote pair after CSV decoding for ASIN, SKU and date. SKU placeholder None (case insensitive) or blank becomes null; SKU is not a key. Date is strict Gregorian YYYY-MM-DD with no timezone conversion or fallback.",
+  "nullPolicy": "Blank metric is null, explicit zero is zero; malformed nonblank value is a validation error. Preserve signed financial adjustments and raw source values; do not overwrite populated values with unknown without an explicit versioned replacement policy.",
+  "duplicatePolicy": "Never last-row-wins silently. Exact duplicates and conflicting same-grain rows classified separately; conflicting rows require review. No inferred aggregation of duplicates.",
+  "numericPolicy": "Parse exact finite decimal text; use exact monetary precision, integer count validation, no percentage guesses, no clamp; retain source-scale ratios. Invalid values must be reported, not silently changed.",
+  "fields": [
+    {
+      "header": "asin",
+      "family": "identity",
+      "type": "asin",
+      "requiredValue": true,
+      "legacyColumn": "Asin",
+      "legacyHandling": "read"
+    },
+    {
+      "header": "sku",
+      "family": "identity",
+      "type": "string",
+      "requiredValue": false,
+      "legacyColumn": "AdvertisedSku",
+      "legacyHandling": "read"
+    },
+    {
+      "header": "date",
+      "family": "identity",
+      "type": "date",
+      "requiredValue": true,
+      "legacyColumn": "Date",
+      "legacyHandling": "read"
+    },
+    {
+      "header": "metrics.sales",
+      "family": "ads",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": "AdSales",
+      "legacyHandling": "read"
+    },
+    {
+      "header": "metrics.spend",
+      "family": "ads",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": "AdSpend",
+      "legacyHandling": "read"
+    },
+    {
+      "header": "metrics.clicks",
+      "family": "ads",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": "Clicks",
+      "legacyHandling": "read"
+    },
+    {
+      "header": "metrics.impressions",
+      "family": "ads",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": "Impressions",
+      "legacyHandling": "read"
+    },
+    {
+      "header": "metrics.view_impressions",
+      "family": "ads",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    },
+    {
+      "header": "metrics.orders",
+      "family": "ads",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": "Orders",
+      "legacyHandling": "read"
+    },
+    {
+      "header": "metrics.conversions",
+      "family": "ads",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": "Conversions",
+      "legacyHandling": "read"
+    },
+    {
+      "header": "metrics.conversion_rate",
+      "family": "ads",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": "ConversionRate",
+      "legacyHandling": "recomputed",
+      "sourceScale": "fraction"
+    },
+    {
+      "header": "metrics.acos",
+      "family": "ads",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": "ACoS",
+      "legacyHandling": "recomputed",
+      "sourceScale": "fraction"
+    },
+    {
+      "header": "metrics.roas",
+      "family": "ads",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": "RoAS",
+      "legacyHandling": "recomputed",
+      "sourceScale": "ratio"
+    },
+    {
+      "header": "metrics.ctr",
+      "family": "ads",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": "CTR",
+      "legacyHandling": "recomputed",
+      "sourceScale": "fraction"
+    },
+    {
+      "header": "metrics.cpc",
+      "family": "ads",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": "CPC",
+      "legacyHandling": "recomputed",
+      "sourceScale": "currency_per_click"
+    },
+    {
+      "header": "metrics.aov",
+      "family": "ads",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": "Aov",
+      "legacyHandling": "read",
+      "sourceScale": "currency_per_conversion"
+    },
+    {
+      "header": "metrics.tos_is",
+      "family": "ads",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": "TosIs",
+      "legacyHandling": "read",
+      "sourceScale": "unverified"
+    },
+    {
+      "header": "metrics.same_sku_sales",
+      "family": "ads",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": "SameSkuSales",
+      "legacyHandling": "read"
+    },
+    {
+      "header": "metrics.same_sku_orders",
+      "family": "ads",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": "SameSkuOrders",
+      "legacyHandling": "read"
+    },
+    {
+      "header": "metrics.new_to_brand_sales",
+      "family": "new_to_brand",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    },
+    {
+      "header": "metrics.new_to_brand_orders",
+      "family": "new_to_brand",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    },
+    {
+      "header": "metrics.new_to_brand_units",
+      "family": "new_to_brand",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    },
+    {
+      "header": "metrics.new_to_brand_sales_percentage",
+      "family": "new_to_brand",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read",
+      "sourceScale": "fraction"
+    },
+    {
+      "header": "metrics.new_to_brand_orders_percentage",
+      "family": "new_to_brand",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read",
+      "sourceScale": "fraction"
+    },
+    {
+      "header": "metrics.new_to_brand_units_percentage",
+      "family": "new_to_brand",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read",
+      "sourceScale": "fraction"
+    },
+    {
+      "header": "metrics.daily_budget",
+      "family": "budget",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": "DailyBudget",
+      "legacyHandling": "read"
+    },
+    {
+      "header": "metrics.total_budget",
+      "family": "budget",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": "TotalBudget",
+      "legacyHandling": "read"
+    },
+    {
+      "header": "metrics.max_spend",
+      "family": "budget",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": "MaxSpend",
+      "legacyHandling": "read"
+    },
+    {
+      "header": "metrics.avg_spend",
+      "family": "budget",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": "AvgSpend",
+      "legacyHandling": "read"
+    },
+    {
+      "header": "metrics.total_sales",
+      "family": "business",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": "TotalSales",
+      "legacyHandling": "read"
+    },
+    {
+      "header": "metrics.total_acos",
+      "family": "business",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": "TotalAcos",
+      "legacyHandling": "read",
+      "sourceScale": "percentage_points"
+    },
+    {
+      "header": "metrics.total_orders",
+      "family": "business",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    },
+    {
+      "header": "metrics.total_units",
+      "family": "business",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": "TotalUnits",
+      "legacyHandling": "read"
+    },
+    {
+      "header": "metrics.organic_sales",
+      "family": "business",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": "OrganicSales",
+      "legacyHandling": "read"
+    },
+    {
+      "header": "metrics.organic_orders",
+      "family": "business",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": "OrganicOrders",
+      "legacyHandling": "read"
+    },
+    {
+      "header": "metrics.ad_sales_perc",
+      "family": "business",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": "AdSalesPerc",
+      "legacyHandling": "read",
+      "sourceScale": "percentage_points"
+    },
+    {
+      "header": "metrics.ordered_revenue",
+      "family": "business",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    },
+    {
+      "header": "metrics.units_ordered",
+      "family": "business",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    },
+    {
+      "header": "metrics.ordered_orders",
+      "family": "business",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    },
+    {
+      "header": "metrics.shipped_revenue",
+      "family": "business",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    },
+    {
+      "header": "metrics.shipped_cogs",
+      "family": "business",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    },
+    {
+      "header": "metrics.shipped_units",
+      "family": "business",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    },
+    {
+      "header": "metrics.page_views",
+      "family": "traffic",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": "PageViews",
+      "legacyHandling": "read"
+    },
+    {
+      "header": "metrics.browser_page_views",
+      "family": "traffic",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    },
+    {
+      "header": "metrics.mobile_page_views",
+      "family": "traffic",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    },
+    {
+      "header": "metrics.sessions",
+      "family": "traffic",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": "Sessions",
+      "legacyHandling": "read"
+    },
+    {
+      "header": "metrics.browser_sessions",
+      "family": "traffic",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": "BrowserSessions",
+      "legacyHandling": "read"
+    },
+    {
+      "header": "metrics.mobile_app_sessions",
+      "family": "traffic",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": "MobileAppSessions",
+      "legacyHandling": "read"
+    },
+    {
+      "header": "metrics.buy_box_percentage",
+      "family": "traffic",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": "BuyBoxPercentage",
+      "legacyHandling": "read",
+      "sourceScale": "unverified"
+    },
+    {
+      "header": "metrics.ordered_items_session_percentage",
+      "family": "traffic",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read",
+      "sourceScale": "unverified"
+    },
+    {
+      "header": "metrics.average_offer_count",
+      "family": "traffic",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    },
+    {
+      "header": "metrics.feedback_received",
+      "family": "service",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    },
+    {
+      "header": "metrics.received_negative_feedback_rate",
+      "family": "service",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read",
+      "sourceScale": "unverified"
+    },
+    {
+      "header": "metrics.claims_granted",
+      "family": "service",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    },
+    {
+      "header": "metrics.claims_amount",
+      "family": "service",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    },
+    {
+      "header": "metrics.gross_profit",
+      "family": "profit",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    },
+    {
+      "header": "metrics.net_profit",
+      "family": "profit",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    },
+    {
+      "header": "metrics.margin",
+      "family": "profit",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read",
+      "sourceScale": "unverified"
+    },
+    {
+      "header": "product_detail.priceToPay.amount",
+      "family": "product_snapshot",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    },
+    {
+      "header": "product_detail.bestSellerRank",
+      "family": "product_snapshot",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    },
+    {
+      "header": "product_detail.inventoryData.afn.daysOfSupply",
+      "family": "product_snapshot",
+      "type": "decimal",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    },
+    {
+      "header": "product_detail.inventoryData.afn.quantity",
+      "family": "product_snapshot",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    },
+    {
+      "header": "product_detail.inventoryData.mfn.quantity",
+      "family": "product_snapshot",
+      "type": "integer",
+      "requiredValue": false,
+      "legacyColumn": null,
+      "legacyHandling": "not_read"
+    }
+  ],
+  "metricContract": {
+    "totalSales": "metrics.total_sales; reconcile with metrics.ordered_revenue when both present. Never derive from ad plus organic.",
+    "totalOrders": "metrics.total_orders; reconcile with metrics.ordered_orders. Never derive from ad plus organic.",
+    "totalUnits": "metrics.total_units; reconcile with metrics.units_ordered.",
+    "acos": "sum(spend)/sum(ad sales)*100 if denominator positive and required coverage exists",
+    "tacos": "sum(spend)/sum(explicit total sales)*100 if denominator positive and required coverage exists",
+    "roas": "sum(ad sales)/sum(spend)",
+    "ctr": "sum(clicks)/sum(impressions)*100",
+    "cvr": "sum(conversions)/sum(clicks)*100; matches supplied source; order rate separately named",
+    "cpc": "sum(spend)/sum(clicks)",
+    "aov": "sum(ad sales)/sum(conversions); matches supplied source; order-based AOV separately named",
+    "cpo": "sum(spend)/sum(ad orders)",
+    "adSalesShare": "sum(ad sales)/sum(explicit total sales)*100; may exceed 100",
+    "coverage": "Track populated versus missing values per metric, seller, period and row family. Missing denominator or unknown aggregate is null, not zero. Partial coverage is explicitly labelled; ratio numerator and denominator population must be documented and comparable.",
+    "monthly": "Calendar-month rollup of validated daily facts; legacy monthly records isolated until a separate source contract and reconciliation are approved."
+  }
+}
