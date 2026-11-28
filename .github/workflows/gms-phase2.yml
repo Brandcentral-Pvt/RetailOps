@@ -69,6 +69,7 @@ jobs:
           node --check services/gmsImportService.js
           node --check services/gmsAnalyticsService.js
           node --check services/gmsAnalyticsPageService.js
+          node --check services/gmsAnalyticsFilters.js
           node --check services/gmsExportWriter.js
           node --check services/streamingWorkbook.js
           node --check services/exportFileIntegrity.js
