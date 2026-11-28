@@ -598,3 +598,13 @@ exports.getDashboardTasks=async(req,res)=>{
   return res.json({success:true,...data,total:data.summary.total,scope:dashboardScope.publicScope(scope)});
  }catch(e){return res.status(e instanceof AdsScopeError?e.status:500).json({success:false,message:e instanceof AdsScopeError?e.message:'Dashboard tasks unavailable.'});}
 };
+
+exports.getDashboardTargets=async(req,res)=>{
+ res.set('Cache-Control','private, no-store');
+ try{
+  const pool=await getPool();
+  const scope=await dashboardScope.resolveDashboardScope({pool,sql,user:req.user,sellerId:req.query.sellerId,managerId:req.query.managerId});
+  const data=await require('../services/dashboardTargets').readDashboardTargets({pool,sql,scope,startDate:req.query.startDate,endDate:req.query.endDate});
+  return res.json({success:true,data,scope:dashboardScope.publicScope(scope)});
+ }catch(e){return res.status(e instanceof AdsScopeError?e.status:500).json({success:false,message:e instanceof AdsScopeError?e.message:'Dashboard targets unavailable.'});}
+};
