@@ -1,94 +1,173 @@
-import React, { useEffect, useState } from 'react';
-import { Alert, Button, Modal, Select, Space, Table, Tag, Upload } from 'antd';
-import { InboxOutlined } from '@ant-design/icons';
-import { apiClient } from '../../lib/api-client';
+import React,{useEffect,useState} from 'react';
+import {Alert,Button,Card,Col,Descriptions,Modal,Progress,Row,Select,Space,Table,Tabs,Tag,Upload} from 'antd';
+import {InboxOutlined,DownloadOutlined,ReloadOutlined} from '@ant-design/icons';
+import {apiClient} from '../../lib/api-client';
 
-const AdsImportModal = ({ isOpen, onClose, selectedSeller, onComplete }) => {
-    const [sellerId,setSellerId]=useState(null);
-    const [sellers,setSellers]=useState([]);
-    const [file,setFile]=useState(null);
-    const [result,setResult]=useState(null);
-    const [error,setError]=useState(null);
-    const [busy,setBusy]=useState(false);
-    const [loadingSellers,setLoadingSellers]=useState(false);
-    const [committed,setCommitted]=useState(null);
+const endpoint='/upload/ads-imports';
+const colors={READY:'processing',REJECTED:'error',COMPLETED:'success',FAILED:'error',CANCELLED:'default',EXPIRED:'default'};
+const count=v=>v==null?'Unknown':Number(v).toLocaleString('en-IN');
+const time=v=>v?new Date(v).toLocaleString():'N/A';
+const errText=(e,fallback)=>e.response?.data?.message||fallback;
+const money=(v,c)=>v==null?'N/A':c+' '+v;
 
-    useEffect(()=>{
-        if (!isOpen) return undefined;
-        let active=true;
-        setSellerId(selectedSeller||null);setFile(null);setResult(null);setError(null);setSellers([]);setCommitted(null);
-        setLoadingSellers(true);
-        apiClient.get('/upload/ads-validation-sellers').then(res=>{
-            if (active) setSellers(res.data?.data||[]);
-        }).catch(()=>{if(active)setError('Seller options could not be loaded. Reopen this dialog to retry.');})
-          .finally(()=>{if(active)setLoadingSellers(false);});
-        return ()=>{active=false;};
-    },[isOpen,selectedSeller]);
-    const seller=sellers.find(s=>s.id===sellerId);
-
-    const validate=async()=>{
-        if (!file||!seller?.context) return;
-        setBusy(true);setError(null);setResult(null);setCommitted(null);
-        try {
-            const form=new FormData();
-            form.append('sellerId',sellerId);form.append('reportType','daily');form.append('file',file);
-            const res=await apiClient.post('/upload/ads-validate',form,{timeout:120000,headers:{'Content-Type':undefined}});
-            setResult(res.data?.data||null);
-            if (!res.data?.success) setError(res.data?.message||'Validation failed.');
-        } catch(e) {
-            setResult(e.response?.data?.data||null);
-            setError(e.response?.data?.message||'Validation could not be completed.');
-        } finally {setBusy(false);}
-    };
-    const confirm=async()=>{
-        if(!file||!result?.valid||!result?.confirmationToken||result.sellerId!==sellerId||committed)return;
-        setBusy(true);setError(null);
-        try{
-            const form=new FormData();form.append('sellerId',sellerId);form.append('reportType','daily');form.append('confirmationToken',result.confirmationToken);form.append('file',file);
-            const res=await apiClient.post('/upload/ads-confirm',form,{timeout:300000,headers:{'Content-Type':undefined}});
-            if(!res.data?.success||!res.data?.data?.persisted)throw Error('The import was not confirmed.');
-            setCommitted(res.data.data);onComplete?.(res.data.data);
-        }catch(e){setError(e.response?.data?.message||'Import outcome unavailable. Revalidate and replay the same file safely.');setResult(null);}
-        finally{setBusy(false);}
-    };
-    return <Modal title="Import advertising report" open={isOpen} onCancel={busy?undefined:onClose}
-        closable={!busy} maskClosable={!busy} keyboard={!busy} centered width={760}
-        styles={{body:{maxHeight:'65vh',overflowY:'auto'}}}
-        footer={<Space><Button disabled={busy} onClick={onClose}>Close</Button>
-          <Button loading={busy} disabled={busy||!file||!seller?.context||loadingSellers} onClick={validate}>Validate CSV</Button>
-          <Button type="primary" loading={busy} disabled={busy||!result?.valid||!result?.confirmationToken||!!committed} onClick={confirm}>Confirm import</Button></Space>}>
-      <Space direction="vertical" size="middle" style={{width:'100%'}}>
-        <Alert type="info" showIcon message="Validate before importing"
-          description="The selected seller must own the report. Validation checks the 63-column file and catalog mapping. Confirming inserts new records only; identical records are replay-safe and conflicting history is rejected."/>
-        <div><label htmlFor="ads-validation-seller">Seller</label><Select id="ads-validation-seller" value={sellerId||undefined}
-          placeholder="Select the report's seller" loading={loadingSellers} showSearch optionFilterProp="label"
-          disabled={busy} style={{width:'100%',marginTop:6}}
-          options={sellers.map(s=>({value:s.id,label:s.name+' ('+s.marketplace+')',disabled:!s.context}))}
-          onChange={v=>{setSellerId(v);setResult(null);setError(null);setCommitted(null);}}/></div>
-        {seller?.context&&<Space><Tag>{seller.context.marketplace}</Tag><Tag>{seller.context.currency}</Tag><Tag>Daily v1</Tag></Space>}
-        {seller&&!seller.context&&<Alert type="warning" message="Seller marketplace/currency requires administrator verification."/>}
-        <Upload.Dragger accept=".csv" maxCount={1} disabled={busy} fileList={file?[file]:[]}
-          beforeUpload={f=>{setResult(null);setCommitted(null);if(!/\.csv$/i.test(f.name)||f.size>32*1024*1024||!f.size){setFile(null);setError('Select a nonempty CSV up to 32 MiB.');return Upload.LIST_IGNORE;}setError(null);setFile(f);return false;}}
-          onRemove={()=>{setFile(null);setResult(null);setError(null);setCommitted(null);return true;}}>
-          <p className="ant-upload-drag-icon"><InboxOutlined/></p><p>Choose a product_daily v1 CSV</p>
-          <p>All 63 headers are required. Dates come from the report, not a fallback date.</p>
-        </Upload.Dragger>
-        {error&&<Alert type="error" showIcon message={error}/>}
-        {result&&<Space direction="vertical" style={{width:'100%'}}>
-          <Alert type={result.valid?'success':'warning'} showIcon message={result.valid?'Validation passed':'Validation requires correction'}
-            description={committed?'The report was committed and reconciled.':'Validation has not changed any advertising or catalog records.'}/>
-          {!!result.invalidCatalogKeys&&<Alert type="error" message={result.invalidCatalogKeys+' ASINs lack an unambiguous selected-seller catalog mapping.'}/>}
-          {result.valid&&!result.importsEnabled&&<Alert type="warning" message="Imports are disabled by the server activation setting. Validation is available."/>}
-          {committed&&<Alert type="success" showIcon message={committed.inserted+' inserted · '+committed.unchanged+' identical records retained'} description="Refresh the report for the imported date range."/>}
-          <div>{result.rows.toLocaleString()} rows · {result.uniqueAsins.toLocaleString()} ASINs · {result.uniqueDates} dates</div>
-          <div>{result.startDate||'N/A'} to {result.endDate||'N/A'}</div>
-          <Space wrap><Tag color="green">{result.validRows.toLocaleString()} valid</Tag><Tag color="red">{result.invalidRows.toLocaleString()} invalid</Tag>
-            <Tag>{result.exactDuplicates} exact duplicates</Tag><Tag>{result.conflictingDuplicates} conflicting duplicates</Tag></Space>
-          {!!result.issueCount&&<Table size="small" rowKey={(_,i)=>i} dataSource={result.issues} pagination={{pageSize:10}}
-            columns={[{title:'Row',dataIndex:'row',width:70},{title:'Column',dataIndex:'column',width:190},{title:'Issue',dataIndex:'message'}]}/>}
-          {result.issuesTruncated&&<Alert type="warning" message={'Showing the first '+result.issues.length+' of '+result.issueCount+' issues.'}/>}
-        </Space>}
-      </Space>
-    </Modal>;
-};
-export default AdsImportModal;
+export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete}){
+ const [tab,setTab]=useState('upload');
+ const [sellerId,setSellerId]=useState(null),[sellers,setSellers]=useState([]);
+ const [file,setFile]=useState(null),[job,setJob]=useState(null);
+ const [history,setHistory]=useState({rows:[],page:1,total:0,limit:10});
+ const [historyLoading,setHistoryLoading]=useState(false),[sellerLoading,setSellerLoading]=useState(false);
+ const [busy,setBusy]=useState(null),[error,setError]=useState(null),[uploadPct,setUploadPct]=useState(0);
+ const seller=sellers.find(s=>s.id===sellerId);
+ const summary=job?.summary||{};
+ const loadHistory=async(page=1)=>{
+  setHistoryLoading(true);
+  try{
+   const res=await apiClient.get(endpoint,{params:{page,limit:10}});
+   setHistory(res.data.data);
+  }catch(e){setError(errText(e,'Import history could not be loaded.'));}
+  finally{setHistoryLoading(false);}
+ };
+ useEffect(()=>{
+  if(!isOpen)return undefined;
+  let active=true;
+  setTab('upload');setSellerId(selectedSeller||null);setSellers([]);setFile(null);setJob(null);setError(null);setUploadPct(0);
+  setSellerLoading(true);
+  apiClient.get('/upload/ads-validation-sellers').then(r=>{if(active)setSellers(r.data?.data||[]);})
+   .catch(e=>{if(active)setError(errText(e,'Seller options could not be loaded.'));})
+   .finally(()=>{if(active)setSellerLoading(false);});
+  return ()=>{active=false;};
+ },[isOpen,selectedSeller]);
+ const openJob=async id=>{
+  setBusy('load');setError(null);
+  try{const r=await apiClient.get(endpoint+'/'+encodeURIComponent(id));setJob(r.data.data);setTab('detail');}
+  catch(e){setError(errText(e,'Import details could not be loaded.'));}
+  finally{setBusy(null);}
+ };
+ const validate=async()=>{
+  if(!file||!seller?.context||busy)return;
+  setBusy('validate');setError(null);setUploadPct(0);
+  try{
+   const form=new FormData();
+   form.append('sellerId',sellerId);form.append('reportType','daily');form.append('file',file);
+   const r=await apiClient.post(endpoint,form,{timeout:180000,headers:{'Content-Type':undefined},
+    onUploadProgress:event=>{if(event.total)setUploadPct(Math.min(100,Math.round(event.loaded/event.total*100)));}});
+   setJob(r.data.data);setFile(null);setTab('detail');
+  }catch(e){setError(errText(e,'Validation could not be completed. Check Import history before retrying.'));}
+  finally{setBusy(null);}
+ };
+ const confirm=async()=>{
+  if(!job||job.status!=='READY'||!job.importsEnabled||busy)return;
+  setBusy('confirm');setError(null);
+  try{
+   const r=await apiClient.post(endpoint+'/'+encodeURIComponent(job.id)+'/confirm',null,{timeout:600000});
+   const next=r.data.data;setJob(next);
+   if(next.status==='COMPLETED'&&next.result?.persisted)onComplete?.(next.result);
+  }catch(e){
+   if(e.response?.data?.data)setJob(e.response.data.data);
+   setError(errText(e,'The result could not be confirmed. Refresh this job or reopen history before retrying.'));
+  }finally{setBusy(null);}
+ };
+ const cancel=async()=>{
+  if(!job||job.status!=='READY'||busy)return;
+  setBusy('cancel');setError(null);
+  try{const r=await apiClient.post(endpoint+'/'+encodeURIComponent(job.id)+'/cancel');setJob(r.data.data);}
+  catch(e){setError(errText(e,'Cancellation failed. Refresh the job to check its current state.'));}
+  finally{setBusy(null);}
+ };
+ const downloadErrors=async()=>{
+  if(!job||busy)return;
+  setBusy('errors');setError(null);
+  try{
+   const r=await apiClient.get(endpoint+'/'+encodeURIComponent(job.id)+'/errors',{responseType:'blob',timeout:120000});
+   const type=r.headers['content-type']||'';
+   if(!type.includes('spreadsheetml'))throw Error('Unexpected download response.');
+   const url=URL.createObjectURL(r.data),a=document.createElement('a');
+   a.href=url;a.download='ads-import-'+job.id+'-errors.xlsx';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }catch(e){
+   let message='Error workbook could not be downloaded.';
+   try{if(e.response?.data instanceof Blob)message=JSON.parse(await e.response.data.text()).message||message;}catch{}
+   setError(message);
+  }finally{setBusy(null);}
+ };
+ const newImport=()=>{setFile(null);setJob(null);setUploadPct(0);setError(null);setTab('upload');};
+ const handleTab=key=>{if(busy)return;setError(null);setTab(key);if(key==='history')loadHistory(1);};
+ const uploadContent=<Space direction="vertical" size="middle" style={{width:'100%'}}>
+  <Alert showIcon type="info" message="Validate once, confirm from history"
+   description="Select the seller that owns the CSV. Valid reports are staged privately for 24 hours. No Ads facts are written until you confirm."/>
+  <div><label htmlFor="ads-job-seller">Seller</label><Select id="ads-job-seller" value={sellerId||undefined} placeholder="Select seller"
+   loading={sellerLoading} showSearch optionFilterProp="label" disabled={!!busy} style={{width:'100%',marginTop:6}}
+   options={sellers.map(s=>({value:s.id,label:s.name+' ('+s.marketplace+')',disabled:!s.context}))}
+   onChange={v=>{setSellerId(v);setError(null);}}/></div>
+  {seller?.context&&<Space><Tag>{seller.context.marketplace}</Tag><Tag>{seller.context.currency}</Tag><Tag>Daily v1</Tag></Space>}
+  {seller&&!seller.context&&<Alert type="warning" message="An administrator must verify this seller's marketplace and currency."/>}
+  <Upload.Dragger accept=".csv" maxCount={1} disabled={!!busy} fileList={file?[file]:[]}
+   beforeUpload={f=>{if(!/\.csv$/i.test(f.name)||f.size>32*1024*1024||!f.size){setError('Select a nonempty CSV up to 32 MiB.');return Upload.LIST_IGNORE;}setFile(f);setError(null);return false;}}
+   onRemove={()=>{setFile(null);return true;}}>
+   <p className="ant-upload-drag-icon"><InboxOutlined/></p><p>Choose or drop your daily product CSV</p><p>63 original headers • up to 200,000 records • 32 MiB</p>
+  </Upload.Dragger>
+  {busy==='validate'&&<><Progress percent={uploadPct} status="active"/><div>{uploadPct===100?'File received; validating and saving preview…':'Uploading CSV…'}</div></>}
+ </Space>;
+ const historyContent=<Space direction="vertical" style={{width:'100%'}}>
+  <Alert type="info" showIcon message="Your import history" description="Open a saved preview to confirm or cancel. Only jobs you created for sellers you can access are shown."/>
+  <Button icon={<ReloadOutlined/>} onClick={()=>loadHistory(history.page)} loading={historyLoading}>Refresh history</Button>
+  <Table size="small" rowKey="id" loading={historyLoading} dataSource={history.rows} scroll={{x:730}}
+   pagination={{current:history.page,pageSize:history.limit,total:history.total,showSizeChanger:false,onChange:loadHistory}}
+   columns={[
+    {title:'Report',dataIndex:'fileName',width:205,ellipsis:true},
+    {title:'Seller',dataIndex:'sellerId',width:150,render:v=>sellers.find(s=>s.id===v)?.name||v},
+    {title:'Status',dataIndex:'status',width:120,render:v=><Tag color={colors[v]}>{v}</Tag>},
+    {title:'Created',dataIndex:'createdAt',width:160,render:time},
+    {title:'Rows',width:90,render:(_,r)=>count(r.summary?.rows)},
+    {title:'Action',width:90,render:(_,r)=><Button type="link" disabled={!!busy} onClick={()=>openJob(r.id)}>Open</Button>}
+   ]}/>
+ </Space>;
+ const details=job&&<Space direction="vertical" size="middle" style={{width:'100%'}}>
+  <Space wrap><Tag color={colors[job.status]}>{job.status}</Tag><strong>{job.fileName}</strong><Button icon={<ReloadOutlined/>} disabled={!!busy} onClick={()=>openJob(job.id)}>Refresh status</Button></Space>
+  <Descriptions bordered size="small" column={2}>
+   <Descriptions.Item label="Seller">{sellers.find(s=>s.id===job.sellerId)?.name||job.sellerId}</Descriptions.Item>
+   <Descriptions.Item label="Marketplace">{job.marketplace} · {job.currency}</Descriptions.Item>
+   <Descriptions.Item label="Report dates">{summary.startDate||'N/A'} to {summary.endDate||'N/A'}</Descriptions.Item>
+   <Descriptions.Item label="Created">{time(job.createdAt)}</Descriptions.Item>
+   <Descriptions.Item label="Expires">{time(job.expiresAt)}</Descriptions.Item>
+   <Descriptions.Item label="Completed">{time(job.completedAt)}</Descriptions.Item>
+  </Descriptions>
+  <Row gutter={[10,10]}>{[['CSV rows',summary.rows],['Valid rows',summary.validRows],['Invalid rows',summary.invalidRows],['Issues',summary.issueCount]].map(([label,v])=>
+    <Col span={12} sm={6} key={label}><Card size="small"><div>{label}</div><strong style={{fontSize:18}}>{count(v)}</strong></Card></Col>)}</Row>
+  {summary.totals&&<Descriptions bordered size="small" column={2}>
+   <Descriptions.Item label="Ad spend">{money(summary.totals['metrics.spend'],job.currency)}</Descriptions.Item>
+   <Descriptions.Item label="Ad sales">{money(summary.totals['metrics.sales'],job.currency)}</Descriptions.Item>
+   <Descriptions.Item label="Total sales">{money(summary.totals['metrics.total_sales'],job.currency)}</Descriptions.Item>
+   <Descriptions.Item label="Ad orders">{count(summary.totals['metrics.orders'])}</Descriptions.Item>
+  </Descriptions>}
+  {job.status==='READY'&&<Alert showIcon type={job.importsEnabled?'success':'warning'} message={job.importsEnabled?'Ready to confirm':'Imports are not enabled'}
+   description={job.importsEnabled?'Confirm inserts new records and retains identical records. Changed historical facts are rejected.':'An administrator must enable Ads imports. Validation and history remain available.'}/>}
+  {job.status==='COMPLETED'&&<Alert showIcon type="success" message={count(job.result?.inserted)+' inserted · '+count(job.result?.unchanged)+' unchanged'} description="The database commit and job completion were reconciled together."/>}
+  {job.status==='FAILED'&&<Alert showIcon type="error" message={job.result?.message||'Import failed'} description="No partial advertising records were committed by this job."/>}
+  {job.status==='EXPIRED'&&<Alert type="warning" message="The staged file expired. Create a new preview."/>}
+  {job.status==='CANCELLED'&&<Alert type="info" message="Import cancelled. No facts were written."/>}
+  {job.status==='REJECTED'&&<Alert showIcon type="error" message="Validation rejected" description="Correct the listed problems in the source CSV and create a new import."/>}
+  {summary.scanComplete===false&&<Alert type="warning" message="CSV scanning stopped at a fatal error. Remaining records have not been checked."/>}
+  {summary.issues?.length>0&&<Table size="small" rowKey={(_,i)=>i} dataSource={summary.issues} scroll={{x:700}} pagination={{pageSize:5,showSizeChanger:false}}
+   columns={[{title:'CSV record',dataIndex:'row',width:90},{title:'ASIN',dataIndex:'asin',width:120},{title:'Date',dataIndex:'date',width:110},{title:'Column',dataIndex:'column',width:150},{title:'Remarks',dataIndex:'message'}]}/>}
+  {summary.issuesTruncated&&<Alert type="info" message={'Showing '+summary.issues.length+' of '+summary.issueCount+' detected issues.'}/>}
+  {summary.issueReportTruncated&&<Alert type="warning" message={'Error workbook retains '+summary.storedIssueCount+' issues. Split the file to retrieve remaining errors.'}/>}
+  {(summary.storedIssueCount>0||job.status==='FAILED')&&<Button icon={<DownloadOutlined/>} loading={busy==='errors'} disabled={!!busy&&busy!=='errors'} onClick={downloadErrors}>Download error workbook</Button>}
+  {busy==='confirm'&&<Alert showIcon type="info" message="Committing and reconciling the report" description="The transaction is running. If the connection drops, reopen history to check the outcome. No progress percentage is available yet."/>}
+ </Space>;
+ return <Modal title="Advertising report imports" open={isOpen} centered width={920} closable={!busy} maskClosable={!busy} keyboard={!busy}
+  onCancel={busy?undefined:onClose} styles={{body:{maxHeight:'66vh',overflowY:'auto'}}}
+  footer={<Space wrap>
+   <Button disabled={!!busy} onClick={onClose}>Close</Button>
+   {tab==='upload'&&<Button type="primary" loading={busy==='validate'} disabled={!!busy||!file||!seller?.context||sellerLoading} onClick={validate}>Validate CSV</Button>}
+   {tab==='detail'&&job?.status==='READY'&&<><Button danger loading={busy==='cancel'} disabled={!!busy} onClick={cancel}>Cancel import</Button><Button type="primary" loading={busy==='confirm'} disabled={!!busy||!job.importsEnabled} onClick={confirm}>Confirm import</Button></>}
+   {tab==='detail'&&job?.status==='COMPLETED'&&<Button type="primary" disabled={!!busy} onClick={()=>onComplete?.(job.result)}>View imported report</Button>}
+   {tab==='detail'&&<Button disabled={!!busy} onClick={newImport}>New import</Button>}
+  </Space>}>
+  {error&&<Alert type="error" showIcon closable onClose={()=>setError(null)} message={error} style={{marginBottom:12}}/>}
+  <Tabs activeKey={tab} onChange={handleTab} items={[
+   {key:'upload',label:'Upload CSV',children:uploadContent,disabled:!!busy},
+   {key:'history',label:'Import history',children:historyContent,disabled:!!busy},
+   ...(job?[{key:'detail',label:'Import details',children:details,disabled:!!busy}]:[])
+  ]}/>
+ </Modal>;
+}

@@ -76,7 +76,16 @@ const receiveAdsCsv=(req,res,next) => {
 };
 const adsImportLimiter = require('../middleware/rateLimiter').createLimiter('STRICT');
 router.post('/upload/ads-validate', authenticate, requirePermission('adsreport_import'), adsImportLimiter, receiveAdsCsv, adsValidation.validate);
-router.post('/upload/ads-confirm', authenticate, requirePermission('adsreport_import'), adsValidation.importGate, adsImportLimiter, receiveAdsCsv, adsValidation.confirm);
+// Durable preview is now the only public write path; older clients cannot bypass history.
+router.post('/upload/ads-confirm', authenticate, requirePermission('adsreport_import'), (_req,res)=>res.status(409).json({success:false,code:'ads_job_required',message:'Use the new import history workflow. Reload the application and validate again.'}));
+const adsJobs=require('../controllers/adsImportJobsController');
+const adsJobPermission=requirePermission('adsreport_import');
+router.post('/upload/ads-imports', authenticate, adsJobPermission, adsImportLimiter, receiveAdsCsv, adsJobs.preview);
+router.get('/upload/ads-imports', authenticate, adsJobPermission, adsJobs.list);
+router.get('/upload/ads-imports/:id', authenticate, adsJobPermission, adsJobs.get);
+router.get('/upload/ads-imports/:id/errors', authenticate, adsJobPermission, adsJobs.issues);
+router.post('/upload/ads-imports/:id/confirm', authenticate, adsJobPermission, adsImportLimiter, adsJobs.confirm);
+router.post('/upload/ads-imports/:id/cancel', authenticate, adsJobPermission, adsJobs.cancel);
 router.post('/upload/octoparse', authenticate, upload.single('file'), uploadController.uploadOctoparseData);
 router.get('/upload/upload-stats', authenticate, uploadController.getUploadStats);
 

@@ -127,21 +127,28 @@ function prepareReport(input) {
   const positions = HEADERS.map(h => headers.indexOf(h));
   return {bytes,it,positions};
 }
-function validateReport(input) {
+function validateReport(input,{onIssue}={}) {
   const {bytes,it,positions}=prepareReport(input);
   const seen = new Map(), asins = new Set(), dates = new Set();
   const issues = [], coverage = Object.fromEntries(HEADERS.map(h => [h,{populated:0,zero:0}]));
   const sums = Object.fromEntries(ADDITIVE.map(h => [h,0n]));
   let issueCount=0, rows=0, validRows=0, invalidRows=0, exactDuplicates=0, conflictingDuplicates=0;
   let adsRows=0, businessRows=0, bothRows=0;
+  let issueContext={};
   const addIssue = (code,message,row,column=null) => {
     issueCount++;
-    if (issues.length < MAX_ISSUES) issues.push({code,message,row,column});
+    const issue={code,message,row,column,...issueContext};
+    if (issues.length < MAX_ISSUES) issues.push(issue);
+    if(onIssue)onIssue(issue);
   };
   for (let next=it.next(); !next.done; next=it.next()) {
     const {row,cells} = next.value;
+    issueContext={};
     if (++rows > MAX_ROWS) reject('row_limit','Report exceeds 200,000 data records; split by date range.',row);
     if (cells.length !== HEADERS.length) { invalidRows++; addIssue('row_width','Expected 63 fields.',row); continue; }
+    const asin=identity(cells[positions[HEADERS.indexOf('asin')]]).toUpperCase(),date=identity(cells[positions[HEADERS.indexOf('date')]]);
+    if(/^[A-Z0-9]{10}$/.test(asin))issueContext.asin=asin;
+    if(validDate(date))issueContext.date=date;
     const values = {};
     let bad=false;
     for (let i=0; i<FIELDS.length; i++) {
@@ -177,6 +184,7 @@ function validateReport(input) {
     const business=values['metrics.total_sales'] !== null || values['metrics.total_orders'] !== null;
     adsRows+=Number(ads); businessRows+=Number(business); bothRows+=Number(ads&&business);
   }
+  issueContext={};
   if (!rows) addIssue('no_data','The report contains no data rows.',1);
   const sortedDates=[...dates].sort();
   return {schemaVersion:contract.schemaVersion,reportType:'daily',valid:issueCount===0,rows,validRows,invalidRows,
