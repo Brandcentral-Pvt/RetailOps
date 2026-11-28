@@ -185,7 +185,7 @@ async function writeCompleteWorkbook({filePath,report,rawCount,rawRows,entityRow
    ['Source fields','All 63 v1 source columns in their original order, followed by persisted ownership and lineage. This is normalized stored data, not the original CSV bytes.'],
    ['Nulls','Blank numeric cells mean unknown. Explicit zero remains numeric zero. Missing periods remain blank.'],
    ['Precision','Excel numeric cells support 15 significant digits. Larger values are exact text; percentage-point text remains in points. Daily Source preserves original numeric scale, including source fractional rates.'],
-   ['Comparison','Current/prior periods are equal-length. Changes on incomplete data are labelled observed only by comparison status.'],
+   ['Comparison',report.period.allHistory?'All matching history; no preceding comparison period is defined.':'Current/prior periods are equal-length. Changes on incomplete data are labelled observed only by comparison status.'],
    ['Ratios','Recomputed from compatible populated numerator/denominator rows. Source ratios are preserved only in Daily Source.'],
    ['Completeness','All matching stored records; no table-page or column-preset truncation. Complete stored coverage does not prove all source reports were supplied.'],
    ['Ordering','Daily Source sorted by currency, owner, marketplace, ASIN and date. Source record retains original CSV position.'],
