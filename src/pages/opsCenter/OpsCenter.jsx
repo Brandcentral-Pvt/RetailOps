@@ -306,7 +306,7 @@ const OpsCenter = () => {
                     labels={raw?.labels || []}
                     granularity={period?.granularity || 'day'}
                     periodDays={period?.days || 0}
-                    periodTotal={Number(raw?.gms?.revenue) || 0}
+                    periodTotal={raw?.gms?.revenue??null}
                     links={links}
                 />
 
