@@ -15,7 +15,7 @@ import { EVENT_BUS } from '../store/eventBus';
 import { useRealTimeDashboard } from './useRealTimeDashboard';
 import { useOptimisticMutation } from './useOptimisticMutation';
 import { useAuth } from '../contexts/AuthContext';
-import { dashboardPrincipal } from '../utils/dashboardScope.mjs';
+import { dashboardPrincipal,canDashboardPermission,matchesDashboardScope } from '../utils/dashboardScope.mjs';
 
 // ─── Segment enum ─────────────────────────────────────────────────────────────
 
@@ -84,10 +84,10 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
     const alertsBackoff = useMemo(() => makeBackoffFn(500), []);
     const targetsBackoff = useMemo(() => makeBackoffFn(baseMs), [baseMs]);
 
-    const {user,hasPermission}=useAuth();
+    const {user}=useAuth();
     const principal=dashboardPrincipal(user);
     const connection=useDashboardStore(s=>s.connection);
-    const canTargets=hasPermission('targets_view');
+    const canTargets=canDashboardPermission(user,'targets_view');
     useRealTimeDashboard({sseEndpoint,unhealthyAfterSeconds:sseSilence});
     // No placeholder data or progressive snapshots across authorization keys.
     // Each request is independently authorized by its endpoint.
@@ -96,7 +96,7 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
         queryKey:[...QK_DASHBOARD,'scoped',principal,sellerId??'all',managerId??'all',startDate,endDate,period],
         enabled:!!principal,
         queryFn:async({signal})=>(await apiClient.get('/dashboard',{params:filters,signal})).data,
-        staleTime:60_000,gcTime:60_000,refetchOnWindowFocus:false,refetchOnReconnect:true,
+        staleTime:60_000,gcTime:0,placeholderData:undefined,refetchOnWindowFocus:false,refetchOnReconnect:true,
         retry:(count,error:any)=>![400,401,403,404,422].includes(error?.response?.status)&&count<retries,
         retryDelay:dashboardBackoff,refetchInterval:pollInt>0?pollInt*1000:false,
     });
@@ -105,13 +105,13 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
     const scopeKey=scope?JSON.stringify([scope.unrestricted,scope.empty,scope.sellerIds]):'unresolved';
     const scopedEnabled=!!principal&&!!scope&&!scope.empty;
     const targetsQuery=useQuery({
-        queryKey:[...QK_TARGETS,'dashboard',principal,sellerId??'all',managerId??'all',scopeKey],
+        queryKey:[...QK_TARGETS,'dashboard',principal,sellerId??'all',managerId??'all',scopeKey,startDate,endDate],
         enabled:scopedEnabled&&canTargets,
         queryFn:async({signal})=>{
-            const r=await apiClient.get('/targets',{params:{sellerId,managerId},signal});
+            const r=await apiClient.get('/targets',{params:{sellerId,managerId,dashboardFrom:startDate,dashboardTo:endDate},signal});
             return r.data?.data??r.data;
         },
-        staleTime:60_000,gcTime:60_000,refetchOnWindowFocus:false,
+        staleTime:60_000,gcTime:0,placeholderData:undefined,refetchOnWindowFocus:false,
         retry:(count,error:any)=>![400,401,403,404,422].includes(error?.response?.status)&&count<retries,
         retryDelay:targetsBackoff,
     });
@@ -122,7 +122,7 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
             const r=await apiClient.get('/alerts',{params:{sellerId,managerId},signal});
             return r.data?.data??r.data;
         },
-        staleTime:60_000,gcTime:60_000,refetchOnWindowFocus:false,
+        staleTime:60_000,gcTime:0,placeholderData:undefined,refetchOnWindowFocus:false,
         retry:(count,error:any)=>![400,401,403,404,422].includes(error?.response?.status)&&count<2,
         retryDelay:alertsBackoff,
     });
@@ -253,8 +253,8 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
     );
 
     const kpisData=dashData?.kpi??null;
-    const alertsData2=scopedEnabled&&!alertsQuery.isError?(alertsQuery.data??null):[];
-    const targetsData2=scopedEnabled&&canTargets&&!targetsQuery.isError?(targetsQuery.data??null):[];
+    const alertsData2=scopedEnabled&&!alertsQuery.isError?(alertsQuery.data??[]).filter(a=>matchesDashboardScope(scope,a.SellerId??a.sellerId??a.seller?._id)):[];
+    const targetsData2=scopedEnabled&&canTargets&&!targetsQuery.isError?(targetsQuery.data??[]).filter(t=>matchesDashboardScope(scope,t.SellerId??t.sellerId)):[];
     const topProductsData=dashData?.tableData??null;
     const dashStatus=dashboardQuery.isError?'error':dashData?'ready':'loading';
     const sectionStatus={
