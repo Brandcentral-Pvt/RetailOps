@@ -145,7 +145,7 @@ export default function CanonicalAdsWorkspace(){
         <Card size="small" title="Seller targets & budgets">
             {!targetsApplicable?<Alert type="info" message="Clear brand, category and product search to compare seller-wide targets."/>:targets.isError?<Alert type="error" message={errorText(targets.error)} action={<Button onClick={()=>targets.refetch()}>Retry</Button>}/>:<Table size="small" loading={targets.isFetching} rowKey={r=>JSON.stringify([r.sellerId,r.month,r.goalType])} dataSource={targets.data?.rows||[]} pagination={{pageSize:10}} scroll={{x:880}}
                 columns={[{title:'Seller',dataIndex:'sellerName'},{title:'Month',dataIndex:'month'},{title:'Metric',dataIndex:'goalType'},
-                    {title:'Target',render:(_,r)=>r.goalType==='ACOS'?amount(r.target)+'%':amount(r.target,r.currency)},
+                    {title:'Target',render:(_,r)=>r.goalType==='ACOS'?(r.target==null?'N/A':r.target+'%'):amount(r.target,r.currency)},
                     {title:'Observed actual',render:(_,r)=>r.goalType==='ACOS'?(r.actual==null?'N/A':r.actual+'%'):amount(r.actual,r.currency)},
                     {title:'Actual / target',render:(_,r)=>r.attainmentPct==null?'N/A':r.attainmentPct+'%'},
                     {title:'Status',dataIndex:'status',render:s=><Tag>{s.replaceAll('_',' ')}</Tag>}]}/>}

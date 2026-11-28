@@ -151,7 +151,8 @@ async function readCanonicalReport({pool,sql,user,query,exportAll=false}){
       const effectiveLimit=exportAll?Math.max(1,total):f.limit;
       totalPages=Math.max(1,Math.ceil(total/effectiveLimit));page=exportAll?1:Math.min(f.page,totalPages);
       const sort=f.sortBy==='entityKey'?'e.[EntityKey]':'TRY_CONVERT(decimal(38,10),c.['+f.sortBy+'])';
-      const ordering='e.[Currency] ASC,CASE WHEN '+sort+' IS NULL THEN 1 ELSE 0 END,'+sort+' '+f.sortOrder.toUpperCase()+','+aliases;
+      const ties=keys.filter(c=>c!=='[Currency]'&&(f.sortBy!=='entityKey'||c!=='[EntityKey]')).map(c=>'e.'+c).join(',');
+      const ordering='e.[Currency] ASC,CASE WHEN '+sort+' IS NULL THEN 1 ELSE 0 END,'+sort+' '+f.sortOrder.toUpperCase()+(ties?','+ties:'');
       stage='page';
       await tx.request().input('offset',sql.BigInt,(page-1)*effectiveLimit).input('limit',sql.Int,effectiveLimit).query(
         'INSERT #AdsPage ([rank],'+keys.join(',')+') SELECT ROW_NUMBER() OVER (ORDER BY '+ordering+'),'+aliases+

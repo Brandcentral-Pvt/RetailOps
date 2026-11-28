@@ -34,6 +34,8 @@ test('SQL: canonical scope, duplicate catalog protection, current/prior comparis
   assert.equal(r.total,3);assert.equal(r.page,2);assert.equal(r.rows.length,1);assert.equal(r.rows[0].current,null);assert.equal(r.rows[0].previous.totals.totalSales,'80');
   const full=await readCanonicalReport({pool,sql,user,query:{...range,sellerId:'s1',limit:'1',page:'2'},exportAll:true});
   assert.equal(full.rows.length,3);assert.equal(full.total,3);assert.equal(full.page,1);
+  const byKey=await read({sellerId:'s1',sortBy:'entityKey',sortOrder:'asc'});
+  assert.deepEqual(byKey.rows.map(x=>x.entityKey),['B000000001','B000000002','B000000003']);
   const first=await read({sellerId:'s1',limit:'2',sortBy:'totalSales',sortOrder:'desc'});
   assert.equal(first.rows[0].entityKey,'B000000001');assert.equal(first.rows[0].title,null);
   assert.equal(first.rows[0].current.totals.totalSales,'98.76');
