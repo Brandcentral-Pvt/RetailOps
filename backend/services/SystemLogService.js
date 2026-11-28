@@ -31,31 +31,9 @@ class SystemLogService {
                 const SocketService = require('./socketService');
                 const io = SocketService.getIo();
                 if (io) {
-                    let userInfo = { Id: userId };
-                    if (userId) {
-                        try {
-                            const userResult = await pool.request()
-                                .input('userId', sql.VarChar, userId)
-                                .query('SELECT Id, FirstName, LastName, Email FROM Users WHERE Id = @userId');
-                            if (userResult.recordset[0]) {
-                                userInfo = userResult.recordset[0];
-                            }
-                        } catch (err) {
-                            // ignore user lookup failure
-                        }
-                    }
-                    io.emit('new_system_log', {
-                        Id: id,
-                        Type: type,
-                        EntityType: entityType,
-                        EntityId: entityId,
-                        EntityTitle: entityTitle,
-                        UserId: userId,
-                        user: userInfo,
-                        Description: description,
-                        Metadata: metadata ? (typeof metadata === 'string' ? metadata : JSON.stringify(metadata)) : null,
-                        CreatedAt: new Date().toISOString()
-                    });
+                    // Invalidation only: raw audit entries contain cross-seller
+                    // data and cannot be broadcast to arbitrary socket clients.
+                    io.emit('system_log_changed');
                 }
             } catch (err) {
                 console.warn('[SystemLogService] Failed to emit socket event:', err.message);
