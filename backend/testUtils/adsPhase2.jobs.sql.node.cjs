@@ -4,6 +4,7 @@ const {up:factMigration}=require('../migrations/098_ads_product_daily_facts');
 const {up:jobMigration}=require('../migrations/099_ads_import_jobs');
 const {up:queueMigration}=require('../migrations/101_ads_import_queue');
 const {up:previewMigration}=require('../migrations/102_ads_preview_queue');
+const {up:ownershipMigration}=require('../migrations/103_ads_auto_ownership');
 const {claimNext,refreshLease,processNext}=require('../services/adsImportWorker');
 const {inspectAdsImportSchema,ensureAdsImportSchema}=require('../database/adsImportSchema');
 const {HEADERS}=require('../services/adsProductContract');
@@ -30,7 +31,7 @@ test('SQL durable Ads job lifecycle, scope, atomic confirmation, retries and exp
   await pool.request().query("INSERT dbo.AdsImportJobs(Id,OwnerId,SellerId,Marketplace,Currency,FileName,SourceFileSha256,Status,SummaryJson,IssuesJson,ExpiresAt) VALUES('old-history','u1','s1','amazon.in','INR','old.csv',REPLICATE('a',64),'CANCELLED',N'{}',N'[]',SYSUTCDATETIME());");
   assert.equal((await inspectAdsImportSchema(pool)).ready,false);
   assert.equal((await ensureAdsImportSchema({pool,apply:true})).ready,true);
-  await jobMigration(pool);await queueMigration(pool);await previewMigration(pool);await previewMigration(pool);
+  await jobMigration(pool);await queueMigration(pool);await previewMigration(pool);await previewMigration(pool);await ownershipMigration(pool);
   assert.equal((await inspectAdsImportSchema(pool)).ready,true);
   assert.equal((await pool.request().query("SELECT Status FROM dbo.AdsImportJobs WHERE Id='old-history';")).recordset[0].Status,'CANCELLED');
   await pool.request().query("DELETE dbo.AdsImportJobs WHERE Id='old-history';");
@@ -169,6 +170,39 @@ test('SQL durable Ads job lifecycle, scope, atomic confirmation, retries and exp
   const readyOnly=await listJobs({...ctx,status:'READY'});assert.equal(readyOnly.total,0);
   const leaks=await pool.request().query("SELECT COUNT(*) AS n FROM dbo.AdsProductDailyFacts WHERE [Date]>='2026-04-11';");
   assert.equal(leaks.recordset[0].n,0);
+  // New public mode resolves owners globally and commits all sellers atomically.
+  await pool.request().query("INSERT dbo.Asins VALUES('B000000003','s1'),('B000000004','s2'); INSERT dbo.UserSellers VALUES('u1','s2');");
+  const multi={...ctx,user:{...user,assignedSellers:['s1','s2']}};
+  const auto=async(rows,actor=multi)=>{
+   const q=await createPreview({...actor,input:csv(rows),fileName:'auto.csv'});assert.equal(q.sellerId,null);assert.equal(q.status,'PREVIEW_QUEUED');
+   await validateNext();return getJob({...actor,id:q.id});
+  };
+  const rowsAuto=[{...row,asin:'B000000003',date:'2026-05-01'},{...row,asin:'B000000004',date:'2026-05-01'}];
+  const mixed=await auto(rowsAuto);assert.equal(mixed.status,'READY');assert.equal(mixed.summary.sellerBreakdown.length,2);assert.equal(mixed.currency,'INR');
+  assert.equal(await getJob({...ctx,id:mixed.id}),null);assert.equal((await listJobs({...multi,sellerId:'s2',status:'READY'})).total,1);
+  await confirmJob({...multi,id:mixed.id});await work();const all=await getJob({...multi,id:mixed.id});
+  assert.equal(all.status,'COMPLETED');assert.equal(all.result.inserted,2);assert.equal(all.result.sellerBreakdown.length,2);assert.equal(all.result.sellerId,null);
+  const storedAuto=await pool.request().query("SELECT SellerId,SourceRowNumber,CONVERT(varchar(80),AdSpend) AS spend FROM dbo.AdsProductDailyFacts WHERE [Date]='2026-05-01' ORDER BY SellerId");
+  assert.deepEqual(storedAuto.recordset.map(r=>[r.SellerId,r.SourceRowNumber,Number(r.spend)]),[['s1',2,10.25],['s2',3,10.25]]);
+  const again=await auto(rowsAuto);await confirmJob({...multi,id:again.id});await work();assert.equal((await getJob({...multi,id:again.id})).result.unchanged,2);
+  const ambiguous=await auto([{...row,date:'2026-05-02'}]);assert.equal(ambiguous.status,'REJECTED');assert.equal(ambiguous.summary.issues[0].code,'catalog_mapping_ambiguous');
+  const missing=await auto([{...row,asin:'B000000099'}]);assert.equal(missing.status,'REJECTED');assert.equal(missing.summary.issues[0].code,'catalog_mapping_missing');
+  await pool.request().query("DELETE FROM dbo.UserSellers WHERE SellerId='s2';");
+  const foreignAuto=await auto([{...row,asin:'B000000004'}],ctx);assert.equal(foreignAuto.status,'REJECTED');assert.equal(foreignAuto.summary.issues[0].code,'catalog_mapping_forbidden');
+  await pool.request().query("INSERT dbo.UserSellers VALUES('u1','s2');");
+  const changed=await auto(rowsAuto.map(r=>({...r,date:'2026-05-02'})));await confirmJob({...multi,id:changed.id});
+  await pool.request().query("UPDATE dbo.Asins SET SellerId='s2' WHERE AsinCode='B000000003';");await work();
+  assert.equal((await getJob({...multi,id:changed.id})).result.code,'ownership_changed');
+  assert.equal((await pool.request().query("SELECT COUNT(*) AS n FROM dbo.AdsProductDailyFacts WHERE [Date]='2026-05-02'")).recordset[0].n,0);
+  await pool.request().query("UPDATE dbo.Asins SET SellerId='s1' WHERE AsinCode='B000000003';");
+  const conflictAuto=await auto([{...rowsAuto[0],date:'2026-05-03'},{...rowsAuto[1],'metrics.spend':'999'}]);await confirmJob({...multi,id:conflictAuto.id});await work();
+  assert.equal((await getJob({...multi,id:conflictAuto.id})).status,'FAILED');
+  assert.equal((await pool.request().query("SELECT COUNT(*) AS n FROM dbo.AdsProductDailyFacts WHERE [Date]='2026-05-03'")).recordset[0].n,0);
+  // Historical facts cannot be silently moved to a newly mapped seller.
+  await pool.request().query("UPDATE dbo.Asins SET SellerId='s2' WHERE AsinCode='B000000003';");
+  const transfer=await auto([rowsAuto[0]]);await confirmJob({...multi,id:transfer.id});await work();
+  assert.equal((await getJob({...multi,id:transfer.id})).result.code,'historical_owner_conflict');
+  await pool.request().query("UPDATE dbo.Asins SET SellerId='s1' WHERE AsinCode='B000000003';");
 
  }finally{if(prior===undefined)delete process.env.ADS_CANONICAL_IMPORT_ENABLED;else process.env.ADS_CANONICAL_IMPORT_ENABLED=prior;if(pool)await pool.close();await admin.request().query('ALTER DATABASE ['+database+'] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE ['+database+'];').catch(()=>{});await admin.close();}
 });

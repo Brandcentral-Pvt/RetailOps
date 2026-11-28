@@ -16,18 +16,17 @@ const errText=(e,fallback)=>{
  if(data?.code==='entity.parse.failed'||data?.code==='INVALID_JSON')return 'Invalid request format. Refresh the application and retry.';
  return typeof data?.message==='string'?data.message:fallback;
 };
-const money=(v,c)=>v==null?'N/A':c+' '+v;
+const money=(v,c)=>v==null||!c?'N/A':c+' '+v;
 
-export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete}){
+export default function AdsImportModal({isOpen,onClose,onComplete}){
  const [tab,setTab]=useState('upload');
- const [sellerId,setSellerId]=useState(null),[sellers,setSellers]=useState([]);
+ const [sellers,setSellers]=useState([]);
  const [file,setFile]=useState(null),[job,setJob]=useState(null);
  const [history,setHistory]=useState({rows:[],page:1,total:0,limit:10});
- const [historyLoading,setHistoryLoading]=useState(false),[sellerLoading,setSellerLoading]=useState(false);
+ const [historyLoading,setHistoryLoading]=useState(false);
  const [historyFilters,setHistoryFilters]=useState({}),[historySearch,setHistorySearch]=useState('');
  const historyRequest=useRef(0);
  const [busy,setBusy]=useState(null),[error,setError]=useState(null),[uploadPct,setUploadPct]=useState(0);
- const seller=sellers.find(s=>s.id===sellerId);
  const summary=job?.summary||{};
  const completedCallback=useRef(onComplete),notified=useRef(new Set());
  completedCallback.current=onComplete;
@@ -66,14 +65,12 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
  useEffect(()=>{
   if(!isOpen)return undefined;
   let active=true;
-  setTab('upload');setSellerId(selectedSeller||null);setSellers([]);setFile(null);setJob(null);setError(null);setUploadPct(0);
+  setTab('upload');setSellers([]);setFile(null);setJob(null);setError(null);setUploadPct(0);
   setHistoryFilters({});setHistorySearch('');setHistory({rows:[],page:1,total:0,limit:10});setHistoryLoading(false);
-  setSellerLoading(true);
   apiClient.get('/upload/ads-validation-sellers').then(r=>{if(active)setSellers(r.data?.data||[]);})
-   .catch(e=>{if(active)setError(errText(e,'Seller options could not be loaded.'));})
-   .finally(()=>{if(active)setSellerLoading(false);});
+   .catch(e=>{if(active)setError(errText(e,'Seller options could not be loaded.'));});
   return ()=>{active=false;historyRequest.current++;};
- },[isOpen,selectedSeller]);
+ },[isOpen]);
  const openJob=async id=>{
   setBusy('load');setError(null);
   try{const r=await apiClient.get(endpoint+'/'+encodeURIComponent(id));setJob(r.data.data);setTab('detail');}
@@ -81,11 +78,11 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
   finally{setBusy(null);}
  };
  const validate=async()=>{
-  if(!file||!seller?.context||busy)return;
+  if(!file||busy)return;
   setBusy('validate');setError(null);setUploadPct(0);
   try{
    const form=new FormData();
-   form.append('sellerId',sellerId);form.append('reportType','daily');form.append('file',file);
+   form.append('reportType','daily');form.append('file',file);
    const r=await apiClient.post(endpoint,form,{timeout:180000,headers:{'Content-Type':undefined},
     onUploadProgress:event=>{if(event.total)setUploadPct(Math.min(100,Math.round(event.loaded/event.total*100)));}});
    setJob(r.data.data);setFile(null);setTab('detail');
@@ -146,13 +143,8 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
  const handleTab=key=>{if(busy)return;setError(null);setTab(key);if(key==='history')loadHistory(1);};
  const uploadContent=<Space direction="vertical" size="middle" style={{width:'100%'}}>
   <Alert showIcon type="info" message="Validate once, confirm from history"
-   description="Select the seller that owns the CSV. Validation runs in the background after upload. Validated reports remain available for confirmation for 24 hours. No Ads facts are written until you confirm."/>
-  <div><label htmlFor="ads-job-seller">Seller</label><Select id="ads-job-seller" value={sellerId||undefined} placeholder="Select seller"
-   loading={sellerLoading} showSearch optionFilterProp="label" disabled={!!busy} style={{width:'100%',marginTop:6}}
-   options={sellers.map(s=>({value:s.id,label:s.name+' ('+s.marketplace+')',disabled:!s.context}))}
-   onChange={v=>{setSellerId(v);setError(null);}}/></div>
-  {seller?.context&&<Space><Tag>{seller.context.marketplace}</Tag><Tag>{seller.context.currency}</Tag><Tag>Daily v1</Tag></Space>}
-  {seller&&!seller.context&&<Alert type="warning" message="An administrator must verify this seller's marketplace and currency."/>}
+   description="Seller ownership is detected from each ASIN in the RetailOps catalog. Shared, unknown or unauthorized ASINs and mixed currencies are rejected. Validation runs in the background after upload. Validated reports remain available for confirmation for 24 hours. No Ads facts are written until you confirm."/>
+  <Space wrap><Tag color="blue">Automatic seller detection</Tag><Tag>Daily v1</Tag></Space>
   <Upload.Dragger accept=".csv" maxCount={1} disabled={!!busy} fileList={file?[file]:[]}
    beforeUpload={f=>{if(!/\.csv$/i.test(f.name)||f.size>32*1024*1024||!f.size){setError('Select a nonempty CSV up to 32 MiB.');return Upload.LIST_IGNORE;}setFile(f);setError(null);return false;}}
    onRemove={()=>{setFile(null);return true;}}>
@@ -172,7 +164,7 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
    pagination={{current:history.page,pageSize:history.limit,total:history.total,showSizeChanger:false,onChange:page=>loadHistory(page)}}
    columns={[
     {title:'Report',dataIndex:'fileName',width:205,ellipsis:true},
-    {title:'Seller',dataIndex:'sellerId',width:150,render:v=>sellers.find(s=>s.id===v)?.name||v},
+    {title:'Sellers',width:150,render:(_,r)=>r.summary?.sellerBreakdown?.length?r.summary.sellerBreakdown.length+' mapped sellers':r.sellerId?(sellers.find(s=>s.id===r.sellerId)?.name||r.sellerId):'Automatic'},
     {title:'Status',dataIndex:'status',width:120,render:v=><Tag color={colors[v]}>{v}</Tag>},
     {title:'Created',dataIndex:'createdAt',width:160,render:time},
     {title:'Data rows',width:90,render:(_,r)=>count(r.summary?.rows)},
@@ -182,8 +174,8 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
  const details=job&&<Space direction="vertical" size="middle" style={{width:'100%'}}>
   <Space wrap><Tag color={colors[job.status]}>{job.status}</Tag><strong>{job.fileName}</strong><Button icon={<ReloadOutlined/>} disabled={!!busy} onClick={()=>openJob(job.id)}>Refresh status</Button></Space>
   <Descriptions bordered size="small" column={2}>
-   <Descriptions.Item label="Seller">{sellers.find(s=>s.id===job.sellerId)?.name||job.sellerId}</Descriptions.Item>
-   <Descriptions.Item label="Marketplace">{job.marketplace} · {job.currency}</Descriptions.Item>
+   <Descriptions.Item label="Sellers">{summary.sellerBreakdown?.length?summary.sellerBreakdown.length+' mapped sellers':job.sellerId?(sellers.find(s=>s.id===job.sellerId)?.name||job.sellerId):'Automatic detection'}</Descriptions.Item>
+   <Descriptions.Item label="Marketplace / currency">{job.marketplace||'N/A'} · {job.currency||'N/A'}</Descriptions.Item>
    <Descriptions.Item label="Report dates">{summary.startDate||'N/A'} to {summary.endDate||'N/A'}</Descriptions.Item>
    <Descriptions.Item label="Created">{time(job.createdAt)}</Descriptions.Item>
    <Descriptions.Item label="Preview expires">{previewJob(job.status)?'After validation':time(job.expiresAt)}</Descriptions.Item>
@@ -197,6 +189,9 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
   {summary.skippedBlankRows>0&&<Alert showIcon type="info"
    message={count(summary.skippedBlankRows)+' completely blank rows skipped'}
    description="Empty rows are excluded from the imported data and validation counts. Original CSV record numbers are retained."/>}
+  {!!summary.sellerBreakdown?.length&&<Table size="small" rowKey="sellerId" pagination={{pageSize:5}} dataSource={job.result?.sellerBreakdown||summary.sellerBreakdown} scroll={{x:600}} columns={[
+   {title:'Seller',dataIndex:'sellerId',render:v=>sellers.find(s=>s.id===v)?.name||v},{title:'Marketplace',dataIndex:'marketplace'},{title:'Currency',dataIndex:'currency'},
+   {title:'ASINs',dataIndex:'asinCount'},{title:'Inserted',dataIndex:'inserted',render:v=>v??'N/A'},{title:'Unchanged',dataIndex:'unchanged',render:v=>v??'N/A'}]}/>}
   {summary.totals&&<Descriptions bordered size="small" column={2}>
    <Descriptions.Item label="Ad spend">{money(summary.totals['metrics.spend'],job.currency)}</Descriptions.Item>
    <Descriptions.Item label="Ad sales">{money(summary.totals['metrics.sales'],job.currency)}</Descriptions.Item>
@@ -239,7 +234,7 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
   onCancel={busy?undefined:onClose} styles={{body:{maxHeight:'66vh',overflowY:'auto'}}}
   footer={<Space wrap>
    <Button disabled={!!busy} onClick={onClose}>Close</Button>
-   {tab==='upload'&&<Button type="primary" loading={busy==='validate'} disabled={!!busy||!file||!seller?.context||sellerLoading} onClick={validate}>Validate CSV</Button>}
+   {tab==='upload'&&<Button type="primary" loading={busy==='validate'} disabled={!!busy||!file} onClick={validate}>Validate CSV</Button>}
    {tab==='detail'&&['PREVIEW_QUEUED','READY','QUEUED'].includes(job?.status)&&<Button danger loading={busy==='cancel'} disabled={!!busy} onClick={cancel}>Cancel import</Button>}
    {tab==='detail'&&job?.status==='READY'&&<Button type="primary" loading={busy==='confirm'} disabled={!!busy||!job.importsEnabled} onClick={confirm}>Confirm import</Button>}
    {tab==='detail'&&job?.status==='COMPLETED'&&<Button type="primary" disabled={!!busy} onClick={()=>onComplete?.(job.result)}>View imported report</Button>}
