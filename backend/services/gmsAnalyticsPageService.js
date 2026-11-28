@@ -122,7 +122,7 @@ function buildPageQuery(q,user,spec,{strategy='optimized'}={}){
   // Page selection must remain globally ranked with deterministic ties, but
   // there is no reason to persist every ranked entity in a second temp table.
   const rankPage=optimized
-    ?'SELECT EntityKey,ROW_NUMBER() OVER(ORDER BY '+order+') AS Ordinal INTO #GmsPage FROM (SELECT EntityKey,SortValue FROM #GmsGroups ORDER BY '+order+' OFFSET CONVERT(bigint,@actualPage-1)*@pageSize ROWS FETCH NEXT @pageSize ROWS ONLY) picked;\n'
+    ?'DECLARE @pageOffset bigint=CONVERT(bigint,@actualPage-1)*@pageSize; SELECT EntityKey,ROW_NUMBER() OVER(ORDER BY '+order+') AS Ordinal INTO #GmsPage FROM (SELECT EntityKey,SortValue FROM #GmsGroups ORDER BY '+order+' OFFSET @pageOffset ROWS FETCH NEXT @pageSize ROWS ONLY) picked;\n'
     :'SELECT EntityKey,ROW_NUMBER() OVER(ORDER BY '+order+') AS Ordinal INTO #GmsOrder FROM #GmsGroups;\n'+
       'SELECT EntityKey,Ordinal INTO #GmsPage FROM #GmsOrder WHERE Ordinal>CONVERT(bigint,@actualPage-1)*@pageSize AND Ordinal<=CONVERT(bigint,@actualPage)*@pageSize;\n';
   return 'SET NOCOUNT ON;\n'+
@@ -137,7 +137,7 @@ function buildPageQuery(q,user,spec,{strategy='optimized'}={}){
   'SELECT g.Asin,g.SellerId AS StoredSellerId,COALESCE(g.SellerId,a.SellerId) AS SellerId,a.CatalogId,s.Name AS DbBrand'+mapTitle+' INTO #GmsMap FROM #GmsKeys g LEFT JOIN #GmsUniqueOwner u ON u.NormalizedAsin=UPPER(LTRIM(RTRIM(g.Asin))) OUTER APPLY (SELECT TOP (1) c.Id AS CatalogId,c.AsinCode,c.SellerId FROM #GmsCatalog c WHERE c.NormalizedAsin=UPPER(LTRIM(RTRIM(g.Asin))) AND NULLIF(LTRIM(RTRIM(c.SellerId)),\'\') IS NOT NULL AND (g.SellerId=c.SellerId OR (g.SellerId IS NULL AND u.NormalizedAsin IS NOT NULL)) ORDER BY c.Id) a LEFT JOIN Sellers s ON COALESCE(g.SellerId,a.SellerId)=s.Id'+mapTitleJoin+' '+mappingWhere+';\n'+
   (optimized?'CREATE UNIQUE CLUSTERED INDEX IX_GmsMap_Asin_Owner ON #GmsMap(Asin,StoredSellerId);\n':'')+
   'SELECT '+entity+' COLLATE Latin1_General_100_BIN2 AS EntityKey,g.FactId,g.Asin,m.SellerId,m.DbBrand,m.CatalogId'+factTitle+',g.Brand,g.StoreCode,g.ReportDate,g.OrderedRevenue,g.OrderedUnits,g.ShippedRevenue,g.ShippedCOGS,g.ShippedUnits,g.CustomerReturns INTO #GmsFacts FROM #GmsSource g JOIN #GmsMap m ON g.Asin=m.Asin AND (g.SellerId=m.StoredSellerId OR (g.SellerId IS NULL AND m.StoredSellerId IS NULL)) '+factWhere+';\n'+
-  (optimized?'CREATE CLUSTERED INDEX IX_GmsFacts_Entity_Date ON #GmsFacts(EntityKey,ReportDate,Asin,FactId);\n':'CREATE INDEX IX_GmsFacts_Entity_Date ON #GmsFacts(EntityKey,ReportDate);\n')+
+  (optimized?'CREATE CLUSTERED INDEX IX_GmsFacts_Entity_Date ON #GmsFacts(EntityKey,ReportDate DESC,Asin,FactId);\n':'CREATE INDEX IX_GmsFacts_Entity_Date ON #GmsFacts(EntityKey,ReportDate);\n')+
   // Result set 0: aggregate all matching selected and prior days in SQL, not Node.
   'SELECT CONVERT(char(10),ReportDate,23) AS date,COUNT_BIG(*) AS recordCount,'+aggregateMetrics+' FROM #GmsFacts GROUP BY ReportDate ORDER BY ReportDate;\n'+
   // Result set 1: exact selected-range fact/entity counts, not just the page.
