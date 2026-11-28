@@ -95,7 +95,11 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
     const dashboardQuery=useQuery({
         queryKey:[...QK_DASHBOARD,'scoped',principal,sellerId??'all',managerId??'all',startDate,endDate,period],
         enabled:!!principal,
-        queryFn:async({signal})=>(await apiClient.get('/dashboard',{params:filters,signal})).data,
+        queryFn:async({signal})=>{
+            const data=(await apiClient.get('/dashboard',{params:filters,signal})).data;
+            if(!data?.scope||typeof data.scope.empty!=='boolean'||typeof data.scope.unrestricted!=='boolean'||!Array.isArray(data.scope.sellerIds))throw Error('Dashboard scope unavailable');
+            return data;
+        },
         staleTime:60_000,gcTime:0,placeholderData:undefined,refetchOnWindowFocus:false,refetchOnReconnect:true,
         retry:(count,error:any)=>![400,401,403,404,422].includes(error?.response?.status)&&count<retries,
         retryDelay:dashboardBackoff,refetchInterval:pollInt>0?pollInt*1000:false,
@@ -108,7 +112,7 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
         queryKey:[...QK_TARGETS,'dashboard',principal,sellerId??'all',managerId??'all',scopeKey,startDate,endDate],
         enabled:scopedEnabled&&canTargets,
         queryFn:async({signal})=>{
-            const r=await apiClient.get('/targets',{params:{sellerId,managerId,dashboardFrom:startDate,dashboardTo:endDate},signal});
+            const r=await apiClient.get('/targets',{params:{sellerId,managerId,dashboardFrom:dashData?.period?.startDate,dashboardTo:dashData?.period?.endDate},signal});
             return r.data?.data??r.data;
         },
         staleTime:60_000,gcTime:0,placeholderData:undefined,refetchOnWindowFocus:false,
