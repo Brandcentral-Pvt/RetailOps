@@ -51,7 +51,7 @@ export function buildInsights({ dashboardRaw, products = [], targets = [], tasks
     }
 
     // ── Movers (need a real prior value) ─────────────────────────────
-    const withPrev = products.filter((p) => Number(p.prevGmsRevenue) > 0);
+    const withPrev = products.filter(p=>p.gmsRevenue!=null&&p.deltaPct!=null&&Number(p.prevGmsRevenue)>0);
     if (withPrev.length > 0) {
         const byAbs = [...withPrev].sort((a, b) => (b.gmsRevenue - b.prevGmsRevenue) - (a.gmsRevenue - a.prevGmsRevenue));
         const gainer = byAbs[0];
@@ -78,7 +78,7 @@ export function buildInsights({ dashboardRaw, products = [], targets = [], tasks
     }
 
     // ── Concentration risk ───────────────────────────────────────────
-    if (gms && gms.revenue > 0 && products.length >= 3) {
+    if (gms && gms.revenue > 0 && products.length >= 3 && products.slice(0,3).every(p=>p.gmsRevenue!=null)) {
         const top3 = products.slice(0, 3).reduce((s, p) => s + (Number(p.gmsRevenue) || 0), 0);
         const share = (top3 / gms.revenue) * 100;
         if (share >= 40) {
