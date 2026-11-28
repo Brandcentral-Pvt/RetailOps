@@ -22,7 +22,7 @@ exports.getAlerts = async (req, res) => {
                    s.Name as SellerName
             FROM Alerts a
             LEFT JOIN AlertRules r ON a.RuleId = r.Id
-            LEFT JOIN Asins asin ON a.AsinId = asin.Id
+            LEFT JOIN Asins asin ON a.AsinId = asin.Id AND a.SellerId=asin.SellerId
             LEFT JOIN Sellers s ON a.SellerId = s.Id
             ${whereClause}
             ORDER BY a.CreatedAt DESC
