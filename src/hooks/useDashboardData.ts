@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../lib/api-client';
-import { dashboardDateKey } from '../utils/dashboardRange.mjs';
+import { dashboardDateKey,sameDashboardScope } from '../utils/dashboardRange.mjs';
 import { useAuth } from '../contexts/AuthContext';
 import { useDashboardOrchestration } from './useDashboardOrchestration';
 import { dashboardPrincipal,matchesDashboardScope,isDashboardGlobal,canDashboardPermission } from '../utils/dashboardScope.mjs';
 import { useSocket } from '../contexts/SocketContext';
-import { computeBlendedAchievement, targetAchievementPct } from '../utils/targetMetrics';
 
 export interface DashboardFilters {
     sellerId: string;
@@ -21,7 +20,7 @@ export interface ModuleStats {
         onTrack: number;
         atRisk: number;
         completed: number;
-        rate: number;
+        rate: number|null;
     };
     asins: {
         total: number;
@@ -30,10 +29,10 @@ export interface ModuleStats {
         newThisMonth: number;
     };
     ads: {
-        totalSpend: number;
-        totalSales: number;
-        acos: number;
-        roas: number;
+        totalSpend: number|null;
+        totalSales: number|null;
+        acos: number|null;
+        roas: number|null;
         campaigns: number;
     };
     tasks: {
@@ -123,7 +122,7 @@ export function useDashboardData(filters: DashboardFilters) {
             const r=await apiClient.get('/dashboard/tasks',{params,signal});
             const body: any = (r as any).data ?? r ?? {};
             const list = body?.data?.instances ?? body?.instances ?? body?.data ?? [];
-            if (!Array.isArray(list)) return [];
+            if(!Array.isArray(list)||!sameDashboardScope(body.scope,scope)||!body.summary)throw Error('Dashboard task scope or summary mismatch');
 
             // Normalize the task instance contract (PascalCase + workflow
             // statuses) to the dashboard's task shape. Status mapping keeps
@@ -142,12 +141,12 @@ export function useDashboardData(filters: DashboardFilters) {
                 CANCELLED: 'CANCELLED',
                 REJECTED: 'CANCELLED',
             };
-            return list.map((inst: any) => {
+            const instances=list.map((inst: any) => {
                 const rawStatus = String(inst.Status || inst.status || '').toUpperCase();
                 return {
                     id: inst.Id || inst.id,
                     title: inst.Title || inst.title || 'Untitled task',
-                    status: STATUS_MAP[rawStatus] || rawStatus || 'TODO',
+                    status: inst.DashboardStatus||STATUS_MAP[rawStatus] || rawStatus || 'OTHER',
                     rawStatus,
                     priority: inst.Priority || inst.priority || 'MEDIUM',
                     category: inst.TemplateCategory || inst.Category || inst.category || 'General',
@@ -161,13 +160,15 @@ export function useDashboardData(filters: DashboardFilters) {
                     source: 'tasks',
                 };
             });
+            return {instances,summary:body.summary};
         },
         staleTime: 60_000,
         gcTime:0,placeholderData:undefined,
         refetchOnWindowFocus: false,
     });
 
-    const optimizationTasks=canTasks&&scope&&!scope.empty&&!tasksQuery.isError?(tasksQuery.data??[]).filter(t=>matchesDashboardScope(scope,t.sellerId)):[];
+    const taskSummary=canTasks&&scope&&!scope.empty&&!tasksQuery.isError?tasksQuery.data?.summary??null:null;
+    const optimizationTasks=canTasks&&scope&&!scope.empty&&!tasksQuery.isError?(tasksQuery.data?.instances??[]).filter(t=>matchesDashboardScope(scope,t.sellerId)):[];
     // ✅ Explicit task-section state so the dashboard can render an
     // unavailable state instead of a silent zero count.
     const tasksLoading=canTasks&&!!scope&&!scope.empty&&tasksQuery.isPending;
@@ -226,54 +227,14 @@ export function useDashboardData(filters: DashboardFilters) {
             );
         }
 
-        // Targets stats
-        let totalTarget = 0;
-        let totalAchieved = 0;
-        let onTrack = 0;
-        let atRisk = 0;
-        let completed = 0;
-
-        filteredTargets.forEach((t: any) => {
-            // ✅ Goal-separation: inverted math for lower-is-better (ACoS)
-            // goals; currency goals classified by their own ratio.
-            const pct = targetAchievementPct(t);
-            if (pct >= 100) completed++;
-            else if (pct >= 50) onTrack++;
-            else atRisk++;
-        });
-
-        // ✅ Blended rate: currency goals (GMS/ADS) summed; ratio goals no
-        // longer pollute the combined percentage.
-        const blended = computeBlendedAchievement(filteredTargets);
-        totalTarget = blended.totalTarget;
-        totalAchieved = blended.totalAchieved;
-
-        // Ads stats from dashboard raw
-        const adsPerf = orch.dashboardRaw?.adsPerformanceSeries || [];
-        const adSalesData = adsPerf[0]?.data || [];
-        const adSpendData = adsPerf[1]?.data || [];
-        const totalAdSales = adSalesData.reduce((a: number, b: number) => a + b, 0);
-        const totalAdSpend = adSpendData.reduce((a: number, b: number) => a + b, 0);
-
-        // Get sellerIds for selected manager (match UserId OR BrandManager name)
+        const completed=filteredTargets.filter(t=>t.status==='met'||(t.closed&&t.status==='within_limit')).length;
+        const atRisk=filteredTargets.filter(t=>['below_target','over_limit'].includes(t.status)).length;
+        const onTrack=filteredTargets.filter(t=>!t.closed&&t.status==='within_limit').length;
+        const classified=filteredTargets.filter(t=>!['unknown','not_started','in_progress'].includes(t.status)).length;
+        const rate=classified?completed/classified*100:null;
+        const ad=orch.dashboardRaw?.ads;
+        const totalAdSales=ad?.adSales??null,totalAdSpend=ad?.adSpend??null;
         const managerSellers=new Set(scope?.sellerIds??[]);
-
-        // Tasks stats
-        let tasks = optimizationTasks;
-        if (filters.managerId && filters.managerId !== 'all') {
-            tasks = tasks.filter((t: any) => managerSellers.has(t.sellerId));
-        }
-        // Statuses arrive normalized from the task instances mapping above.
-        const isStatus = (t: any, ...names: string[]) => names.includes(String(t.status || '').toUpperCase());
-        const taskCompleted = tasks.filter((t: any) => isStatus(t, 'COMPLETED')).length;
-        const taskPending = tasks.filter((t: any) => isStatus(t, 'PENDING')).length;
-        const taskOverdue = tasks.filter((t: any) => {
-            if (isStatus(t, 'COMPLETED', 'CANCELLED')) return false;
-            if (t.dueDate) return new Date(t.dueDate) < new Date();
-            return false;
-        }).length;
-        const taskInProgress = tasks.filter((t: any) => isStatus(t, 'IN_PROGRESS')).length;
-        const taskTodo = tasks.filter((t: any) => isStatus(t, 'TODO')).length;
 
         // Pipeline stats
         let finalScrapeTasks = scrapeTasks;
@@ -320,7 +281,7 @@ export function useDashboardData(filters: DashboardFilters) {
                 onTrack,
                 atRisk,
                 completed,
-                rate: blended.rate,
+                rate,
             },
             asins: {
                 total: orch.dashboardRaw?.stats?.totalAsins || 0,
@@ -331,17 +292,17 @@ export function useDashboardData(filters: DashboardFilters) {
             ads: {
                 totalSpend: totalAdSpend,
                 totalSales: totalAdSales,
-                acos: totalAdSales > 0 ? (totalAdSpend / totalAdSales) * 100 : 0,
-                roas: totalAdSpend > 0 ? totalAdSales / totalAdSpend : 0,
+                acos:ad?.acos??null,
+                roas:ad?.roas??null,
                 campaigns: 0,
             },
             tasks: {
-                total: tasks.length,
-                completed: taskCompleted,
-                pending: taskPending,
-                overdue: taskOverdue,
-                inProgress: taskInProgress,
-                todo: taskTodo,
+                total: taskSummary?.total??0,
+                completed: taskSummary?.counts?.COMPLETED??0,
+                pending: taskSummary?.counts?.PENDING??0,
+                overdue: taskSummary?.overdue??0,
+                inProgress: taskSummary?.counts?.IN_PROGRESS??0,
+                todo: taskSummary?.counts?.TODO??0,
             },
             alerts: {
                 total: finalLogs.length,
@@ -359,7 +320,7 @@ export function useDashboardData(filters: DashboardFilters) {
             },
         };
     }, [orch.targets, orch.dashboardRaw, optimizationTasks,
-        activityLogs, scrapeTasks, filters, matchesManagerFilter,scope]);
+        activityLogs, scrapeTasks, filters, matchesManagerFilter,scope,taskSummary]);
 
     const filteredTasks=optimizationTasks;
     const filteredScrapeTasks=scrapeTasks;
@@ -385,7 +346,7 @@ export function useDashboardData(filters: DashboardFilters) {
         loading: orch.isLoadingKpis,
         isHydrated: orch.isHydrated,
         tasksLoading,
-        tasksError,
+        tasksError,taskSummary,
         canTasks,canPipeline,canLogs,
         optionsError:optionsQuery.isError,
         pipelineStatus:scope?.empty?'ready':pipelineQuery.isError?'error':pipelineQuery.isPending?'loading':'ready',

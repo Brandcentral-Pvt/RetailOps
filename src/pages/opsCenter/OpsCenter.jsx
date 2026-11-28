@@ -10,7 +10,7 @@ import { Panel, MiniState, fmtNum, timeAgo, useNow } from './primitives';
 import {
     KpiRow, TrendPanel, MixPanel, AchievementPanel, AsinHealthPanel,
     TasksPanel, AlertsPanel, PipelinePanel, ActivityPanel,
-    BrandLeaderboardPanel, InsightsPanel, FOCUS_MAP,
+    BrandLeaderboardPanel, InsightsPanel, PortfolioPanel, FOCUS_MAP,
 } from './panels';
 import { TopProductsPanel } from './topProducts';
 import { buildInsights } from './insights';
@@ -80,7 +80,7 @@ const ScopedOpsCenter = () => {
         userSellers, managers, activityLogs, scrapeTasks,
         optimizationTasks, topProducts, orch,
         refresh, matchesManagerFilter,
-        canTasks,canPipeline,canLogs,optionsError,pipelineStatus,activityStatus,tasksLoading,
+        canTasks,canPipeline,canLogs,optionsError,pipelineStatus,activityStatus,tasksLoading,taskSummary,
         tasksError, sectionStatus,
     } = useDashboardData(dashboardFilters);
 
@@ -148,11 +148,12 @@ const ScopedOpsCenter = () => {
     const insights = useMemo(() => buildInsights({
         dashboardRaw: orch.dashboardRaw,
         products: topProducts || [],
+        portfolio:orch.portfolio,taskSummary,
         targets: visibleTargets,
         tasks: optimizationTasks || [],
         pipeline: scrapeTasks || [],
         now,
-    }), [orch.dashboardRaw, topProducts, visibleTargets, optimizationTasks, scrapeTasks, now]);
+    }), [orch.dashboardRaw, orch.portfolio,taskSummary, topProducts, visibleTargets, optimizationTasks, scrapeTasks, now]);
 
     const jumpTo = useCallback((id) => {
         const el = document.getElementById(id);
@@ -284,7 +285,7 @@ const ScopedOpsCenter = () => {
                         />
                     </Panel>
                 ) : (
-                    <KpiRow dashboardRaw={raw} focus={focus} onFocus={handleFocus} />
+                    <KpiRow dashboardRaw={raw} focus={focus} onFocus={handleFocus} span={3} />
                 )}
 
                 <TrendPanel
@@ -306,6 +307,7 @@ const ScopedOpsCenter = () => {
                     periodDays={period?.days}
                 />
 
+                <PortfolioPanel portfolio={orch.portfolio} status={sectionStatus?.topProducts} onRetry={refresh}/>
                 <TopProductsPanel
                     products={topProducts || []}
                     status={sectionStatus?.topProducts}
@@ -321,7 +323,7 @@ const ScopedOpsCenter = () => {
                 <MixPanel dashboardRaw={raw} status={sectionStatus?.categories} onRetry={refresh} />
 
                 {raw?<AsinHealthPanel stats={stats} gms={raw.gms}/>:null}
-                {canTasks&&<TasksPanel tasks={optimizationTasks} error={tasksError} loading={tasksLoading} onRetry={refresh} />}
+                {canTasks&&<TasksPanel tasks={optimizationTasks} summary={taskSummary} error={tasksError} loading={tasksLoading} onRetry={refresh} />}
                 <AlertsPanel alerts={orch.alerts || []} status={sectionStatus?.alerts} onRetry={refresh} canOpen={hasPermission('activitylogs_view')} />
 
                 {canPipeline&&<PipelinePanel tasks={scrapeTasks} status={pipelineStatus} onRetry={refresh} />}

@@ -6,7 +6,6 @@ import {
 } from './primitives';
 import { Sparkline, Ring } from './charts';
 import { AreaTrendChart } from './AreaTrendChart';
-import { targetAchievementPct } from '../../utils/targetMetrics';
 
 /**
  * OpsCenter panels — pure presentation over the data supplied by
@@ -22,6 +21,7 @@ export const CHART_MODES = {
     revenue: { label: 'Revenue', unit: 'inr' },
     volume: { label: 'Volume', unit: 'num' },
     efficiency: { label: 'Efficiency', unit: 'pct' },
+    returns: { label: 'ROAS', unit: 'x' },
 };
 
 /** focusKey → { mode, seriesKey } */
@@ -33,7 +33,8 @@ export const FOCUS_MAP = {
     orders: { mode: 'volume', series: 'adOrders' },
     acos: { mode: 'efficiency', series: 'acos' },
     tacos: { mode: 'efficiency', series: 'tacos' },
-    roas: { mode: 'efficiency', series: 'acos' },
+    roas: { mode: 'returns', series: 'roas' },
+    cvr:{mode:'efficiency',series:'cvr'},
 };
 
 /** Build all chart series from the payload (bucket-aligned with labels). */
@@ -47,19 +48,22 @@ export const buildSeries = (dashboardRaw) => {
     const organic = (dashboardRaw?.stackedBarSeries || [])[2]?.data || [];
     return {
         revenue: [
-            { key: 'gms', name: 'GMS', color: OPS_COLOR.accent, data: gms },
-            { key: 'adSales', name: 'Ad sales', color: OPS_COLOR.pos, data: adSales },
-            { key: 'organic', name: 'Organic sales', color: OPS_COLOR.violet, data: organic, dashed: true },
-            { key: 'adSpend', name: 'Ad spend', color: OPS_COLOR.warn, data: adSpend },
+            { key: 'gms', name: 'GMS', color: OPS_COLOR.accent, data: gms,summaryValue:dashboardRaw?.gms?.revenue },
+            { key: 'adSales', name: 'Ad sales', color: OPS_COLOR.pos, data: adSales,summaryValue:dashboardRaw?.ads?.adSales },
+            { key: 'organic', name: 'Organic sales', color: OPS_COLOR.violet, data: organic,summaryValue:dashboardRaw?.ads?.organicSales,dashed: true },
+            { key: 'adSpend', name: 'Ad spend', color: OPS_COLOR.warn, data: adSpend,summaryValue:dashboardRaw?.ads?.adSpend },
         ].filter((s) => s.data.length > 0),
         volume: [
-            { key: 'gmsUnits', name: 'Units (GMS)', color: OPS_COLOR.accent, data: gmsUnits },
-            { key: 'adOrders', name: 'Ad orders', color: OPS_COLOR.pos, data: dashboardRaw?.ordersSeries || [] },
+            { key: 'gmsUnits', name: 'Units (GMS)', color: OPS_COLOR.accent, data: gmsUnits,summaryValue:dashboardRaw?.gms?.units },
+            { key: 'adOrders', name: 'Ad orders', color: OPS_COLOR.pos, data: dashboardRaw?.ordersSeries || [],summaryValue:dashboardRaw?.ads?.orders },
         ].filter((s) => s.data.length > 0),
         efficiency: [
-            { key: 'acos', name: 'ACoS', color: OPS_COLOR.warn, data: dashboardRaw?.acosSeries || [] },
-            { key: 'tacos', name: 'TACoS', color: OPS_COLOR.accent, data: tacos },
+            { key: 'acos', name: 'ACoS', color: OPS_COLOR.warn, data: dashboardRaw?.acosSeries || [],summaryValue:dashboardRaw?.ads?.acos },
+            { key: 'tacos', name: 'TACoS', color: OPS_COLOR.accent, data: tacos,summaryValue:dashboardRaw?.ads?.tacos },
+            { key: 'ctr', name: 'CTR', color: OPS_COLOR.violet, data: dashboardRaw?.ctrSeries || [],summaryValue:dashboardRaw?.ads?.ctr },
+            { key: 'cvr', name: 'CVR', color: OPS_COLOR.pos, data: dashboardRaw?.cvrSeries || [],summaryValue:dashboardRaw?.ads?.cvr },
         ].filter((s) => s.data.length > 0),
+        returns:[{key:'roas',name:'ROAS',color:OPS_COLOR.pos,data:dashboardRaw?.roasSeries||[],summaryValue:dashboardRaw?.ads?.roas}].filter(s=>s.data.length>0),
     };
 };
 
@@ -69,7 +73,6 @@ export const KpiRow = ({ dashboardRaw, focus, onFocus, span = 2 }) => {
     const adsPerf = dashboardRaw?.adsPerformanceSeries || [];
     const adsBlock = dashboardRaw?.ads;
     const gms = dashboardRaw?.gms;
-    const prev = dashboardRaw?.previous;
     const days = dashboardRaw?.period?.days;
     const vs = days ? `vs prev ${days}d` : 'vs prev period';
 
@@ -78,8 +81,8 @@ export const KpiRow = ({ dashboardRaw, focus, onFocus, span = 2 }) => {
     const acos=numeric(adsBlock?.acos),roas=numeric(adsBlock?.roas);
     const dailySpend=days>0&&adSpend!=null?adSpend/days:null;
     const show=(v,fmt)=>v==null?'N/A':fmt(v);
-    const metricDelta=(key,a,b)=>a!=null&&b!=null&&adsBlock?.coverage?.[key]?.status==='complete'&&prev?.adsCoverage?.[key]?.status==='complete'?pctDelta(a,b):null;
-    const ratioDelta=(key,a,b,fn)=>a!=null&&b!=null&&adsBlock?.ratioCoverage?.[key]==='complete'&&prev?.adsRatioCoverage?.[key]==='complete'?fn(a,b):null;
+    const metricDelta=key=>adsBlock?.comparison?.metrics?.[key]??null;
+    const ratioDelta=key=>adsBlock?.comparison?.ratios?.[key]??null;
     const hasGms = !!gms;
     const gmsRevenue=numeric(gms?.revenue);
     const gmsUnits=numeric(gms?.units);
@@ -104,32 +107,40 @@ export const KpiRow = ({ dashboardRaw, focus, onFocus, span = 2 }) => {
             key: 'adSales', label: 'Ad sales', tip: 'Observed ad-attributed sales in INR from canonical facts.',
             value: show(adSales,fmtINR),
             sub: adShare !== null ? `${fmtPct(adShare)} of reported total sales · ${show(adOrders,fmtNum)} ad orders` : `${show(adOrders,fmtNum)} ad orders`,
-            delta: <Delta value={metricDelta('AdSales',adSales,prev?.adSales)} label={vs} compact />,
+            delta: <Delta value={metricDelta('AdSales')} label={vs} compact />,
             spark: <Sparkline data={adsPerf[0]?.data || []} color={OPS_COLOR.pos} />,
         },
         {
             key: 'adSpend', label: 'Ad spend', tip: 'Observed advertising spend in INR. Missing observations are unknown.',
             value: show(adSpend,fmtINR),
             sub: tacos !== null ? `TACoS ${fmtPct(tacos)} · ${show(dailySpend,fmtINR)} / day` : `${show(dailySpend,fmtINR)} / day`,
-            delta: <Delta value={metricDelta('AdSpend',adSpend,prev?.adSpend)} label={vs} compact neutral />,
+            delta: <Delta value={metricDelta('AdSpend')} label={vs} compact neutral />,
             spark: <Sparkline data={adsPerf[1]?.data || []} color={OPS_COLOR.warn} />,
         },
         {
             key: 'acos', label: 'ACoS', tip: 'Ad spend ÷ ad sales. Lower is better; change shown in percentage points.',
             value: show(acos,fmtPct),
             sub: 'spend ÷ ad sales · lower is better',
-            delta: <Delta value={ratioDelta('acos',acos,prev?.acos,pointDelta)} label={vs} compact invert points />,
+            delta: <Delta value={ratioDelta('acos')} label={vs} compact invert points />,
             spark: <Sparkline data={dashboardRaw?.acosSeries || []} color={OPS_COLOR.warn} />,
         },
         {
-            key: 'roas', label: 'ROAS', tip: 'Ad sales ÷ ad spend. Shown as ACoS on the trend chart.',
+            key: 'roas', label: 'ROAS', tip: 'Ad-attributed sales divided by spend. Trend uses the same ratio, not reciprocal ACoS.',
             value: roas==null?'N/A':roas.toFixed(2), unit: roas==null?'':'×',
             sub: 'ad sales ÷ spend',
-            delta: <Delta value={ratioDelta('roas',roas,prev?.roas,pctDelta)} label={vs} compact />,
-            spark: <Sparkline data={(dashboardRaw?.acosSeries || []).map((v) => (v > 0 ? 100 / v : null))} color={OPS_COLOR.pos} />,
+            delta: <Delta value={ratioDelta('roas')} label={vs} compact />,
+            spark: <Sparkline data={dashboardRaw?.roasSeries||[]} color={OPS_COLOR.pos} />,
         },
     ];
 
+    // Keep the original six tiles and provide a separately focusable TACoS KPI.
+    tiles.push({
+        key:'tacos',label:'TACoS',tip:'Canonical ad spend divided by reported total sales, not GMS. Missing paired observations are unknown.',
+        value:show(tacos,fmtPct),sub:adsBlock?.comparison?.coverage?.comparable?'Comparable reporting windows':'Review reported coverage',
+        delta:<Delta value={ratioDelta('tacos')} label={vs} compact invert points/>,
+        spark:<Sparkline data={gms?.tacosSeries||[]} color={OPS_COLOR.accent}/>,
+    });
+    tiles.push({key:'cvr',label:'CVR',tip:'Ad conversions divided by clicks. Distinct from orders.',value:show(adsBlock?.cvr,fmtPct),sub:'conversions ÷ clicks',delta:<Delta value={ratioDelta('cvr')} label={vs} compact points/>,spark:<Sparkline data={dashboardRaw?.cvrSeries||[]} color={OPS_COLOR.pos}/>});
     return tiles.map((t) => (
         <Tile
             key={t.key}
@@ -280,66 +291,36 @@ export const MixPanel = ({ dashboardRaw, status, onRetry }) => {
     const [basis, setBasis] = useState('gms');
     const [showDonut, setShowDonut] = useState(false);
 
-    const normKey = (k) => String(k).toLowerCase().replace(/\.| /g, '');
-    const mpKeyMap = { amazonin: 'amazon', ajio: 'ajio', myntra: 'myntra' };
-    const getMpKey = (raw) => mpKeyMap[normKey(raw)] || normKey(raw);
-
-    const gmsByMp = (dashboardRaw?.gmsByMarketplace || [])
-        .reduce((acc, m) => {
-            const key = getMpKey(m.name);
-            acc[key] = { revenue: Number(m.revenue) || 0, sellers: m.sellers || 0 };
-            return acc;
-        }, {});
-
-    const asinsByMp = (dashboardRaw?.category || [])
-        .reduce((acc, c) => {
-            const key = getMpKey(c.name);
-            acc[key] = (c.data || [0])[0] || 0;
-            return acc;
-        }, {});
-
-    const trendByMp = (dashboardRaw?.gmsTrendByMarketplace || [])
-        .reduce((acc, m) => {
-            const key = getMpKey(m.marketplace);
-            acc[key] = m.points || [];
-            return acc;
-        }, {});
-
-    const rows = MP_ORDER.map((key) => {
-        const gms = gmsByMp[key]?.revenue || 0;
-        const sellers = gmsByMp[key]?.sellers || 0;
-        const asins = asinsByMp[key] || 0;
-        const trend = trendByMp[key] || [];
-        return {
-            key,
-            label: MP_LABELS[key] || key,
-            color: MP_COLORS[key] || '#94a3b8',
-            gms,
-            sellers,
-            asins,
-            trend,
-        };
-    });
-
-    const hasGms = rows.some(r => r.gms > 0);
-    const effective = basis === 'gms' && hasGms ? 'gms' : 'asins';
-
-    const sortedRows = [...rows].sort((a, b) => {
-        const av = effective === 'gms' ? a.gms : a.asins;
-        const bv = effective === 'gms' ? b.gms : b.asins;
-        return bv - av;
-    });
-
-    const total = rows.reduce((s, r) => s + (effective === 'gms' ? r.gms : r.asins), 0);
+    const keyOf=name=>{const k=String(name||'Other').trim().toLowerCase();return ['amazon','amazon.in','amazon india','amazon_in'].includes(k)?'amazon':k;};
+    const map=new Map();
+    const entry=name=>{
+        const key=keyOf(name);
+        if(!map.has(key))map.set(key,{key,label:MP_LABELS[key]||name||'Other',color:MP_COLORS[key]||OPS_COLOR.slate,gms:null,sellers:0,asins:0,hasGms:false,unknown:false,trend:[]});
+        return map.get(key);
+    };
+    for(const m of dashboardRaw?.gmsByMarketplace||[]){
+        const r=entry(m.name);r.hasGms=true;r.sellers+=Number(m.sellers)||0;
+        if(m.revenue==null)r.unknown=true;
+        else r.gms=((r.gms??0)*100+Math.round(Number(m.revenue)*100))/100;
+    }
+    for(const m of dashboardRaw?.category||[])entry(m.name).asins+=Number(m.data?.[0])||0;
+    for(const m of dashboardRaw?.gmsTrendByMarketplace||[])entry(m.marketplace).trend=m.points||[];
+    const rows=[...map.values()].map(r=>({...r,gms:r.unknown?null:r.gms}));
+    const hasGms=rows.some(r=>r.gms!=null);
+    const effective=basis;
+    const valueOf=r=>effective==='gms'?r.gms:r.asins;
+    const sortedRows=[...rows].sort((a,b)=>(valueOf(b)??-Infinity)-(valueOf(a)??-Infinity));
+    const validTotal=rows.length>0&&rows.every(r=>valueOf(r)!=null&&valueOf(r)>=0);
+    const total=validTotal?rows.reduce((s,r)=>s+valueOf(r),0):null;
     const fmt = effective === 'gms' ? fmtINR : fmtNum;
 
     const renderTrend = (points, color) => {
         if (!points?.length) return <span className="ops-muted">—</span>;
-        return <Sparkline data={points.map(p => p.revenue || p.value || 0)} width={80} height={18} color={color} />;
+        return <Sparkline data={points.map(p => p.revenue??p.value??null)} width={80} height={18} color={color} />;
     };
 
     const renderDonut = () => {
-        if (total === 0) return null;
+        if (!(total>0)) return null;
         const circumference = 2 * Math.PI * 40; // r=40
         let offset = 0;
         return (
@@ -405,15 +386,15 @@ export const MixPanel = ({ dashboardRaw, status, onRetry }) => {
                 <MiniState tone="empty" title={effective === 'gms' ? 'No GMS by marketplace' : 'No ASINs'} note="No data for this selection." />
             ) : (
                 <div style={{ paddingTop: 2 }}>
-                    {showDonut && (
+                    {showDonut&&total>0 && (
                         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
                             {renderDonut()}
                         </div>
                     )}
                     <div style={{ paddingTop: 2 }}>
-                        {rows.map((r) => {
+                        {sortedRows.map((r) => {
                             const value = effective === 'gms' ? r.gms : r.asins;
-                            const pct = total > 0 ? (value / total) * 100 : 0;
+                            const pct=total>0&&value!=null?value/total*100:null;
                             return (
                                 <div className="ops-hbar" key={r.key} style={{ marginBottom: 10 }}>
                                     <div className="ops-hbar__top" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -421,10 +402,10 @@ export const MixPanel = ({ dashboardRaw, status, onRetry }) => {
                                             <span style={{ width: 10, height: 10, borderRadius: '50%', background: r.color, flexShrink: 0 }} />
                                             <b>{r.label}{r.sellers ? <span className="ops-muted"> · {r.sellers} seller{r.sellers === 1 ? '' : 's'}</span> : null}</b>
                                         </div>
-                                        <span className="ops-num">{fmt(value)} · {pct.toFixed(0)}%</span>
+                                        <span className="ops-num">{fmt(value)} · {fmtPct(pct,0)}</span>
                                     </div>
                                     <div className="ops-hbar__track" style={{ height: 8, borderRadius: 4, background: '#e2e8f0', overflow: 'hidden' }}>
-                                        <span className="ops-hbar__fill" style={{ width: `${pct}%`, background: r.color, height: '100%', display: 'block', borderRadius: 4, transition: 'width 0.3s ease' }} />
+                                        <span className="ops-hbar__fill" style={{ width: `${pct??0}%`, background: r.color, height: '100%', display: 'block', borderRadius: 4, transition: 'width 0.3s ease' }} />
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6, fontSize: 11 }}>
                                         <span className="ops-muted">Trend:</span>
@@ -442,99 +423,47 @@ export const MixPanel = ({ dashboardRaw, status, onRetry }) => {
 
 // ── Goal achievement (GMS / ADS / ACoS separated, drill-down per type) ─
 
-const GOAL_DISPLAY = [
-    { type: 'GMS', name: 'GMS', color: OPS_COLOR.accent, note: 'Merchandise value vs target' },
-];
-
-const targetLabel = (t) => t.SellerName || t.sellerName || t.Seller?.Name || t.SellerId || 'Target';
-
-export const AchievementPanel = ({ targets, status, onRetry }) => {
-    const [open, setOpen] = useState(null);
-    const groups = GOAL_DISPLAY
-        .map((g) => {
-            const list = targets.filter((t) => (t.GoalType || 'GMS').toUpperCase() === g.type);
-            const totalTarget = list.reduce((s, t) => s + (Number(t.TotalTargetValue) || 0), 0);
-            const totalAchieved = list.reduce((s, t) => s + (Number(t.overallAchieved) || 0), 0);
-            const pct = g.lower
-                ? (totalAchieved > 0 ? (totalTarget / totalAchieved) * 100 : 0)
-                : (totalTarget > 0 ? (totalAchieved / totalTarget) * 100 : 0);
-            const detailed = list
-                .map((t) => ({ t, pct: targetAchievementPct(t) }))
-                .sort((a, b) => a.pct - b.pct);
-            const atRisk = detailed.filter((d) => d.pct < 50).length;
-            return { ...g, list, totalTarget, totalAchieved, pct, detailed, atRisk };
-        })
-        .filter((g) => g.list.length > 0);
-    const openGroup = groups.find((g) => g.type === open);
-
-    return (
-        <Panel id="ops-goals" span={8} kicker="GMS goal achievement" meta="Full target periods overlapping selection">
-            {status==='loading'?<MiniState title="Loading targets" />:status === 'error' ? (
-                <MiniState tone="error" title="Achievement unavailable" note="Targets could not be loaded." onRetry={onRetry} />
-            ) : groups.length === 0 ? (
-                <MiniState tone="empty" title="No targets in view" note="No targets match the current brand / manager selection." />
-            ) : (
-                <>
-                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                        {groups.map((g) => (
-                            <button
-                                type="button"
-                                className={`ops-goal ops-goal--btn ${open === g.type ? 'ops-goal--on' : ''}`}
-                                key={g.type}
-                                onClick={() => setOpen(open === g.type ? null : g.type)}
-                                aria-expanded={open === g.type}
-                            >
-                                <Ring pct={g.pct} color={g.color} label={g.name} size={86} />
-                                <div className="ops-goal__info">
-                                    <div className="ops-goal__type">
-                                        {g.name}
-                                        {g.lower && <span className="ops-tag">LOWER IS BETTER</span>}
-                                    </div>
-                                    <div className="ops-goal__values ops-num">
-                                        {g.lower
-                                            ? <>target {fmtPct(g.totalTarget, 0)}<span> · actual {fmtPct(g.totalAchieved, 0)}</span></>
-                                            : <>{fmtINR(g.totalAchieved)}<span> of {fmtINR(g.totalTarget)}</span></>}
-                                    </div>
-                                    <div className="ops-goal__note">
-                                        {g.note} · {g.list.length} target{g.list.length === 1 ? '' : 's'}
-                                        {g.atRisk > 0 && <span className="ops-goal__risk"> · {g.atRisk} at risk</span>}
-                                    </div>
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-                    {openGroup && (
-                        <div className="ops-goal__targets">
-                            {openGroup.detailed.slice(0, 8).map(({ t, pct }, i) => {
-                                const tone = pct >= 100 ? OPS_COLOR.pos : pct >= 50 ? OPS_COLOR.accent : OPS_COLOR.neg;
-                                return (
-                                    <div className="ops-goal__trow" key={t.Id || t.id || i}>
-                                        <span className="ops-goal__tname">
-                                            <b>{targetLabel(t)}</b>
-                                            <span className="ops-muted"> · {t.BrandManager || 'unassigned'} · {t.TargetType || ''} {t.Month ? `${t.Month}/` : ''}{t.Year || ''}</span>
-                                        </span>
-                                        <span className="ops-goal__tvals ops-num">
-                                            {openGroup.lower
-                                                ? `${fmtPct(t.overallAchieved, 1)} actual · ${fmtPct(t.TotalTargetValue, 1)} target`
-                                                : `${fmtINR(t.overallAchieved)} of ${fmtINR(t.TotalTargetValue)}`}
-                                        </span>
-                                        <span className="ops-goal__tbar"><ShareBar pct={Math.min(pct, 100)} color={tone} /></span>
-                                        <span className="ops-goal__tpct ops-num" style={{ color: tone }}>{Math.round(pct)}%</span>
-                                    </div>
-                                );
-                            })}
-                            {openGroup.detailed.length > 8 && (
-                                <div className="ops-muted" style={{ fontSize: 11, paddingTop: 6 }}>
-                                    Showing the 8 lowest of {openGroup.detailed.length} targets.
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </>
-            )}
-        </Panel>
-    );
+const GOAL_LABELS={GMS:'GMS revenue',ADS:'Ad spend cap',ACOS:'ACoS ceiling'};
+const TARGET_STATES={met:'Met',below_target:'Below target',in_progress:'In progress',over_limit:'Over limit',within_limit:'Within limit',unknown:'Insufficient coverage',not_started:'Not started'};
+export const AchievementPanel=({targets=[],status,onRetry})=>{
+    const [selected,setSelected]=useState('all');
+    const rows=targets.filter(t=>selected==='all'||t.GoalType===selected);
+    const counts=rows.reduce((a,t)=>({...a,[t.status]:(a[t.status]||0)+1}),{});
+    return <Panel id="ops-goals" span={8} kicker="Target performance" meta="Separate full-period goals; actuals through today. No overlapping-target sums.">
+        {status==='loading'?<MiniState title="Loading targets"/>:status==='error'?<MiniState tone="error" title="Target analytics unavailable" onRetry={onRetry}/>:targets.length===0?<MiniState tone="empty" title="No targets in view"/>:<>
+            <Segmented ariaLabel="Target goal type" value={selected} onChange={setSelected} options={[{value:'all',label:'All'},...Object.keys(GOAL_LABELS).map(k=>({value:k,label:k}))]}/>
+            <div style={{display:'flex',flexWrap:'wrap',gap:8,margin:'10px 0'}}>{Object.entries(counts).map(([k,n])=><span key={k} className="ops-chip">{TARGET_STATES[k]||k}: {n}</span>)}</div>
+            <div className="ops-goal__targets" style={{maxHeight:340,overflow:'auto'}}>
+            {rows.map(t=>{
+                const fmt=t.GoalType==='ACOS'?fmtPct:fmtINR;
+                const actual=t.overallAchieved;
+                const tone=['below_target','over_limit'].includes(t.status)?OPS_COLOR.neg:['met','within_limit'].includes(t.status)?OPS_COLOR.pos:OPS_COLOR.slate;
+                return <div key={t.Id} style={{padding:'10px 4px',borderBottom:'1px solid #eef1f5'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',gap:10}}><strong>{t.SellerName||t.SellerId} · {GOAL_LABELS[t.GoalType]||t.GoalType}</strong><span style={{color:tone}}>{TARGET_STATES[t.status]||'Unknown'}</span></div>
+                    <div className="ops-muted">{t.period?.start} to {t.period?.end} · {t.coverage?.coveredDays??0}/{t.coverage?.expectedDays??0} elapsed days observed</div>
+                    <div style={{display:'flex',justifyContent:'space-between',gap:10,marginTop:5}}><span>{fmt(actual)} / {fmt(t.TotalTargetValue)}</span>{t.progress!=null&&<span className="ops-num">{fmtPct(t.progress,1)} {t.GoalType==='ADS'?'used':'achieved'}</span>}</div>
+                    {actual==null&&t.observedActual!=null&&<div className="ops-muted">Observed only: {fmt(t.observedActual)}. Incomplete data is not a decision-ready actual.</div>}
+                    {t.progress!=null&&<ShareBar pct={Math.min(100,t.progress)} color={tone}/>}
+                </div>
+            })}
+            {rows.length===0&&<MiniState tone="empty" title="No targets of this type"/>}
+            </div>
+        </>}
+    </Panel>;
 };
+
+export const PortfolioPanel=({portfolio:p,status,onRetry})=><Panel id="ops-portfolio" span={12} kicker="GMS portfolio concentration" meta="Full scoped population, not only the top 200 rows">
+    {status==='loading'?<MiniState title="Loading portfolio"/>:status==='error'?<MiniState tone="error" title="Portfolio unavailable" onRetry={onRetry}/>:!p||p.positiveProducts===0?<MiniState tone="empty" title="No mapped positive product revenue"/>:<>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:16,padding:'8px 0'}}>
+            <div><div className="ops-muted">Revenue-driving products</div><strong className="ops-num">{fmtNum(p.headProducts)} / {fmtNum(p.positiveProducts)}</strong><div>{fmtPct(p.headProductShare)} of positive sellers' ASINs</div></div>
+            <div><div className="ops-muted">Revenue share</div><strong className="ops-num">{fmtPct(p.headRevenueShare)}</strong><div>{fmtINR(p.headRevenue)} of {fmtINR(p.positiveRevenue)}</div></div>
+            <div><div className="ops-muted">Remaining positive products</div><strong className="ops-num">{fmtNum(p.tailProducts)}</strong><div>{fmtINR(p.tailRevenue)}</div></div>
+            <div><div className="ops-muted">Top three product share</div><strong className="ops-num">{fmtPct(p.top3RevenueShare)}</strong><div>{fmtINR(p.top3Revenue)}</div></div>
+        </div>
+        <SegmentedBar total={p.positiveRevenue} segments={[{label:'Products reaching at least 80% of positive revenue',value:p.headRevenue,color:OPS_COLOR.accent},{label:'Remaining positive revenue',value:p.tailRevenue,color:OPS_COLOR.slate}]}/>
+        <div className="ops-muted" style={{marginTop:8}}>Observed {p.observedDays}/{p.expectedDays} days. {p.unknownProducts} unknown, {p.unmatchedProducts} unmatched, {p.zeroProducts} zero and {p.negativeProducts} negative revenue groups excluded from this denominator. {p.status==='observed_partial'?'Partial observed portfolio; do not treat as complete coverage.':''}</div>
+    </>}
+</Panel>;
 
 // ── ASIN health ───────────────────────────────────────────────────────
 
@@ -545,12 +474,12 @@ export const AsinHealthPanel = ({ stats, gms }) => {
     const fresh = Number(stats?.newThisMonthAsins) || 0;
     const selling = Number(gms?.asinsWithSales) || 0;
     const segments = [
-        { label: 'Active', value: active, color: OPS_COLOR.pos },
+        { label: 'Active, not flagged OOS', value: Math.max(0,active-oos), color: OPS_COLOR.pos },
         { label: 'Out of stock', value: oos, color: OPS_COLOR.neg },
-        { label: 'Other', value: Math.max(0, total - active - oos), color: '#c7d0dc' },
+        { label: 'Other', value: Math.max(0, total - active), color: '#c7d0dc' },
     ];
     return (
-        <Panel id="ops-catalog" span={4} kicker="Catalog health" meta={`${fmtNum(total)} ASINs`}>
+        <Panel id="ops-catalog" span={4} kicker="Catalog health" meta={`${fmtNum(total)} catalog rows · live snapshot`}>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2 }}>
                 <SegmentedBar segments={segments} total={total} />
                 <div style={{ marginTop: 10 }}>
@@ -567,7 +496,7 @@ export const AsinHealthPanel = ({ stats, gms }) => {
                     <div className="ops-statrow">
                         <span className="ops-statrow__label"><Tip text="ASINs with ordered revenue in the period">Selling in period</Tip></span>
                         <span className="ops-statrow__value ops-num">
-                            {gms ? fmtNum(selling) : '—'}{gms && active > 0 && selling > 0 ? <small className="ops-muted"> · {fmtPct((selling / active) * 100, 0)} of active</small> : null}
+                            {gms ? fmtNum(selling) : '—'}
                         </span>
                     </div>
                     <div className="ops-statrow">
@@ -588,18 +517,14 @@ export const AsinHealthPanel = ({ stats, gms }) => {
 
 const TASK_ORDER = { IN_PROGRESS: 0, PENDING: 1, IN_REVIEW: 2, TODO: 3, COMPLETED: 4, CANCELLED: 5 };
 
-export const TasksPanel = ({ tasks = [], error, loading, onRetry }) => {
+export const TasksPanel = ({ tasks = [], summary, error, loading, onRetry }) => {
     const [filter, setFilter] = useState(null);
     const now = useNow();
-    const counts = {};
-    tasks.forEach((t) => {
-        const s = String(t.status || 'TODO').toUpperCase();
-        counts[s] = (counts[s] || 0) + 1;
-    });
+    const counts=summary?.counts||{};
     const segments = Object.keys(TASK_STATUS_COLORS)
         .filter((s) => counts[s] > 0)
         .map((s) => ({ key: s, label: s.replace('_', ' '), value: counts[s], color: TASK_STATUS_COLORS[s] }));
-    const overdue = tasks.filter((t) => !['COMPLETED', 'CANCELLED'].includes(String(t.status).toUpperCase()) && t.dueDate && new Date(t.dueDate).getTime() < now).length;
+    const overdue=summary?.overdue??0;
 
     const top = [...tasks]
         .filter((t) => !filter || String(t.status).toUpperCase() === filter)
@@ -612,14 +537,15 @@ export const TasksPanel = ({ tasks = [], error, loading, onRetry }) => {
         .slice(0, 5);
 
     return (
-        <Panel id="ops-tasks" span={4} kicker="Task pipeline" meta={`${tasks.length} workspace tasks${overdue > 0 ? ` · ${overdue} overdue` : ''}`} linkTo="/tasks/operations" linkLabel="Workspace">
+        <Panel id="ops-tasks" span={4} kicker="Task pipeline" meta={summary?`${summary.total} workspace instances · ${overdue} overdue · ${summary.slaBreached} SLA breached`:'Live workspace snapshot'} linkTo="/tasks/operations" linkLabel="Workspace">
             {loading?<MiniState title="Loading tasks" />:error ? (
                 <MiniState tone="error" title="Tasks unavailable" note={String(error)} onRetry={onRetry} />
-            ) : tasks.length === 0 ? (
+             ) : !summary||summary.total===0 ? (
                 <MiniState tone="empty" title="No active tasks" note="Nothing in the task workspace for this selection." />
             ) : (
                 <>
                     <SegmentedBar segments={segments} onSelect={setFilter} selected={filter} />
+                    <div className="ops-muted" style={{marginTop:6,fontSize:11}}>Showing up to 5 priority instances from the selected status; totals cover the complete scoped population.</div>
                     <div className="ops-list" style={{ marginTop: 8 }}>
                         {top.length === 0 && <MiniState tone="empty" title="No tasks in this status" />}
                         {top.map((t) => {

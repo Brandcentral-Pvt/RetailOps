@@ -35,8 +35,14 @@ test('Dashboard SQL: seller ownership, duplicate catalog protection, exact cents
    ('f4','B000000002','s1','2026-04-03',20.03,1,20,0),
    ('f5','B000000002',NULL,'2026-04-04',30.04,1,30,0),
    ('f6','B000000001','s1','2026-03-31',10.00,1,9,0);
-  CREATE TABLE dbo.AdsProductDailyFacts(Asin varchar(10),SellerId varchar(50),[Date] date,ReportType varchar(20),Currency char(3),AdSales decimal(28,10),AdSpend decimal(28,10),TotalSales decimal(28,10),OrganicSales decimal(28,10),Orders bigint,Impressions bigint,Clicks bigint);
-  INSERT dbo.AdsProductDailyFacts VALUES('B000000001','s1','2026-04-01','daily','INR',20,10,100,80,1,100,10);
+  CREATE TABLE dbo.GmsTargets(Id varchar(50) PRIMARY KEY,SellerId varchar(50),BrandManager nvarchar(50),GoalType nvarchar(20),TargetType nvarchar(20),[Year] int,[Month] int,TotalTargetValue decimal(18,2));
+  INSERT dbo.GmsTargets VALUES('g1','s1','First Manager','GMS','MONTHLY',2026,4,200),('a1','s1','First Manager','ADS','MONTHLY',2026,4,5),('c1','s1','First Manager','ACOS','MONTHLY',2026,4,50),('foreign','s2','Second Manager','GMS','MONTHLY',2026,4,900);
+  CREATE TABLE dbo.PemsTaskInstances(Id varchar(50) PRIMARY KEY,Title nvarchar(100),Status nvarchar(30),Priority nvarchar(20),SellerId varchar(50),SellerName nvarchar(100),AssignedTo varchar(50),DueDate datetime2,CreatedAt datetime2,SLAStatus nvarchar(20));
+  ;WITH n AS (SELECT TOP (205) ROW_NUMBER() OVER(ORDER BY a.object_id,b.object_id) AS i FROM sys.all_objects a CROSS JOIN sys.all_objects b)
+  INSERT dbo.PemsTaskInstances SELECT 'task-'+CONVERT(varchar(10),i),'Task','ASSIGNED','HIGH','s1','One','u1','2020-01-01','2020-01-01','BREACHED' FROM n;
+  INSERT dbo.PemsTaskInstances VALUES('task-foreign','Foreign','ASSIGNED','HIGH','s2','Two','u2','2020-01-01','2020-01-01','BREACHED'),('task-rejected','Rework','REJECTED','HIGH','s1','One','u1','2020-01-01','2020-01-01','AT_RISK');
+  CREATE TABLE dbo.AdsProductDailyFacts(Asin varchar(10),SellerId varchar(50),[Date] date,ReportType varchar(20),Currency char(3),AdSales decimal(28,10),AdSpend decimal(28,10),TotalSales decimal(28,10),OrganicSales decimal(28,10),Orders bigint,Impressions bigint,Clicks bigint,Conversions bigint,TotalUnits bigint,Marketplace nvarchar(50));
+  INSERT dbo.AdsProductDailyFacts VALUES('B000000001','s1','2026-04-01','daily','INR',20,10,100,80,1,100,10,2,3,'amazon.in');
   `);
   // Inject the disposable pool before requiring the production controller.
   const dbPath=require.resolve('../database/db');
@@ -52,6 +58,28 @@ test('Dashboard SQL: seller ownership, duplicate catalog protection, exact cents
    };
    const manager={Id:'u1',role:{name:'brand_manager'},assignedSellers:['s1']};
    const adminUser={Id:'u2',role:{name:'admin'}};
+   const {resolveDashboardScope}=require('../services/dashboardScope');
+   const effective=await resolveDashboardScope({pool,sql,user:manager});
+   const {readTaskSnapshot}=require('../services/dashboardTaskIntelligence');
+   const taskSnapshot=await readTaskSnapshot({pool,sql,scope:effective});
+   assert.equal(taskSnapshot.summary.total,206);
+   assert.equal(taskSnapshot.summary.counts.PENDING,205);
+   assert.equal(taskSnapshot.summary.counts.IN_PROGRESS,1);
+   assert.equal(taskSnapshot.summary.overdue,206);
+   assert.equal(taskSnapshot.summary.slaBreached,205);
+   assert.equal(taskSnapshot.instances.length,6);
+   assert.ok(taskSnapshot.instances.every(t=>t.SellerId==='s1'));
+   const {readDashboardTargets}=require('../services/dashboardTargets');
+   const targetOptions={pool,sql,scope:effective,startDate:'2026-04-01',endDate:'2026-04-04'};
+   const targets=await readDashboardTargets({...targetOptions,today:'2026-04-01'});
+   assert.equal(targets.length,3);
+   assert.equal(targets.find(t=>t.GoalType==='GMS').overallAchieved,100.01);
+   assert.equal(targets.find(t=>t.GoalType==='ADS').status,'over_limit');
+   assert.equal(targets.find(t=>t.GoalType==='ACOS').status,'within_limit');
+   const partial=await readDashboardTargets({...targetOptions,today:'2026-04-02'});
+   assert.equal(partial.find(t=>t.GoalType==='GMS').overallAchieved,100.03);
+   assert.equal(partial.find(t=>t.GoalType==='ADS').overallAchieved,null);
+   assert.equal(partial.find(t=>t.GoalType==='ADS').observedActual,10);
    const scoped=await request(manager);
    const overview=await request(manager,{mode:'overview'});
    const products=await request(manager,{mode:'products'});
@@ -81,8 +109,20 @@ test('Dashboard SQL: seller ownership, duplicate catalog protection, exact cents
    assert.deepEqual(scoped.tableData[0].trend,[100.01,0.02,null,null]);
    assert.equal(scoped.gmsBySeller[0].revenue,100.03);
    assert.equal(scoped.ads.tacos,10);
+   assert.equal(scoped.ads.cvr,20);
+   assert.deepEqual(scoped.unitsSeries,[3,null,null,null]);
+   assert.deepEqual(scoped.roasSeries,[2,null,null,null]);
+   assert.equal(scoped.portfolio.positiveProducts,1);
+   assert.equal(scoped.portfolio.positiveRevenue,100.03);
+   assert.equal(scoped.portfolio.headProducts,1);
+   assert.deepEqual(products.portfolio,scoped.portfolio);
    const wide=await request(adminUser);
    assert.equal(wide.gms.revenue,200.15);
+   assert.equal(wide.portfolio.positiveProducts,3);
+   assert.equal(wide.portfolio.unmatchedProducts,1);
+   assert.equal(wide.portfolio.positiveRevenue,170.11);
+   assert.equal(wide.portfolio.headProducts,2);
+   assert.equal(wide.portfolio.status,'observed_partial');
    assert.equal(wide.tableData.length,3);
    assert.equal(wide.tableData.find(r=>r.asin==='B000000002'&&r.sellerId==='s1').gmsRevenue,20.03);
    assert.deepEqual(wide.tableData.find(r=>r.asin==='B000000002'&&r.sellerId==='s2').trend,[null,50.05,null,null]);
@@ -114,6 +154,20 @@ test('Dashboard SQL: seller ownership, duplicate catalog protection, exact cents
    assert.equal(optionResponse.success,true);
    assert.deepEqual(optionResponse.data.sellers.map(s=>s.id),['s1']);
    assert.deepEqual(optionResponse.data.managers.map(m=>m.id),['m1']);
+   // Portfolio denominator must include products outside the top 200 UI list.
+   await pool.request().query(`
+   ;WITH n AS (SELECT TOP (205) ROW_NUMBER() OVER(ORDER BY a.object_id,b.object_id) AS i FROM sys.all_objects a CROSS JOIN sys.all_objects b)
+   INSERT dbo.Asins(Id,AsinCode,SellerId,Title,Status)
+   SELECT 'pareto-'+CONVERT(varchar(10),i),'P'+RIGHT('000000000'+CONVERT(varchar(10),i),9),'s1','Portfolio product','Active' FROM n;
+   INSERT dbo.GmsDailyPerformance(Id,Asin,SellerId,[Date],OrderedRevenue,OrderedUnits,ShippedRevenue,CustomerReturns)
+   SELECT 'fact-'+Id,AsinCode,'s1','2026-04-01',1,1,1,0 FROM dbo.Asins WHERE Id LIKE 'pareto-%';
+   `);
+   const fullPortfolio=await request(manager,{mode:'products'});
+   assert.equal(fullPortfolio.tableData.length,200);
+   assert.equal(fullPortfolio.portfolio.positiveProducts,206);
+   assert.equal(fullPortfolio.portfolio.positiveRevenue,305.03);
+   assert.equal(fullPortfolio.portfolio.headProducts,145);
+   assert.equal(fullPortfolio.portfolio.tailProducts,61);
    await pool.request().query("DELETE FROM dbo.UserSellers WHERE UserId='m1'");
    assert.equal((await request(adminUser,{managerId:'m1'})).scope.empty,true);
   }finally{if(previous)require.cache[dbPath]=previous;else delete require.cache[dbPath];}

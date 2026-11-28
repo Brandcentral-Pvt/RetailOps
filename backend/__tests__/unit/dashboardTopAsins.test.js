@@ -42,7 +42,7 @@ const buildPool = () => makeDashboardPool([
         // Per-day ads aggregate over current + previous window.
         section: 'ads',
         rows: [
-            { Date: NOW, AdSales: 100, AdSpend: 25, Orders: 5, OrganicSales: 150, Impressions: 900, Clicks:40,FactRows:1,AdSalesCount:1,AdSpendCount:1,TotalSalesCount:1,OrganicSalesCount:1,OrdersCount:1,ImpressionsCount:1,ClicksCount:1,acosPairCount:1,tacosPairCount:1,adSharePairCount:1,roasPairCount:1,ctrPairCount:1,cpcPairCount:1,TotalSales:500 },
+            { Date: NOW, AdSales: 100, AdSpend: 25, Orders: 5, TotalUnits:7,TotalUnitsCount:1,Conversions:2,ConversionsCount:1,cvrPairCount:1, OrganicSales: 150, Impressions: 900, Clicks:40,FactRows:1,AdSalesCount:1,AdSpendCount:1,TotalSalesCount:1,OrganicSalesCount:1,OrdersCount:1,ImpressionsCount:1,ClicksCount:1,acosPairCount:1,tacosPairCount:1,adSharePairCount:1,roasPairCount:1,ctrPairCount:1,cpcPairCount:1,TotalSales:500 },
             // previous-window row (must NOT leak into current KPIs / series)
             { Date: daysAgo(45), AdSales: 80, AdSpend: 40, Orders: 9, OrganicSales: 20, Impressions: 500, Clicks:10,FactRows:1,AdSalesCount:1,AdSpendCount:1,TotalSalesCount:1,OrganicSalesCount:1,OrdersCount:1,ImpressionsCount:1,ClicksCount:1,acosPairCount:1,tacosPairCount:1,adSharePairCount:1,roasPairCount:1,ctrPairCount:1,cpcPairCount:1,TotalSales:500 },
         ],
@@ -76,7 +76,7 @@ const buildPool = () => makeDashboardPool([
                 Status: 'Active', AvailabilityStatus: 'In Stock', SellerId: 's1', SellerName: 'ACME', Marketplace: 'Amazon',
                 GmsRevenue: 300, GmsUnits: 3, ShippedRevenue: 250, Returns: 0,
                 PrevGmsRevenue: 0, PrevGmsUnits: 0, ActiveDays: 2,
-                AdSales:100,AdSpend:25,Orders:5,FactRows:1,AdSalesCount:1,AdSpendCount:1,TotalSalesCount:1,OrganicSalesCount:1,OrdersCount:1,ImpressionsCount:1,ClicksCount:1,acosPairCount:1,tacosPairCount:1,adSharePairCount:1,roasPairCount:1,ctrPairCount:1,cpcPairCount:1,TotalSales:500,
+                AdSales:100,AdSpend:25,Orders:5,TotalUnits:7,TotalUnitsCount:1,Conversions:2,ConversionsCount:1,cvrPairCount:1,OrganicSales:150,Impressions:900,Clicks:40,FactRows:1,AdSalesCount:1,AdSpendCount:1,TotalSalesCount:1,OrganicSalesCount:1,OrdersCount:1,ImpressionsCount:1,ClicksCount:1,acosPairCount:1,tacosPairCount:1,adSharePairCount:1,roasPairCount:1,ctrPairCount:1,cpcPairCount:1,TotalSales:500,
             },
         ],
     },
@@ -139,8 +139,8 @@ describe('getDashboardData — top products are ranked by GMS, not ads', () => {
 
         const topAsins = mockState.pool.callWhere(/INTO #DashLeaders/);
         // GMS aggregate is the driving table…
-        expect(topAsins.sql).toMatch(/WITH GmsAgg AS \([\s\S]*FROM #DashGms g[\s\S]*GROUP BY g\.Asin,g\.SellerId,g\.CatalogId/);
-        expect(topAsins.sql).toMatch(/FROM GmsAgg G JOIN dbo\.Sellers S ON G\.SellerId=S\.Id/);
+        expect(topAsins.sql).toMatch(/INTO #DashProductAgg FROM #DashGms g GROUP BY g\.Asin,g\.SellerId,g\.CatalogId/);
+        expect(topAsins.sql).toMatch(/FROM #DashProductAgg G JOIN dbo\.Sellers S ON G\.SellerId=S\.Id/);
         expect(topAsins.sql).toMatch(/ORDER BY TRY_CONVERT\(decimal\(38,2\),G\.GmsRevenue\) DESC,TRY_CONVERT\(bigint,G\.GmsUnits\) DESC/);
         // …ads is only LEFT JOINed, window + daily restricted.
         expect(topAsins.sql).toMatch(/LEFT JOIN AdsAgg AD ON AD\.Asin=L\.Asin AND AD\.SellerId=L\.SellerId/);
@@ -203,7 +203,7 @@ describe('getDashboardData — top products are ranked by GMS, not ads', () => {
         // Current-window orders (5) only — the previous-window row (9) is
         // excluded from the series, and no ×1.48 estimate is applied.
         expect(payload.ordersSeries.reduce((a, b) => a + b, 0)).toBe(5);
-        expect(payload.unitsSeries.reduce((a, b) => a + b, 0)).toBe(5);
+        expect(payload.unitsSeries.reduce((a, b) => a + b, 0)).toBe(7);
         expect(payload.gms.series.reduce((a, b) => a + b, 0)).toBe(1000);
         expect(payload.gms.series).toContain(null);
         expect(payload.gms.coverage).toEqual({observedDays:1,expectedDays:30,complete:false});
@@ -225,6 +225,10 @@ describe('getDashboardData — top products are ranked by GMS, not ads', () => {
         expect(payload.ads.adSpend).toBe(25);
         expect(payload.ads.acos).toBe(25);
         expect(payload.ads.roas).toBe(4);
+        expect(payload.ads.exactTotals.AdSales).toBe('100');
+        expect(payload.ads.comparison.metrics.AdSales).toBeNull();
+        expect(payload.ads.cvr).toBe(5);
+        expect(payload.roasSeries.filter(v=>v!=null)).toEqual([4]);
 
         expect(payload.previous.adSales).toBe(80);
         expect(payload.previous.adSpend).toBe(40);

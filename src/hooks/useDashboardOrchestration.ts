@@ -127,8 +127,9 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
         queryKey:[...QK_TARGETS,'dashboard',principal,sellerId??'all',managerId??'all',scopeKey,startDate,endDate],
         enabled:scopedEnabled&&canTargets,
         queryFn:async({signal})=>{
-            const r=await apiClient.get('/targets',{params:{sellerId,managerId,dashboardFrom:dashData?.period?.startDate,dashboardTo:dashData?.period?.endDate},signal});
-            return r.data?.data??r.data;
+            const r=await apiClient.get('/dashboard/targets',{params:{sellerId,managerId,startDate:dashData?.period?.startDate,endDate:dashData?.period?.endDate},signal,timeout:45000});
+            if(!sameDashboardScope(r.data?.scope,scope)||!Array.isArray(r.data?.data))throw Error('Dashboard target scope mismatch');
+            return r.data.data;
         },
         staleTime:60_000,gcTime:0,placeholderData:undefined,refetchOnWindowFocus:false,
         retry:(count,error:any)=>![400,401,403,404,422].includes(error?.response?.status)&&count<retries,
@@ -305,6 +306,7 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
         // ✅ Fix 6: dashboardRaw comes from React Query cache directly — never stale
         dashboardRaw: dashData,
         productsRevenue:productsData?.gmsRevenue??null,
+        portfolio:productsData?.portfolio??null,
 
         // Loading states
         isLoadingKpis: !rangeError&&dashboardQuery.isPending,
