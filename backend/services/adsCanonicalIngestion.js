@@ -37,6 +37,7 @@ async function ingestCanonicalReport({pool,sql,user,sellerId,reportType,input}){
   if(!report.valid)throw new AdsIngestionError('validation_failed','No data imported; resolve all validation issues.',{issueCount:report.issueCount,issues:report.issues});
   const tx=new sql.Transaction(pool);
   await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+  let stage='staging';
   try{
     // batch (not query) creates a connection-local temp table that survives subsequent
     // sp_executesql requests on this transaction's pinned connection.
@@ -56,6 +57,7 @@ async function ingestCanonicalReport({pool,sql,user,sellerId,reportType,input}){
     if(staged!==report.validRows||Number(actualStage.recordset[0].n)!==staged)throw new AdsIngestionError('staging_mismatch','Validated and staged record counts disagree.');
     // All writers using this service serialize per seller; database key/range locks
     // provide a second protection against conflicting concurrent writes.
+    stage='seller_lock';
     const lockKey='retailops:ads-writer:'+createHash('sha256').update(seller).digest('hex');
     await tx.request().input('resource',sql.NVarChar(255),lockKey).query(
       "DECLARE @lock int; EXEC @lock=sp_getapplock @Resource=@resource,@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=30000; IF @lock<0 THROW 51030,'Ads import lock unavailable',1;");
@@ -69,10 +71,12 @@ async function ingestCanonicalReport({pool,sql,user,sellerId,reportType,input}){
     // Require exactly one catalog mapping under the explicit seller. A shared ASIN
     // owned by this seller and another is allowed; foreign-only, unknown, and
     // ambiguous same-seller catalog keys are rejected. No catalog auto-creation.
+    stage='catalog_ownership';
     const owner=await bindScope(tx.request(),sql,scope).query(
       "SELECT COUNT_BIG(*) AS invalidKeys FROM (SELECT s.Asin FROM (SELECT DISTINCT Asin FROM #AdsStage) s LEFT JOIN dbo.Asins a WITH (UPDLOCK,HOLDLOCK) ON a.AsinCode=s.Asin AND a.SellerId=@seller GROUP BY s.Asin HAVING COUNT_BIG(a.AsinCode)<>1) x;");
     const invalidKeys=Number(owner.recordset[0].invalidKeys);
     if(invalidKeys)throw new AdsIngestionError('catalog_ownership_conflict','Every source ASIN must have one catalog mapping under the selected seller.',{invalidKeys});
+    stage='historical_conflict_check';
     const conflicts=await bindScope(tx.request(),sql,scope).query(
       "SELECT COUNT_BIG(*) AS conflictCount FROM #AdsStage s JOIN dbo.AdsProductDailyFacts t WITH (UPDLOCK,HOLDLOCK) ON "+matching+" WHERE "+mismatch+"; "+
       "SELECT COUNT_BIG(*) AS currencyConflicts FROM dbo.AdsProductDailyFacts WITH (UPDLOCK,HOLDLOCK) WHERE SellerId=@seller AND Marketplace=@marketplace AND Currency<>@currency;");
@@ -80,22 +84,26 @@ async function ingestCanonicalReport({pool,sql,user,sellerId,reportType,input}){
       throw new AdsIngestionError('currency_conflict','Existing seller facts use another currency; explicit migration is required.');
     const conflictCount=Number(conflicts.recordsets[0][0].conflictCount);
     if(conflictCount)throw new AdsIngestionError('historical_conflict','Existing facts differ from this report. No rows were replaced.',{conflictCount});
+    stage='insert';
     const result=await bindScope(tx.request(),sql,scope)
       .input('hash',sql.Char(64),report.sourceFileSha256).input('actor',sql.VarChar(50),actor)
       .query("INSERT dbo.AdsProductDailyFacts (SellerId,Marketplace,Currency,ReportType,"+COLUMNS.join(',')+",SourceFileSha256,SourceRowNumber,SourceSchemaVersion,ImportedBy) "+
         "SELECT @seller,@marketplace,@currency,'daily',"+COLUMNS.map(c=>'s.'+c).join(',')+",@hash,s.SourceRowNumber,1,@actor FROM #AdsStage s "+
         "WHERE NOT EXISTS (SELECT 1 FROM dbo.AdsProductDailyFacts t WITH (UPDLOCK,HOLDLOCK) WHERE "+matching+"); SELECT @@ROWCOUNT AS inserted;");
     const inserted=Number(result.recordset[0].inserted);
+    stage='reconcile';
     const reconciled=await bindScope(tx.request(),sql,scope).query(
       "SELECT COUNT_BIG(*) AS reconciled FROM #AdsStage s JOIN dbo.AdsProductDailyFacts t ON "+matching+
       " WHERE t.Currency=@currency AND NOT EXISTS (SELECT "+selectCols('s')+" EXCEPT SELECT "+selectCols('t')+");");
     if(Number(reconciled.recordset[0].reconciled)!==staged)throw new AdsIngestionError('reconciliation_failed','Persisted facts do not match the validated report.');
     await tx.request().batch('DROP TABLE #AdsStage;');
+    stage='commit';
     await tx.commit();
     return {sellerId:seller,...context,reportType:'daily',inserted,unchanged:staged-inserted,sourceFileSha256:report.sourceFileSha256,report};
   }catch(e){
     try{await tx.rollback();}catch{/* SQL may already have rolled back. */}
-    throw e;
+    if(e instanceof AdsIngestionError||e instanceof AdsScopeError||e instanceof AdsValidationError)throw e;
+    throw new Error('Canonical Ads writer failed at '+stage+': '+e.message,{cause:e});
   }
 }
 module.exports={ingestCanonicalReport,AdsIngestionError,BATCH_ROWS};
