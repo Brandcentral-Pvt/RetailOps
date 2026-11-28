@@ -38,6 +38,7 @@ const XLSX=require('xlsx');
 const { loadPagedAnalytics } = require('../../services/gmsAnalyticsPageService');
 const { createReportLoader,readReportRevision }=require('../../services/gmsAnalyticsReportCache');
 const revisionMigration=require('../../migrations/096_gms_report_revision');
+const redisCache=require('../../services/cacheService');
 const { loadGmsFilters } = require('../../services/gmsAnalyticsFilters');
 const analyticsIndex=require('../../migrations/094_gms_analytics_date_index');
 const service = require('../../services/gmsImportService');
@@ -204,6 +205,18 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
     expect(timing.sqlMs).toBe(0);
     expect(cachedNext.kpis).toEqual(cachedFirst.kpis);
     expect(cachedNext.matrixRows[0].asin).toBe('B000000002');
+    if(process.env.GMS_TEST_REDIS==='1'){
+      if(process.env.REDIS_URL!=='redis://127.0.0.1:6379'||process.env.CACHE_PREFIX!=='gms-disposable-ci:')throw new Error('Disposable local Redis configuration required');
+      await redisCache.connect();
+      expect(await redisCache.isEnabled()).toBe(true);
+      const firstWorker=createReportLoader(),secondWorker=createReportLoader();
+      const redisFirst=await firstWorker(mockPool,global,{...options,page:1,refresh:true},{onTiming:t=>{timing=t;}});
+      expect(timing.cacheStatus).toBe('refresh');
+      const redisSecond=await secondWorker(mockPool,global,{...options,page:2},{onTiming:t=>{timing=t;}});
+      expect(timing.cacheStatus).toBe('hit');
+      expect(redisSecond.kpis).toEqual(redisFirst.kpis);
+      expect(redisSecond.matrixRows[0].asin).toBe('B000000002');
+    }
     // A rolled-back write must not invalidate an otherwise valid block.
     const rollbackTx=new sql.Transaction(mockPool);
     await rollbackTx.begin();
@@ -389,6 +402,7 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
     }
   } finally {
     fs.rmSync(dir,{recursive:true,force:true});
+    if(process.env.GMS_TEST_REDIS==='1')await redisCache.disconnect().catch(()=>{});
     await mockPool.close();
   }
 }, scaleRows?600000:180000);
