@@ -152,18 +152,6 @@ const ActivityLog = () => {
     const debouncedSearch = useDebounce(searchQuery, 350);
     const debouncedOtpEmail = useDebounce(otpEmailFilter, 350);
 
-    // Real-time socket
-    useEffect(() => {
-        if (!socket) return;
-        const handler = (data) => {
-            if (!data) return;
-            setLogs(prev => [{ ...data, _id: data.Id, createdAt: data.CreatedAt }, ...prev]);
-        };
-        socket.on('new_system_log', handler);
-        return () => socket.off('new_system_log', handler);
-    }, [socket]);
-
-    // Fetch logs with server-side filtering
     const fetchLogs = useCallback(async () => {
         setLoading(true);
         try {
@@ -189,6 +177,12 @@ const ActivityLog = () => {
     }, [page, pageSize, filterType, debouncedSearch, dateRange, showAllEvents]);
 
     useEffect(() => { fetchLogs(); }, [fetchLogs]);
+    useEffect(()=>{
+        if(!socket)return;
+        const invalidate=()=>{void fetchLogs();};
+        socket.on('system_log_changed',invalidate);
+        return ()=>{socket.off('system_log_changed',invalidate);};
+    },[socket,fetchLogs]);
 
     // OTP logs
     const fetchOtpLogs = useCallback(async (p = 1) => {
