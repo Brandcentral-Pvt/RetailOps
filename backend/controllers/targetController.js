@@ -330,7 +330,7 @@ exports.getTargets = async (req, res) => {
         if (!res.headersSent) res.json({ success: true, data: enrichedTargets });
     } catch (e) {
         console.error("getTargets error:", e);
-        if (!res.headersSent) res.status(error instanceof require('../services/adsCanonicalScope').AdsScopeError?error.status:500).json({success:false,message:error instanceof require('../services/adsCanonicalScope').AdsScopeError?error.message:'Targets unavailable.'});
+        if (!res.headersSent) res.status(e instanceof require('../services/adsCanonicalScope').AdsScopeError?e.status:500).json({success:false,message:e instanceof require('../services/adsCanonicalScope').AdsScopeError?e.message:'Targets unavailable.'});
     }
 };
 
