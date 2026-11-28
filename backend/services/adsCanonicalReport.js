@@ -4,6 +4,7 @@
 const {strictScope,explicitSeller,AdsScopeError}=require('./adsCanonicalScope');
 const {METRICS,aggregateProjection,shapeSummary,validateWindow}=require('./adsCanonicalMetrics');
 const {comparePeriods,compareCurrencies,readReviewSignals,emptyReview}=require('./adsAnalyticsV3');
+const {readPortfolioAnalytics,emptyPortfolio}=require('./adsPortfolioAnalytics');
 const GROUPS=new Set(['asin','parent','seller']);
 const SORTS=new Set(['totalSales','sales','spend','organicSales','totalOrders','orders','conversions','clicks','impressions','units','entityKey']);
 const GRANULARITIES=new Set(['day','week','month']);
@@ -103,10 +104,10 @@ function emptyReport(filters){
   return {...scopeMeta(filters),current:[],previous:[],comparisons:[],series:[],rows:[],total:0,page:1,limit:filters.limit,totalPages:1,empty:true};
 }
 const MAX_EXPORT_ENTITIES=5000;
-async function readCanonicalReport({pool,sql,user,query,exportAll=false,insightsOnly=false}){
-  const f=parseReport(user,query);
-  if(insightsOnly&&(f.entityKey||f.groupBy!=='asin'))invalid('Product review requires ASIN grouping without entity drill-down.');
-  if(f.scope.empty)return insightsOnly?{...scopeMeta(f),...emptyReview()}:emptyReport(f);
+async function readCanonicalReport({pool,sql,user,query,exportAll=false,insightsOnly=false,portfolioOnly=false}){
+  const f=parseReport(user,query),analysisOnly=insightsOnly||portfolioOnly;
+  if(analysisOnly&&(f.entityKey||f.groupBy!=='asin'))invalid('Portfolio analysis requires ASIN grouping without entity drill-down.');
+  if(f.scope.empty)return portfolioOnly?{...scopeMeta(f),...emptyPortfolio()}:insightsOnly?{...scopeMeta(f),...emptyReview()}:emptyReport(f);
   const tx=new sql.Transaction(pool);
   await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
   let stage='scope';
@@ -129,9 +130,9 @@ async function readCanonicalReport({pool,sql,user,query,exportAll=false,insights
       [metaValue('title'),metaValue('brand'),metaValue('category'),'a.[matches]',entity,'CONVERT(nvarchar(255),s.Name)',"CASE WHEN p.[Date]>=CONVERT(date,@start,23) THEN 'current' ELSE 'previous' END"].join(',')+
       ' FROM dbo.AdsProductDailyFacts p JOIN dbo.Sellers s ON s.Id=p.SellerId '+catalogApply(columns)+where+';');
     stage='aggregates';
-    const totals=insightsOnly?{recordset:[]}:await tx.request().query('SELECT p.[Currency] AS [currency],p.[periodKey],'+aggregateProjection+','+unmapped+','+dayCoverage+' FROM #AdsScope p GROUP BY p.[Currency],p.[periodKey] ORDER BY p.[Currency],p.[periodKey];');
+    const totals=analysisOnly?{recordset:[]}:await tx.request().query('SELECT p.[Currency] AS [currency],p.[periodKey],'+aggregateProjection+','+unmapped+','+dayCoverage+' FROM #AdsScope p GROUP BY p.[Currency],p.[periodKey] ORDER BY p.[Currency],p.[periodKey];');
     const bucket=bucketExpr(f.granularity);
-    const series=insightsOnly?{recordset:[]}:await tx.request().query('SELECT p.[Currency] AS [currency],p.[periodKey],'+bucket+' AS [bucket],'+aggregateProjection+','+unmapped+','+dayCoverage+
+    const series=analysisOnly?{recordset:[]}:await tx.request().query('SELECT p.[Currency] AS [currency],p.[periodKey],'+bucket+' AS [bucket],'+aggregateProjection+','+unmapped+','+dayCoverage+
       ' FROM #AdsScope p GROUP BY p.[Currency],p.[periodKey],'+bucket+' ORDER BY p.[Currency],p.[periodKey],[bucket];');
     let total=0,page=1,totalPages=1,rows=[];
     if(!f.entityKey){
@@ -147,9 +148,9 @@ async function readCanonicalReport({pool,sql,user,query,exportAll=false,insights
         (f.groupBy==='asin'?'MAX(p.[CatalogBrand])':'CAST(NULL AS nvarchar(255))')+' AS [CatalogBrand],'+
         (f.groupBy==='asin'?'MAX(p.[CatalogCategory])':'CAST(NULL AS nvarchar(255))')+' AS [CatalogCategory],'+aggregateProjection+','+unmapped+','+dayCoverage+
         ' INTO #AdsGroups FROM #AdsScope p GROUP BY '+groupFields.map(c=>'p.'+c).join(',')+'; SELECT DISTINCT '+keys.join(',')+' INTO #AdsEntities FROM #AdsGroups; SELECT TOP(0) CAST(0 AS bigint) AS [rank],'+keys.join(',')+' INTO #AdsPage FROM #AdsEntities;');
-      if(insightsOnly){
-        stage='review_signals';
-        const review=await readReviewSignals({tx,sql,days:f.period.days});
+      if(analysisOnly){
+        stage=portfolioOnly?'portfolio_analytics':'review_signals';
+        const review=portfolioOnly?await readPortfolioAnalytics({tx,sql,period:f.period,granularity:f.granularity}):await readReviewSignals({tx,sql,days:f.period.days});
         await tx.request().batch('DROP TABLE #AdsPage; DROP TABLE #AdsEntities; DROP TABLE #AdsGroups; DROP TABLE #AdsScope;');
         await tx.commit();return {...scopeMeta(f),...review};
       }

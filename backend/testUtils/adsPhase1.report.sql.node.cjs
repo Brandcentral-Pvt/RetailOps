@@ -109,5 +109,34 @@ test('SQL: canonical scope, duplicate catalog protection, current/prior comparis
   assert.equal(comparison.rows[0].comparison.metrics.spend.percentChange,'40');
   assert.equal(comparison.rows[0].comparison.metrics.sales.percentChange,'-50');
   assert.equal(comparison.comparisons[0].ratios.acos.delta,'45');
+  const analyze=(extra={},actor=user)=>readCanonicalReport({pool,sql,user:actor,query:{...signalQuery,...extra},portfolioOnly:true});
+  const analytics=await analyze({limit:'1',page:'99'});
+  assert.deepEqual(analytics.groups.map(x=>x.currency),['INR','USD']);
+  const g=analytics.groups[0],spend=g.concentration.find(x=>x.metric==='spend');
+  assert.equal(g.totalEntities,18);assert.equal(g.currentEntities,17);
+  assert.equal(spend.positiveTotal,'158');assert.equal(spend.positiveEntities,17);assert.equal(spend.priorOnlyEntities,1);
+  assert.equal(spend.leadingCount,13);assert.equal(spend.samples.length,10);
+  assert.equal(g.segments.reduce((n,x)=>n+x.count,0),18);
+  assert.equal(g.segments.find(x=>x.code==='spend_zero_sales').count,13);
+  assert.equal(g.segments.find(x=>x.code==='prior_only').count,1);
+  assert.equal(g.segments.find(x=>x.code==='insufficient_coverage').count,1);
+  assert.ok(g.segments.flatMap(x=>x.items).every(x=>x.sellerId==='s1'));
+  assert.equal(analytics.trends.filter(x=>x.currency==='INR').length,2);
+  const trend=analytics.trends.find(x=>x.currency==='INR'&&x.bucket==='2026-05-01');
+  assert.equal(trend.previousStart,'2026-04-29');assert.equal(trend.currentStart,'2026-05-01');
+  assert.equal(trend.current.totals.spend,'87');assert.equal(trend.previous.totals.spend,'13');
+  const brand=analytics.breakdowns.find(x=>x.dimension==='brand'&&x.currency==='INR');
+  assert.equal(brand.items[0].label,'Brand unavailable');
+  const sellerBreakdown=analytics.breakdowns.find(x=>x.dimension==='seller'&&x.currency==='INR');
+  assert.equal(sellerBreakdown.totalGroups,'1');assert.equal(sellerBreakdown.items[0].groupKey,'s1');
+  assert.equal(sellerBreakdown.items[0].current.totals.spend,'158');
+  const month=await analyze({granularity:'month',sellerId:'s1'});
+  assert.equal(month.trends.length,1);assert.equal(month.trends[0].days,2);
+  assert.equal(month.trends[0].previousStart,'2026-04-29');assert.equal(month.trends[0].current.totals.spend,'158');
+  assert.equal((await analyze({brand:'not-a-brand'})).empty,true);
+  await assert.rejects(()=>analyze({sellerId:'s1,s3'}),{code:'forbidden_seller'});
+  await assert.rejects(()=>analyze({groupBy:'parent'}),{code:'invalid_ads_filter'});
+  const noScope=await analyze({}, {...user,assignedSellers:[]});assert.equal(noScope.empty,true);
+
  }finally{if(pool)await pool.close();await admin.request().query('ALTER DATABASE ['+database+'] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE ['+database+'];').catch(()=>{});await admin.close();}
 });

@@ -106,4 +106,4 @@ async function readCanonicalSummary({pool,sql,user,sellerId,startDate,endDate}){
   const currencies=result.recordset.map(shapeSummary);
   return {period,reportType:'daily',currencies,empty:currencies.length===0,source:'canonical_v1'};
 }
-module.exports={METRICS,RATIOS,ratio,difference,shapeSummary,validateWindow,readCanonicalSummary,aggregateProjection};
+module.exports={METRICS,RATIOS,ratio,difference,toFixedUnits:fixed,fromFixedUnits:n=>display(n,10),shapeSummary,validateWindow,readCanonicalSummary,aggregateProjection};
