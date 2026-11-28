@@ -2,7 +2,7 @@
 const {getPool,sql}=require('../database/db');
 const {AdsScopeError}=require('../services/adsCanonicalScope');
 const {parseAnalystRequest,loadEvidence}=require('../services/adsAnalystEvidence');
-const {reviewSnapshot}=require('../services/adsAnalystReview');
+const {reviewSnapshot,analystAvailability}=require('../services/adsAnalystReview');
 let active=0;
 const {createHash}=require('node:crypto');
 async function run(req,res,useAI=false){
@@ -13,8 +13,8 @@ async function run(req,res,useAI=false){
   if(active>=2)throw new AdsScopeError('analyst_busy','Analyst evidence is busy. Retry shortly.',429);
   active++;reserved=true;
   const owner=String(req.user.Id||req.user.id||req.user._id||'');
-  let admissionReason=null;
-  if(useAI&&process.env.ADS_ANALYST_AI_ENABLED==='true'){
+  let admissionReason=useAI?analystAvailability():null;
+  if(useAI&&!admissionReason){
    const cache=require('../services/cacheService');
    const admitted=owner?await cache.reserveOnce(cache.key('ads-analyst-cooldown',createHash('sha256').update(owner).digest('hex')),60):null;
    if(admitted===false)throw new AdsScopeError('analyst_rate_limited','Wait one minute before requesting another AI ranking.',429);
