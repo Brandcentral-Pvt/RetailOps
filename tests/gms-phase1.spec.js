@@ -52,7 +52,7 @@ async function setup(page, nonempty=false, {historyCount=0,issueCount=1,wideMatr
       }
       return fail ? send({ success:false,message:'Failed' },500) : send({success:true,data});
     }
-    if(path.endsWith('/export/start-gms')){lastExport=route.request().postDataJSON();return send({success:true,downloadId:'test-export',fileName:'gms.xlsx'});}
+    if(path.endsWith('/export/gms-jobs')&&route.request().method()==='POST'){lastExport=route.request().postDataJSON().filters;return send({success:true,data:{id:'test-export',status:'QUEUED'}});}
     if (path.endsWith('/upload/gms-imports') && route.request().method()==='GET') return send({success:true,data:historyFixture});
     if (path.endsWith('/upload/gms-imports') && route.request().method()==='POST') {
       uploads++;
