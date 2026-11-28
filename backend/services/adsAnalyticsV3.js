@@ -26,7 +26,7 @@ function compareValue(current,previous,{kind,key,days}){
    observedDelta,observedPercentChange:relative,percentageStatus:kind==='ratio'?'not_applicable':observedDelta===null?'unknown':relative===null?'nonpositive_baseline':status==='comparable'?'comparable':'observed_only'};
 }
 function comparePeriods(current,previous,days){
- if(!Number.isInteger(days)||days<1||days>366)throw Error('Invalid comparison window');
+ if(!Number.isInteger(days)||days<1||days>36600||(days>366&&previous!=null))throw Error('Invalid comparison window');
  return {expectedDays:days,currentDays:current?.coveredDays??null,previousDays:previous?.coveredDays??null,
    metrics:Object.fromEntries(Object.keys(METRICS).map(key=>[key,compareValue(current,previous,{kind:'metric',key,days})])),
    ratios:Object.fromEntries(Object.keys(RATIOS).map(key=>[key,compareValue(current,previous,{kind:'ratio',key,days})]))};
