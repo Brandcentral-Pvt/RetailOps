@@ -147,7 +147,8 @@ test('confirmed import queues immediately and polls real stage progress',async({
  await dialog.getByRole('button',{name:'Open',exact:true}).click();
  await dialog.getByRole('button',{name:'Confirm import',exact:true}).click();
  await expect(dialog.getByText('Waiting for worker',{exact:true})).toBeVisible();
- await expect(dialog.getByRole('button',{name:'Close',exact:true})).toBeEnabled();
+ // Ant renders both a title-bar close control and a footer Close button.
+ await expect(dialog.locator('.ant-modal-footer').getByRole('button',{name:'Close',exact:true})).toBeEnabled();
  await expect(dialog.getByText('50% staged',{exact:true})).toBeVisible();
  await expect(dialog.getByText('10 inserted · 0 unchanged')).toBeVisible({timeout:12000});
  expect(posts).toBe(1);
