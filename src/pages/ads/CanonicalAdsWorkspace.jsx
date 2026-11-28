@@ -9,7 +9,9 @@ import { apiClient } from '../../lib/api-client';
 import AdsImportModal from '../../components/ads/AdsImportModal';
 import {AdsComparisonPanel,AdsOpportunityPanel,DeltaText} from './AdsPerformanceReview';
 import AdsPortfolioPanel from './AdsPortfolioPanel';
+import AdsReconciliationPanel from './AdsReconciliationPanel';
 import {AdsBudgetPanel,AdsProductDiagnosticPanel} from './AdsBudgetIntelligence';
+import {adsCount,adsMoney,adsRate} from './adsNumberFormat.mjs';
 import './canonicalAdsWorkspace.css';
 
 const iso=value=>{
@@ -20,8 +22,8 @@ const iso=value=>{
 };
 const get=async(path,params,signal)=>(await apiClient.get('/ads/'+path,{params,signal})).data.data;
 const errorText=e=>e?.response?.data?.message||e?.message||'Could not load advertising data.';
-const amount=(value,currency)=>value===null||value===undefined?'N/A':(currency?currency+' ':'')+value;
-const ratioValue=(r,suffix='%')=>r?.value==null?'N/A':r.value+suffix;
+const amount=(value,currency)=>currency?adsMoney(value,currency):adsCount(value);
+const ratioValue=(r,suffix='%')=>adsRate(r?.value,suffix);
 const coverageLabel=m=>m?.status==='complete'?null:<Tag color={m?.status==='partial'?'gold':'default'}>{m?.status==='partial'?'Partial':m?.status==='incompatible_coverage'?'Unmatched coverage':'Unknown'}</Tag>;
 const METRIC_COLUMNS=[['Spend','spend',true],['Ad sales','sales',true],['Total sales','totalSales',true],['Organic sales','organicSales',true],['Ad orders','orders'],['Total orders','totalOrders'],['Conversions','conversions'],['Clicks','clicks'],['Impressions','impressions']];
 const RATIO_COLUMNS=[['ACoS','acos','%'],['TACoS','tacos','%'],['ROAS','roas','x'],['CVR','cvr','%']];
@@ -32,7 +34,7 @@ const Summary=({summary,title})=><Card size="small" title={title+' | '+summary.c
         </Col>)}
         {RATIO_COLUMNS.map(([label,key,suffix])=><Col xs={12} md={6} key={key}><Typography.Text type="secondary">{label}</Typography.Text><div style={{fontSize:19,fontWeight:600}}>{ratioValue(summary.ratios[key],suffix)}</div>{coverageLabel(summary.ratios[key])}</Col>)}
     </Row>
-    <Typography.Text type="secondary">Source rows: {summary.rowCount}. Unmapped or ambiguous catalog rows: {summary.unmappedRows}.</Typography.Text>
+    <Typography.Text type="secondary">Source rows: {adsCount(summary.rowCount)}. Unmapped or ambiguous catalog rows: {adsCount(summary.unmappedRows)}.</Typography.Text>
 </Card>;
 const TrendTable=({series})=>series.length===0?<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No historical records in this period"/>:<div className="ads-table-shell" data-testid="ads-trend-table"><Table tableLayout="fixed" size="small" rowKey={r=>JSON.stringify([r.currency,r.periodKey,r.bucket])} dataSource={series} pagination={{pageSize:10}} scroll={{x:760}}
     columns={[{title:'Period',dataIndex:'periodKey',width:100},{title:'Date / bucket',dataIndex:'bucket',width:125},{title:'Currency',dataIndex:'currency',width:90},
@@ -62,6 +64,7 @@ export default function CanonicalAdsWorkspace(){
     const [drill,setDrill]=useState(null);
     const [requestedReview,setRequestedReview]=useState(null);
     const [requestedPortfolio,setRequestedPortfolio]=useState(null);
+    const [requestedReconciliation,setRequestedReconciliation]=useState(null);
     const [portfolioGranularity,setPortfolioGranularity]=useState('week');
     const [importOpen,setImportOpen]=useState(false);
         const [exportBusy,setExportBusy]=useState(false);
@@ -88,6 +91,9 @@ export default function CanonicalAdsWorkspace(){
     const portfolioRequested=requestedPortfolio===reviewSignature;
     const portfolio=useQuery({queryKey:['ads-canonical',principal,'portfolio',portfolioFilters],queryFn:({signal})=>get('canonical-portfolio',portfolioFilters,signal),enabled:enabled&&portfolioRequested&&!!filters.startDate&&!!filters.endDate,staleTime:0,retry:false,refetchOnWindowFocus:false});
     const analyzePortfolio=()=>{if(portfolioRequested)portfolio.refetch();else setRequestedPortfolio(reviewSignature);};
+    const reconciliationRequested=requestedReconciliation===reviewSignature;
+    const reconciliation=useQuery({queryKey:['ads-canonical',principal,'reconciliation',reviewFilters],queryFn:({signal})=>get('canonical-reconciliation',reviewFilters,signal),enabled:enabled&&reconciliationRequested&&!!filters.startDate&&!!filters.endDate,staleTime:0,retry:false,refetchOnWindowFocus:false,refetchOnReconnect:false});
+    const reconcile=()=>{if(reconciliationRequested)reconciliation.refetch();else setRequestedReconciliation(reviewSignature);};
     const targetFilters={sellerId:seller,startDate:filters.startDate,endDate:filters.endDate,currency};
     const targetsApplicable=!brand&&!category&&!search&&!marketplace;
     const targets=useQuery({queryKey:['ads-canonical',principal,'budget',targetFilters],queryFn:({signal})=>get('canonical-budget',targetFilters,signal),enabled:enabled&&targetsApplicable&&!!filters.startDate&&!!filters.endDate,staleTime:0,retry:false});
@@ -111,7 +117,7 @@ export default function CanonicalAdsWorkspace(){
         // Keep the completed modal visible. Move the report to the imported seller/date
         // and invalidate all affected local queries after the committed response.
         setSeller(info.sellerId||undefined);setBrand(undefined);setCategory(undefined);setCurrency(info.currency);setMarketplace(undefined);
-        setSearch('');setSearchInput('');setDrill(null);setRequestedReview(null);setRequestedPortfolio(null);setPaging({key:'',page:1,limit:50});
+        setSearch('');setSearchInput('');setDrill(null);setRequestedReview(null);setRequestedPortfolio(null);setRequestedReconciliation(null);setPaging({key:'',page:1,limit:50});
         const end=new Date(info.endDate+'T00:00:00'),start=new Date(info.startDate+'T00:00:00');
         const earliest=new Date(end);earliest.setDate(earliest.getDate()-365);
         updateDateRange({startDate:start<earliest?earliest:start,endDate:end,rangeType:'custom'});
@@ -155,7 +161,7 @@ export default function CanonicalAdsWorkspace(){
                 <AdsOpportunityPanel review={review} requested={reviewRequested} onAnalyze={analyze} days={data.period.days} onOpen={row=>setDrill({signature,row,groupBy:'asin'})}/>
                 <AdsPortfolioPanel portfolio={portfolio} requested={portfolioRequested} onAnalyze={analyzePortfolio} granularity={portfolioGranularity} onGranularity={setPortfolioGranularity} onOpen={row=>setDrill({signature,row,groupBy:'asin'})} onFilter={(dimension,row)=>{if(dimension==='seller')setSeller(row.groupKey);else setBrand(row.groupKey);setCurrency(row.current?.currency||row.previous?.currency);setMarketplace(row.marketplace);setDrill(null);}}/>
                 <Card size="small" title="Historical comparison"><TrendTable series={data.series}/></Card>
-                <Card size="small" title={'Product and seller analytics ('+data.total+' entities)'}>
+                <Card size="small" title={'Product and seller analytics ('+adsCount(data.total)+' entities)'}>
                     <div className="ads-table-shell" data-testid="ads-product-table"><Table tableLayout="fixed" rowKey="key" columns={columns} dataSource={data.rows} size="small" sticky scroll={{x:2300,y:520}} loading={report.isFetching}
                         pagination={{current:data.page,pageSize:data.limit,total:data.total,showSizeChanger:true,pageSizeOptions:[25,50,100]}}
                         onChange={(p,_f,s,extra)=>{
@@ -167,6 +173,7 @@ export default function CanonicalAdsWorkspace(){
                 </Card>
             </>}
         </>}
+        {data&&<AdsReconciliationPanel key={reviewSignature} audit={reconciliation} requested={reconciliationRequested} onRun={reconcile}/>}
         <AdsBudgetPanel key={JSON.stringify([principal,targetFilters])} applicable={targetsApplicable} budget={targets} onRetry={()=>targets.refetch()}/>
         <Drawer rootClassName="ads-history-drawer" title={drillTarget?drillTarget.entityKey+' | '+drillTarget.sellerName:'Product history'} open={!!drillTarget} onClose={()=>setDrill(null)} width="min(900px, 95vw)">
             {history.isError?<Alert type="error" message={errorText(history.error)} action={<Button onClick={()=>history.refetch()}>Retry</Button>}/>:history.isPending?<Spin/>:history.data&&<>

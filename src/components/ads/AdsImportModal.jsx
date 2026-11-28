@@ -1,3 +1,4 @@
+import {adsCount,adsMoney} from '../../pages/ads/adsNumberFormat.mjs';
 import React,{useEffect,useRef,useState} from 'react';
 import {Alert,Button,Card,Col,Descriptions,Input,Modal,Progress,Row,Select,Space,Table,Tabs,Tag,Upload} from 'antd';
 import {InboxOutlined,DownloadOutlined,ReloadOutlined} from '@ant-design/icons';
@@ -9,14 +10,14 @@ const previewJob=status=>['PREVIEW_QUEUED','VALIDATING'].includes(status);
 const activeJob=status=>previewJob(status)||['QUEUED','PROCESSING'].includes(status);
 const historyStatuses=['PREVIEW_QUEUED','VALIDATING','READY','QUEUED','PROCESSING','COMPLETED','REJECTED','FAILED','CANCELLED','EXPIRED'];
 const stageNames={preview_queued:'Waiting for validation worker',preview_scanning:'Scanning CSV records',preview_catalog:'Validating catalog ownership',queued:'Waiting for worker',retry_wait:'Waiting to retry',validating:'Revalidating source and access',staging:'Staging source records',seller_lock:'Acquiring seller lock',catalog_ownership:'Checking catalog ownership',historical_conflict_check:'Checking historical records',insert:'Inserting facts',reconcile:'Reconciling persisted records',commit:'Committing transaction',completed:'Completed'};
-const count=v=>v==null?'Unknown':Number(v).toLocaleString('en-IN');
+const count=v=>adsCount(v,'Unknown');
 const time=v=>v?new Date(v).toLocaleString():'N/A';
 const errText=(e,fallback)=>{
  const data=e.response?.data;
  if(data?.code==='entity.parse.failed'||data?.code==='INVALID_JSON')return 'Invalid request format. Refresh the application and retry.';
  return typeof data?.message==='string'?data.message:fallback;
 };
-const money=(v,c)=>v==null||!c?'N/A':c+' '+v;
+const money=(v,c)=>c?adsMoney(v,c):'N/A';
 
 export default function AdsImportModal({isOpen,onClose,onComplete}){
  const [tab,setTab]=useState('upload');
@@ -193,7 +194,7 @@ export default function AdsImportModal({isOpen,onClose,onComplete}){
    description="Empty rows are excluded from the imported data and validation counts. Original CSV record numbers are retained."/>}
   {!!summary.sellerBreakdown?.length&&<Table size="small" rowKey="sellerId" pagination={{pageSize:5}} dataSource={job.result?.sellerBreakdown||summary.sellerBreakdown} scroll={{x:600}} columns={[
    {title:'Seller',dataIndex:'sellerId',render:v=>sellers.find(s=>s.id===v)?.name||v},{title:'Marketplace',dataIndex:'marketplace'},{title:'Currency',dataIndex:'currency'},
-   {title:'ASINs',dataIndex:'asinCount'},{title:'Inserted',dataIndex:'inserted',render:v=>v??'N/A'},{title:'Unchanged',dataIndex:'unchanged',render:v=>v??'N/A'}]}/>}
+   {title:'ASINs',dataIndex:'asinCount',render:v=>adsCount(v)},{title:'Inserted',dataIndex:'inserted',render:v=>adsCount(v)},{title:'Unchanged',dataIndex:'unchanged',render:v=>adsCount(v)}]}/>}
   {summary.totals&&<Descriptions bordered size="small" column={2}>
    <Descriptions.Item label="Ad spend">{money(summary.totals['metrics.spend'],job.currency)}</Descriptions.Item>
    <Descriptions.Item label="Ad sales">{money(summary.totals['metrics.sales'],job.currency)}</Descriptions.Item>

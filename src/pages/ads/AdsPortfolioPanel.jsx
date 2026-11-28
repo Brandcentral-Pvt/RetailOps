@@ -2,6 +2,7 @@ import React,{useMemo,useState} from 'react';
 import {Alert,Button,Card,Empty,Progress,Select,Spin,Table,Tabs,Tag,Typography} from 'antd';
 import {CartesianGrid,Legend,Line,LineChart,ResponsiveContainer,Tooltip,XAxis,YAxis} from 'recharts';
 import {DeltaText} from './AdsPerformanceReview';
+import {formatAdsValue,adsCount,adsRate} from './adsNumberFormat.mjs';
 
 const metricOptions=[
  {value:'totalSales',label:'Total sales',unit:'money'},{value:'sales',label:'Ad sales',unit:'money'},
@@ -10,8 +11,8 @@ const metricOptions=[
  {value:'clicks',label:'Clicks',unit:'count'},{value:'conversions',label:'Conversions',unit:'count'},
  {value:'ctr',label:'CTR',unit:'%'},{value:'cvr',label:'CVR',unit:'%'},{value:'cpc',label:'CPC',unit:'money'}
 ];
-const fmt=(v,unit,currency)=>v==null?'N/A':(unit==='money'?currency+' ':'')+String(v)+(unit==='%'?'%':unit==='x'?'×':'');
-const n=v=>v==null?'N/A':Number(v).toLocaleString('en-IN');
+const fmt=(v,unit,currency)=>formatAdsValue(v,unit,currency);
+const n=adsCount;
 const asPlot=v=>v==null||!Number.isFinite(Number(v))?null:Number(v);
 const compact=new Intl.NumberFormat('en',{notation:'compact',maximumFractionDigits:2});
 const dateRange=(a,b)=>a===b?a:a+' to '+b;
@@ -32,17 +33,17 @@ function Concentration({group,onOpen}){
  return <>
   <div className="ads-analytics-toolbar">
    <div><strong>80% contribution analysis</strong><div className="ads-analytics-note">Positive observed product contributions, ranked by value.</div></div>
-   <Select id="ads-portfolio-concentration-metric" aria-label="Concentration metric" value={m.metric} onChange={setMetric} options={metricOptions.slice(0,3).map(({value,label})=>({value,label}))} style={{width:165}}/>
+   <Select virtual={false} id="ads-portfolio-concentration-metric" aria-label="Concentration metric" value={m.metric} onChange={setMetric} options={metricOptions.slice(0,3).map(({value,label})=>({value,label}))} style={{width:165}}/>
   </div>
   <div className="ads-portfolio-stats">
    <Stat label="Positive contribution" value={amount(m.positiveTotal,currency)} note={n(m.positiveEntities)+' positive products'}/>
-   <Stat label="Leading 80% group" value={n(m.leadingCount)} note={m.leadingSharePct==null?'No positive population':m.leadingSharePct+'% actual contribution'}/>
-   <Stat label="Remaining positive group" value={n(m.remainingCount)} note={m.remainingSharePct==null?'No positive population':m.remainingSharePct+'% actual contribution'}/>
+   <Stat label="Leading 80% group" value={n(m.leadingCount)} note={m.leadingSharePct==null?'No positive population':adsRate(m.leadingSharePct)+' actual contribution'}/>
+   <Stat label="Remaining positive group" value={n(m.remainingCount)} note={m.remainingSharePct==null?'No positive population':adsRate(m.remainingSharePct)+' actual contribution'}/>
    <Stat label="Net observed amount" value={amount(m.netObserved,currency)} note="Includes signed adjustments"/>
   </div>
   {m.positiveEntities>0&&<div className="ads-pareto-bar">
    <Progress percent={Math.min(100,Math.max(0,Number(m.leadingSharePct)))} showInfo={false} strokeColor="#2563eb" trailColor="#cbd5e1"/>
-   <div className="ads-analytics-toolbar"><span>Leading: {amount(m.leadingAmount,currency)} ({m.leadingSharePct}%)</span><span>Remaining: {amount(m.remainingAmount,currency)} ({m.remainingSharePct}%)</span></div>
+   <div className="ads-analytics-toolbar"><span>Leading: {amount(m.leadingAmount,currency)} ({adsRate(m.leadingSharePct)})</span><span>Remaining: {amount(m.remainingAmount,currency)} ({adsRate(m.remainingSharePct)})</span></div>
   </div>}
   <div className="ads-analytics-note">Excluded from the positive denominator: {n(m.zeroEntities)} explicit zero, {n(m.negativeEntities)} negative, {n(m.unknownEntities)} unknown, {n(m.priorOnlyEntities)} prior-only. {n(m.partialPositiveEntities)} positive products have incomplete observed date or field coverage. The crossing product is included; actual share may exceed 80%.</div>
   {m.samples.length===0?<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No positive observed product contributions"/>:<>
@@ -90,7 +91,7 @@ function Segments({group,onOpen}){
     {title:'ASIN / seller',width:235,render:(_,r)=><ProductCell row={r} onOpen={onOpen}/>},
     {title:'Spend',width:145,render:(_,r)=>amount(r.spend,currency)},{title:'Ad sales',width:145,render:(_,r)=>amount(r.sales,currency)},
     {title:'Total sales',width:145,render:(_,r)=>amount(r.totalSales,currency)},{title:'ROAS',width:95,render:(_,r)=>fmt(r.roas,'x',currency)},
-    {title:'CVR',width:95,render:(_,r)=>fmt(r.cvr,'%',currency)},{title:'Evidence',width:260,render:(_,r)=><>{evidenceTag(r.evidenceStatus)}<div className="ads-analytics-note">Dates: {r.currentDays??'N/A'}/{r.expectedDays}; spend rows: {r.spendRows??'N/A'}/{r.currentRows??'N/A'}; sales rows: {r.salesRows??'N/A'}/{r.currentRows??'N/A'}</div></>}
+    {title:'CVR',width:95,render:(_,r)=>fmt(r.cvr,'%',currency)},{title:'Evidence',width:260,render:(_,r)=><>{evidenceTag(r.evidenceStatus)}<div className="ads-analytics-note">Dates: {r.currentDays??'N/A'}/{r.expectedDays}; spend rows: {adsCount(r.spendRows)}/{adsCount(r.currentRows)}; sales rows: {adsCount(r.salesRows)}/{adsCount(r.currentRows)}</div></>}
    ]}/></div>
   </>}
  </>;
@@ -113,8 +114,8 @@ function Trends({rows,currency,granularity,onGranularity}){
   <div className="ads-analytics-toolbar">
    <div><strong>Aligned period trends</strong><div className="ads-analytics-note">Prior dates are aligned to equal-length current day, week or month slices.</div></div>
    <div className="ads-portfolio-controls">
-    <Select id="ads-portfolio-trend-granularity" aria-label="Portfolio trend granularity" value={granularity} onChange={onGranularity} options={[{value:'day',label:'Daily'},{value:'week',label:'Weekly'},{value:'month',label:'Monthly'}]} style={{width:120}}/>
-    <Select aria-label="Portfolio trend metric" value={metric} onChange={setMetric} options={metricOptions.map(({value,label})=>({value,label}))} style={{width:160}}/>
+    <Select virtual={false} id="ads-portfolio-trend-granularity" aria-label="Portfolio trend granularity" value={granularity} onChange={onGranularity} options={[{value:'day',label:'Daily'},{value:'week',label:'Weekly'},{value:'month',label:'Monthly'}]} style={{width:120}}/>
+    <Select virtual={false} aria-label="Portfolio trend metric" value={metric} onChange={setMetric} options={metricOptions.map(({value,label})=>({value,label}))} style={{width:160}}/>
    </div>
   </div>
   <div className="ads-analytics-note">Missing buckets are gaps, not zeros. Chart coordinates are approximate; hover values and table values use exact source aggregates. Partial observations remain visible and labelled.</div>
@@ -164,7 +165,7 @@ export default function AdsPortfolioPanel({portfolio,requested,onAnalyze,onOpen,
   </div>
   {!requested?<div className="ads-analytics-note">Run on demand. The analysis is independent of product table pagination.</div>:portfolio.isError?<Alert showIcon type="error" message={portfolio.error?.response?.data?.message||'Portfolio analytics could not be loaded.'}/>:portfolio.isPending?<div className="ads-inline-loading"><Spin size="small"/> Analyzing the authorized portfolio…</div>:data?.empty||!group?<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No matching products for portfolio analysis"/>:<>
    <div className="ads-analytics-toolbar"><div><strong>{n(group.totalEntities)} products</strong> · {n(group.currentEntities)} with current records</div>
-    {groups.length>1&&<Select id="ads-portfolio-currency" aria-label="Portfolio currency" value={group.currency} onChange={setCurrency} options={groups.map(g=>({value:g.currency,label:g.currency}))} style={{width:130}}/>}
+    {groups.length>1&&<Select virtual={false} id="ads-portfolio-currency" aria-label="Portfolio currency" value={group.currency} onChange={setCurrency} options={groups.map(g=>({value:g.currency,label:g.currency}))} style={{width:130}}/>}
    </div>
    <Tabs activeKey={tab} onChange={setTab} items={[
     {key:'concentration',label:'80% concentration',children:<Concentration group={group} onOpen={onOpen}/>},

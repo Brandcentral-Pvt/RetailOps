@@ -41,6 +41,7 @@ on:
       - 'src/components/ProtectedRoute.jsx'
       - 'src/services/sessionRestore.mjs'
       - 'src/services/__tests__/sessionRestore.test.mjs'
+      - 'src/services/__tests__/adsNumberFormat.test.mjs'
       - 'backend/utils/errors.js'
       - 'backend/__tests__/routes/adsImportActions.test.js'
       - 'tests/fixtures/ads-layout.*'
@@ -87,6 +88,7 @@ jobs:
           node --check backend/services/adsCanonicalReport.js
           node --check backend/services/adsAnalyticsV3.js
           node --check backend/services/adsPortfolioAnalytics.js
+          node --check backend/services/adsAnalyticsReconciliation.js
           node --check backend/controllers/adsCanonicalReportController.js
           node --check backend/services/adsImportConfirmation.js
           node --check backend/services/adsCanonicalTargets.js
@@ -97,7 +99,7 @@ jobs:
           node --check backend/controllers/dashboardController.js
           node --check backend/controllers/targetController.js
           node --check backend/controllers/adsCanonicalExportController.js
-          node --test backend/testUtils/adsPhase1.contract.node.cjs backend/testUtils/adsPhase1.canonical.node.cjs backend/testUtils/adsPhase1.report.node.cjs backend/testUtils/adsPhase1.activation.node.cjs backend/testUtils/adsPhase2.preview.node.cjs backend/testUtils/adsPhase3.analytics.node.cjs backend/testUtils/adsPhase3.portfolio.node.cjs backend/testUtils/adsPhase3.budget.node.cjs
+          node --test backend/testUtils/adsPhase1.contract.node.cjs backend/testUtils/adsPhase1.canonical.node.cjs backend/testUtils/adsPhase1.report.node.cjs backend/testUtils/adsPhase1.activation.node.cjs backend/testUtils/adsPhase2.preview.node.cjs backend/testUtils/adsPhase3.analytics.node.cjs backend/testUtils/adsPhase3.portfolio.node.cjs backend/testUtils/adsPhase3.budget.node.cjs backend/testUtils/adsPhase3.reconciliation.node.cjs
   sql:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -131,7 +133,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: node --test src/services/__tests__/sessionRestore.test.mjs
+      - run: node --test src/services/__tests__/sessionRestore.test.mjs src/services/__tests__/adsNumberFormat.test.mjs
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test tests/ads-layout.spec.js

@@ -1,5 +1,6 @@
 import React,{useState} from 'react';
 import {Alert,Button,Card,Empty,Select,Space,Spin,Table,Tag,Typography} from 'antd';
+import {formatAdsValue,adsCount} from './adsNumberFormat.mjs';
 
 const labels={comparable:'Complete observed coverage',partial_coverage:'Partial field coverage',incomplete_calendar:'Incomplete dates',missing_current:'No current records',missing_previous:'No prior records',unknown_value:'Unknown metric',incompatible_coverage:'Incompatible coverage',currency_mismatch:'Different currencies'};
 const evidenceLabels={complete_observed:'Complete observed coverage',observed_partial:'Partial observation',data_gap:'Data quality'};
@@ -11,17 +12,15 @@ const metricRows=[
  ['ROAS','roas','x'],['CPC','cpc','currency'],['CPM','cpm','currency'],['Cost per ad order','costPerOrder','currency'],
  ['Ad AOV (per conversion)','aov','currency'],['Ad revenue per order','revenuePerOrder','currency'],['Ad sales share','adSharePct','%']
 ];
-const value=(v,unit,currency)=>v==null?'N/A':(unit==='money'||unit==='currency'?currency+' ':'')+v+(unit==='%'?'%':unit==='x'?'×':'');
-const sign=v=>v==null?'':v==='0'||v.startsWith('-')?v:'+'+v;
+const value=(v,unit,currency)=>formatAdsValue(v,unit,currency);
 function deltaLabel(change,{money=false,currency}={}){
  if(!change)return null;
  const comparable=change.status==='comparable';
  const delta=comparable?change.delta:change.observedDelta;
  if(delta==null)return null;
  const pct=comparable?change.percentChange:change.observedPercentChange;
- const unit=change.unit==='pp'?' pp':change.unit==='x'?'×':'';
- const cash=change.unit==='currency'||money;
- return (cash&&currency?currency+' ':'')+sign(delta)+unit+(pct!=null?' ('+sign(pct)+'%)':'');
+ const unit=change.unit==='pp'?'pp':change.unit==='x'?'x':change.unit==='currency'||money?'money':'count';
+ return formatAdsValue(delta,unit,currency,{signed:true})+(pct!=null?' ('+formatAdsValue(pct,'%',null,{signed:true})+')':'');
 }
 export function DeltaText({change,money,currency}){
  const label=deltaLabel(change,{money,currency});
@@ -76,17 +75,17 @@ export function AdsOpportunityPanel({review,requested,onAnalyze,onOpen,days}){
   </div>
   {!requested?<div className="ads-analytics-note">Run the analysis on demand to identify efficiency changes and data-quality gaps.</div>:review.isError?<Alert showIcon type="error" message={review.error?.response?.data?.message||'Product review could not be loaded.'}/>:review.isPending?<div className="ads-inline-loading"><Spin size="small"/> Analyzing the authorized report population…</div>:data?.empty||!population?<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No matching products to review"/>:<>
    <div className="ads-analytics-toolbar">
-    <div><strong>{population.totalEntities} products reviewed</strong> · {population.currentEntities} current · {population.previousEntities} prior<div className="ads-analytics-note">{population.currentFullCalendar} products have all {days} current dates; {population.alignedSpendSales} have aligned observed spend and ad sales.</div></div>
+    <div><strong>{adsCount(population.totalEntities)} products reviewed</strong> · {adsCount(population.currentEntities)} current · {adsCount(population.previousEntities)} prior<div className="ads-analytics-note">{adsCount(population.currentFullCalendar)} products have all {days} current dates; {adsCount(population.alignedSpendSales)} have aligned observed spend and ad sales.</div></div>
     {populations.length>1&&<Select aria-label="Review currency" value={currency} onChange={setCurrency} options={populations.map(p=>({value:p.currency,label:p.currency}))} style={{width:130}}/>}
    </div>
    <div className="ads-signal-grid">
     {signals.map(s=><button key={s.code} type="button" className={'ads-signal-choice'+(signal?.code===s.code?' active':'')} aria-pressed={signal?.code===s.code} onClick={()=>setCode(s.code)}>
-     <strong>{s.count}</strong><span>{s.label}</span>
+     <strong>{adsCount(s.count)}</strong><span>{s.label}</span>
     </button>)}
    </div>
    {signal&&<>
     <Alert type="info" showIcon message={signal.label} description={<>{signal.description} {signal.action}</>} style={{margin:'12px 0'}}/>
-    <div className="ads-analytics-note">Showing {signal.sampleCount} of {signal.count} matches in {currency}. Signals may overlap. These are review prompts, not automated bid or budget instructions.</div>
+    <div className="ads-analytics-note">Showing {adsCount(signal.sampleCount)} of {adsCount(signal.count)} matches in {currency}. Signals may overlap. These are review prompts, not automated bid or budget instructions.</div>
     <div className="ads-table-shell" style={{marginTop:8}}><Table tableLayout="fixed" size="small" rowKey="key" dataSource={signal.items} pagination={false} scroll={{x:1260}} columns={[
      {title:'ASIN / seller',width:230,render:(_,r)=><><Button type="link" className="ads-entity-link" onClick={()=>onOpen(r)}>{r.entityKey}</Button><div>{r.sellerName}</div><div className="ads-analytics-note">{r.title||r.marketplace}</div></>},
      {title:'Ad spend',width:145,render:(_,r)=><>{value(r.spend,'money',currency)}<div className="ads-analytics-note">Prior: {value(r.priorSpend,'money',currency)}</div></>},
@@ -94,7 +93,7 @@ export function AdsOpportunityPanel({review,requested,onAnalyze,onOpen,days}){
      {title:'Total sales',width:145,render:(_,r)=>value(r.totalSales,'money',currency)},
      {title:'Clicks',width:100,render:(_,r)=>value(r.clicks,'count',currency)},
      {title:'Conversions',width:110,render:(_,r)=>value(r.conversions,'count',currency)},
-     {title:'Evidence',width:300,render:(_,r)=><><Tag color={r.evidenceStatus==='complete_observed'?'green':r.evidenceStatus==='observed_partial'?'gold':'default'}>{evidenceLabels[r.evidenceStatus]||r.evidenceStatus}</Tag><div className="ads-analytics-note">Dates: {r.currentDays??'N/A'}/{days}; prior: {r.previousDays??'N/A'}/{days}. Spend rows: {r.spendRows??'N/A'}/{r.currentRows??'N/A'}; ad sales rows: {r.salesRows??'N/A'}/{r.currentRows??'N/A'}.</div></>}
+     {title:'Evidence',width:300,render:(_,r)=><><Tag color={r.evidenceStatus==='complete_observed'?'green':r.evidenceStatus==='observed_partial'?'gold':'default'}>{evidenceLabels[r.evidenceStatus]||r.evidenceStatus}</Tag><div className="ads-analytics-note">Dates: {r.currentDays??'N/A'}/{days}; prior: {r.previousDays??'N/A'}/{days}. Spend rows: {adsCount(r.spendRows)}/{adsCount(r.currentRows)}; ad sales rows: {adsCount(r.salesRows)}/{adsCount(r.currentRows)}.</div></>}
     ]}/></div>
    </>}
   </>}

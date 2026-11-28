@@ -42,6 +42,7 @@ const canonicalReport = require('../controllers/adsCanonicalReportController');
 router.get('/canonical-report', authenticate, canViewAds, canonicalReport.report);
 router.get('/canonical-insights', authenticate, canViewAds, canonicalReport.insights);
 router.get('/canonical-portfolio', authenticate, canViewAds, canonicalReport.portfolio);
+router.get('/canonical-reconciliation', authenticate, canViewAds, canonicalReport.reconciliation);
 router.get('/canonical-options', authenticate, canViewAds, canonicalReport.options);
 router.get('/canonical-targets', authenticate, canViewAds, require('../controllers/adsCanonicalTargetsController').targets);
 router.get('/canonical-budget', authenticate, canViewAds, require('../controllers/adsCanonicalTargetsController').budget);

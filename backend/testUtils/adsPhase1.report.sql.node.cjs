@@ -198,6 +198,25 @@ test('SQL: canonical scope, duplicate catalog protection, current/prior comparis
   const brandMany=many.breakdowns.find(x=>x.dimension==='brand');
   assert.equal(brandMany.totalGroups,'25');assert.equal(brandMany.items.length,20);
   assert.equal(brandMany.items[0].label,'Brand00');assert.equal(brandMany.items[0].current.totals.totalSales,'324');
+  // Full reconciliation runs against the same scope, not a current page.
+  const certify=(extra={},actor=user)=>readCanonicalReport({pool,sql,user:actor,query:{...signalQuery,...extra},reconciliationOnly:true});
+  const reconciled=await certify({limit:'1',page:'99'});
+  assert.equal(reconciled.status,'passed',JSON.stringify(reconciled.checks));
+  assert.equal(reconciled.checks.length,9);
+  assert.ok(reconciled.checks.every(c=>c.status==='passed'&&c.mismatchCount===0));
+  assert.deepEqual([...new Set(reconciled.baseline.map(x=>x.currency))],['INR','USD']);
+  assert.equal(reconciled.baseline.find(x=>x.currency==='INR'&&x.periodKey==='current').totals.spend,'158');
+  assert.equal((await certify({brand:'does-not-exist'})).status,'no_data');
+  assert.equal((await certify({}, {...user,assignedSellers:[]})).status,'no_data');
+  await assert.rejects(()=>certify({sellerId:'s1,s3'}),{code:'forbidden_seller'});
+  // Simulate a direct database inconsistency outside the validated importer.
+  await pool.request().query("UPDATE dbo.AdsProductDailyFacts SET OrderedRevenue=99 WHERE SellerId='s1' AND Asin='B000000031' AND [Date]='2026-05-01';");
+  const mismatch=await certify({sellerId:'s1'});
+  assert.equal(mismatch.status,'failed');
+  assert.equal(mismatch.checks.find(c=>c.code==='source_aliases').mismatchCount,1);
+  assert.equal(mismatch.checks.find(c=>c.code==='entity_rollup').status,'passed');
+  assert.equal(mismatch.quality.find(r=>r.periodKey==='current').totalSalesAliasMismatch,'1');
+
 
 
  }finally{if(pool)await pool.close();await admin.request().query('ALTER DATABASE ['+database+'] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE ['+database+'];').catch(()=>{});await admin.close();}

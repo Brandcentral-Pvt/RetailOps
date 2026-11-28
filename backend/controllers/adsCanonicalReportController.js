@@ -42,4 +42,16 @@ async function portfolio(req,res){
     return res.json({success:true,data:await readCanonicalReport({pool:await getPool(),sql,user:req.user,query:req.query,portfolioOnly:true})});
   }catch(e){return failure(res,e);}finally{if(slot)portfolioInFlight--;}
 }
-module.exports={report,options,insights,portfolio};
+let reconciliationInFlight=0;
+async function reconciliation(req,res){
+ let slot=false;
+ try{
+  const filters=parseReport(req.user,req.query);
+  if(filters.groupBy!=='asin'||filters.entityKey)throw new AdsScopeError('invalid_ads_filter','Reconciliation requires ASIN grouping.');
+  if(reconciliationInFlight>=1)throw new AdsScopeError('reconciliation_busy','Analytics reconciliation is busy. Retry shortly.',429);
+  reconciliationInFlight++;slot=true;
+  res.set('Cache-Control','private, no-store');
+  return res.json({success:true,data:await readCanonicalReport({pool:await getPool(),sql,user:req.user,query:req.query,reconciliationOnly:true})});
+ }catch(e){return failure(res,e);}finally{if(slot)reconciliationInFlight--;}
+}
+module.exports={report,options,insights,portfolio,reconciliation};
