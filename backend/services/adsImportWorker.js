@@ -17,13 +17,21 @@ async function claimNext({pool,sql}){
  const token=randomUUID();
  const failure=JSON.stringify({code:'retry_exhausted',message:'Import interrupted repeatedly. Validate a new report.',persisted:false});
  const issues=JSON.stringify([{row:null,column:null,code:'retry_exhausted',message:'Import interrupted repeatedly. Validate a new report.'}]);
- // Reap only an expired lease. A fenced worker can no longer publish facts.
- // This is separate from the claim so a short SQL statement holds the locks.
- await pool.request().input('result',sql.NVarChar(sql.MAX),failure).input('issues',sql.NVarChar(sql.MAX),issues)
-  .query("UPDATE dbo.AdsImportJobs SET Status='FAILED',Stage='failed',SourceBytes=NULL,LeaseToken=NULL,LeaseUntil=NULL,CompletedAt=SYSUTCDATETIME(),ResultJson=@result,IssuesJson=@issues WHERE Status='PROCESSING' AND LeaseUntil<=SYSUTCDATETIME() AND AttemptCount>=3;");
- const r=await pool.request().input('token',sql.VarChar(36),token).input('lease',sql.Int,LEASE_SECONDS)
-  .query(";WITH candidate AS (SELECT TOP (1) * FROM dbo.AdsImportJobs WITH (UPDLOCK,READPAST,READCOMMITTEDLOCK) WHERE AttemptCount<3 AND ((Status='QUEUED' AND NextAttemptAt<=SYSUTCDATETIME()) OR (Status='PROCESSING' AND LeaseUntil<=SYSUTCDATETIME())) ORDER BY QueuedAt,Id) UPDATE candidate SET Status='PROCESSING',AttemptCount=AttemptCount+1,LeaseToken=@token,LeaseUntil=DATEADD(second,@lease,SYSUTCDATETIME()),StartedAt=SYSUTCDATETIME(),Stage='validating',StagedRows=0 OUTPUT inserted.Id,inserted.OwnerId,inserted.SellerId,inserted.Marketplace,inserted.Currency,inserted.SourceFileSha256,inserted.SourceBytes,inserted.LeaseToken,inserted.AttemptCount;");
- return r.recordset[0]||null;
+ // A pooled SQL connection may retain SERIALIZABLE isolation from a prior
+ // writer. Explicitly start a short READ COMMITTED transaction, serialize
+ // claims across replicas, and avoid isolation-dependent READPAST hints.
+ const tx=new sql.Transaction(pool);
+ await tx.begin(sql.ISOLATION_LEVEL.READ_COMMITTED);
+ try{
+  const locked=await tx.request().query("DECLARE @lock int; EXEC @lock=sp_getapplock @Resource='retailops:ads-queue-claim',@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=0; SELECT @lock AS acquired;");
+  if(Number(locked.recordset[0].acquired)<0){await tx.rollback();return null;}
+  await tx.request().input('result',sql.NVarChar(sql.MAX),failure).input('issues',sql.NVarChar(sql.MAX),issues)
+   .query("UPDATE dbo.AdsImportJobs SET Status='FAILED',Stage='failed',SourceBytes=NULL,LeaseToken=NULL,LeaseUntil=NULL,CompletedAt=SYSUTCDATETIME(),ResultJson=@result,IssuesJson=@issues WHERE Status='PROCESSING' AND LeaseUntil<=SYSUTCDATETIME() AND AttemptCount>=3;");
+  const r=await tx.request().input('token',sql.VarChar(36),token).input('lease',sql.Int,LEASE_SECONDS)
+   .query(";WITH candidate AS (SELECT TOP (1) * FROM dbo.AdsImportJobs WITH (UPDLOCK,HOLDLOCK) WHERE AttemptCount<3 AND ((Status='QUEUED' AND NextAttemptAt<=SYSUTCDATETIME()) OR (Status='PROCESSING' AND LeaseUntil<=SYSUTCDATETIME())) ORDER BY QueuedAt,Id) UPDATE candidate SET Status='PROCESSING',AttemptCount=AttemptCount+1,LeaseToken=@token,LeaseUntil=DATEADD(second,@lease,SYSUTCDATETIME()),StartedAt=SYSUTCDATETIME(),Stage='validating',StagedRows=0 OUTPUT inserted.Id,inserted.OwnerId,inserted.SellerId,inserted.Marketplace,inserted.Currency,inserted.SourceFileSha256,inserted.SourceBytes,inserted.LeaseToken,inserted.AttemptCount;");
+  await tx.commit();
+  return r.recordset[0]||null;
+ }catch(error){try{await tx.rollback();}catch{}throw error;}
 }
 async function refreshLease({pool,sql,job,stage,staged}){
  const req=bind(pool.request(),sql,job).input('lease',sql.Int,LEASE_SECONDS);
