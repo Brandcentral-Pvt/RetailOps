@@ -5,16 +5,11 @@ const {AdsScopeError}=require('./adsCanonicalScope');
 
 // The owner map is built once per bounded reporting request. Never filter the
 // catalog before resolving ambiguity: another seller's mapping must still count.
-function buildFinancialBatch(scope,mode='full'){
- if(!['full','overview','products'].includes(mode))throw new AdsScopeError('invalid_dashboard_mode','Invalid dashboard section.',400);
+function buildOwnerBatch(scope){
  const placeholders=scope.sellerIds.map((_,i)=>'@dashSeller_'+i).join(',');
  const pre=scope.empty?' AND 1=0':scope.unrestricted?'':" AND (g.SellerId IS NULL OR g.SellerId IN ("+placeholders+"))";
  const owner=scope.empty?' AND 1=0':scope.unrestricted?'':scope.isGlobal?" AND COALESCE(k.StoredSellerId,u.SellerId) IN ("+placeholders+")":" AND u.SellerId IN ("+placeholders+") AND p.CatalogId IS NOT NULL AND (k.StoredSellerId IS NULL OR k.StoredSellerId=u.SellerId)";
- const adScope=scope.empty?' AND 1=0':scope.unrestricted?'':" AND AP.SellerId IN ("+placeholders+")";
- const p=(column,alias,condition,scale=2)=>metricProjection('g.'+column,alias,{condition,scale});
- const current='g.Date >= @startDate',prior='g.Date < @startDate';
- const counts="COUNT(DISTINCT CASE WHEN "+current+" THEN g.Date END) AS CurrentDays, COUNT(DISTINCT CASE WHEN "+prior+" THEN g.Date END) AS PreviousDays";
- const base=`
+ return `
  SET NOCOUNT ON;
  SELECT g.Asin,g.SellerId AS StoredSellerId,CONVERT(date,g.Date) AS [Date],
         g.OrderedRevenue,g.OrderedUnits,g.ShippedRevenue,g.CustomerReturns
@@ -41,6 +36,15 @@ function buildFinancialBatch(scope,mode='full'){
  DROP TABLE #DashSource,#DashKeys,#DashNormalized,#DashCatalog,#DashUnique,#DashPick,#DashMap;
  CREATE CLUSTERED INDEX IX_DashGms ON #DashGms(Asin,SellerId,Date);
  `;
+}
+function buildFinancialBatch(scope,mode='full'){
+ if(!['full','overview','products'].includes(mode))throw new AdsScopeError('invalid_dashboard_mode','Invalid dashboard section.',400);
+ const placeholders=scope.sellerIds.map((_,i)=>'@dashSeller_'+i).join(',');
+ const adScope=scope.empty?' AND 1=0':scope.unrestricted?'':" AND AP.SellerId IN ("+placeholders+")";
+ const p=(column,alias,condition,scale=2)=>metricProjection('g.'+column,alias,{condition,scale});
+ const current='g.Date >= @startDate',prior='g.Date < @startDate';
+ const counts="COUNT(DISTINCT CASE WHEN "+current+" THEN g.Date END) AS CurrentDays, COUNT(DISTINCT CASE WHEN "+prior+" THEN g.Date END) AS PreviousDays";
+ const base=buildOwnerBatch(scope);
  // The products response includes daily GMS totals for the exact same
  // snapshot/denominator, not a client-supplied total.
  const daily=`
@@ -126,4 +130,4 @@ async function readFinancialBatch({request,scope,mode,signal}){
   return {gmsDaily:r[0],adsDaily:mode==='products'?[]:r[1],sellerRows:mode==='products'?[]:r[2],sellingRows:mode==='products'?[]:r[3],topRows:mode==='overview'?[]:r[mode==='full'?4:1],sparkRows:mode==='overview'?[]:r[mode==='full'?5:2],portfolioRows:mode==='overview'?[]:r[mode==='full'?6:3]};
  }finally{signal?.removeEventListener('abort',cancel);}
 }
-module.exports={buildFinancialBatch,readFinancialBatch};
+module.exports={buildOwnerBatch,buildFinancialBatch,readFinancialBatch};
