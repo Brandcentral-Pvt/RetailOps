@@ -110,44 +110,13 @@ exports.getTargets = async (req, res) => {
         let whereClause = 'WHERE 1=1';
         const request = pool.request();
 
-        if (!isGlobalUser && req.user) {
-            const assignedSellerIds = (req.user.assignedSellers || []).map(s => (s._id || s.Id || s).toString());
-            const bmName = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim();
-            const bmId = req.user.Id || req.user._id || req.user.id;
-
-            const orParts = [];
-            if (assignedSellerIds.length > 0) {
-                const inClause = buildInClause(request, 'sid', assignedSellerIds);
-                orParts.push(`s.Id IN (${inClause})`);
-            }
-            if (bmName) {
-                request.input('bmName', sql.NVarChar, bmName);
-                orParts.push(`t.BrandManager = @bmName`);
-            }
-            if (bmId) {
-                request.input('bmId', sql.VarChar, bmId);
-                orParts.push(`t.UserId = @bmId`);
-            }
-            if (orParts.length > 0) {
-                whereClause += ` AND (${orParts.join(' OR ')})`;
-            }
-        }
-
-        // ✅ Brand filter fix: the dashboard passes sellerId (possibly a
-        // comma-separated list), goalType and brandManager (user id OR name).
-        // These were silently ignored before, so filters never affected results.
-        const { sellerId: sellerIdFilter, goalType: goalTypeFilter, brandManager: brandManagerFilter } = req.query;
-
-        if (sellerIdFilter && sellerIdFilter !== 'all') {
-            const ids = String(sellerIdFilter).split(',').map(s => s.trim()).filter(Boolean);
-            if (ids.length === 1) {
-                request.input('fsellerId', sql.VarChar, ids[0]);
-                whereClause += ' AND t.SellerId = @fsellerId';
-            } else if (ids.length > 1) {
-                const fsellerIn = buildInClause(request, 'fseller', ids);
-                whereClause += ` AND t.SellerId IN (${fsellerIn})`;
-            }
-        }
+        const {sellerId:sellerIdFilter,goalType:goalTypeFilter,brandManager:brandManagerFilter,managerId}=req.query;
+        // Preserve legacy manager-name search for the target workspace; the
+        // dashboard sends an authenticated manager ID as a separate filter.
+        const scope=await require('../services/dashboardScope').resolveDashboardScope({pool,sql,user:req.user,sellerId:sellerIdFilter,managerId});
+        res.set?.('Cache-Control','private, no-store');
+        if(scope.empty)return res.json({success:true,data:[]});
+        if(!scope.unrestricted)whereClause+=' AND t.SellerId IN ('+buildInClause(request,'targetScope',scope.sellerIds)+')';
         if (goalTypeFilter && goalTypeFilter !== 'all') {
             request.input('fgoalType', sql.NVarChar, goalTypeFilter);
             whereClause += ' AND UPPER(t.GoalType) = UPPER(@fgoalType)';
@@ -160,7 +129,7 @@ exports.getTargets = async (req, res) => {
 
         const targetsQuery = `
             SELECT 
-                t.Id, t.SellerId, t.BrandManager, t.TargetType, t.Year, t.Month, t.TotalTargetValue, t.GoalType, t.CreatedAt,
+                t.Id, t.SellerId, t.UserId, t.BrandManager, t.TargetType, t.Year, t.Month, t.TotalTargetValue, t.GoalType, t.CreatedAt,
                 s.Name AS SellerName
             FROM GmsTargets t
             LEFT JOIN Sellers s ON t.SellerId = s.Id
@@ -361,7 +330,7 @@ exports.getTargets = async (req, res) => {
         if (!res.headersSent) res.json({ success: true, data: enrichedTargets });
     } catch (e) {
         console.error("getTargets error:", e);
-        if (!res.headersSent) res.status(500).json({ success: false, message: e.message });
+        if (!res.headersSent) res.status(error instanceof require('../services/adsCanonicalScope').AdsScopeError?error.status:500).json({success:false,message:error instanceof require('../services/adsCanonicalScope').AdsScopeError?error.message:'Targets unavailable.'});
     }
 };
 
