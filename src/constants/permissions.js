@@ -18,6 +18,7 @@ export const PERMISSIONS = {
     MONTHLYREPORT_VIEW: 'monthlyreport_view',
     MONTHLYREPORT_EXPORT: 'monthlyreport_export',
     ADSREPORT_VIEW: 'adsreport_view',
+    ADSREPORT_IMPORT: 'adsreport_import',
     ADSREPORT_EXPORT: 'adsreport_export',
     PNLREPORT_VIEW: 'pnlreport_view',
     PNLREPORT_EXPORT: 'pnlreport_export',

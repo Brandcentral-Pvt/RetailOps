@@ -1,4 +1,5 @@
 const { sql, getPool, generateId } = require('../database/db');
+const { ADS_PERMISSIONS } = require('../database/adsPermissions');
 
 exports.getRoles = async (req, res) => {
   try {
@@ -291,9 +292,8 @@ const defaultPermissions = [
   { name: 'monthlyreport_view', displayName: 'Monthly Trends: View', description: 'View month-over-month performance trends', category: 'Reports', action: 'view' },
   { name: 'monthlyreport_export', displayName: 'Monthly Trends: Export', description: 'Export monthly trend data', category: 'Reports', action: 'export' },
   
-  { name: 'adsreport_view', displayName: 'Ads Intelligence: View', description: 'Access to advertising performance data', category: 'Reports', action: 'view' },
-  { name: 'adsreport_export', displayName: 'Ads Intelligence: Export', description: 'Export ads performance data', category: 'Reports', action: 'export' },
-  { name: 'adsreport_import', displayName: 'Ads Intelligence: Import', description: 'Upload daily/monthly advertising workbooks (seller-scoped)', category: 'Reports', action: 'import' },
+  // Keep first-install role seeding aligned with the additive registry migration.
+  ...ADS_PERMISSIONS,
   
   { name: 'pnlreport_view', displayName: 'P&L Report: View', description: 'Access to financial and P&L reports', category: 'Reports', action: 'view' },
   { name: 'pnlreport_export', displayName: 'P&L Report: Export', description: 'Export P&L report data', category: 'Reports', action: 'export' },

@@ -62,7 +62,7 @@ async function validate(req,res) {
 async function confirm(req,res){
   const file=req.file;
   try{
-    if(!importsEnabled())return error(res,409,'ads_import_disabled','Canonical import has not been enabled by an administrator.');
+    if(!importsEnabled())return error(res,409,'ads_import_disabled','Ads confirmation is paused by server configuration.');
     if(!file)return error(res,400,'file_required','Select the previously validated CSV.');
     const sellerId=explicitSeller(req.user,req.body?.sellerId);
     if(req.body?.reportType!=='daily')return error(res,400,'unsupported_report_type','Only daily v1 is supported.');
@@ -86,7 +86,7 @@ async function confirm(req,res){
   }finally{if(file?.path)await fs.unlink(file.path).catch(()=>{});}
 }
 function importGate(_req,res,next){
-  if(!importsEnabled())return error(res,409,'ads_import_disabled','Canonical import has not been enabled by an administrator.');
+  if(!importsEnabled())return error(res,409,'ads_import_disabled','Ads confirmation is paused by server configuration.');
   next();
 }
 module.exports={listSellers,validate,confirm,importGate,resolveContext};

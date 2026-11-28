@@ -142,8 +142,8 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
    <Descriptions.Item label="Total sales">{money(summary.totals['metrics.total_sales'],job.currency)}</Descriptions.Item>
    <Descriptions.Item label="Ad orders">{count(summary.totals['metrics.orders'])}</Descriptions.Item>
   </Descriptions>}
-  {job.status==='READY'&&<Alert showIcon type={job.importsEnabled?'success':'warning'} message={job.importsEnabled?'Ready to confirm':'Imports are not enabled'}
-   description={job.importsEnabled?'Confirm inserts new records and retains identical records. Changed historical facts are rejected.':'An administrator must enable Ads imports. Validation and history remain available.'}/>}
+  {job.status==='READY'&&<Alert showIcon type={job.importsEnabled?'success':'warning'} message={job.importsEnabled?'Ready to confirm':'Import confirmation paused'}
+   description={job.importsEnabled?'Confirm inserts new records and retains identical records. Changed historical facts are rejected.':'The server has explicitly paused import confirmation. Ask an administrator to check ADS_CANONICAL_IMPORT_ENABLED, then refresh this saved job. Validation and history remain available.'}/>}
   {job.status==='COMPLETED'&&<Alert showIcon type="success" message={count(job.result?.inserted)+' inserted · '+count(job.result?.unchanged)+' unchanged'} description="The database commit and job completion were reconciled together."/>}
   {job.status==='FAILED'&&<Alert showIcon type="error" message={job.result?.message||'Import failed'} description="No partial advertising records were committed by this job."/>}
   {job.status==='EXPIRED'&&<Alert type="warning" message="The staged file expired. Create a new preview."/>}

@@ -933,6 +933,15 @@ server.listen(PORT, '0.0.0.0', () => {
     require('./services/gmsImportService').startWorker();
     logger.info('GMS schema verified; import worker started');
   }).catch(err => logger.error('GMS schema/worker startup failed', { error: err.message }));
+  // Registration is independent of Ads facts and older migration failures.
+  // Do not call the broad role seed: it can replace existing role grants.
+  migrationStartup.then(async()=>{
+    if(!isPrimaryWorker)return;
+    const state=await require('./database/adsPermissions').ensureAdsPermissions({apply:process.env.RUN_MIGRATIONS_ON_STARTUP!=='false'});
+    if(!state.ready)logger.error('Ads permission registry is not ready',state);
+    else logger.info('Ads permission registry verified');
+    logger.info('Ads import activation: '+(require('./services/adsImportConfirmation').importsEnabled()?'enabled for authorized users':'paused by server configuration'));
+  }).catch(err=>logger.error('Ads permission startup failed',{error:err.message}));
   // Independent of the GMS worker, and honors the operator migration opt-out.
   migrationStartup.then(async()=>{
     if(!isPrimaryWorker)return;
