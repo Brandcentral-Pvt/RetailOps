@@ -218,8 +218,8 @@ function trendBuckets(period,granularity){
  const groups=new Map();
  for(let n=0;n<period.days;n++){
   const date=shift(period.startDate,n),key=bucketKey(date,granularity);
-  if(!groups.has(key))groups.set(key,{bucket:key,currentStart:date,currentEnd:date,previousStart:shift(date,-period.days),previousEnd:shift(date,-period.days),days:0});
-  const b=groups.get(key);b.currentEnd=date;b.previousEnd=shift(date,-period.days);b.days++;
+  if(!groups.has(key))groups.set(key,{bucket:key,currentStart:date,currentEnd:date,previousStart:period.allHistory?null:shift(date,-period.days),previousEnd:period.allHistory?null:shift(date,-period.days),days:0});
+  const b=groups.get(key);b.currentEnd=date;b.previousEnd=period.allHistory?null:shift(date,-period.days);b.days++;
  }
  return [...groups.values()];
 }
@@ -302,7 +302,7 @@ async function readPortfolioAnalytics({tx,sql,period,granularity,exportMode=fals
  const products=await readProducts({tx,sql,days:period.days,exportMode});
  const groups=exportMode?products.groups:products;
  if(!groups.length){if(exportMode)await products.cleanup();return emptyPortfolio();}
- const trends=await readTrends({tx,sql,period,granularity,groups});
+ const trends=period.allHistory?[]:await readTrends({tx,sql,period,granularity,groups});
  const breakdowns=await readBreakdowns({tx,sql,days:period.days,full:exportMode});
  return {...emptyPortfolio(),groups,trends,breakdowns,...(exportMode?{products}:{}),empty:false};
 }
