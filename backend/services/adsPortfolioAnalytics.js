@@ -232,10 +232,30 @@ async function readTrends({tx,sql,period,granularity,groups}){
 }
 const breakdownKeys=['dimension','Currency','Marketplace','groupKey'];
 const groupEq=(a,b)=>breakdownKeys.map(k=>k==='groupKey'?'('+a+'.[groupKey]='+b+'.[groupKey] OR ('+a+'.[groupKey] IS NULL AND '+b+'.[groupKey] IS NULL))':a+'.['+k+']='+b+'.['+k+']').join(' AND ');
-async function readBreakdowns({tx,sql,days,onMaterialized}){
+async function readBreakdowns({tx,sql,days,onMaterialized,full=false}){
  const select=(kind,key,label,into='')=>"SELECT CAST('"+kind+"' AS varchar(8)) AS [dimension],p.[Currency],p.[Marketplace],CONVERT(nvarchar(255),"+key+") AS [groupKey],"+label+" AS [groupName],p.[periodKey],COUNT(DISTINCT p.[Date]) AS [coveredDays],"+aggregateProjection+into+" FROM #AdsScope p GROUP BY p.[Currency],p.[Marketplace],"+key+",p.[periodKey]";
  await tx.request().batch(select('seller','p.[SellerId]','MAX(p.[SellerName])',' INTO #AdsBreakdowns')+' UNION ALL '+select('brand','p.[CatalogBrand]','p.[CatalogBrand]')+';');
  if(onMaterialized)await onMaterialized(tx);
+ if(full){
+  await tx.request().batch("SELECT ROW_NUMBER() OVER(ORDER BY [Currency],[dimension],[Marketplace],[groupKey],[periodKey]) AS [exportRank],* INTO #AdsBreakdownExport FROM #AdsBreakdowns; CREATE UNIQUE CLUSTERED INDEX IX_AdsBreakdownExport_Rank ON #AdsBreakdownExport([exportRank]); DROP TABLE #AdsBreakdowns;");
+  const n=await tx.request().query('SELECT CONVERT(varchar(30),COUNT_BIG(*)) AS total FROM #AdsBreakdownExport;');
+  const count=Number(n.recordset[0].total);
+  const rows=async function*(){
+   let after=0;
+   try{
+    while(true){
+     const result=await tx.request().input('after',sql.BigInt,after).input('size',sql.Int,500).query('SELECT TOP(@size) * FROM #AdsBreakdownExport WHERE [exportRank]>@after ORDER BY [exportRank];');
+     if(!result.recordset.length)break;
+     for(const row of result.recordset){
+      if(Number(row.exportRank)!==after+1)throw Error('Portfolio export cursor mismatch');after++;
+      yield {...row,summary:shapeSummary({...row,currency:row.Currency})};
+     }
+    }
+    if(after!==count)throw Error('Portfolio export count mismatch');
+   }finally{await tx.request().batch('DROP TABLE IF EXISTS #AdsBreakdownExport;');}
+  };
+  return {count,rows};
+ }
  const r=await tx.request().input('limit',sql.Int,BREAKDOWN_LIMIT).query(
   ';WITH e AS (SELECT DISTINCT '+breakdownKeys.map(k=>'['+k+']').join(',')+' FROM #AdsBreakdowns), ranked AS (SELECT e.*,COUNT_BIG(*) OVER(PARTITION BY e.[Currency],e.[dimension]) AS [groupCount],ROW_NUMBER() OVER(PARTITION BY e.[Currency],e.[dimension] ORDER BY CASE WHEN c.[totalSales] IS NULL THEN 1 ELSE 0 END,CONVERT(decimal(38,10),c.[totalSales]) DESC,e.[Marketplace],e.[groupKey]) AS [rank] FROM e LEFT JOIN #AdsBreakdowns c ON '+groupEq('e','c')+" AND c.[periodKey]='current') "+
   'SELECT g.*,CONVERT(varchar(30),e.[groupCount]) AS [groupCount],e.[rank] FROM ranked e JOIN #AdsBreakdowns g ON '+groupEq('e','g')+' WHERE e.[rank]<=@limit ORDER BY e.[Currency],e.[dimension],e.[rank],g.[periodKey];');
@@ -255,11 +275,11 @@ async function readBreakdowns({tx,sql,days,onMaterialized}){
  return [...out.values()];
 }
 function emptyPortfolio(){return {version:'v1',sampleLimit:SAMPLE_LIMIT,breakdownLimit:BREAKDOWN_LIMIT,groups:[],trends:[],breakdowns:[],empty:true};}
-async function readPortfolioAnalytics({tx,sql,period,granularity}){
+async function readPortfolioAnalytics({tx,sql,period,granularity,exportMode=false}){
  const groups=await readProducts({tx,sql,days:period.days});
  if(!groups.length)return emptyPortfolio();
  const trends=await readTrends({tx,sql,period,granularity,groups});
- const breakdowns=await readBreakdowns({tx,sql,days:period.days});
+ const breakdowns=await readBreakdowns({tx,sql,days:period.days,full:exportMode});
  return {...emptyPortfolio(),groups,trends,breakdowns,empty:false};
 }
 module.exports={summarizePortfolio,classify,trendBuckets,pairTrends,readProducts,readAlignedTrendRows,readBreakdowns,readPortfolioAnalytics,emptyPortfolio,PARETO_METRICS,SEGMENTS,SAMPLE_LIMIT,BREAKDOWN_LIMIT};
