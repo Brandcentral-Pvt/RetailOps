@@ -23,6 +23,11 @@ on:
       - 'backend/server.js'
       - 'Dockerfile.backend'
       - 'backend/services/ads*.js'
+      - 'backend/services/reportExportJobs.js'
+      - 'backend/controllers/reportExportJobsController.js'
+      - 'src/components/common/DownloadsDrawer.jsx'
+      - 'src/components/header/DownloadDrawer.jsx'
+      - 'src/services/api.js'
       - 'backend/controllers/ads*.js'
       - 'backend/routes/adsRoutes.js'
       - 'backend/routes/dataRoutes.js'
@@ -107,6 +112,8 @@ jobs:
           node --check backend/services/adsCompleteWorkbook.js
           node --check backend/migrations/105_ads_export_jobs.js
           node --check backend/services/adsExportJobs.js
+          node --check backend/services/reportExportJobs.js
+          node --check backend/controllers/reportExportJobsController.js
           node --check backend/services/adsExportCsv.js
           node --check backend/controllers/adsExportJobsController.js
           node --test backend/testUtils/adsPhase1.contract.node.cjs backend/testUtils/adsPhase1.canonical.node.cjs backend/testUtils/adsPhase1.report.node.cjs backend/testUtils/adsPhase1.activation.node.cjs backend/testUtils/adsPhase2.preview.node.cjs backend/testUtils/adsPhase3.analytics.node.cjs backend/testUtils/adsPhase3.portfolio.node.cjs backend/testUtils/adsPhase3.budget.node.cjs backend/testUtils/adsPhase3.reconciliation.node.cjs
