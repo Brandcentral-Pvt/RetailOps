@@ -8,7 +8,7 @@ Default is fail-closed: set ADS_CANONICAL_IMPORT_ENABLED=true in the backend run
 
 ## Export
 
-Authenticated view + export permission; direct private temporary XLSX download, no public path. One SQL transaction reads the same population as report; ignores UI page and returns all matching entities, up to 5,000; rejects above the bound rather than truncating. Summary, scope, current/prior entities and history sheets include numeric values and coverage; exact values outside Excel precision remain text. All 63 raw source fields and durable export job/history/streaming source rows are Phase 5. Sorts group currencies before monetary values.
+Authenticated view + export permission; direct private temporary XLSX download, no public path. One SQL transaction reads the same population as report; ignores UI page and returns all matching entities, up to 5,000; rejects above the bound rather than truncating. Summary, scope, current/prior entities and history sheets include numeric values and coverage; exact values outside Excel precision remain text. The existing GMS workbook compatibility adapter and strict ZIP/XML/CRC validation verify sheet names and exact row counts before download. All 63 raw source fields and durable export job/history/streaming source rows are Phase 5. Sorts group currencies before monetary values.
 
 ## Targets
 

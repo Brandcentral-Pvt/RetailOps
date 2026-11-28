@@ -32,8 +32,11 @@ function sheetOf(workbook,name,columns){
   row.commit();
   return sheet;
 }
-async function writeCanonicalWorkbook({ExcelJS,filePath,report,filters}){
-  const workbook=new ExcelJS.stream.xlsx.WorkbookWriter({filename:filePath,useStyles:true,useSharedStrings:false});
+async function writeCanonicalWorkbook({filePath,report,filters}){
+  // Reuse the tested GMS ExcelJS compatibility adapter and ZIP/XML integrity checker.
+  const {createStreamingWorkbook}=require('./streamingWorkbook');
+  const {verifyXlsx}=require('./exportFileIntegrity');
+  const workbook=createStreamingWorkbook({filename:filePath,useStyles:true,useSharedStrings:false});
   const info=sheetOf(workbook,'Report Scope',['Property','Value']);
   for(const pair of [['Source','canonical_v1'],['Current start',report.period.startDate],['Current end',report.period.endDate],
     ['Previous start',report.period.prevStart],['Previous end',report.period.prevEnd],['Grouping',report.groupBy],['Granularity',report.granularity],
@@ -54,5 +57,6 @@ async function writeCanonicalWorkbook({ExcelJS,filePath,report,filters}){
   for(const s of report.series)add(history,[s.periodKey,s.bucket,s.currency,...values(s)]);
   history.commit();
   await workbook.commit();
+  await verifyXlsx(filePath,{expectedSheets:new Map([['Report Scope',13],['Summary',1+report.current.length+report.previous.length],['Entity Comparisons',1+2*report.rows.length],['History',1+report.series.length]])});
 }
 module.exports={numericCell,writeCanonicalWorkbook};

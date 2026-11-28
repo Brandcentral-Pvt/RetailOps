@@ -16,7 +16,7 @@ async function download(req,res){
     if(report.rows.length!==report.total)throw Error('Export entity count mismatch');
     dir=await fs.mkdtemp(path.join(os.tmpdir(),'retailops-ads-export-'));
     const filePath=path.join(dir,'ads.xlsx');
-    await writeCanonicalWorkbook({ExcelJS:require('exceljs'),filePath,report,filters:req.query});
+    await writeCanonicalWorkbook({filePath,report,filters:req.query});
     const stat=await fs.stat(filePath);
     if(!stat.size)throw Error('Workbook empty');
     const cleanupDir=dir;dir=null;
