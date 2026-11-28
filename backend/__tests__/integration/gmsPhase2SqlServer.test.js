@@ -36,6 +36,7 @@ const { buildCompleteExport }=require('../../services/gmsCompleteExport');
 const { writeGmsExport }=require('../../services/gmsExportWriter');
 const XLSX=require('xlsx');
 const { loadPagedAnalytics } = require('../../services/gmsAnalyticsPageService');
+const { loadGmsFilters } = require('../../services/gmsAnalyticsFilters');
 const analyticsIndex=require('../../migrations/094_gms_analytics_date_index');
 const service = require('../../services/gmsImportService');
 const real = process.env.GMS_SQLSERVER_SMOKE === '1' ? test : test.skip;
@@ -225,6 +226,45 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
     expect(literal.meta.records).toBe(0);
     const clamped=await loadPagedAnalytics(mockPool,global,{...options,page:100});
     expect(clamped.pagination.page).toBe(2);
+    // The new directory returns only report filter labels/associations, not
+    // enriched seller profiles. Add the real directory columns to this fixture.
+    await mockPool.request().query(`
+      ALTER TABLE Roles ADD Level int NULL;
+      ALTER TABLE Users ADD FirstName nvarchar(100) NULL,LastName nvarchar(100) NULL;
+      INSERT INTO Sellers VALUES('S2','amazon.in',1,'Seller B');
+      UPDATE Users SET FirstName='Test',LastName='Manager' WHERE Id='U1';
+      INSERT INTO UserSellers VALUES('U1','S2');
+      CREATE INDEX IX_Test_AsinCode_Seller ON Asins(AsinCode,SellerId);
+    `);
+    const directory=await loadGmsFilters(mockPool,user);
+    expect(directory.sellers).toEqual([{id:'S1',name:'Seller A'}]);
+    expect(directory.managers).toEqual([{id:'U1',firstName:'Test',lastName:'Manager',assignedSellers:['S1']}]);
+    expect((await loadGmsFilters(mockPool,global)).sellers.map(s=>s.id)).toEqual(['S1','S2']);
+    // Verify optimized lookup against the existing canonical raw-fact query,
+    // including trimmed/case-normalized duplicate owners and conflicting owners.
+    // Use a separate reporting date so the original signed fixture is unchanged.
+    await mockPool.request().query(`
+      INSERT INTO Asins VALUES
+      ('N1',' p000000001 ','S1','Normalized product'),('N2','P000000001','S1','Same owner'),
+      ('N3','P000000002','S1','Ambiguous A'),('N4',' p000000002 ','S2','Ambiguous B'),
+      ('N5','P000000003',NULL,'No owner'),('N6','P000000004','S2','Other seller'),
+      ('N7','P000000005','S1','Stored owner'),('N8','P000000005','S2','Conflicting catalog');
+      INSERT INTO GmsDailyPerformance(Id,Asin,Date,SellerId,Brand,StoreCode,OrderedRevenue,OrderedUnits,ShippedRevenue,ShippedCOGS,ShippedUnits,CustomerReturns,CreatedAt,UpdatedAt)
+      SELECT 'norm-'+CONVERT(varchar(10),n),'P'+RIGHT('000000000'+CONVERT(varchar(10),n),9),
+        '2026-09-01',CASE WHEN n=5 THEN 'S1' ELSE NULL END,'Mapping fixture','IN',10*n,1,0,0,0,0,SYSUTCDATETIME(),SYSUTCDATETIME()
+      FROM (VALUES(1),(2),(3),(4),(5)) d(n);
+    `);
+    const normOptions={startDate:'2026-09-01',endDate:'2026-09-01',level:'asin',pageSize:25};
+    for(const actor of [global,user]){
+      const reference=await loadAnalytics(mockPool,actor,normOptions);
+      const optimized=await loadPagedAnalytics(mockPool,actor,normOptions);
+      expect(optimized.kpis).toEqual(reference.kpis);
+      expect(optimized.meta).toEqual(reference.meta);
+      expect(optimized.matrixRows.map(r=>[r.asin,r.sellerId,r.productTitle]).sort()).toEqual(reference.matrixRows.map(r=>[r.asin,r.sellerId,r.productTitle]).sort());
+    }
+    const normalizedSearch=await loadPagedAnalytics(mockPool,global,{...normOptions,search:'Normalized product'});
+    expect(normalizedSearch.meta.records).toBe(1);
+    expect(normalizedSearch.matrixRows[0]).toMatchObject({asin:'P000000001',sellerId:'S1',productTitle:'Normalized product'});
     // Existing mapped fact test below is scoped to its original ASIN.
     const revoked=await preview('170.00');
     await service.confirm('U1',revoked.id);
@@ -244,21 +284,36 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
           CASE WHEN n%7=0 THEN -1.25 ELSE 1.25 END,1,1.25,0.50,1,0,SYSUTCDATETIME(),SYSUTCDATETIME()
         FROM seq;
       `);
+      // The previous scale fixture contained almost no catalog entries.
+      // Include 50k irrelevant catalog ASINs and mapped rows for half of
+      // the synthetic report entities to exercise the real matching path.
+      const mappedEntities=Math.floor(Math.ceil(scaleRows/30)/2);
+      await mockPool.request().input('mapped',sql.Int,mappedEntities).input('catalogRows',sql.Int,50000+mappedEntities).query(`
+        WITH digits AS (SELECT n FROM (VALUES(0),(1),(2),(3),(4),(5),(6),(7),(8),(9)) d(n)),
+        seq AS (SELECT TOP (@catalogRows) ROW_NUMBER() OVER(ORDER BY (SELECT NULL)) AS n FROM digits a CROSS JOIN digits b CROSS JOIN digits c CROSS JOIN digits d CROSS JOIN digits e CROSS JOIN digits f)
+        INSERT INTO Asins(Id,AsinCode,SellerId,Title)
+        SELECT 'catalog-'+CONVERT(varchar(20),n),
+          CASE WHEN n<=@mapped THEN 'F'+RIGHT('000000000'+CONVERT(varchar(20),n),9) ELSE 'C'+RIGHT('000000000'+CONVERT(varchar(20),n),9) END,
+          'S1',REPLICATE(N'Catalog product title ',20)
+        FROM seq;
+      `);
       const scaleOptions={startDate:'2026-10-01',endDate:'2026-10-30',level:'asin',pageSize:100};
       const before=Date.now();
-      const large=await loadPagedAnalytics(mockPool,global,{...scaleOptions,page:1});
+      let firstTiming,nextTiming;
+      const large=await loadPagedAnalytics(mockPool,global,{...scaleOptions,page:1},{onTiming:t=>{firstTiming=t;}});
       const firstMs=Date.now()-before;
       const nextStarted=Date.now();
-      const next=await loadPagedAnalytics(mockPool,global,{...scaleOptions,page:2});
+      const next=await loadPagedAnalytics(mockPool,global,{...scaleOptions,page:2},{onTiming:t=>{nextTiming=t;}});
       const nextMs=Date.now()-nextStarted;
       expect(large.meta.records).toBe(scaleRows);
+      expect(large.meta.unmatchedRecords).toBe(scaleRows-mappedEntities*30);
       expect(large.kpis.orderedRevenue).toBe((scaleRows-2*Math.floor(scaleRows/7))*1.25);
       expect(large.pagination.totalRows).toBe(Math.ceil(scaleRows/30));
       expect(large.matrixRows).toHaveLength(100);
       expect(next.matrixRows).toHaveLength(100);
       expect(next.kpis).toEqual(large.kpis);
       expect(new Set([...large.matrixRows,...next.matrixRows].map(r=>r.key)).size).toBe(200);
-      console.log('GMS disposable scale result',JSON.stringify({facts:scaleRows,entities:large.pagination.totalRows,pageRows:100,firstMs,nextMs,responseBytes:Buffer.byteLength(JSON.stringify(large))}));
+      console.log('GMS disposable scale result',JSON.stringify({facts:scaleRows,catalogRows:50000+mappedEntities,mappedEntities,entities:large.pagination.totalRows,pageRows:100,firstMs,nextMs,firstTiming,nextTiming,responseBytes:Buffer.byteLength(JSON.stringify(large))}));
     }
   } finally {
     fs.rmSync(dir,{recursive:true,force:true});
