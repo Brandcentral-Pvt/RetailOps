@@ -338,8 +338,9 @@ exports.getDashboardData = async (req, res) => {
       marketplaceGroups.get(key).push(row);
     }
     const gmsByMarketplace=[...marketplaceGroups].map(([name,rows])=>{
-      const revenue=exactSum(rows,'Revenue');
-      return {name,revenue,units:exactSum(rows,'Units',0),prevRevenue:exactSum(rows,'PrevRevenue'),share:round2(pct(revenue,shareBase)),sellers:rows.filter(r=>r.SellerId!=null).length};
+      const current=rows.filter(r=>Number(r.CurrentDays??(r.Revenue!=null?1:0))>0),prior=rows.filter(r=>Number(r.PreviousDays??(r.PrevRevenue!=null?1:0))>0);
+      const revenue=exactSum(current,'Revenue');
+      return {name,revenue,units:exactSum(current,'Units',0),prevRevenue:exactSum(prior,'PrevRevenue'),share:round2(pct(revenue,shareBase)),sellers:current.filter(r=>r.SellerId!=null).length};
     }).sort((a,b)=>(b.revenue??-Infinity)-(a.revenue??-Infinity));
 
     const {AdSales:prevAdSales,AdSpend:prevAdSpend,Orders:prevOrders,OrganicSales:prevOrganicSales}=priorAds.totals;
