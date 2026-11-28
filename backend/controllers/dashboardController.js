@@ -725,3 +725,15 @@ exports.getDashboardOptions=async(req,res)=>{
  try{return res.json({success:true,data:await dashboardScope.options({pool:await getPool(),sql,user:req.user})});}
  catch(e){return res.status(e instanceof AdsScopeError?e.status:500).json({success:false,code:e.code||'dashboard_options_unavailable',message:e instanceof AdsScopeError?e.message:'Dashboard options unavailable.'});}
 };
+
+exports.getDashboardTasks=async(req,res)=>{
+ res.set('Cache-Control','private, no-store');
+ try{
+  const pool=await getPool();
+  const scope=await dashboardScope.resolveDashboardScope({pool,sql,user:req.user,sellerId:req.query.sellerId,managerId:req.query.managerId});
+  if(scope.empty)return res.json({success:true,instances:[],total:0,scope:dashboardScope.publicScope(scope)});
+  const filters={limit:200,page:1,...(scope.unrestricted?{}:{sellerId:scope.sellerIds.join(',')})};
+  const data=await require('../services/pems/pemsService').getInstances(filters,req.user);
+  return res.json({success:true,...data,scope:dashboardScope.publicScope(scope)});
+ }catch(e){return res.status(e instanceof AdsScopeError?e.status:500).json({success:false,message:e instanceof AdsScopeError?e.message:'Dashboard tasks unavailable.'});}
+};
