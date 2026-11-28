@@ -37,6 +37,7 @@ function scopedRequest(pool,sql,user,id){
  return {request,where};
 }
 async function getRow({pool,sql,user,id,payload=false,issues=false}){
+ if(id===undefined)throw jobError('invalid_job_id','An import identifier is required.',400);
  const {request,where}=scopedRequest(pool,sql,user,id);
  const result=await request.query('SELECT '+cols+(payload?',j.SourceBytes':'')+(issues?',j.IssuesJson':'')+' FROM dbo.AdsImportJobs j'+where);
  return result.recordset[0]||null;
@@ -67,7 +68,7 @@ async function createPreview({pool,sql,user,sellerId,input,fileName}){
  }catch(e){
    if(!(e instanceof AdsValidationError))throw e;
    collect({row:e.row,column:e.column,code:e.code,message:e.message});
-   summary={schemaVersion:1,reportType:'daily',valid:false,rows:null,validRows:null,invalidRows:null,sourceFileSha256:hash};
+   summary={schemaVersion:1,reportType:'daily',valid:false,scanComplete:false,rows:null,validRows:null,invalidRows:null,sourceFileSha256:hash};
  }
  if(summary.valid){
    const keys=new Map();
@@ -78,7 +79,7 @@ async function createPreview({pool,sql,user,sellerId,input,fileName}){
    for(const r of bad.recordset)collect({...keys.get(r.asin),column:'asin',code:Number(r.matches)===0?'catalog_mapping_missing':'catalog_mapping_ambiguous',
       message:Number(r.matches)===0?'This ASIN is not mapped to the selected seller. Verify the catalog assignment.':'This ASIN has multiple catalog mappings under the selected seller. Resolve the duplicate assignment.'});
  }
- summary={...summary,valid:summary.valid&&count===0,issueCount:count,issues:issues.slice(0,100),issuesTruncated:count>100,storedIssueCount:issues.length,issueReportTruncated:count>issues.length};
+ summary={scanComplete:true,...summary,valid:summary.valid&&count===0,issueCount:count,issues:issues.slice(0,100),issuesTruncated:count>100,storedIssueCount:issues.length,issueReportTruncated:count>issues.length};
  const id=randomUUID(),ready=summary.valid;
  const tx=new sql.Transaction(pool);await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
  try{
@@ -99,6 +100,7 @@ async function createPreview({pool,sql,user,sellerId,input,fileName}){
  return getJob({pool,sql,user,id});
 }
 async function cancelJob({pool,sql,user,id}){
+ if(id===undefined)throw jobError('invalid_job_id','An import identifier is required.',400);
  const {request,where}=scopedRequest(pool,sql,user,id);
  await request.query("UPDATE j SET Status='CANCELLED',SourceBytes=NULL,CompletedAt=SYSUTCDATETIME() FROM dbo.AdsImportJobs j"+where+" AND j.Status='READY' AND j.ExpiresAt>SYSUTCDATETIME();");
  const job=await getJob({pool,sql,user,id});

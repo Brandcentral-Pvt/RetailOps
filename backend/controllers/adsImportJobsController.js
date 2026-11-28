@@ -37,7 +37,7 @@ async function confirm(req,res){let slot=false;try{
  confirmations++;slot=true;
  req.setTimeout?.(600000);res.setTimeout?.(600000);
  const data=await service.confirmJob(await args(req));
- return res.status(data.status==='COMPLETED'?200:409).json({success:data.status==='COMPLETED',data,message:data.result?.message||'Import committed and reconciled.'});
+ return res.status(data.status==='COMPLETED'?200:409).json({success:data.status==='COMPLETED',data,message:data.status==='COMPLETED'?'Import committed and reconciled.':data.result?.message||'Import could not be confirmed.'});
 }catch(e){return failure(res,e);}finally{if(slot)confirmations--;}}
 async function cancel(req,res){try{return res.json({success:true,data:await service.cancelJob(await args(req))});}catch(e){return failure(res,e);}}
 async function issues(req,res){let dir,slot=false;try{
