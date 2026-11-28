@@ -9,7 +9,9 @@ function failure(res,error){
   console.error('[canonical ads report]',error.message);
   return res.status(503).json({success:false,code:'canonical_report_unavailable',message:'Canonical advertising analytics could not be loaded. Verify the schema and retry.'});
 }
-// Coalesce only concurrent identical reads, never retain completed financial data.
+const {createReportCache}=require('../services/adsReportCache');
+const cachedRead=createReportCache();
+// Coalesce only concurrent identical reads; completed data is revision-gated.
 const flights=new Map();
 const MAX_READS=6;
 function requestKey(user,parsed,mode){
@@ -18,21 +20,23 @@ function requestKey(user,parsed,mode){
 }
 async function runRead(req,res,mode){
  try{
-  const parsed=parseReport(req.user,req.query);
+  const {refresh,...query}=req.query;
+  if(refresh!==undefined&&refresh!=='true')throw new AdsScopeError('invalid_ads_filter','Invalid refresh flag.');
+  const parsed=parseReport(req.user,query);
   if(mode==='overview'&&parsed.entityKey)throw new AdsScopeError('invalid_ads_filter','Overview requires report scope.');
   if(mode==='insights'&&(parsed.groupBy!=='asin'||parsed.entityKey))throw new AdsScopeError('invalid_ads_filter','Product review requires ASIN grouping.');
   res.set('Cache-Control','private, no-store');
-  const key=requestKey(req.user,parsed,mode);
+  const key=requestKey(req.user,parsed,mode)+':'+(refresh==='true');
   let pending=flights.get(key);
   if(!pending){
    if(flights.size>=MAX_READS)throw new AdsScopeError('report_busy','Advertising reports are busy. Retry shortly.',429);
-   pending=(async()=>readCanonicalReport({pool:await getPool(),sql,user:req.user,query:req.query,overviewOnly:mode==='overview',insightsOnly:mode==='insights'}))();
+   pending=(async()=>{const pool=await getPool();return cachedRead({pool,user:req.user,parsed,mode,refresh:refresh==='true',load:()=>readCanonicalReport({pool,sql,user:req.user,query,overviewOnly:mode==='overview',insightsOnly:mode==='insights'})});})();
    flights.set(key,pending);
    const clear=()=>{if(flights.get(key)===pending)flights.delete(key);};
    pending.then(clear,clear);
   }
-  const data=await pending;
-  if(!res.destroyed)return res.json({success:true,data});
+  const {data,status}=await pending;
+  if(!res.destroyed){res.set('X-Ads-Cache',status);return res.json({success:true,data});}
  }catch(e){if(!res.destroyed)return failure(res,e);}
 }
 const report=(req,res)=>runRead(req,res,'report');
