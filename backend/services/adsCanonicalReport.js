@@ -108,8 +108,9 @@ function emptyReport(filters){
   return {...scopeMeta(filters),current:[],previous:[],comparisons:[],series:[],rows:[],total:0,page:1,limit:filters.limit,totalPages:1,empty:true};
 }
 const MAX_EXPORT_ENTITIES=5000;
-async function readCanonicalReport({pool,sql,user,query,exportAll=false,insightsOnly=false,portfolioOnly=false,reconciliationOnly=false,exportWorkbook=null,signal,backgroundExport=false,advancedExport=false,overviewOnly=false}){
+async function readCanonicalReport({pool,sql,user,query,exportAll=false,insightsOnly=false,portfolioOnly=false,reconciliationOnly=false,exportWorkbook=null,signal,backgroundExport=false,advancedExport=false,overviewOnly=false,analystOnly=false}){
   const f=parseReport(user,query,backgroundExport),analysisOnly=insightsOnly||portfolioOnly||reconciliationOnly,completeExport=typeof exportWorkbook==='function';
+  if(analystOnly&&(overviewOnly||analysisOnly||exportAll||completeExport||f.entityKey||f.groupBy!=='asin'))invalid('Analyst requires ASIN report scope.');
   if(overviewOnly&&(analysisOnly||exportAll||completeExport||f.entityKey))invalid('Overview requires a report scope.');
   if(completeExport&&(analysisOnly||exportAll||f.entityKey))invalid('Complete export requires a report scope without entity drill-down.');
   const baseCols=completeExport?[...new Set([...canonicalBaseCols,...exportSnapshot.FULL_COLUMNS])]:canonicalBaseCols;
@@ -150,7 +151,7 @@ async function readCanonicalReport({pool,sql,user,query,exportAll=false,insights
     if(!overviewOnly&&!completeExport)await tx.request().batch('CREATE CLUSTERED INDEX IX_AdsReportScope ON #AdsScope([SellerId],[Marketplace],[Currency],[EntityKey],[periodKey]);');
     const totals=analysisOnly?{recordset:[]}:await tx.request().query('SELECT p.[Currency] AS [currency],p.[periodKey],'+aggregateProjection+','+unmapped+','+dayCoverage+' FROM #AdsScope p GROUP BY p.[Currency],p.[periodKey] ORDER BY p.[Currency],p.[periodKey];');
     const bucket=bucketExpr(f.granularity);
-    const series=analysisOnly?{recordset:[]}:await tx.request().query('SELECT p.[Currency] AS [currency],p.[periodKey],'+bucket+' AS [bucket],'+aggregateProjection+','+unmapped+','+dayCoverage+
+    const series=analysisOnly||analystOnly?{recordset:[]}:await tx.request().query('SELECT p.[Currency] AS [currency],p.[periodKey],'+bucket+' AS [bucket],'+aggregateProjection+','+unmapped+','+dayCoverage+
       ' FROM #AdsScope p GROUP BY p.[Currency],p.[periodKey],'+bucket+' ORDER BY p.[Currency],p.[periodKey],[bucket];');
     let total=0,page=1,totalPages=1,rows=[];
     if(!f.entityKey&&!overviewOnly){
@@ -167,6 +168,14 @@ async function readCanonicalReport({pool,sql,user,query,exportAll=false,insights
         (f.groupBy==='asin'?'MAX(p.[CatalogCategory])':'CAST(NULL AS nvarchar(255))')+' AS [CatalogCategory],'+aggregateProjection+','+unmapped+','+dayCoverage+
         ' INTO #AdsGroups FROM #AdsScope p GROUP BY '+groupFields.map(c=>'p.'+c).join(',')+'; SELECT DISTINCT '+keys.join(',')+' INTO #AdsEntities FROM #AdsGroups; SELECT TOP(0) CAST(0 AS bigint) AS [rank],'+keys.join(',')+' INTO #AdsPage FROM #AdsEntities;');
       if(!completeExport)await tx.request().batch('CREATE UNIQUE CLUSTERED INDEX IX_AdsReportGroups ON #AdsGroups([SellerId],[Marketplace],[Currency],[EntityKey],[periodKey]); CREATE UNIQUE CLUSTERED INDEX IX_AdsReportEntities ON #AdsEntities([SellerId],[Marketplace],[Currency],[EntityKey]);');
+      if(analystOnly){
+        stage='analyst_signals';
+        const review=await readReviewSignals({tx,sql,days:f.period.days});
+        await tx.request().batch('DROP TABLE #AdsPage; DROP TABLE #AdsEntities; DROP TABLE #AdsGroups; DROP TABLE #AdsScope;');
+        await tx.commit();
+        const current=totals.recordset.filter(r=>r.periodKey==='current').map(shape),previous=totals.recordset.filter(r=>r.periodKey==='previous').map(shape);
+        return {...scopeMeta(f),current,previous,comparisons:compareCurrencies(current,previous,f.period.days),review,empty:!current.length&&!previous.length};
+      }
       if(analysisOnly){
         stage=reconciliationOnly?'analytics_reconciliation':portfolioOnly?'portfolio_analytics':'review_signals';
         const review=reconciliationOnly?await readReconciliation({tx,sql,period:f.period}):portfolioOnly?await readPortfolioAnalytics({tx,sql,period:f.period,granularity:f.granularity}):await readReviewSignals({tx,sql,days:f.period.days});
