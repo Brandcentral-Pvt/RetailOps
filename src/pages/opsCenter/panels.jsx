@@ -34,6 +34,7 @@ export const FOCUS_MAP = {
     acos: { mode: 'efficiency', series: 'acos' },
     tacos: { mode: 'efficiency', series: 'tacos' },
     roas: { mode: 'returns', series: 'roas' },
+    cvr:{mode:'efficiency',series:'cvr'},
 };
 
 /** Build all chart series from the payload (bucket-aligned with labels). */
@@ -47,22 +48,22 @@ export const buildSeries = (dashboardRaw) => {
     const organic = (dashboardRaw?.stackedBarSeries || [])[2]?.data || [];
     return {
         revenue: [
-            { key: 'gms', name: 'GMS', color: OPS_COLOR.accent, data: gms },
-            { key: 'adSales', name: 'Ad sales', color: OPS_COLOR.pos, data: adSales },
-            { key: 'organic', name: 'Organic sales', color: OPS_COLOR.violet, data: organic, dashed: true },
-            { key: 'adSpend', name: 'Ad spend', color: OPS_COLOR.warn, data: adSpend },
+            { key: 'gms', name: 'GMS', color: OPS_COLOR.accent, data: gms,summaryValue:dashboardRaw?.gms?.revenue },
+            { key: 'adSales', name: 'Ad sales', color: OPS_COLOR.pos, data: adSales,summaryValue:dashboardRaw?.ads?.adSales },
+            { key: 'organic', name: 'Organic sales', color: OPS_COLOR.violet, data: organic,summaryValue:dashboardRaw?.ads?.organicSales,dashed: true },
+            { key: 'adSpend', name: 'Ad spend', color: OPS_COLOR.warn, data: adSpend,summaryValue:dashboardRaw?.ads?.adSpend },
         ].filter((s) => s.data.length > 0),
         volume: [
-            { key: 'gmsUnits', name: 'Units (GMS)', color: OPS_COLOR.accent, data: gmsUnits },
-            { key: 'adOrders', name: 'Ad orders', color: OPS_COLOR.pos, data: dashboardRaw?.ordersSeries || [] },
+            { key: 'gmsUnits', name: 'Units (GMS)', color: OPS_COLOR.accent, data: gmsUnits,summaryValue:dashboardRaw?.gms?.units },
+            { key: 'adOrders', name: 'Ad orders', color: OPS_COLOR.pos, data: dashboardRaw?.ordersSeries || [],summaryValue:dashboardRaw?.ads?.orders },
         ].filter((s) => s.data.length > 0),
         efficiency: [
-            { key: 'acos', name: 'ACoS', color: OPS_COLOR.warn, data: dashboardRaw?.acosSeries || [] },
-            { key: 'tacos', name: 'TACoS', color: OPS_COLOR.accent, data: tacos },
-            { key: 'ctr', name: 'CTR', color: OPS_COLOR.violet, data: dashboardRaw?.ctrSeries || [] },
-            { key: 'cvr', name: 'CVR', color: OPS_COLOR.pos, data: dashboardRaw?.cvrSeries || [] },
+            { key: 'acos', name: 'ACoS', color: OPS_COLOR.warn, data: dashboardRaw?.acosSeries || [],summaryValue:dashboardRaw?.ads?.acos },
+            { key: 'tacos', name: 'TACoS', color: OPS_COLOR.accent, data: tacos,summaryValue:dashboardRaw?.ads?.tacos },
+            { key: 'ctr', name: 'CTR', color: OPS_COLOR.violet, data: dashboardRaw?.ctrSeries || [],summaryValue:dashboardRaw?.ads?.ctr },
+            { key: 'cvr', name: 'CVR', color: OPS_COLOR.pos, data: dashboardRaw?.cvrSeries || [],summaryValue:dashboardRaw?.ads?.cvr },
         ].filter((s) => s.data.length > 0),
-        returns:[{key:'roas',name:'ROAS',color:OPS_COLOR.pos,data:dashboardRaw?.roasSeries||[]}].filter(s=>s.data.length>0),
+        returns:[{key:'roas',name:'ROAS',color:OPS_COLOR.pos,data:dashboardRaw?.roasSeries||[],summaryValue:dashboardRaw?.ads?.roas}].filter(s=>s.data.length>0),
     };
 };
 
@@ -139,6 +140,7 @@ export const KpiRow = ({ dashboardRaw, focus, onFocus, span = 2 }) => {
         delta:<Delta value={ratioDelta('tacos')} label={vs} compact invert points/>,
         spark:<Sparkline data={gms?.tacosSeries||[]} color={OPS_COLOR.accent}/>,
     });
+    tiles.push({key:'cvr',label:'CVR',tip:'Ad conversions divided by clicks. Distinct from orders.',value:show(adsBlock?.cvr,fmtPct),sub:'conversions ÷ clicks',delta:<Delta value={ratioDelta('cvr')} label={vs} compact points/>,spark:<Sparkline data={dashboardRaw?.cvrSeries||[]} color={OPS_COLOR.pos}/>});
     return tiles.map((t) => (
         <Tile
             key={t.key}
