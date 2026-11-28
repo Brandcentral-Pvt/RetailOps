@@ -15,6 +15,7 @@ on:
       - 'backend/migrations/102_ads_preview_queue.js'
       - 'backend/migrations/103_ads_auto_ownership.js'
       - 'backend/migrations/104_ads_import_error_retention.js'
+      - 'backend/migrations/105_ads_export_jobs.js'
       - 'backend/services/accessProfileService.js'
       - 'backend/testUtils/adsPhase2.*'
       - 'backend/testUtils/adsPhase3.*'
@@ -104,6 +105,10 @@ jobs:
           node --check backend/controllers/adsCanonicalExportController.js
           node --check backend/services/adsExportSnapshot.js
           node --check backend/services/adsCompleteWorkbook.js
+          node --check backend/migrations/105_ads_export_jobs.js
+          node --check backend/services/adsExportJobs.js
+          node --check backend/services/adsExportCsv.js
+          node --check backend/controllers/adsExportJobsController.js
           node --test backend/testUtils/adsPhase1.contract.node.cjs backend/testUtils/adsPhase1.canonical.node.cjs backend/testUtils/adsPhase1.report.node.cjs backend/testUtils/adsPhase1.activation.node.cjs backend/testUtils/adsPhase2.preview.node.cjs backend/testUtils/adsPhase3.analytics.node.cjs backend/testUtils/adsPhase3.portfolio.node.cjs backend/testUtils/adsPhase3.budget.node.cjs backend/testUtils/adsPhase3.reconciliation.node.cjs
   sql:
     runs-on: ubuntu-latest
@@ -128,6 +133,32 @@ jobs:
           ADS_SQL_SMOKE: '1'
           ADS_TEST_SQL_PASSWORD: 'AdsDisposable#2026!'
           ADS_TEST_MSSQL_MODULE: '/tmp/ads-test-sql/node_modules/mssql'
+  export-jobs-sql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_PID: Developer
+          MSSQL_SA_PASSWORD: 'AdsDisposable#2026!'
+        ports:
+          - 1433:1433
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: backend
+      - run: node --test testUtils/adsPhase5.jobs.sql.node.cjs
+        working-directory: backend
+        env:
+          ADS_SQL_SMOKE: '1'
+          ADS_TEST_SQL_PASSWORD: 'AdsDisposable#2026!'
   frontend:
     runs-on: ubuntu-latest
     timeout-minutes: 15
