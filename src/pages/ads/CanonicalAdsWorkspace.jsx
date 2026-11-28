@@ -14,6 +14,7 @@ import {AdsComparisonPanel,AdsOpportunityPanel,DeltaText} from './AdsPerformance
 import {adsCount,adsMoney,adsRate} from './adsNumberFormat.mjs';
 import './canonicalAdsWorkspace.css';
 import {sameProductPageScope} from './adsWorkspacePerformance.mjs';
+const AdsAnalystPanel=lazy(()=>import('./AdsAnalystPanel'));
 const AdsPortfolioPanel=lazy(()=>import('./AdsPortfolioPanel'));
 const AdsReconciliationPanel=lazy(()=>import('./AdsReconciliationPanel'));
 const AdsOverview=lazy(()=>import('./AdsOverview'));
@@ -35,7 +36,7 @@ const METRIC_COLUMNS=[['Spend','spend',true],['Ad sales','sales',true],['Total s
 const RATIO_COLUMNS=[['ACoS','acos','%'],['TACoS','tacos','%'],['ROAS','roas','x'],['CVR','cvr','%']];
 const VIEWS=[
  ['overview','Overview',DashboardOutlined],['products','Products',AppstoreOutlined],['portfolio','Portfolio',BarChartOutlined],
- ['opportunities','Opportunities',BulbOutlined],['budgets','Budgets',WalletOutlined],['quality','Data Quality',SafetyCertificateOutlined]
+ ['opportunities','Opportunities',BulbOutlined],['budgets','Budgets',WalletOutlined],['quality','Data Quality',SafetyCertificateOutlined],['analyst','AI Analyst',BulbOutlined]
 ];
 const PRESETS={
  performance:['totalSales','sales','spend','orders','totalOrders','clicks','acos','tacos','roas','cvr'],
@@ -171,6 +172,8 @@ export default function CanonicalAdsWorkspace(){
     const history=useQuery({queryKey:['ads-canonical',principal,'history',filters,drillGrouping,drillTarget?.key],queryFn:({signal})=>get('canonical-report',{...filters,groupBy:drillGrouping,granularity:'day',sellerId:drillTarget.sellerId,marketplace:drillTarget.marketplace,currency:drillTarget.currency,entityKey:drillTarget.entityKey,page:1},signal),enabled:enabled&&!!drillTarget,staleTime:0,retry:false});
     const reviewFilters={startDate:filters.startDate,endDate:filters.endDate,sellerId:seller,brand,category,currency,marketplace,search:search||undefined,groupBy:'asin'};
     const reviewSignature=JSON.stringify([principal,reviewFilters]);
+    const {groupBy:analystGroup,...analystFilters}=reviewFilters;
+    const [analystRevision,setAnalystRevision]=useState(0);
     const reviewRequested=requestedReview===reviewSignature;
     const review=useQuery({queryKey:['ads-canonical',principal,'review',reviewFilters],queryFn:({signal})=>get('canonical-insights',reviewFilters,signal),enabled:enabled&&view==='opportunities'&&reviewRequested&&hasDates,staleTime:0,retry:false,refetchOnWindowFocus:false});
     const analyze=()=>{if(reviewRequested)review.refetch();else setRequestedReview(reviewSignature);};
@@ -201,6 +204,7 @@ export default function CanonicalAdsWorkspace(){
         finally{exportLock.current=false;setExportBusy(false);}
     };
     const imported=info=>{
+        setAnalystRevision(v=>v+1);
         // Keep the completed modal visible. Move the report to the imported seller/date
         // and invalidate all affected local queries after the committed response.
         setView('overview');setSeller(info.sellerId||undefined);setBrand(undefined);setCategory(undefined);setCurrency(info.currency);setMarketplace(undefined);
@@ -232,7 +236,7 @@ export default function CanonicalAdsWorkspace(){
         else if(extra.action==='paginate')setPaging({key:signature,page:p.pageSize!==limit?1:p.current,limit:p.pageSize});
     },[report.isPlaceholderData,preset,limit,signature]);
     const selector=(label,values,value,onChange)=><Select aria-label={label} placeholder={label} allowClear showSearch value={value} onChange={onChange} options={(values||[]).map(v=>({value:v,label:v}))}/>;
-    const refresh=()=>{options.refetch();if(reportView&&hasDates){
+    const refresh=()=>{if(view==='analyst')setAnalystRevision(v=>v+1);options.refetch();if(reportView&&hasDates){
         const isOverview=view==='overview';
         const key=isOverview?['ads-canonical',principal,'overview',overviewFilters]:['ads-canonical',principal,'report',filters,page,limit];
         const params=isOverview?overviewFilters:{...filters,page,limit};
@@ -293,6 +297,7 @@ export default function CanonicalAdsWorkspace(){
           </>)}
           {view==='opportunities'&&<AdsOpportunityPanel key={reviewSignature} review={review} requested={reviewRequested} onAnalyze={analyze} days={Math.round((Date.parse(filters.endDate)-Date.parse(filters.startDate))/86400000)+1} onOpen={row=>openDrill(row,'asin')}/>}
           {view==='portfolio'&&<AdsPortfolioPanel portfolio={portfolio} requested={portfolioRequested} onAnalyze={analyzePortfolio} granularity={portfolioGranularity} onGranularity={setPortfolioGranularity} onOpen={row=>openDrill(row,'asin')} onFilter={(dimension,row)=>{if(dimension==='seller')setSeller(row.groupKey);else setBrand(row.groupKey);setCurrency(row.current?.currency||row.previous?.currency);setMarketplace(row.marketplace);setDrill(null);}}/>}
+          {view==='analyst'&&<AdsAnalystPanel key={reviewSignature+':'+analystRevision} filters={analystFilters} onOpen={row=>openDrill(row,'asin')}/>}
           {view==='quality'&&<AdsReconciliationPanel key={reviewSignature} audit={reconciliation} requested={reconciliationRequested} onRun={reconcile}/>}
           {view==='budgets'&&<AdsBudgetPanel key={JSON.stringify([principal,targetFilters])} applicable={targetsApplicable} budget={targets} onRetry={()=>targets.refetch()}/>}
         </>}</Suspense>
