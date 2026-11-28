@@ -101,6 +101,14 @@ describe('Canonical Ads route authorization and retirement',()=>{
       mockState.user={...SCOPED,assignedSellers:[]};const empty=await request(app).get('/api/ads/canonical-budget'+WINDOW);
       expect(empty.status).toBe(200);expect(empty.body.data.rows).toEqual([]);expect(mockState.pool.calls).toHaveLength(0);
     });
+    test('reconciliation is read-only and strictly seller scoped',async()=>{
+      mockState.user=null;expect((await request(app).get('/api/ads/canonical-reconciliation'+WINDOW)).status).toBe(401);
+      mockState.user=NO_PERMISSION;expect((await request(app).get('/api/ads/canonical-reconciliation'+WINDOW)).status).toBe(403);
+      mockState.user=SCOPED;expect((await request(app).get('/api/ads/canonical-reconciliation'+WINDOW+'&sellerId=S1,S9')).status).toBe(403);
+      expect((await request(app).get('/api/ads/canonical-reconciliation'+WINDOW+'&groupBy=parent')).status).toBe(400);
+      mockState.user={...SCOPED,assignedSellers:[]};const empty=await request(app).get('/api/ads/canonical-reconciliation'+WINDOW);
+      expect(empty.status).toBe(200);expect(empty.body.data.status).toBe('no_data');expect(mockState.pool.calls).toHaveLength(0);
+    });
     test('legacy ads reads and AI are retired for authorized users',async()=>{mockState.user=SCOPED;for(const p of ['overview','series','table','history','filter-options','insights','report'])expect((await request(app).get('/api/ads/'+p+WINDOW)).status).toBe(410);expect((await request(app).post('/api/ads/ai-review').send({})).status).toBe(410);expect(mockState.pool.calls).toHaveLength(0);});
     test('canonical export requires separate export permission',async()=>{mockState.user=SCOPED;expect((await request(app).get('/api/ads/canonical-export'+WINDOW)).status).toBe(403);});
     test('authenticated capability metadata still available',async()=>{mockState.user=NO_PERMISSION;expect((await request(app).get('/api/ads/meta')).status).toBe(200);});

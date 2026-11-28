@@ -218,20 +218,24 @@ function pairTrends(raw,groups,period,granularity){
    ratios:Object.fromEntries(TREND_RATIOS.map(key=>[key,compareValue(current,previous,{...opts,key,kind:'ratio'})]))}};
  }));
 }
-async function readTrends({tx,sql,period,granularity,groups}){
+async function readAlignedTrendRows({tx,sql,period,granularity}){
  const d='a.[alignedDate]';
  const bucket=granularity==='month'?"CONVERT(varchar(7),"+d+",23)":granularity==='week'?
  "CONVERT(varchar(10),DATEADD(day,-((DATEDIFF(day,CONVERT(date,'19000101',112),"+d+")%7+7)%7),"+d+"),23)":"CONVERT(varchar(10),"+d+",23)";
  const r=await tx.request().input('days',sql.Int,period.days).query(
   "SELECT p.[Currency] AS [currency],p.[periodKey],"+bucket+" AS [bucket],COUNT(DISTINCT p.[Date]) AS [coveredDays],"+aggregateProjection+
   " FROM #AdsScope p CROSS APPLY(SELECT CASE WHEN p.[periodKey]='previous' THEN DATEADD(day,@days,p.[Date]) ELSE p.[Date] END AS [alignedDate]) a GROUP BY p.[Currency],p.[periodKey],"+bucket+";");
- return pairTrends(r.recordset,groups,period,granularity);
+ return r.recordset;
+}
+async function readTrends({tx,sql,period,granularity,groups}){
+ return pairTrends(await readAlignedTrendRows({tx,sql,period,granularity}),groups,period,granularity);
 }
 const breakdownKeys=['dimension','Currency','Marketplace','groupKey'];
 const groupEq=(a,b)=>breakdownKeys.map(k=>k==='groupKey'?'('+a+'.[groupKey]='+b+'.[groupKey] OR ('+a+'.[groupKey] IS NULL AND '+b+'.[groupKey] IS NULL))':a+'.['+k+']='+b+'.['+k+']').join(' AND ');
-async function readBreakdowns({tx,sql,days}){
+async function readBreakdowns({tx,sql,days,onMaterialized}){
  const select=(kind,key,label,into='')=>"SELECT CAST('"+kind+"' AS varchar(8)) AS [dimension],p.[Currency],p.[Marketplace],CONVERT(nvarchar(255),"+key+") AS [groupKey],"+label+" AS [groupName],p.[periodKey],COUNT(DISTINCT p.[Date]) AS [coveredDays],"+aggregateProjection+into+" FROM #AdsScope p GROUP BY p.[Currency],p.[Marketplace],"+key+",p.[periodKey]";
  await tx.request().batch(select('seller','p.[SellerId]','MAX(p.[SellerName])',' INTO #AdsBreakdowns')+' UNION ALL '+select('brand','p.[CatalogBrand]','p.[CatalogBrand]')+';');
+ if(onMaterialized)await onMaterialized(tx);
  const r=await tx.request().input('limit',sql.Int,BREAKDOWN_LIMIT).query(
   ';WITH e AS (SELECT DISTINCT '+breakdownKeys.map(k=>'['+k+']').join(',')+' FROM #AdsBreakdowns), ranked AS (SELECT e.*,COUNT_BIG(*) OVER(PARTITION BY e.[Currency],e.[dimension]) AS [groupCount],ROW_NUMBER() OVER(PARTITION BY e.[Currency],e.[dimension] ORDER BY CASE WHEN c.[totalSales] IS NULL THEN 1 ELSE 0 END,CONVERT(decimal(38,10),c.[totalSales]) DESC,e.[Marketplace],e.[groupKey]) AS [rank] FROM e LEFT JOIN #AdsBreakdowns c ON '+groupEq('e','c')+" AND c.[periodKey]='current') "+
   'SELECT g.*,CONVERT(varchar(30),e.[groupCount]) AS [groupCount],e.[rank] FROM ranked e JOIN #AdsBreakdowns g ON '+groupEq('e','g')+' WHERE e.[rank]<=@limit ORDER BY e.[Currency],e.[dimension],e.[rank],g.[periodKey];');
@@ -258,4 +262,4 @@ async function readPortfolioAnalytics({tx,sql,period,granularity}){
  const breakdowns=await readBreakdowns({tx,sql,days:period.days});
  return {...emptyPortfolio(),groups,trends,breakdowns,empty:false};
 }
-module.exports={summarizePortfolio,classify,trendBuckets,pairTrends,readPortfolioAnalytics,emptyPortfolio,PARETO_METRICS,SEGMENTS,SAMPLE_LIMIT,BREAKDOWN_LIMIT};
+module.exports={summarizePortfolio,classify,trendBuckets,pairTrends,readProducts,readAlignedTrendRows,readBreakdowns,readPortfolioAnalytics,emptyPortfolio,PARETO_METRICS,SEGMENTS,SAMPLE_LIMIT,BREAKDOWN_LIMIT};

@@ -2,7 +2,10 @@
 // Real SQL disposable CI only. No production DB configuration is read.
 const test=require('node:test'),assert=require('node:assert/strict');
 const {up}=require('../migrations/098_ads_product_daily_facts');
-const {HEADERS}=require('../services/adsProductContract');
+const {HEADERS,validateReport}=require('../services/adsProductContract');
+const {METRICS}=require('../services/adsCanonicalMetrics');
+const {readCanonicalReport}=require('../services/adsCanonicalReport');
+const contract=require('../contracts/ads-product-daily-v1.json');
 const {ingestCanonicalReport}=require('../services/adsCanonicalIngestion');
 const {readCanonicalSummary}=require('../services/adsCanonicalMetrics');
 const quote=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
@@ -51,6 +54,22 @@ test('SQL: full writer, shared ASIN isolation, exact replay, conflict rollback, 
   assert.equal(all.currencies.find(c=>c.currency==='INR').totals.totalSales,'58.75');
   assert.equal(all.currencies.find(c=>c.currency==='USD').totals.totalSales,'20');
   await assert.rejects(()=>summary('s1,foreign'),{code:'forbidden_seller'});
+  // End-to-end source CSV -> exact persisted facts -> every canonical metric
+  // and the actual analytics partition paths, including sparse and signed rows.
+  await pool.request().query("ALTER TABLE dbo.Sellers ADD Name nvarchar(255) NULL; UPDATE dbo.Sellers SET Name=Id;");
+  const source=validateReport(csv([base,{...base,date:'2026-04-02','metrics.spend':'0','metrics.total_sales':'-1.25','metrics.ordered_revenue':'-1.25','metrics.new_to_brand_sales':''},{asin:base.asin,date:'2026-04-03'},concurrent[0]]));
+  const audit=await readCanonicalReport({pool,sql,user,query:{sellerId:'s1',startDate:'2026-04-01',endDate:'2026-04-30'},reconciliationOnly:true});
+  assert.equal(audit.status,'passed',JSON.stringify(audit.checks));assert.equal(audit.checks.length,9);
+  const actual=audit.baseline.find(r=>r.periodKey==='current');
+  for(const [metric,column] of Object.entries(METRICS)){
+   const header=contract.fields.find(f=>f.canonicalColumn===column)?.header;
+   assert.ok(header,metric);assert.equal(actual.totals[metric],source.totals[header]??null,metric);
+   assert.equal(actual.coverage[metric].populated,String(source.coverage[header].populated),metric+' coverage');
+  }
+  assert.equal(actual.rowCount,String(source.validRows));
+  assert.equal(audit.quality[0].nonAdditiveRevenueRows,'3');
+  assert.equal(audit.quality[0].signedAdjustments,'1');
+
   const remaining=await pool.request().query("SELECT COUNT(*) AS n FROM dbo.AdsProductDailyFacts; SELECT COUNT(*) AS legacy FROM dbo.AdsPerformance WHERE Id=42; SELECT COUNT(*) AS catalog FROM dbo.Asins;");
   assert.equal(remaining.recordsets[0][0].n,6);assert.equal(remaining.recordsets[1][0].legacy,1);assert.equal(remaining.recordsets[2][0].catalog,4);
  }finally{
