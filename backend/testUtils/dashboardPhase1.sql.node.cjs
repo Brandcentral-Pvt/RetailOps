@@ -35,8 +35,8 @@ test('Dashboard SQL: seller ownership, duplicate catalog protection, exact cents
    ('f4','B000000002','s1','2026-04-03',20.03,1,20,0),
    ('f5','B000000002',NULL,'2026-04-04',30.04,1,30,0),
    ('f6','B000000001','s1','2026-03-31',10.00,1,9,0);
-  CREATE TABLE dbo.AdsProductDailyFacts(Asin varchar(10),SellerId varchar(50),[Date] date,ReportType varchar(20),Currency char(3),AdSales decimal(28,10),AdSpend decimal(28,10),TotalSales decimal(28,10),OrganicSales decimal(28,10),Orders bigint,Impressions bigint,Clicks bigint);
-  INSERT dbo.AdsProductDailyFacts VALUES('B000000001','s1','2026-04-01','daily','INR',20,10,100,80,1,100,10);
+  CREATE TABLE dbo.AdsProductDailyFacts(Asin varchar(10),SellerId varchar(50),[Date] date,ReportType varchar(20),Currency char(3),AdSales decimal(28,10),AdSpend decimal(28,10),TotalSales decimal(28,10),OrganicSales decimal(28,10),Orders bigint,Impressions bigint,Clicks bigint,Conversions bigint,TotalUnits bigint,Marketplace nvarchar(50));
+  INSERT dbo.AdsProductDailyFacts VALUES('B000000001','s1','2026-04-01','daily','INR',20,10,100,80,1,100,10,2,3,'amazon.in');
   `);
   // Inject the disposable pool before requiring the production controller.
   const dbPath=require.resolve('../database/db');
@@ -81,8 +81,20 @@ test('Dashboard SQL: seller ownership, duplicate catalog protection, exact cents
    assert.deepEqual(scoped.tableData[0].trend,[100.01,0.02,null,null]);
    assert.equal(scoped.gmsBySeller[0].revenue,100.03);
    assert.equal(scoped.ads.tacos,10);
+   assert.equal(scoped.ads.cvr,20);
+   assert.deepEqual(scoped.unitsSeries,[3,null,null,null]);
+   assert.deepEqual(scoped.roasSeries,[2,null,null,null]);
+   assert.equal(scoped.portfolio.positiveProducts,1);
+   assert.equal(scoped.portfolio.positiveRevenue,100.03);
+   assert.equal(scoped.portfolio.headProducts,1);
+   assert.deepEqual(products.portfolio,scoped.portfolio);
    const wide=await request(adminUser);
    assert.equal(wide.gms.revenue,200.15);
+   assert.equal(wide.portfolio.positiveProducts,3);
+   assert.equal(wide.portfolio.unmatchedProducts,1);
+   assert.equal(wide.portfolio.positiveRevenue,170.11);
+   assert.equal(wide.portfolio.headProducts,2);
+   assert.equal(wide.portfolio.status,'observed_partial');
    assert.equal(wide.tableData.length,3);
    assert.equal(wide.tableData.find(r=>r.asin==='B000000002'&&r.sellerId==='s1').gmsRevenue,20.03);
    assert.deepEqual(wide.tableData.find(r=>r.asin==='B000000002'&&r.sellerId==='s2').trend,[null,50.05,null,null]);
