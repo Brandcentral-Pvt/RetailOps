@@ -214,7 +214,7 @@ test('Phase 3 comparisons and full-scope review load on demand without page trun
  await expect(opportunities.getByRole('button',{name:'Analyze products'})).toBeVisible();
  expect(requests).toBe(0);
  await opportunities.getByRole('button',{name:'Analyze products'}).click();
- await expect(opportunities.getByText('1200 products reviewed',{exact:true})).toBeVisible();
+ await expect(opportunities.getByText('1,200 products reviewed',{exact:true})).toBeVisible();
  await expect(opportunities.getByText('Showing 1 of 126 matches in INR.',{exact:false})).toBeVisible();
  await expect(opportunities.getByText('Partial observation',{exact:true})).toBeVisible();
  expect(filters.get('groupBy')).toBe('asin');expect(filters.has('page')).toBe(false);expect(filters.has('limit')).toBe(false);
@@ -291,16 +291,16 @@ test('Phase 3C seller budget pacing preserves incomplete coverage, details and s
  await expect(panel.getByText('Reporting cutoff: 2026-11-10.',{exact:false})).toBeVisible();
  const table=panel.getByTestId('ads-target-table');
  const a=table.locator('tr[data-row-key="full-budget"]'),b=table.locator('tr[data-row-key="partial-budget"]');
- await expect(a.getByText('INR 3600',{exact:true})).toBeVisible();
+ await expect(a.getByText('INR 3,600.00',{exact:true})).toBeVisible();
  await expect(a.getByText('Above planned spend',{exact:true})).toBeVisible();
  await expect(b.getByText('Observed only',{exact:true})).toBeVisible();
- await expect(b.getByText('INR 3600',{exact:true})).toHaveCount(0);
+ await expect(b.getByText('INR 3,600.00',{exact:true})).toHaveCount(0);
  expect(requestParams.has('brand')).toBe(false);expect(requestParams.has('search')).toBe(false);expect(requestParams.has('marketplace')).toBe(false);
  await assertContained(page);
  await a.getByRole('button',{name:'Budget details Seller One 2026-11'}).click();
  const detail=page.getByRole('dialog');
  await expect(detail.getByText('Configured weekly allocations',{exact:true})).toBeVisible();
- await expect(detail.getByText('INR 90',{exact:true})).toBeVisible();
+ await expect(detail.getByText('INR 90.00',{exact:true})).toBeVisible();
  await expect(detail.getByText('+5 pp',{exact:true})).toBeVisible();
  await detail.locator('.ant-modal-footer').getByRole('button',{name:'Close',exact:true}).click();
  await panel.locator('#ads-budget-filter').click();
@@ -332,4 +332,19 @@ test('Phase 3C ASIN diagnostics compare against the same owner portfolio and pre
  expect([identity.get('sellerId'),identity.get('marketplace'),identity.get('currency'),identity.get('entityKey')]).toEqual(['s1','amazon.in','INR','B000000001']);
  await d.getByText('Previous',{exact:true}).click();
  await expect(d.getByText('No product records for this period',{exact:true})).toBeVisible();
+});
+
+test('Ads numeric display uses grouped currency and integer counts without raw SQL decimals',async({page})=>{
+ await mock(page);
+ const actual={...summary,totals:{...summary.totals,spend:'7100.0300000000',orders:'11.0000000000',sales:'1234567.1250000000'},ratios:{...summary.ratios,acos:{value:'12.3456000000',status:'complete'}}};
+ const formattedRow={...rows[0],current:actual,previous:actual};
+ await page.route('**/api/ads/canonical-report?*',route=>route.fulfill({json:{success:true,data:{period,empty:false,current:[actual],previous:[actual],series:[],rows:[formattedRow],total:1,page:1,limit:50}}}));
+ await page.goto('/tests/fixtures/ads-layout.html');
+ await expect(page.getByText('INR 7,100.03',{exact:true}).first()).toBeVisible();
+ await expect(page.getByText('INR 12,34,567.13',{exact:true}).first()).toBeVisible();
+ await expect(page.getByText('12.35%',{exact:true}).first()).toBeVisible();
+ const product=page.getByTestId('ads-product-table').locator('tr[data-row-key="row-0"]');
+ await expect(product.getByText('11',{exact:false}).first()).toBeVisible();
+ await expect(page.getByText('7100.0300000000',{exact:false})).toHaveCount(0);
+ await expect(page.getByText('11.0000000000',{exact:false})).toHaveCount(0);
 });

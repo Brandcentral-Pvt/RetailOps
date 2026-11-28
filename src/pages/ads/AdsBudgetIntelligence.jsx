@@ -1,5 +1,6 @@
 import React,{useMemo,useState} from 'react';
 import {Alert,Button,Card,Descriptions,Empty,Modal,Progress,Segmented,Select,Spin,Table,Tag,Typography} from 'antd';
+import {formatAdsValue,adsCount} from './adsNumberFormat.mjs';
 
 const labels={
  configured:'Configured',missing_target:'Target not configured',conflicting_target:'Conflicting target',unverified_context:'Unverified seller context',
@@ -14,7 +15,7 @@ const labels={
  unknown_value:'Unknown value',nonpositive_denominator:'Nonpositive reference denominator'
 };
 const label=v=>labels[v]||String(v||'Unknown').replaceAll('_',' ');
-const fmt=(v,c,suffix='')=>v==null?'N/A':(c?c+' ':'')+String(v)+suffix;
+const fmt=(v,c,suffix='')=>formatAdsValue(v,c?'money':suffix===' pp'?'pp':suffix==='×'?'x':suffix==='%'?'%':'count',c);
 const sign=v=>v==null?null:String(v).startsWith('-')||v==='0'?String(v):'+'+v;
 const dayRange=s=>s?.through?(s.start===s.through?s.start:s.start+' to '+s.through):'Not started';
 const color=status=>['above_target','context_conflict','conflicting_target','schedule_conflict'].includes(status)?'volcano':
@@ -63,13 +64,13 @@ function BudgetDetail({row,onClose}){
    <Typography.Text strong>Reporting evidence</Typography.Text>
    <Descriptions bordered size="small" column={{xs:1,sm:2}} style={{marginTop:8}} items={[
     {key:'calendar',label:'Stored fact days',children:(cov.coveredDays??0)+' / '+(slice.elapsed??0)},
-    {key:'rows',label:'Stored fact rows',children:cov.rowCount??'N/A'},
-    {key:'spend',label:'Spend coverage',children:(cov.spendRows??0)+' / '+(cov.rowCount??0)+' rows'},
-    {key:'sales',label:'Ad sales coverage',children:(cov.salesRows??0)+' / '+(cov.rowCount??0)+' rows'},
+    {key:'rows',label:'Stored fact rows',children:adsCount(cov.rowCount)},
+    {key:'spend',label:'Spend coverage',children:adsCount(cov.spendRows??0)+' / '+adsCount(cov.rowCount??0)+' rows'},
+    {key:'sales',label:'Ad sales coverage',children:adsCount(cov.salesRows??0)+' / '+adsCount(cov.rowCount??0)+' rows'},
     {key:'spendDays',label:'Days with spend values',children:cov.spendDays??0},
     {key:'salesDays',label:'Days with sales values',children:cov.salesDays??0},
-    {key:'paired',label:'Paired spend / sales rows',children:cov.pairedRows??0},
-    {key:'adjustments',label:'Negative spend / sales rows',children:(cov.negativeSpendRows??0)+' / '+(cov.negativeSalesRows??0)}
+    {key:'paired',label:'Paired spend / sales rows',children:adsCount(cov.pairedRows??0)},
+    {key:'adjustments',label:'Negative spend / sales rows',children:adsCount(cov.negativeSpendRows??0)+' / '+adsCount(cov.negativeSalesRows??0)}
    ]}/>
    <p className="ads-analytics-note" style={{marginTop:10}}>The remaining daily ceiling is arithmetic, not a spend instruction. The month-end scenario assumes the same observed daily rate, not a prediction. Complete coverage means stored facts only; it does not establish that every source report or product was supplied. Lower ACoS is better.</p>
   </>}
@@ -106,8 +107,8 @@ export function AdsBudgetPanel({applicable,budget,onRetry}){
      </div>
      <div className="ads-analytics-toolbar">
       <div className="ads-portfolio-controls">
-       <Select id="ads-budget-month" aria-label="Budget month" allowClear placeholder="All months" value={effectiveMonth} onChange={setMonth} options={months.map(value=>({value,label:value}))} style={{width:140}}/>
-       <Select id="ads-budget-filter" aria-label="Budget review filter" value={filter} onChange={setFilter} style={{width:195}} options={[
+       <Select virtual={false} id="ads-budget-month" aria-label="Budget month" allowClear placeholder="All months" value={effectiveMonth} onChange={setMonth} options={months.map(value=>({value,label:value}))} style={{width:140}}/>
+       <Select virtual={false} id="ads-budget-filter" aria-label="Budget review filter" value={filter} onChange={setFilter} style={{width:195}} options={[
         {value:'all',label:'All budget groups'},{value:'above_plan',label:'Above planned spend'},{value:'over_budget',label:'Observed above budget'},
         {value:'acos_above',label:'ACoS above target'},{value:'missing_target',label:'Missing targets'},{value:'data_gaps',label:'Data / plan conflicts'}
        ]}/>
@@ -129,10 +130,10 @@ export function AdsBudgetPanel({applicable,budget,onRetry}){
        }},
        {title:'Variance / pacing',width:205,render:(_,r)=><>{fmt(sign(r.budget.varianceToPlan),r.currency)}<div><Status status={r.budget.paceStatus}/></div></>},
        {title:'Remaining budget',width:160,render:(_,r)=>fmt(r.budget.remainingBudget,r.currency)},
-       {title:'Month-end scenario',width:190,render:(_,r)=><>{fmt(r.budget.projectedMonthEnd,r.currency)}<div className="ads-analytics-note">{label(r.budget.forecastStatus)}</div></>},
+       {title:'Month-end scenario',width:190,render:(_,r)=><><span>{fmt(r.budget.projectedMonthEnd,r.currency)}</span><div className="ads-analytics-note">{label(r.budget.forecastStatus)}</div></>},
        {title:'Daily ceiling',width:155,render:(_,r)=>fmt(r.budget.remainingDailyAllowance,r.currency)},
        {title:'ACoS actual / target',width:190,render:(_,r)=><>{fmt(r.acos.actual,null,'%')} / {fmt(r.acos.target,null,'%')}<div><Status status={r.acos.status}/></div></>},
-       {title:'Coverage',width:205,render:(_,r)=><><Status status={r.budget.status}/><div className="ads-analytics-note">Spend: {r.coverage.spendRows}/{r.coverage.rowCount} rows</div></>}
+       {title:'Coverage',width:205,render:(_,r)=><><Status status={r.budget.status}/><div className="ads-analytics-note">Spend: {adsCount(r.coverage.spendRows)}/{adsCount(r.coverage.rowCount)} rows</div></>}
       ]}/>
      </div>
      <div className="ads-analytics-note">Currency amounts are never added across sellers or currencies here. Above plan is not automatically poor performance. Remaining budget, variance and extrapolation require compatible verified context, complete stored date/field coverage and no signed spend adjustments. Lower ACoS is better.</div>
@@ -176,7 +177,7 @@ export function AdsProductDiagnosticPanel({diagnostics}){
     {title:'Metric',width:160,render:(_,r)=>ratioNames[r.key]||r.key},
     {title:'Product',width:130,render:(_,r)=>ratioFmt(r.product,r.key,currency)},
     {title:'Seller reference',width:150,render:(_,r)=>ratioFmt(r.seller,r.key,currency)},
-    {title:'Gap',width:185,render:(_,r)=><>{fmt(sign(r.delta??r.observedDelta),r.unit==='currency'?currency:null,r.unit==='pp'?' pp':r.unit==='x'?'×':'')}{r.delta==null&&r.observedDelta!=null&&<div className="ads-analytics-note">Observed only</div>}</>},
+    {title:'Gap',width:185,render:(_,r)=><><span>{fmt(sign(r.delta??r.observedDelta),r.unit==='currency'?currency:null,r.unit==='pp'?' pp':r.unit==='x'?'×':'')}</span>{r.delta==null&&r.observedDelta!=null&&<div className="ads-analytics-note">Observed only</div>}</>},
     {title:'Evidence',width:180,render:(_,r)=><Status status={r.status}/>}
    ]}/></div>
    <Typography.Text strong style={{display:'block',margin:'14px 0 6px'}}>Observed daily review signals</Typography.Text>
