@@ -39,6 +39,11 @@ on:
       - 'backend/routes/exportRoutes.js'
       - 'backend/controllers/dashboardController.js'
       - 'backend/services/dashboardFinancialMetrics.js'
+      - 'backend/services/dashboardFinancialRead.js'
+      - 'backend/testUtils/dashboardBatchFixture.js'
+      - 'src/utils/dashboardRange.mjs'
+      - 'src/services/__tests__/dashboardRange.test.mjs'
+      - 'src/contexts/DateRangeContext.jsx'
       - 'backend/testUtils/dashboardPhase1.*'
       - 'backend/testUtils/dashboardPhase2.*'
       - 'backend/services/dashboardScope.js'
@@ -130,6 +135,7 @@ jobs:
           node --check backend/services/adsConsumerMetrics.js
           node --check backend/controllers/dashboardController.js
           node --check backend/services/dashboardFinancialMetrics.js
+          node --check backend/services/dashboardFinancialRead.js
           node --check backend/services/dashboardScope.js
           node --check backend/controllers/alertsController.js
           node --check backend/controllers/marketDataSyncController.js
@@ -211,7 +217,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: node --test src/services/__tests__/sessionRestore.test.mjs src/services/__tests__/adsNumberFormat.test.mjs src/services/__tests__/adsOverviewModel.test.mjs src/services/__tests__/adsWorkspacePerformance.test.mjs src/services/__tests__/dashboardScope.test.mjs
+      - run: node --test src/services/__tests__/sessionRestore.test.mjs src/services/__tests__/adsNumberFormat.test.mjs src/services/__tests__/adsOverviewModel.test.mjs src/services/__tests__/adsWorkspacePerformance.test.mjs src/services/__tests__/dashboardScope.test.mjs src/services/__tests__/dashboardRange.test.mjs
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test tests/ads-layout.spec.js
