@@ -17,7 +17,7 @@ function validateFilters(input,format){
  if(filters.sellerIds?.length>1000)throw err('scope_too_large','Select up to 1,000 sellers.',422);
  if(filters.sellerIds?.some(id=>id!==id.trim()||id.length>50||/[,\s*]/.test(id)||/^all$/i.test(id)))throw err('invalid_export','Invalid seller ID.');
  if(filters.exportBrandType==='all'&&filters.sellerIds!=null)throw err('invalid_export','All sellers cannot be combined with explicit seller IDs.');
- if(filters.exportBrandType==='current'&&filters.sellerIds==null)throw err('invalid_export','Current filters must include the resolved seller selection.');
+ // Null current seller selection means no seller/manager filter. Scope is still frozen against the authenticated owner.
  return filters;
 }
 function freezeScope(user,filters){
