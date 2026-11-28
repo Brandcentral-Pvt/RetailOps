@@ -594,9 +594,7 @@ exports.getDashboardTasks=async(req,res)=>{
  try{
   const pool=await getPool();
   const scope=await dashboardScope.resolveDashboardScope({pool,sql,user:req.user,sellerId:req.query.sellerId,managerId:req.query.managerId});
-  if(scope.empty)return res.json({success:true,instances:[],total:0,scope:dashboardScope.publicScope(scope)});
-  const filters={limit:200,page:1,...(scope.unrestricted?{}:{sellerId:scope.sellerIds.join(',')})};
-  const data=await require('../services/pems/pemsService').getInstances(filters,req.user);
-  return res.json({success:true,...data,scope:dashboardScope.publicScope(scope)});
+  const data=await require('../services/dashboardTaskIntelligence').readTaskSnapshot({pool,sql,scope});
+  return res.json({success:true,...data,total:data.summary.total,scope:dashboardScope.publicScope(scope)});
  }catch(e){return res.status(e instanceof AdsScopeError?e.status:500).json({success:false,message:e instanceof AdsScopeError?e.message:'Dashboard tasks unavailable.'});}
 };
