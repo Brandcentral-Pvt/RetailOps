@@ -185,7 +185,7 @@ async function readCanonicalReport({pool,sql,user,query,exportAll=false,insights
 }
 async function readCanonicalOptions({pool,sql,user,sellerId}){
   const all=strictScope(user),selected=strictScope(user,sellerId);
-  if(all.empty)return {sellers:[],brands:[],categories:[],currencies:[],truncated:false};
+  if(all.empty)return {sellers:[],brands:[],categories:[],currencies:[],marketplaces:[],truncated:false};
   const sellerReq=pool.request(),scope=scopeWhere(sellerReq,sql,all,'s.Id');
   const sellerRows=await sellerReq.query('SELECT TOP (1001) s.Id AS [id],s.Name AS [name],s.Marketplace AS [marketplace] FROM dbo.Sellers s WHERE 1=1'+scope+' ORDER BY s.Name,s.Id;');
   const columns=await catalogColumns(pool.request());
@@ -196,9 +196,9 @@ async function readCanonicalOptions({pool,sql,user,sellerId}){
     return r.recordset.map(x=>x.value);
   }
   const currencyReq=pool.request(),currencyScope=scopeWhere(currencyReq,sql,selected,'p.SellerId');
-  const currencies=await currencyReq.query('SELECT DISTINCT p.Currency AS [value] FROM dbo.AdsProductDailyFacts p WHERE 1=1'+currencyScope+' ORDER BY [value];');
+  const currencies=await currencyReq.query('SELECT DISTINCT p.Currency AS [value] FROM dbo.AdsProductDailyFacts p WHERE 1=1'+currencyScope+' ORDER BY [value]; SELECT DISTINCT p.Marketplace AS [value] FROM dbo.AdsProductDailyFacts p WHERE 1=1'+currencyScope+' ORDER BY [value];');
   const brands=await distinct('Brand'),categories=await distinct('Category');
-  return {sellers:sellerRows.recordset.slice(0,1000),brands:brands.slice(0,500),categories:categories.slice(0,500),currencies:currencies.recordset.map(x=>x.value),parentAvailable:columns.has('parentasin'),
+  return {sellers:sellerRows.recordset.slice(0,1000),brands:brands.slice(0,500),categories:categories.slice(0,500),currencies:currencies.recordsets[0].map(x=>x.value),marketplaces:currencies.recordsets[1].map(x=>x.value),parentAvailable:columns.has('parentasin'),
     truncated:sellerRows.recordset.length>1000||brands.length>500||categories.length>500};
 }
 module.exports={parseReport,readCanonicalReport,readCanonicalOptions,combineRows,MAX_EXPORT_ENTITIES};

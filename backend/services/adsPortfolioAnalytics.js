@@ -6,6 +6,7 @@ const {toFixedUnits:fixed,fromFixedUnits:decimal,ratio,shapeSummary,aggregatePro
 const {comparePeriods,compareValue}=require('./adsAnalyticsV3');
 const PAGE=2000,SAMPLE_LIMIT=10,BREAKDOWN_LIMIT=20;
 const PARETO_METRICS=['totalSales','sales','spend'];
+const MATRIX_METRICS=['spend','sales','totalSales','clicks','conversions'];
 const SEGMENTS=[
  ['above_reference','Above weighted ROAS reference','Review for further investigation; not a profit or scaling recommendation.'],
  ['at_reference','At weighted ROAS reference','Review performance against the selected portfolio.'],
@@ -57,7 +58,7 @@ function metricState(){return {positive:0,zero:0,negative:0,unknown:0,priorOnly:
 function currencyState(currency){
  return {currency,totalEntities:0,currentEntities:0,reference:{spend:0n,sales:0n,entities:0,complete:0},
   pareto:Object.fromEntries(PARETO_METRICS.map(k=>[k,metricState()])),
-  segments:new Map(SEGMENTS.map(s=>[s.code,{...s,count:0,complete:0,items:[]}]))};
+  segments:new Map(SEGMENTS.map(s=>[s.code,{...s,count:0,complete:0,items:[],observed:Object.fromEntries(MATRIX_METRICS.map(k=>[k,{sum:0n,entities:0}])),adPair:{spend:0n,sales:0n,entities:0},conversionPair:{clicks:0n,conversions:0n,entities:0}}]))};
 }
 function publicItem(r,days){
  const compatible=aligned(r,'spend','sales','roas');
@@ -65,6 +66,7 @@ function publicItem(r,days){
  return {key:JSON.stringify([r.sellerId,r.marketplace,r.currency,r.entityKey]),sellerId:r.sellerId,sellerName:r.sellerName,marketplace:r.marketplace,currency:r.currency,entityKey:r.entityKey,title:r.title??null,brand:r.brand??null,
   spend:r.spend??null,sales:r.sales??null,totalSales:r.totalSales??null,priorSales:r.priorSales??null,
   clicks:r.clicks??null,conversions:r.conversions??null,roas:usable?ratio(r.sales,r.spend,1):null,
+  cvr:aligned(r,'clicks','conversions','cvr')&&exact(r.clicks)>0n?ratio(r.conversions,r.clicks,100):null,
   currentDays:r.currentDays??null,currentRows:r.currentRows??null,expectedDays:days,
   spendRows:r.spendRows??null,salesRows:r.salesRows??null,totalSalesRows:r.totalSalesRows??null};
 }
@@ -99,6 +101,18 @@ async function summarizePortfolio({entities,ranked,days}){
  for await(const row of entities()){
   const g=currencies.get(row.currency),classification=classify(row,g.reference,days),s=g.segments.get(classification.code);
   s.count++;if(classification.evidence==='complete_observed')s.complete++;
+  if(row.currentRows!=null){
+   for(const k of MATRIX_METRICS){
+    const v=exact(row[k]);if(v!==null){s.observed[k].sum+=v;s.observed[k].entities++;}
+   }
+   if(eligible(row)&&classification.code!=='signed_adjustment'){
+    s.adPair.spend+=exact(row.spend);s.adPair.sales+=exact(row.sales);s.adPair.entities++;
+   }
+   const clicks=exact(row.clicks),conversions=exact(row.conversions);
+   if(clicks!==null&&clicks>0n&&conversions!==null&&conversions>=0n&&aligned(row,'clicks','conversions','cvr')){
+    s.conversionPair.clicks+=clicks;s.conversionPair.conversions+=conversions;s.conversionPair.entities++;
+   }
+  }
   addSample(s,row,classification.evidence,days);
  }
  for await(const row of ranked()){
@@ -114,7 +128,11 @@ async function summarizePortfolio({entities,ranked,days}){
    coverage:complete(row,days,[row.metric])?'complete_observed':'observed_partial'});
  }
  return [...currencies.values()].sort((a,b)=>a.currency.localeCompare(b.currency)).map(g=>{
-  const segments=[...g.segments.values()].map(s=>({...SEGMENT_MAP.get(s.code),count:s.count,completeObserved:s.complete,items:s.items.map(r=>r.item)}));
+  const segments=[...g.segments.values()].map(s=>({...SEGMENT_MAP.get(s.code),count:s.count,completeObserved:s.complete,items:s.items.map(r=>r.item),
+   observed:Object.fromEntries(MATRIX_METRICS.map(k=>[k,{value:s.observed[k].entities?decimal(s.observed[k].sum):null,entities:s.observed[k].entities}])),
+   compatibleRoas:{value:s.adPair.entities?ratio(decimal(s.adPair.sales),decimal(s.adPair.spend),1):null,entities:s.adPair.entities},
+   compatibleCvr:{value:s.conversionPair.entities?ratio(decimal(s.conversionPair.conversions),decimal(s.conversionPair.clicks),100):null,entities:s.conversionPair.entities}
+  }));
   if(segments.reduce((n,s)=>n+s.count,0)!==g.totalEntities)throw Error('Portfolio segment reconciliation failed');
   const concentration=PARETO_METRICS.map(metric=>{
    const m=g.pareto[metric];
@@ -132,7 +150,7 @@ async function summarizePortfolio({entities,ranked,days}){
     roas:g.reference.entities?ratio(decimal(g.reference.sales),decimal(g.reference.spend),1):null}};
  });
 }
-const entityColumns=['spend','sales','totalSales','clicks','conversions','priorSales','currentRows','spendRows','salesRows','totalSalesRows','roasRows','tacosRows'];
+const entityColumns=['spend','sales','totalSales','clicks','conversions','priorSales','currentRows','spendRows','salesRows','totalSalesRows','roasRows','tacosRows','clicksRows','conversionsRows','cvrRows'];
 const compactProjection=a=>[
  a+'.[rowNo] AS [rowNo]',a+'.[SellerId] AS [sellerId]',a+'.[Marketplace] AS [marketplace]',a+'.[Currency] AS [currency]',a+'.[EntityKey] AS [entityKey]',
  a+'.[sellerName]',a+'.[title]',a+'.[brand]',a+'.[currentDays]',...entityColumns.map(k=>textNum(a,k))
@@ -155,7 +173,7 @@ async function readProducts({tx,sql,days}){
  "SELECT ROW_NUMBER() OVER(ORDER BY e.[Currency],e.[SellerId],e.[Marketplace],e.[EntityKey]) AS [rowNo],"+keys.map(k=>'e.['+k+']').join(',')+
  ",COALESCE(c.[SellerName],p.[SellerName],e.[SellerId]) AS [sellerName],COALESCE(c.[CatalogTitle],p.[CatalogTitle]) AS [title],COALESCE(c.[CatalogBrand],p.[CatalogBrand]) AS [brand],c.[coveredDays] AS [currentDays],"+
  ['spend','sales','totalSales','clicks','conversions'].map(k=>asDecimal('c',k)+' AS ['+k+']').join(',')+','+asDecimal('p','sales')+' AS [priorSales],'+
- [['rowCount','currentRows'],['spendCount','spendRows'],['salesCount','salesRows'],['totalSalesCount','totalSalesRows'],['roasPairCount','roasRows'],['tacosPairCount','tacosRows']].map(([from,to])=>asBig('c',from)+' AS ['+to+']').join(',')+
+ [['rowCount','currentRows'],['spendCount','spendRows'],['salesCount','salesRows'],['totalSalesCount','totalSalesRows'],['roasPairCount','roasRows'],['tacosPairCount','tacosRows'],['clicksCount','clicksRows'],['conversionsCount','conversionsRows'],['cvrPairCount','cvrRows']].map(([from,to])=>asBig('c',from)+' AS ['+to+']').join(',')+
  " INTO #AdsPortfolio FROM #AdsEntities e LEFT JOIN #AdsGroups c ON "+eq('e','c')+" AND c.[periodKey]='current' LEFT JOIN #AdsGroups p ON "+eq('e','p')+" AND p.[periodKey]='previous'; "+
  "CREATE UNIQUE CLUSTERED INDEX IX_AdsPortfolio_Row ON #AdsPortfolio([rowNo]); "+
  "SELECT ROW_NUMBER() OVER(ORDER BY p.[Currency],v.[metric],v.[amount] DESC,p.[SellerId],p.[Marketplace],p.[EntityKey]) AS [rankNo],p.[rowNo],v.[metric],v.[amount] INTO #AdsPortfolioRanked FROM #AdsPortfolio p CROSS APPLY(VALUES ('totalSales',p.[totalSales]),('sales',p.[sales]),('spend',p.[spend])) v([metric],[amount]) WHERE v.[amount]>0; "+
