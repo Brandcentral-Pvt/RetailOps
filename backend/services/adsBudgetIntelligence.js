@@ -165,32 +165,35 @@ async function readBudgetIntelligence({pool,sql,user,query,now=new Date()}){
  const envelope={period,asOf,cutoffPolicy:'selected_end_or_previous_utc_day',basis:'month_start_through_cutoff',rows:[]};
  if(scope.empty)return envelope;
  const tx=new sql.Transaction(pool);await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+ let stage='target_definitions';
  try{
   const targets=await readTargetDefinitions({tx,sql,scope,period});
   if(targets.length>MAX_ROWS*2)throw new AdsScopeError('budget_scope_too_large','Too many seller-month targets. Narrow seller or date filters.',422);
   const plans=targets.filter(t=>t.goalType==='ADS'&&t.targetStatus==='configured').map(t=>({targetId:t.targetId,sellerId:t.sellerId,month:t.month,targetType:t.targetType,monthNo:Number(t.month.slice(-2))}));
-  const weekly=new Map();
+  const weekly=new Map();stage='weekly_allocations';
   // Read only the selected target records and relevant week allocations.
   for(let i=0;i<plans.length;i+=1000){
    const r=await tx.request().input('plans',sql.NVarChar(sql.MAX),JSON.stringify(plans.slice(i,i+1000))).query(
-    "SELECT p.sellerId,p.[month],CASE WHEN p.targetType='YEARLY' THEN b.PeriodValue-p.monthNo*10 ELSE b.PeriodValue END AS weekNo,CONVERT(varchar(80),CONVERT(decimal(38,10),b.TargetValue)) AS target FROM OPENJSON(@plans) WITH(targetId varchar(50),sellerId varchar(50),[month] varchar(7),targetType varchar(10),monthNo int) p JOIN dbo.GmsTargetBreakdowns b ON b.TargetId=p.targetId AND UPPER(b.PeriodType)='WEEK' AND (p.targetType='MONTHLY' OR (b.PeriodValue>=p.monthNo*10 AND b.PeriodValue<p.monthNo*10+10));");
+    "SELECT p.sellerId,p.[month],CASE WHEN p.targetType='YEARLY' THEN b.PeriodValue-p.monthNo*10 ELSE b.PeriodValue END AS [weekNo],CONVERT(varchar(80),CONVERT(decimal(38,10),b.TargetValue)) AS [target] FROM OPENJSON(@plans) WITH(targetId varchar(50),sellerId varchar(50),[month] varchar(7),targetType varchar(10),monthNo int) p JOIN dbo.GmsTargetBreakdowns b ON b.TargetId=p.targetId AND UPPER(b.PeriodType)='WEEK' AND (p.targetType='MONTHLY' OR (b.PeriodValue>=p.monthNo*10 AND b.PeriodValue<p.monthNo*10+10));");
    for(const v of r.recordset){const k=monthKey(v.sellerId,v.month);if(!weekly.has(k))weekly.set(k,[]);weekly.get(k).push(v);}
   }
+  stage='month_to_date_actuals';
   const request=tx.request(),expanded={startDate:period.startDate.slice(0,7)+'-01',endDate:asOf};
   const where=bindTargetScope(request,sql,scope,expanded,'p');
   const sum=c=>'CONVERT(varchar(80),SUM(CONVERT(decimal(38,10),p.['+c+'])))';
   const count=c=>'CONVERT(varchar(30),COUNT_BIG('+c+'))';
   const a=await request.query(
-   "SELECT TOP (5001) p.SellerId AS sellerId,s.Name AS sellerName,s.Marketplace AS catalogMarketplace,p.Marketplace AS marketplace,p.Currency AS currency,CONVERT(varchar(7),p.[Date],23) AS [month],"+
-   sum('AdSpend')+" AS spend,"+sum('AdSales')+" AS sales,"+count('*')+" AS rowCount,"+count('p.AdSpend')+" AS spendRows,"+count('p.AdSales')+" AS salesRows,"+
-   count('CASE WHEN p.AdSpend IS NOT NULL AND p.AdSales IS NOT NULL THEN 1 END')+" AS pairedRows,"+
-   count('CASE WHEN p.AdSpend<0 THEN 1 END')+" AS negativeSpendRows,"+count('CASE WHEN p.AdSales<0 THEN 1 END')+" AS negativeSalesRows,"+
-   "COUNT(DISTINCT p.[Date]) AS coveredDays,COUNT(DISTINCT CASE WHEN p.AdSpend IS NOT NULL THEN p.[Date] END) AS spendDays,COUNT(DISTINCT CASE WHEN p.AdSales IS NOT NULL THEN p.[Date] END) AS salesDays "+
+   "SELECT TOP (5001) p.SellerId AS [sellerId],s.Name AS [sellerName],s.Marketplace AS [catalogMarketplace],p.Marketplace AS [marketplace],p.Currency AS [currency],CONVERT(varchar(7),p.[Date],23) AS [month],"+
+   sum('AdSpend')+" AS [spend],"+sum('AdSales')+" AS [sales],"+count('*')+" AS [rowCount],"+count('p.AdSpend')+" AS [spendRows],"+count('p.AdSales')+" AS [salesRows],"+
+   count('CASE WHEN p.AdSpend IS NOT NULL AND p.AdSales IS NOT NULL THEN 1 END')+" AS [pairedRows],"+
+   count('CASE WHEN p.AdSpend<0 THEN 1 END')+" AS [negativeSpendRows],"+count('CASE WHEN p.AdSales<0 THEN 1 END')+" AS [negativeSalesRows],"+
+   "COUNT(DISTINCT p.[Date]) AS [coveredDays],COUNT(DISTINCT CASE WHEN p.AdSpend IS NOT NULL THEN p.[Date] END) AS [spendDays],COUNT(DISTINCT CASE WHEN p.AdSales IS NOT NULL THEN p.[Date] END) AS [salesDays] "+
    "FROM dbo.AdsProductDailyFacts p JOIN dbo.Sellers s ON s.Id=p.SellerId WHERE p.ReportType='daily' AND p.[Date]>=CONVERT(date,@start,23) AND p.[Date]<=CONVERT(date,@end,23)"+where+
    " GROUP BY p.SellerId,s.Name,s.Marketplace,p.Marketplace,p.Currency,CONVERT(varchar(7),p.[Date],23) ORDER BY p.SellerId,[month],p.Marketplace,p.Currency;");
   if(a.recordset.length>MAX_ROWS)throw new AdsScopeError('budget_scope_too_large','Too many seller-month fact groups. Narrow seller or date filters.',422);
+  stage='assemble_budget_rows';
   const rows=assembleBudgetRows({targets,actuals:a.recordset,weekly,asOf,currency});
   await tx.commit();return {...envelope,rows};
- }catch(e){try{await tx.rollback();}catch{}throw e;}
+ }catch(e){try{await tx.rollback();}catch{}if(e instanceof AdsScopeError)throw e;throw new Error('Canonical budget SQL failed at '+stage+': '+e.message,{cause:e});}
 }
 module.exports={readBudgetIntelligence,reportingCutoff,monthSlice,budgetPlan,actualCoverage,budgetResult,acosResult,assembleBudgetRows};
