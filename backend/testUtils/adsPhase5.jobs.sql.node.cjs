@@ -29,9 +29,13 @@ test('SQL durable canonical export lifecycle, access, recovery, artifact integri
   await assert.rejects(()=>jobs.getJob({...ctx,user:{...user,Id:'u2'},id:queued.id}),{code:'export_not_found'});
   assert.equal((await jobs.listJobs({...ctx,search:'2026-04-01'})).activeCount,1);
   assert.equal((await jobs.listJobs({...ctx,search:'unmatched'})).total,0);
+  const waiting=await create({...filters,groupBy:'asin'},'csv');
   const claims=await Promise.all([jobs.claimNext(pool,sql),jobs.claimNext(pool,sql)]);
   assert.equal(claims.filter(Boolean).length,1);
   const old=claims.find(Boolean);
+  assert.equal(await jobs.claimNext(pool,sql),null);
+  assert.equal((await jobs.getJob({...ctx,id:waiting.id})).status,'QUEUED');
+  await jobs.mutate({...ctx,id:waiting.id,action:'cancel'});
   await pool.request().input('id',sql.VarChar(36),queued.id).query("UPDATE dbo.AdsExportJobs SET LeaseUntil=DATEADD(second,-1,SYSUTCDATETIME()) WHERE Id=@id;");
   assert.equal(await jobs.refreshLease(pool,sql,old),false);
   assert.equal(await jobs.processNext(pool,sql),true);
