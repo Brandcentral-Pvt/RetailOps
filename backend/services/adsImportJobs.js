@@ -4,6 +4,7 @@
 const {randomUUID,createHash}=require('node:crypto');
 const {MAX_FILE_BYTES}=require('./adsProductContract');
 const {MAX_STORED_ISSUES}=require('./adsPreviewParser');
+const {readIssueChunks,sweepRetainedErrors}=require('./adsImportIssueChunks');
 const {strictScope,explicitSeller,resolveContext,AdsScopeError}=require('./adsCanonicalScope');
 const {importsEnabled}=require('./adsImportConfirmation');
 const MAX_PENDING_OWNER=3,MAX_PENDING_GLOBAL=50;
@@ -15,13 +16,13 @@ const ownerId=user=>{
  return id;
 };
 const normalizeName=name=>String(name||'report.csv').split(/[\\/]/).pop().replace(/[\u0000-\u001f\u007f]/g,'_').slice(0,255)||'report.csv';
-const cols="j.OwnershipHash,j.ValidationAttempts,CONVERT(varchar(33),j.ValidatedAt,126)+'Z' AS ValidatedAt,j.AttemptCount,j.Stage,j.StagedRows,CONVERT(varchar(33),j.QueuedAt,126)+'Z' AS QueuedAt,CONVERT(varchar(33),j.StartedAt,126)+'Z' AS StartedAt,CONVERT(varchar(33),j.NextAttemptAt,126)+'Z' AS NextAttemptAt,j.Id,j.OwnerId,j.SellerId,j.Marketplace,j.Currency,j.FileName,j.SourceFileSha256,j.Status,j.SummaryJson,j.ResultJson,CONVERT(varchar(33),j.CreatedAt,126)+'Z' AS CreatedAt,CONVERT(varchar(33),j.ExpiresAt,126)+'Z' AS ExpiresAt,CONVERT(varchar(33),j.CompletedAt,126)+'Z' AS CompletedAt,CASE WHEN j.ExpiresAt<=SYSUTCDATETIME() THEN 1 ELSE 0 END AS IsExpired";
+const cols="j.IssueToken,CONVERT(varchar(33),j.ErrorReportPurgedAt,126)+'Z' AS ErrorReportPurgedAt,j.OwnershipHash,j.ValidationAttempts,CONVERT(varchar(33),j.ValidatedAt,126)+'Z' AS ValidatedAt,j.AttemptCount,j.Stage,j.StagedRows,CONVERT(varchar(33),j.QueuedAt,126)+'Z' AS QueuedAt,CONVERT(varchar(33),j.StartedAt,126)+'Z' AS StartedAt,CONVERT(varchar(33),j.NextAttemptAt,126)+'Z' AS NextAttemptAt,j.Id,j.OwnerId,j.SellerId,j.Marketplace,j.Currency,j.FileName,j.SourceFileSha256,j.Status,j.SummaryJson,j.ResultJson,CONVERT(varchar(33),j.CreatedAt,126)+'Z' AS CreatedAt,CONVERT(varchar(33),j.ExpiresAt,126)+'Z' AS ExpiresAt,CONVERT(varchar(33),j.CompletedAt,126)+'Z' AS CompletedAt,CASE WHEN j.ExpiresAt<=SYSUTCDATETIME() THEN 1 ELSE 0 END AS IsExpired";
 function publicJob(row){
  if(!row)return null;
  const summary=JSON.parse(row.SummaryJson);
  return {id:row.Id,sellerId:row.SellerId,marketplace:row.Marketplace??summary.marketplace??null,currency:row.Currency??summary.currency??null,ownershipMode:row.SellerId==null?'auto':'legacy',fileName:row.FileName,
    sourceFileSha256:row.SourceFileSha256,status:row.Status==='READY'&&row.IsExpired?'EXPIRED':row.Status,
-   summary,result:row.ResultJson?JSON.parse(row.ResultJson):null,
+   summary,errorReportExpired:!!row.ErrorReportPurgedAt,result:row.ResultJson?JSON.parse(row.ResultJson):null,
    createdAt:row.CreatedAt,expiresAt:row.ExpiresAt,completedAt:row.CompletedAt,queuedAt:row.QueuedAt,startedAt:row.StartedAt,nextAttemptAt:row.NextAttemptAt,attemptCount:row.AttemptCount,validationAttempts:row.ValidationAttempts,validatedAt:row.ValidatedAt,stage:row.Stage,stagedRows:row.StagedRows,importsEnabled:importsEnabled()};
 }
 function scopedRequest(pool,sql,user,id){
@@ -125,12 +126,18 @@ async function getIssues(args){
  const row=await getRow({...args,issues:true});
  if(!row)throw jobError('job_not_found','Import not found.',404);
  const job=publicJob(row),issues=JSON.parse(row.IssuesJson);
- return {job,issues};
+ if(job.errorReportExpired)throw jobError('issue_report_expired','Detailed validation errors expire after 90 days. The import summary remains available.',410);
+ if(!row.IssueToken)return {job,issues,issueCount:issues.length}; // pre-104 history or one terminal error
+ const issueCount=Number(job.summary.storedIssueCount);
+ if(!Number.isSafeInteger(issueCount)||issueCount<=0)throw Error('Invalid saved issue count');
+ return {job,issues,issueCount,iterateIssues:()=>readIssueChunks({...args,token:row.IssueToken,expectedCount:issueCount,authorize:async()=>{
+  const latest=await getRow(args);if(!latest||latest.IssueToken!==row.IssueToken||latest.ErrorReportPurgedAt)throw jobError('issue_report_unavailable','Issue report is no longer available.',410);
+ }})};
 }
 let timer=null,running=false;
 function startExpirySweep(getPool){
  if(timer)return;
- const tick=async()=>{if(running)return;running=true;try{await expireJobs(await getPool());}catch(e){console.error('[ads import expiry]',e.message);}finally{running=false;}};
+ const tick=async()=>{if(running)return;running=true;try{const pool=await getPool();await expireJobs(pool);await sweepRetainedErrors(pool);}catch(e){console.error('[ads import expiry]',e.message);}finally{running=false;}};
  timer=setInterval(tick,60000);timer.unref?.();void tick();
 }
 module.exports={createPreview,getJob,listJobs,cancelJob,confirmJob,getIssues,expireJobs,startExpirySweep,MAX_STORED_ISSUES,JOB_STATUSES};

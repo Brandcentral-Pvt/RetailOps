@@ -4,7 +4,7 @@ const {strictScope,explicitSeller,resolveContext}=require('./adsCanonicalScope')
 const CHUNK=5000;
 // Resolve globally, BEFORE authorization. A shared ASIN never becomes unique
 // merely because the importer has access to only one of its owners.
-async function resolveOwners({db,sql,user,keys,onIssue=()=>{}}){
+async function resolveOwners({db,sql,user,keys,onIssue=()=>{},onChunk=()=>{}}){
  const scope=strictScope(user),allowed=new Set(scope.sellerIds),mapping=[],owners=new Map();
  let invalid=0;
  const issue=(r,code,message)=>{invalid++;onIssue({...r,column:'asin',code,message});};
@@ -28,10 +28,12 @@ async function resolveOwners({db,sql,user,keys,onIssue=()=>{}}){
    mapping.push({asin:key.asin,sellerId:r.SellerId,...context});
    if(prev)prev.asinCount++;else owners.set(r.SellerId,{sellerId:r.SellerId,...context,asinCount:1});
   }
+  await onChunk();
  }
  const sellerBreakdown=[...owners.values()].sort((a,b)=>a.sellerId.localeCompare(b.sellerId));
  const currencies=[...new Set(sellerBreakdown.map(x=>x.currency))];
  if(currencies.length>1){invalid++;onIssue({row:null,column:'currency',code:'mixed_currency_report',message:'This CSV has no currency column. Split reports by currency before importing.'});}
+ await onChunk();
  mapping.sort((a,b)=>a.asin.localeCompare(b.asin));
  const hash=invalid||!mapping.length?null:createHash('sha256').update(JSON.stringify(mapping)).digest('hex');
  return {mapping,owners:sellerBreakdown,currency:currencies.length===1?currencies[0]:null,marketplace:new Set(sellerBreakdown.map(x=>x.marketplace)).size===1?sellerBreakdown[0].marketplace:null,hash,invalid};

@@ -130,9 +130,10 @@ export default function AdsImportModal({isOpen,onClose,onComplete}){
   try{
    const r=await apiClient.get(endpoint+'/'+encodeURIComponent(job.id)+'/errors',{responseType:'blob',timeout:120000});
    const type=r.headers['content-type']||'';
-   if(!type.includes('spreadsheetml'))throw Error('Unexpected download response.');
+   const extension=type.includes('spreadsheetml')?'xlsx':type.includes('text/csv')?'csv':null;
+   if(!extension)throw Error('Unexpected download response.');
    const url=URL.createObjectURL(r.data),a=document.createElement('a');
-   a.href=url;a.download='ads-import-'+job.id+'-errors.xlsx';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+   a.href=url;a.download='ads-import-'+job.id+'-errors.'+extension;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }catch(e){
    let message='Error workbook could not be downloaded.';
    try{if(e.response?.data instanceof Blob)message=JSON.parse(await e.response.data.text()).message||message;}catch{}
@@ -226,8 +227,9 @@ export default function AdsImportModal({isOpen,onClose,onComplete}){
   {summary.issues?.length>0&&<Table size="small" rowKey={(_,i)=>i} dataSource={summary.issues} scroll={{x:700}} pagination={{pageSize:5,showSizeChanger:false}}
    columns={[{title:'CSV record',dataIndex:'row',width:90},{title:'ASIN',dataIndex:'asin',width:120},{title:'Date',dataIndex:'date',width:110},{title:'Column',dataIndex:'column',width:150},{title:'Remarks',dataIndex:'message'}]}/>}
   {summary.issuesTruncated&&<Alert type="info" message={'Showing '+summary.issues.length+' of '+summary.issueCount+' detected issues.'}/>}
-  {summary.issueReportTruncated&&<Alert type="warning" message={'Error workbook retains '+summary.storedIssueCount+' issues. Split the file to retrieve remaining errors.'}/>}
-  {(summary.storedIssueCount>0||job.status==='FAILED')&&<Button icon={<DownloadOutlined/>} loading={busy==='errors'} disabled={!!busy&&busy!=='errors'} onClick={downloadErrors}>Download error workbook</Button>}
+  {summary.issueReportTruncated&&<Alert type="warning" message={'Legacy error report retains '+summary.storedIssueCount+' issues. Revalidate the original file to capture all detected errors.'}/>}
+  {job.errorReportExpired&&<Alert type="info" message="Detailed error report expired after 90 days. The import summary is retained."/>}
+  {!job.errorReportExpired&&(summary.storedIssueCount>0||job.status==='FAILED')&&<Button icon={<DownloadOutlined/>} loading={busy==='errors'} disabled={!!busy&&busy!=='errors'} onClick={downloadErrors}>{summary.storedIssueCount>100000?'Download complete error CSV':'Download error workbook'}</Button>}
   {busy==='confirm'&&<Alert showIcon type="info" message="Submitting import confirmation" description="The server will queue the validated report. If the connection drops, check the job status before retrying."/>}
  </Space>;
  return <Modal title="Advertising report imports" open={isOpen} centered width={920} closable={!busy} maskClosable={!busy} keyboard={!busy}
