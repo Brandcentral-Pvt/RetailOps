@@ -32,6 +32,7 @@ test('SQL: full writer, shared ASIN isolation, exact replay, conflict rollback, 
   const p=await pool.request().query("SELECT CONVERT(varchar(80),NewToBrandSales) AS ntb, SourceFileSha256,SourceRowNumber,ImportedBy,AdvertisedSku FROM dbo.AdsProductDailyFacts WHERE SellerId='s1' AND [Date]='2026-04-01'");
   assert.equal(p.recordset[0].ntb,'1.1234567891');assert.equal(p.recordset[0].SourceFileSha256,first.sourceFileSha256);
   assert.equal(p.recordset[0].SourceRowNumber,2);assert.equal(p.recordset[0].ImportedBy,'u1');assert.equal(p.recordset[0].AdvertisedSku,null);
+  await assert.rejects(()=>write('s1',[{...base,sku:'New SKU'}]),{code:'historical_conflict'});
   await assert.rejects(()=>write('s1',[{...base,date:'2026-04-04'},{...base,'metrics.spend':'999'}]),{code:'historical_conflict'});
   await assert.rejects(()=>write('s1',[{...base,date:'2026-04-05'},{...base,asin:'B000000002'}]),{code:'catalog_ownership_conflict'});
   await assert.rejects(()=>write('s1',[{...base,asin:'B000000003'}]),{code:'catalog_ownership_conflict'});

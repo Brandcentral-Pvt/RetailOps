@@ -92,15 +92,7 @@ async function readCanonicalSummary({pool,sql,user,sellerId,startDate,endDate}){
   let predicate='';
   if(!scope.unrestricted){
     request.input('sellerIds',sql.NVarChar(sql.MAX),JSON.stringify(scope.sellerIds));
-    predicate=" AND EXISTS (SELECT 1 FROM OPENJSON(@sellerIds) WITH (id varchar(50) '
-  }
-  const result=await request.query("SELECT p.Currency AS currency,"+count('*')+" AS rowCount,"+
-    [...metricSelect,...pairSelect].join(',')+" FROM dbo.AdsProductDailyFacts p WHERE p.ReportType='daily' AND p.[Date]>=CONVERT(date,@startDate,23) AND p.[Date]<=CONVERT(date,@endDate,23)"+predicate+" GROUP BY p.Currency ORDER BY p.Currency;");
-  const currencies=result.recordset.map(shapeSummary);
-  return {period,reportType:'daily',currencies,empty:currencies.length===0,source:'canonical_v1'};
-}
-module.exports={METRICS,RATIOS,ratio,shapeSummary,validateWindow,readCanonicalSummary};
-) x WHERE x.id=p.SellerId)";
+    predicate=" AND EXISTS (SELECT 1 FROM OPENJSON(@sellerIds) WITH (id varchar(50) '$') x WHERE x.id=p.SellerId)";
   }
   const result=await request.query("SELECT p.Currency AS currency,"+count('*')+" AS rowCount,"+
     [...metricSelect,...pairSelect].join(',')+" FROM dbo.AdsProductDailyFacts p WHERE p.ReportType='daily' AND p.[Date]>=CONVERT(date,@startDate,23) AND p.[Date]<=CONVERT(date,@endDate,23)"+predicate+" GROUP BY p.Currency ORDER BY p.Currency;");

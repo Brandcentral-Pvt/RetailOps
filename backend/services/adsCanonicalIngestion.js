@@ -11,7 +11,7 @@ const stageColumns=['SourceRowNumber',...COLUMNS].join(',');
 const jsonColumns=["SourceRowNumber int '$[0]'",...FIELDS.map((f,i)=>'['+f.canonicalColumn+'] '+f.sqlType+" '$["+(i+1)+"]'")].join(',');
 const matching="t.SellerId=@seller AND t.Marketplace=@marketplace AND t.ReportType='daily' AND t.Asin=s.Asin AND t.[Date]=s.[Date]";
 const compareColumns=FIELDS.filter(f=>f.canonicalColumn!=='Asin'&&f.canonicalColumn!=='Date').map(f=>'['+f.canonicalColumn+']');
-const selectCols=alias=>compareColumns.map(c=>alias+'.'+c).join(',');
+const selectCols=alias=>compareColumns.map(c=>c==='[AdvertisedSku]'?'CONVERT(varbinary(510),'+alias+'.'+c+')':alias+'.'+c).join(',');
 const mismatch="EXISTS (SELECT "+selectCols('s')+" EXCEPT SELECT "+selectCols('t')+") OR t.Currency<>@currency";
 const BATCH_ROWS=1000;
 
@@ -52,7 +52,8 @@ async function ingestCanonicalReport({pool,sql,user,sellerId,reportType,input}){
       batch.push(row);if(batch.length===BATCH_ROWS)await flush();
     }
     await flush();
-    if(staged!==report.validRows)throw new AdsIngestionError('staging_mismatch','Validated and staged record counts disagree.');
+    const actualStage=await tx.request().query('SELECT COUNT_BIG(*) AS n FROM #AdsStage;');
+    if(staged!==report.validRows||Number(actualStage.recordset[0].n)!==staged)throw new AdsIngestionError('staging_mismatch','Validated and staged record counts disagree.');
     // All writers using this service serialize per seller; database key/range locks
     // provide a second protection against conflicting concurrent writes.
     const lockKey='retailops:ads-writer:'+createHash('sha256').update(seller).digest('hex');
