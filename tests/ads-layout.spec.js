@@ -51,8 +51,8 @@ for(const width of [1920,1440,1024,768]){
   // Assert vertical dimensions, not only horizontal containment. Legacy
   // flex-basis on a column child used to produce a 148px select.
   const filters=page.getByTestId('ads-filters');
-  const dims=await filters.evaluate(root=>[...root.querySelectorAll('.ads-filter-field > .ant-select, .ads-search-control > .ant-input-affix-wrapper, .ads-search-control > .ant-btn')].map(e=>({name:e.getAttribute('aria-label')||e.className,height:e.getBoundingClientRect().height,top:e.getBoundingClientRect().top})));
-  expect(dims.length).toBeGreaterThanOrEqual(7);
+  const dims=await filters.evaluate(root=>[...root.querySelectorAll('.ads-filter-field > .ant-select, .ads-filter-field > .ant-picker-range, .ads-search-control > .ant-input-affix-wrapper, .ads-search-control > .ant-btn')].map(e=>({name:e.getAttribute('aria-label')||e.className,height:e.getBoundingClientRect().height,top:e.getBoundingClientRect().top})));
+  expect(dims.length).toBeGreaterThanOrEqual(8);
   for(const d of dims){expect(d.height,d.name+' height').toBeGreaterThanOrEqual(28);expect(d.height,d.name+' height').toBeLessThanOrEqual(36);}
   const fields=await filters.locator('.ads-filter-field').evaluateAll(nodes=>nodes.map(e=>e.getBoundingClientRect().height));
   expect(Math.max(...fields)).toBeLessThanOrEqual(76);
@@ -494,4 +494,42 @@ test('Phase 4 direct import history opens the saved job list with bounded modal 
  await dialog.getByRole('tab',{name:'Upload CSV'}).click();
  await expect(dialog.getByText('Automatic seller detection',{exact:true})).toBeVisible();
  await expect(dialog.getByLabel('Import workflow')).toBeVisible();
+});
+
+test('Ads uses the shared GMS report calendar and preserves filters across date changes',async({page})=>{
+ await page.setViewportSize({width:1440,height:900});
+ await page.clock.setFixedTime(new Date('2026-11-28T12:00:00Z'));
+ await mock(page);
+ let lastReport,lastBudget;
+ page.on('request',r=>{
+  const url=new URL(r.url());
+  if(url.pathname.endsWith('/canonical-report'))lastReport=url.searchParams;
+  if(url.pathname.endsWith('/canonical-budget'))lastBudget=url.searchParams;
+ });
+ await page.goto('/tests/fixtures/ads-layout.html');
+ const start=page.locator('#ads-report-range'),end=page.locator('#ads-report-range-end');
+ await expect(start).toBeVisible();await expect(end).toBeVisible();
+ await expect(page.getByTestId('ads-filters').locator('.report-date-range-picker')).toHaveCount(1);
+ await page.locator('#ads-product-search').fill('B000000001');
+ await page.getByRole('button',{name:'Apply',exact:true}).click();
+ await expect.poll(()=>lastReport?.get('search')).toBe('B000000001');
+ await start.click();
+ for(const name of ['Today','Yesterday','Last 7 days','Last 30 days','This month','Previous month']){
+  await expect(page.getByText(name,{exact:true})).toBeVisible();
+ }
+ await expect(page.getByText('Select up to 366 calendar days.',{exact:true})).toBeVisible();
+ await page.getByText('Last 7 days',{exact:true}).click();
+ await expect(start).toHaveValue('22 Nov 2026');await expect(end).toHaveValue('28 Nov 2026');
+ await expect.poll(()=>[lastReport?.get('startDate'),lastReport?.get('endDate'),lastReport?.get('search')]).toEqual(['2026-11-22','2026-11-28','B000000001']);
+ await goView(page,'products');
+ await expect(start).toHaveValue('22 Nov 2026');
+ await end.click();
+ await page.getByText('Previous month',{exact:true}).click();
+ await expect(start).toHaveValue('01 Oct 2026');await expect(end).toHaveValue('31 Oct 2026');
+ await expect.poll(()=>[lastReport?.get('startDate'),lastReport?.get('endDate'),lastReport?.get('search'),lastReport?.get('page')]).toEqual(['2026-10-01','2026-10-31','B000000001','1']);
+ await page.getByRole('button',{name:'Clear filters',exact:true}).click();
+ await expect(start).toHaveValue('01 Oct 2026');await expect(end).toHaveValue('31 Oct 2026');
+ await goView(page,'budgets');
+ await expect.poll(()=>[lastBudget?.get('startDate'),lastBudget?.get('endDate')]).toEqual(['2026-10-01','2026-10-31']);
+ await page.setViewportSize({width:768,height:900});await assertContained(page);
 });
