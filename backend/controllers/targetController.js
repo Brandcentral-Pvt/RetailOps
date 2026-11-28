@@ -117,6 +117,17 @@ exports.getTargets = async (req, res) => {
         res.set?.('Cache-Control','private, no-store');
         if(scope.empty)return res.json({success:true,data:[]});
         if(!scope.unrestricted)whereClause+=' AND t.SellerId IN ('+buildInClause(request,'targetScope',scope.sellerIds)+')';
+        // Date selection chooses overlapping target periods; target values
+        // remain full-period obligations, never silently prorated.
+        if(req.query.dashboardFrom!==undefined||req.query.dashboardTo!==undefined){
+            const {dateWindow}=require('../utils/gmsPhase1');
+            let w;try{w=dateWindow(req.query.dashboardFrom,req.query.dashboardTo,{required:true});}catch(e){throw new (require('../services/adsCanonicalScope').AdsScopeError)('invalid_dashboard_range',e.message);}
+            request.input('targetFromYear',sql.Int,Number(w.from.slice(0,4)));
+            request.input('targetToYear',sql.Int,Number(w.to.slice(0,4)));
+            request.input('targetFromMonth',sql.Int,Number(w.from.slice(0,7).replace('-','')));
+            request.input('targetToMonth',sql.Int,Number(w.to.slice(0,7).replace('-','')));
+            whereClause+=" AND ((UPPER(t.TargetType)='YEARLY' AND t.[Year] BETWEEN @targetFromYear AND @targetToYear) OR (UPPER(t.TargetType)='MONTHLY' AND (t.[Year]*100+t.[Month]) BETWEEN @targetFromMonth AND @targetToMonth))";
+        }
         if (goalTypeFilter && goalTypeFilter !== 'all') {
             request.input('fgoalType', sql.NVarChar, goalTypeFilter);
             whereClause += ' AND UPPER(t.GoalType) = UPPER(@fgoalType)';
@@ -208,10 +219,11 @@ exports.getTargets = async (req, res) => {
                        SUM(ISNULL(g.OrderedRevenue, 0)) as OrderedRevenue,
                        SUM(ISNULL(g.OrderedUnits, 0)) as OrderedUnits
                 FROM GmsDailyPerformance g
-                INNER JOIN Asins a ON g.Asin = a.AsinCode
-                INNER JOIN Sellers s ON a.SellerId = s.Id
+                ${require('../utils/gmsPhase1').gmsCatalogApplySql}
+                INNER JOIN Sellers s ON COALESCE(g.SellerId,a.SellerId)=s.Id
                 WHERE s.Id IN (${gmsSellerClause})
-                  AND g.Date >= @gmsMinDate AND g.Date <= @gmsMaxDate
+                  ${scope.isGlobal?'':'AND a.SellerId IS NOT NULL AND '+require('../utils/gmsPhase1').unambiguousSellerSql('a')}
+                  AND g.Date >= @gmsMinDate AND g.Date < DATEADD(day,1,@gmsMaxDate)
                 GROUP BY s.Id, g.Date
             `;
             const gmsResult = await gmsRequest.query(gmsQuery);
