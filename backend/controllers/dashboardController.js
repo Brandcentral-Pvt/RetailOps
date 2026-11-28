@@ -1,11 +1,11 @@
 const { isGlobalUserRole } = require('../utils/roleUtils');
 const { sql, getPool } = require('../database/db');
-const { buildInClause } = require('../utils/sqlHelpers');
-const { dateWindow,gmsCatalogApplySql,unambiguousSellerSql }=require('../utils/gmsPhase1');
-const {exactSum,metricProjection,percentage:pct,change:deltaPct,rounded:round2,periodCoverage}=require('../services/dashboardFinancialMetrics');
+const { dateWindow }=require('../utils/gmsPhase1');
+const {readFinancialBatch}=require('../services/dashboardFinancialRead');
+const {exactSum,percentage:pct,change:deltaPct,rounded:round2,periodCoverage}=require('../services/dashboardFinancialMetrics');
 const { AdsScopeError } = require('../services/adsCanonicalScope');
 const dashboardScope=require('../services/dashboardScope');
-const { projection:adsProjection, summarize:adsSummary, rounded:adsRound } = require('../services/adsConsumerMetrics');
+const { summarize:adsSummary, rounded:adsRound } = require('../services/adsConsumerMetrics');
 
 // Helper to parse period strings (e.g., '30d', '3M', '1y')
 const parsePeriod = (period) => {
@@ -50,7 +50,9 @@ function parseDashboardWindow(start,end,period){
 exports.getDashboardData = async (req, res) => {
   try {
     res.set?.('Cache-Control','private, no-store');
-    const { period = '30d', startDate: startQuery, endDate: endQuery, sellerId,managerId } = req.query;
+    const { period = '30d', startDate: startQuery, endDate: endQuery, sellerId,managerId,mode='full' } = req.query;
+    if(!['full','overview','products'].includes(mode))throw new AdsScopeError('invalid_dashboard_mode','Invalid dashboard section.',400);
+    const started=Date.now();
     const userId = req.user?.Id || req.user?._id?.toString() || '';
 
     const range=parseDashboardWindow(startQuery,endQuery,period);
@@ -81,15 +83,44 @@ exports.getDashboardData = async (req, res) => {
       return r;
     };
 
+    const {startDate,endDate,days}=range;
+
+    // ✅ Period-over-period: the window immediately preceding the selected
+    // range, same length. Used for every "vs previous period" delta.
+    const prevEnd = new Date(startDate);
+    prevEnd.setDate(prevEnd.getDate() - 1);
+    const prevStart = new Date(startDate);
+    prevStart.setDate(prevStart.getDate() - days);
+    const startKey = toDateKey(startDate);
+    const endKey = toDateKey(endDate);
+    const prevStartKey = toDateKey(prevStart);
+    const prevEndKey = toDateKey(prevEnd);
+    const isCurrentRow = (row) => toDateKey(row.Date) >= startKey;
+
+    const requestController=new AbortController();
+    const onClose=()=>{if(!res.writableEnded)requestController.abort();};
+    res.once?.('close',onClose);
+    const reportRequest=buildDashReq()
+      .input('startDate',sql.Date,startDate)
+      .input('endDate',sql.Date,endDate)
+      .input('prevStart',sql.Date,prevStart);
+    // Start the bounded financial batch immediately. Cancel it if a date change
+    // closes the connection. All GMS outputs share one resolved fact set.
+    const financialPromise=readFinancialBatch({request:reportRequest,scope:canonicalScope,mode,signal:requestController.signal})
+      .then(data=>({data}),error=>({error}));
+
     // 2. Aggregate Counts (parallel independent queries - each with own request)
     const hasExplicitFilter=canonicalScope.managerId!==null||canonicalScope.requested.length>0||canonicalScope.empty;
+    const emptyResult={recordset:[]};
     const [
       sellerCountsResult,
       asinCountsResult,
       alertsResult,
       userActionStatsResult,
-      teamActionStatsPromise
-    ] = await Promise.all([
+      teamActionStatsPromise,
+      asinsGroupedResult,
+      sellersMapResult,
+    ] = mode==='products'?[emptyResult,emptyResult,emptyResult,emptyResult,emptyResult,emptyResult,emptyResult]:await Promise.all([
       buildDashReq().query(`
         SELECT 
           COUNT(*) as Total,
@@ -124,8 +155,16 @@ exports.getDashboardData = async (req, res) => {
         ? pool.request().query(`
             SELECT Status, COUNT(*) as Count FROM Actions GROUP BY Status
           `)
-        : Promise.resolve({ recordset: [] })
+        : Promise.resolve({ recordset: [] }),
+      buildDashReq().query('SELECT SellerId, COUNT(*) as Count FROM Asins '+asinFilter+' GROUP BY SellerId'),
+      buildDashReq().query('SELECT Id, Marketplace FROM Sellers '+sellerFilter)
     ]);
+    const financial=await financialPromise;
+    res.off?.('close',onClose);
+    if(requestController.signal.aborted)return;
+    if(financial.error)throw financial.error;
+    const {data:{gmsDaily,adsDaily,sellerRows,sellingRows,topRows,sparkRows}}=financial;
+    console.info('[dashboard financial read]',{mode,days,elapsedMs:Date.now()-started,gmsDays:gmsDaily.length,products:topRows.length});
 
     const sellerCounts = sellerCountsResult;
     const asinCounts = asinCountsResult;
@@ -155,78 +194,14 @@ exports.getDashboardData = async (req, res) => {
       });
     }
 
-    const {startDate,endDate,days}=range;
-
-    // ✅ Period-over-period: the window immediately preceding the selected
-    // range, same length. Used for every "vs previous period" delta.
-    const prevEnd = new Date(startDate);
-    prevEnd.setDate(prevEnd.getDate() - 1);
-    const prevStart = new Date(startDate);
-    prevStart.setDate(prevStart.getDate() - days);
-    const startKey = toDateKey(startDate);
-    const endKey = toDateKey(endDate);
-    const prevStartKey = toDateKey(prevStart);
-    const prevEndKey = toDateKey(prevEnd);
-    const isCurrentRow = (row) => toDateKey(row.Date) >= startKey;
-
-    // Seller restriction expressed against the aliased Asins table (A) so it
-    // can be appended to any join without column ambiguity.
-    const asinJoinFilter = asinFilter ? asinFilter.replace('WHERE', 'AND').replace('SellerId IN', 'A.SellerId IN') : '';
-    // Seller restriction for tables that carry only an ASIN code (GMS rows):
-    // an EXISTS against Asins avoids double-counting when the same ASIN is
-    // tracked under more than one seller.
-    const ownerExpr='COALESCE(g.SellerId,a.SellerId)';
-    // Match the GMS Tracker's conservative restricted-user ownership policy.
-    // Global views retain unresolved history once, under an unmatched group.
-    const scopedOwners=sellerParams.map((_,i)=>'@dashSeller_'+i).join(',');
-    const gmsScopeFilter=canonicalScope.empty?'AND 1=0':useWideFilters?'':canonicalScope.isGlobal?`AND ${ownerExpr} IN (${scopedOwners})`:`AND a.SellerId IN (${scopedOwners}) AND ${unambiguousSellerSql('a')}`;
-    const gmsFrom=`FROM GmsDailyPerformance g ${gmsCatalogApplySql}`;
-
-    const buildRangeReq = () => buildDashReq()
-      .input('startDate', sql.Date, startDate)
-      .input('endDate', sql.Date, endDate)
-      .input('prevStart', sql.Date, prevStart);
-
-    // 6. Ads Performance & Charts
-    // ✅ Aggregated per day (the charts and KPIs only ever consume per-day
-    // totals) across the current AND previous window in a single pass — the
-    // previous window feeds the period-over-period deltas.
-    const adsDataResult = await buildRangeReq()
-      .query(`
-        SELECT
-          AP.Date,
-          ${adsProjection('AP')}
-        FROM dbo.AdsProductDailyFacts AP
-        WHERE AP.Date BETWEEN @prevStart AND @endDate
-        AND AP.ReportType = 'daily' AND AP.Currency = 'INR'
-        ${asinJoinFilter.replace(/A\.SellerId/g,'AP.SellerId')}
-        GROUP BY AP.Date
-      `);
-
-    const allAdsRows = adsDataResult.recordset || [];
+    const allAdsRows=adsDaily;
     const adsData = allAdsRows.filter(isCurrentRow);
     const prevAdsData = allAdsRows.filter(r => !isCurrentRow(r));
     const currentAds=adsSummary(adsData),priorAds=adsSummary(prevAdsData);
     const {AdSales:totalAdSales,AdSpend:totalAdSpend,Orders:totalOrders,OrganicSales:totalOrganicSales,Impressions:totalImpressions,Clicks:totalClicks}=currentAds.totals;
     const totalCatalogValue = (asinCounts.recordset && asinCounts.recordset[0]) ? asinCounts.recordset[0].PortfolioValue || 0 : 0;
 
-    // 6b. GMS (ordered revenue / units) per day — the merchandise truth the
-    // top-products table and the GMS KPIs are built on. Same 2× window.
-    const gmsDailyResult = await buildRangeReq()
-      .query(`
-        SELECT
-          g.Date,
-          ${metricProjection('g.OrderedRevenue','Revenue')},
-          ${metricProjection('g.OrderedUnits','Units',{scale:0})},
-          ${metricProjection('g.ShippedRevenue','ShippedRevenue')},
-          ${metricProjection('g.CustomerReturns','Returns',{scale:0})}
-        ${gmsFrom}
-        WHERE g.Date BETWEEN @prevStart AND @endDate
-        ${gmsScopeFilter}
-        GROUP BY g.Date
-      `);
-
-    const allGmsRows = gmsDailyResult.recordset || [];
+    const allGmsRows=gmsDaily;
     const gmsRows = allGmsRows.filter(isCurrentRow);
     const prevGmsRows = allGmsRows.filter(r => !isCurrentRow(r));
     const gmsRevenue = exactSum(gmsRows, 'Revenue');
@@ -253,20 +228,6 @@ exports.getDashboardData = async (req, res) => {
       gmsSeries, gmsUnitsSeries, tacosSeries, granularity, bucketize
     } = processChartData(days, adsData, endDate, gmsRows);
 
-    // 7. Optimized Marketplace Distribution (Safe high-performance decouple)
-    // First: Get raw counts using ONLY covering index on Asins (super fast)
-    const asinsGroupedResult = await buildDashReq().query(`
-      SELECT SellerId, COUNT(*) as Count 
-      FROM Asins
-      ${asinFilter}
-      GROUP BY SellerId
-    `);
-
-    // Second: Get small Sellers map
-    const sellersMapResult = await pool.request().query(`
-      SELECT Id, Marketplace FROM Sellers
-    `);
-
     // Map to hold aggregated counts per marketplace
     const marketplaceCounts = {};
     const sellersMap = {};
@@ -289,120 +250,12 @@ exports.getDashboardData = async (req, res) => {
       color: ['#3b82f6', '#ec4899', '#f59e0b', '#10b981', '#8b5cf6'][idx % 5]
     }));
 
-    // 8. Top ASINs Table — ranked by GMS (ordered revenue of the ASIN).
-    // ✅ Definition fix: "top products" means the ASIN's merchandise sales
-    // (GmsDailyPerformance.OrderedRevenue), NOT its advertising numbers.
-    // AdsPerformance is only LEFT JOINed for context columns (ad share,
-    // TACoS, ACoS). Both aggregates are restricted to the selected window;
-    // the GMS aggregate also folds in the previous window for deltas.
-    // Seller params are bound via buildDashReq() (regression: @dashSeller_*).
-    const topAsinsPromise = buildRangeReq()
-      .query(`
-      WITH GmsAgg AS (
-        SELECT
-          g.Asin, ${ownerExpr} AS SellerId,
-          ${metricProjection('g.OrderedRevenue','GmsRevenue',{condition:'g.Date >= @startDate',scale:2})},
-          ${metricProjection('g.OrderedUnits','GmsUnits',{condition:'g.Date >= @startDate',scale:0})},
-          ${metricProjection('g.ShippedRevenue','ShippedRevenue',{condition:'g.Date >= @startDate',scale:2})},
-          ${metricProjection('g.CustomerReturns','Returns',{condition:'g.Date >= @startDate',scale:0})},
-          ${metricProjection('g.OrderedRevenue','PrevGmsRevenue',{condition:'g.Date < @startDate',scale:2})},
-          ${metricProjection('g.OrderedUnits','PrevGmsUnits',{condition:'g.Date < @startDate',scale:0})},
-          COUNT(DISTINCT CASE WHEN g.Date >= @startDate AND g.OrderedRevenue > 0 THEN g.Date END) AS ActiveDays,
-          COUNT(DISTINCT CASE WHEN g.Date >= @startDate THEN g.Date END) AS CurrentDays,
-          COUNT(DISTINCT CASE WHEN g.Date < @startDate THEN g.Date END) AS PreviousDays
-        ${gmsFrom}
-        WHERE g.Date BETWEEN @prevStart AND @endDate
-        ${gmsScopeFilter}
-        GROUP BY g.Asin, ${ownerExpr}
-      ),
-      AdsAgg AS (
-        SELECT
-          AP.Asin,AP.SellerId,
-          ${adsProjection('AP')}
-        FROM dbo.AdsProductDailyFacts AP
-        WHERE AP.Date BETWEEN @startDate AND @endDate
-          AND AP.ReportType = 'daily' AND AP.Currency = 'INR'
-          ${asinJoinFilter.replace(/A\.SellerId/g,'AP.SellerId')}
-        GROUP BY AP.Asin,AP.SellerId
-      )
-      SELECT TOP 200
-        A.Id, A.AsinCode, A.Sku, A.Title, A.Category, A.Brand, A.ParentAsin,
-        A.CurrentPrice, A.ImageUrl, A.Status, A.AvailabilityStatus, A.SellerId,
-        S.Name AS SellerName, S.Marketplace,
-        G.GmsRevenue, G.GmsUnits, G.ShippedRevenue, G.Returns,
-        G.PrevGmsRevenue, G.PrevGmsUnits, G.ActiveDays,G.CurrentDays,G.PreviousDays,
-        AD.[FactRows],AD.[AdSales],AD.[AdSalesCount],AD.[AdSpend],AD.[AdSpendCount],AD.[TotalSales],AD.[TotalSalesCount],AD.[OrganicSales],AD.[OrganicSalesCount],AD.[Orders],AD.[OrdersCount],AD.[Impressions],AD.[ImpressionsCount],AD.[Clicks],AD.[ClicksCount],AD.[acosPairCount],AD.[tacosPairCount],AD.[adSharePairCount],AD.[roasPairCount],AD.[ctrPairCount],AD.[cpcPairCount]
-      FROM GmsAgg G
-      CROSS APPLY (SELECT TOP(1) c.* FROM Asins c WHERE UPPER(LTRIM(RTRIM(c.AsinCode)))=UPPER(LTRIM(RTRIM(G.Asin))) AND c.SellerId=G.SellerId ORDER BY c.Id) A
-      JOIN Sellers S ON G.SellerId = S.Id
-      LEFT JOIN AdsAgg AD ON AD.Asin = G.Asin AND AD.SellerId = G.SellerId
-      WHERE (TRY_CONVERT(decimal(38,2),G.GmsRevenue)>0 OR TRY_CONVERT(bigint,G.GmsUnits)>0)
-      ${asinJoinFilter}
-      ORDER BY TRY_CONVERT(decimal(38,2),G.GmsRevenue) DESC, TRY_CONVERT(bigint,G.GmsUnits) DESC,A.Id
-    `);
-
-    // 9. GMS by seller (brand leaderboard) — current + previous window.
-    const gmsBySellerPromise = buildRangeReq()
-      .query(`
-        SELECT
-          ${ownerExpr} AS SellerId, S.Name AS SellerName, S.Marketplace,
-          ${metricProjection('g.OrderedRevenue','Revenue',{condition:'g.Date >= @startDate',scale:2})},
-          ${metricProjection('g.OrderedUnits','Units',{condition:'g.Date >= @startDate',scale:0})},
-          ${metricProjection('g.OrderedRevenue','PrevRevenue',{condition:'g.Date < @startDate',scale:2})},
-          COUNT(DISTINCT CASE WHEN g.Date >= @startDate AND g.OrderedRevenue > 0 THEN g.Asin END) AS AsinsWithSales,
-          COUNT(DISTINCT CASE WHEN g.Date >= @startDate THEN g.Date END) AS CurrentDays,
-          COUNT(DISTINCT CASE WHEN g.Date < @startDate THEN g.Date END) AS PreviousDays
-        ${gmsFrom}
-        LEFT JOIN Sellers S ON S.Id = ${ownerExpr}
-        WHERE g.Date BETWEEN @prevStart AND @endDate
-        ${gmsScopeFilter}
-        GROUP BY ${ownerExpr}, S.Name, S.Marketplace
-        ORDER BY TRY_CONVERT(decimal(38,2),CASE WHEN COUNT_BIG(CASE WHEN g.Date >= @startDate THEN 1 END)>0 AND COUNT_BIG(CASE WHEN g.Date >= @startDate THEN 1 END)=COUNT_BIG(CASE WHEN g.Date >= @startDate AND g.OrderedRevenue IS NOT NULL THEN 1 END) THEN SUM(CASE WHEN g.Date >= @startDate THEN CONVERT(decimal(38,2),g.OrderedRevenue) END) END) DESC
-      `);
-
-    // Distinct ASINs with ordered revenue in the current window (scoped).
-    const sellingAsinsPromise = buildRangeReq()
-      .query(`
-        SELECT COUNT(DISTINCT g.Asin) AS AsinsWithSales
-        ${gmsFrom}
-        WHERE g.Date BETWEEN @startDate AND @endDate
-          AND ISNULL(g.OrderedRevenue, 0) > 0
-        ${gmsScopeFilter}
-      `);
-
-    const [topAsinsResult, gmsBySellerResult, sellingAsinsResult] = await Promise.all([
-      topAsinsPromise, gmsBySellerPromise, sellingAsinsPromise,
-    ]);
-
-    const topRows = topAsinsResult.recordset || [];
-
-    // 8b. Per-ASIN GMS trend (bucket-aligned with `labels`) for the leaders —
-    // a second, narrow query so the ranking query stays a pure aggregate.
-    const SPARK_LIMIT = 25;
-    const sparkAsins = Array.from(new Set(topRows.slice(0, SPARK_LIMIT).map(r => r.AsinCode).filter(Boolean)));
-    const trendByAsin = {};
-    if (sparkAsins.length > 0) {
-      const sparkReq = buildRangeReq();
-      const sparkClause = buildInClause(sparkReq, 'sparkAsin', sparkAsins);
-      const sparkResult = await sparkReq.query(`
-        SELECT g.Asin, ${ownerExpr} AS SellerId, g.Date,
-          ${metricProjection('g.OrderedRevenue','Revenue')},
-          ${metricProjection('g.OrderedUnits','Units',{scale:0})}
-        ${gmsFrom}
-        WHERE g.Date BETWEEN @startDate AND @endDate
-          AND g.Asin IN (${sparkClause}) ${gmsScopeFilter}
-        GROUP BY g.Asin, ${ownerExpr}, g.Date
-      `);
-      (sparkResult.recordset || []).forEach(row => {
-        const key=JSON.stringify([row.SellerId,row.Asin]);
-        if (!trendByAsin[key]) {
-          trendByAsin[key] = bucketKeys.map(()=>[]);
-        }
-        const idx = bucketize(row.Date);
-        if (idx >= 0) {
-          trendByAsin[key][idx].push(row);
-        }
-      });
+    const trendByAsin={};
+    for(const row of sparkRows){
+      const key=JSON.stringify([row.SellerId,row.Asin]);
+      if(!trendByAsin[key])trendByAsin[key]=bucketKeys.map(()=>[]);
+      const idx=bucketize(row.Date);
+      if(idx>=0)trendByAsin[key][idx].push(row);
     }
 
     const rankedTotal = exactSum(topRows,'GmsRevenue');
@@ -459,7 +312,7 @@ exports.getDashboardData = async (req, res) => {
       };
     });
 
-    const gmsBySeller = (gmsBySellerResult.recordset || [])
+    const gmsBySeller = sellerRows
       .map(r => {
         const revenue=exactSum([r],'Revenue'),prevRevenue=exactSum([r],'PrevRevenue');
         const rowComparable=Number(r.CurrentDays)===days&&Number(r.PreviousDays)===days;
@@ -478,7 +331,7 @@ exports.getDashboardData = async (req, res) => {
       .filter(r => r.revenue!==0 || r.prevRevenue!==0);
 
     const marketplaceGroups=new Map();
-    for(const row of gmsBySellerResult.recordset||[]){
+    for(const row of sellerRows){
       const key=row.Marketplace||'Other';
       if(!marketplaceGroups.has(key))marketplaceGroups.set(key,[]);
       marketplaceGroups.get(key).push(row);
@@ -489,7 +342,7 @@ exports.getDashboardData = async (req, res) => {
     }).sort((a,b)=>(b.revenue??-Infinity)-(a.revenue??-Infinity));
 
     const {AdSales:prevAdSales,AdSpend:prevAdSpend,Orders:prevOrders,OrganicSales:prevOrganicSales}=priorAds.totals;
-    const asinsWithSales = Number((sellingAsinsResult.recordset || [])[0]?.AsinsWithSales) || 0;
+    const asinsWithSales = Number(sellingRows[0]?.AsinsWithSales) || 0;
 
     const response = {
       scope:dashboardScope.publicScope(canonicalScope),
@@ -578,9 +431,11 @@ exports.getDashboardData = async (req, res) => {
       gmsByMarketplace,
     };
 
-    res.json(response);
+    if(mode==='products')return res.json({scope:response.scope,period:response.period,tableData,rankedAsins:topRows.length,rankedRevenue:round2(rankedTotal),gmsRevenue:response.gms.revenue});
+    res.json({...response,productsIncluded:mode==='full'});
   } catch (error) {
-    if (!res.headersSent) {
+    if(!res.destroyed&&!res.headersSent){
+      if(!(error instanceof AdsScopeError))console.error('[dashboard read failed]',error.code||error.name,error.message);
       res.status(error instanceof AdsScopeError?error.status:500).json({error:error instanceof AdsScopeError?error.message:'Dashboard data unavailable',code:error instanceof AdsScopeError?error.code:'dashboard_unavailable'});
     }
   }
