@@ -8,15 +8,15 @@ import {DeltaText} from './AdsPerformanceReview';
 
 const METRICS=[
  ['totalSales','Total sales','money',DollarOutlined,'blue'],['sales','Ad sales','money',ShoppingCartOutlined,'blue'],
- ['spend','Ad spend','money',FundOutlined,'amber'],['totalOrders','Total orders','count',ShoppingCartOutlined,'neutral'],
- ['acos','ACoS','%',BarChartOutlined,'neutral'],['tacos','TACoS','%',BarChartOutlined,'neutral'],
+ ['spend','Ad spend','money',FundOutlined,'amber'],['tacos','TACoS','%',BarChartOutlined,'neutral'],
+ ['acos','ACoS','%',BarChartOutlined,'neutral'],['totalOrders','Total orders','count',ShoppingCartOutlined,'neutral'],
  ['roas','ROAS','x',LineChartOutlined,'neutral'],['cvr','CVR','%',ThunderboltOutlined,'neutral']
 ];
 const CHARTS=[
  {value:'sales_spend',label:'Ad sales & spend',keys:['sales','spend'],unit:'money'},
- ...[['totalSales','Total sales','money'],['acos','ACoS','%'],['roas','ROAS','x'],['cvr','CVR','%'],['clicks','Clicks','count'],['conversions','Conversions','count']].map(([value,label,unit])=>({value,label,keys:[value],unit}))
+ ...[['totalSales','Total sales','money'],['acos','ACoS','%'],['tacos','TACoS','%'],['roas','ROAS','x'],['cvr','CVR','%'],['clicks','Clicks','count'],['conversions','Conversions','count']].map(([value,label,unit])=>({value,label,keys:[value],unit}))
 ];
-const LABELS={sales:'Ad sales',spend:'Ad spend',totalSales:'Total sales',acos:'ACoS',roas:'ROAS',cvr:'CVR',clicks:'Clicks',conversions:'Conversions'};
+const LABELS={sales:'Ad sales',spend:'Ad spend',totalSales:'Total sales',acos:'ACoS',tacos:'TACoS',roas:'ROAS',cvr:'CVR',clicks:'Clicks',conversions:'Conversions'};
 const COVERAGE={complete:'Complete observed',partial:'Partial coverage',incompatible_coverage:'Unmatched coverage',unknown:'Unknown'};
 const COLORS=['#1976d2','#b7791f'];
 const compact=new Intl.NumberFormat('en-IN',{notation:'compact',maximumFractionDigits:1});
@@ -25,9 +25,10 @@ function Kpi({metric,current,previous,comparison,currency,days}){
  const [key,label,unit,Icon,accent]=metric,now=metricValue(current,key),prior=metricValue(previous,key);
  const cov=metricCoverage(current,key),change=(ratioMetric(key)?comparison?.ratios:comparison?.metrics)?.[key];
  return <article className="ads-kpi" data-testid={'ads-kpi-'+key}>
-  <div className="ads-kpi-top"><span>{label}</span><span className={'ads-kpi-icon ads-kpi-icon-'+accent}><Icon aria-hidden="true"/></span></div>
+  <div className="ads-kpi-top"><span title={key==='tacos'?'Total ad spend ÷ reported total sales × 100':undefined}>{label}</span><span className={'ads-kpi-icon ads-kpi-icon-'+accent}><Icon aria-hidden="true"/></span></div>
   <div className="ads-kpi-value" title={now==null?'Unknown':String(now)}>{formatAdsValue(now,unit,currency)}</div>
   <div className="ads-kpi-prior">Prior: <span title={prior==null?'Unknown':String(prior)}>{formatAdsValue(prior,unit,currency)}</span></div>
+  {key==='tacos'&&now==null&&<div className="ads-analytics-note">{cov==='incompatible_coverage'?'Spend and total sales coverage differ.':'Requires reported total sales above zero and known spend.'}</div>}
   <DeltaText change={change} money={unit==='money'} currency={currency}/>
   <div className="ads-kpi-foot"><span className={'ads-kpi-coverage ads-kpi-coverage-'+cov}><i aria-hidden="true"/>{COVERAGE[cov]||'Unknown'}</span>{cov==='complete'&&current?.coveredDays!==days&&<span className="ads-analytics-note">Incomplete dates</span>}</div>
  </article>;
