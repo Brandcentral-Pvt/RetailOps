@@ -4,6 +4,7 @@ const {up}=require('../migrations/098_ads_product_daily_facts');
 const {readCanonicalReport,readCanonicalOptions}=require('../services/adsCanonicalReport');
 const {readCanonicalTargets}=require('../services/adsCanonicalTargets');
 const {readBudgetIntelligence}=require('../services/adsBudgetIntelligence');
+const {rawReconciler,SOURCE_FIELDS}=require('../services/adsExportSnapshot');
 test('SQL: canonical scope, duplicate catalog protection, current/prior comparison, exact metrics and pagination',{skip:process.env.ADS_SQL_SMOKE!=='1',timeout:120000},async()=>{
  const sql=require(process.env.ADS_TEST_MSSQL_MODULE||'mssql');
  const config={server:'127.0.0.1',user:'sa',password:process.env.ADS_TEST_SQL_PASSWORD,options:{trustServerCertificate:true,encrypt:false}};
@@ -35,6 +36,30 @@ test('SQL: canonical scope, duplicate catalog protection, current/prior comparis
   assert.equal(r.total,3);assert.equal(r.page,2);assert.equal(r.rows.length,1);assert.equal(r.rows[0].current,null);assert.equal(r.rows[0].previous.totals.totalSales,'80');
   const full=await readCanonicalReport({pool,sql,user,query:{...range,sellerId:'s1',limit:'1',page:'2'},exportAll:true});
   assert.equal(full.rows.length,3);assert.equal(full.total,3);assert.equal(full.page,1);
+  await pool.request().query("UPDATE dbo.AdsProductDailyFacts SET AdvertisedSku=N'00123',ProductPrice=7100.0300000001,ACoS=0.255,ViewImpressions=9007199254740993,SourceRowNumber=7 WHERE SellerId='s1' AND Asin='B000000001' AND [Date]='2026-04-01';");
+  const snapshot=async(extra={},actor=user)=>readCanonicalReport({pool,sql,user:actor,query:{...range,...extra},exportWorkbook:async snap=>{
+   const raw=[],entities=[],rec=rawReconciler(snap.report);
+   for await(const r of snap.rawRows()){rec.add(r);raw.push(r);}
+   rec.finish(snap.rawCount);
+   for await(const r of snap.entityRows())entities.push(r);
+   assert.equal(entities.length,snap.report.total);
+   return {report:snap.report,raw,entities,aligned:snap.aligned};
+  }});
+  const exported=await snapshot({sellerId:'s1',page:'99',limit:'1'});
+  assert.equal(exported.raw.length,4);assert.equal(exported.entities.length,3);assert.equal(exported.report.total,3);
+  assert.equal(exported.raw.filter(r=>r.periodKey==='previous').length,1);
+  const extraSource=exported.raw.find(r=>r.Asin==='B000000001'&&r.Date==='2026-04-01');
+  assert.equal(extraSource.AdvertisedSku,'00123');assert.equal(extraSource.ProductPrice,'7100.0300000001');
+  assert.equal(extraSource.ViewImpressions,'9007199254740993');assert.equal(extraSource.ACoS,'0.2550000000');assert.equal(extraSource.SourceRowNumber,'7');
+  assert.ok(SOURCE_FIELDS.every(f=>Object.hasOwn(extraSource,f.canonicalColumn)));
+  assert.equal(exported.entities.find(r=>r.entityKey==='B000000003').current,null);
+  assert.equal(exported.aligned.length,30);
+  const scoped=await snapshot();assert.equal(scoped.raw.length,5);assert.ok(scoped.raw.every(r=>r.SellerId!=='s3'));
+  assert.equal((await snapshot({sellerId:'s1',brand:'A'})).raw.length,2);
+  assert.equal((await snapshot({sellerId:'s1',groupBy:'parent'})).entities.length,2);
+  await assert.rejects(()=>snapshot({sellerId:'s1,s3'}),{code:'forbidden_seller'});
+  const noExport=await snapshot({}, {...user,assignedSellers:[]});assert.equal(noExport.raw.length,0);
+
   const byKey=await read({sellerId:'s1',sortBy:'entityKey',sortOrder:'asc'});
   assert.deepEqual(byKey.rows.map(x=>x.entityKey),['B000000001','B000000002','B000000003']);
   const first=await read({sellerId:'s1',limit:'2',sortBy:'totalSales',sortOrder:'desc'});
@@ -198,6 +223,11 @@ test('SQL: canonical scope, duplicate catalog protection, current/prior comparis
   const brandMany=many.breakdowns.find(x=>x.dimension==='brand');
   assert.equal(brandMany.totalGroups,'25');assert.equal(brandMany.items.length,20);
   assert.equal(brandMany.items[0].label,'Brand00');assert.equal(brandMany.items[0].current.totals.totalSales,'324');
+  // Complete snapshot crosses both SQL cursor sizes; ignores UI page/limit.
+  const bigExport=await snapshot({startDate:'2026-06-01',endDate:'2026-06-01',sellerId:'s1',page:'99',limit:'1'});
+  assert.equal(bigExport.raw.length,2005);assert.equal(bigExport.entities.length,2005);
+  assert.equal(new Set(bigExport.raw.map(r=>r.Asin)).size,2005);
+  assert.equal(new Set(bigExport.entities.map(r=>r.key)).size,2005);
   // Full reconciliation runs against the same scope, not a current page.
   const certify=(extra={},actor=user)=>readCanonicalReport({pool,sql,user:actor,query:{...signalQuery,...extra},reconciliationOnly:true});
   const reconciled=await certify({limit:'1',page:'99'});

@@ -18,6 +18,7 @@ on:
       - 'backend/services/accessProfileService.js'
       - 'backend/testUtils/adsPhase2.*'
       - 'backend/testUtils/adsPhase3.*'
+      - 'backend/testUtils/adsPhase5.*'
       - 'backend/server.js'
       - 'Dockerfile.backend'
       - 'backend/services/ads*.js'
@@ -100,6 +101,8 @@ jobs:
           node --check backend/controllers/dashboardController.js
           node --check backend/controllers/targetController.js
           node --check backend/controllers/adsCanonicalExportController.js
+          node --check backend/services/adsExportSnapshot.js
+          node --check backend/services/adsCompleteWorkbook.js
           node --test backend/testUtils/adsPhase1.contract.node.cjs backend/testUtils/adsPhase1.canonical.node.cjs backend/testUtils/adsPhase1.report.node.cjs backend/testUtils/adsPhase1.activation.node.cjs backend/testUtils/adsPhase2.preview.node.cjs backend/testUtils/adsPhase3.analytics.node.cjs backend/testUtils/adsPhase3.portfolio.node.cjs backend/testUtils/adsPhase3.budget.node.cjs backend/testUtils/adsPhase3.reconciliation.node.cjs
   sql:
     runs-on: ubuntu-latest
@@ -159,5 +162,5 @@ jobs:
         working-directory: backend
       - run: npm test -- --runInBand __tests__/routes/adsRoutes.test.js __tests__/routes/adsImportActions.test.js __tests__/routes/dashboardAccess.test.js __tests__/unit/dashboardTopAsins.test.js
         working-directory: backend
-      - run: node --test testUtils/adsPhase1.workbook.node.cjs testUtils/adsPhase2.issues.node.cjs
+      - run: node --test testUtils/adsPhase1.workbook.node.cjs testUtils/adsPhase2.issues.node.cjs testUtils/adsPhase5.workbook.node.cjs
         working-directory: backend

@@ -111,6 +111,7 @@ describe('Canonical Ads route authorization and retirement',()=>{
     });
     test('legacy ads reads and AI are retired for authorized users',async()=>{mockState.user=SCOPED;for(const p of ['overview','series','table','history','filter-options','insights','report'])expect((await request(app).get('/api/ads/'+p+WINDOW)).status).toBe(410);expect((await request(app).post('/api/ads/ai-review').send({})).status).toBe(410);expect(mockState.pool.calls).toHaveLength(0);});
     test('canonical export requires separate export permission',async()=>{mockState.user=SCOPED;expect((await request(app).get('/api/ads/canonical-export'+WINDOW)).status).toBe(403);});
+    test('complete export rejects foreign scope before SQL or file generation',async()=>{mockState.user={...SCOPED,permissions:[...SCOPED.permissions,'adsreport_export']};const r=await request(app).get('/api/ads/canonical-export'+WINDOW+'&sellerId=S1,S9');expect(r.status).toBe(403);expect(mockState.pool.calls).toHaveLength(0);});
     test('authenticated capability metadata still available',async()=>{mockState.user=NO_PERMISSION;expect((await request(app).get('/api/ads/meta')).status).toBe(200);});
 });
 
