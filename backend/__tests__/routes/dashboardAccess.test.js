@@ -69,7 +69,7 @@ const dashboardPool = () => makeFakePool([
     { match: /TOP 5/, rows: [] },
     { match: /FROM Actions/, rows: [{ Status: 'Pending', Count: 2 }] },
     {
-        match: /FROM dbo\.AdsProductDailyFacts AP/,
+        match: /FROM dbo\.AdsProductDailyFacts AP[\s\S]*GROUP BY AP\.Date/,
         rows: [{
             AsinCode: 'B0TEST0001',
             Date: NOW,
@@ -169,7 +169,7 @@ describe('GET /api/dashboard — SQL binding & period correctness', () => {
         expect(topAsins).not.toBeNull();
         expect(topAsins.inputs.dashSeller_0).toBe('s1');
 
-        const adsQuery = mockState.pool.callWhere(/FROM dbo\.AdsProductDailyFacts AP/);
+        const adsQuery = mockState.pool.callWhere(/FROM dbo\.AdsProductDailyFacts AP[\s\S]*GROUP BY AP\.Date/);
         expect(adsQuery.inputs.dashSeller_0).toBe('s1');
 
         const asinCounts = mockState.pool.callWhere(/SUM\(CASE WHEN Status IN/);

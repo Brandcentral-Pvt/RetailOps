@@ -25,10 +25,11 @@ function targetResult(target,actual,period){
   const metric=target.goalType==='ADS'?actual?.totals?.spend:actual?.ratios?.acos?.value;
   const coverage=target.goalType==='ADS'?actual?.coverage?.spend?.status:actual?.ratios?.acos?.status;
   const configured=target.targetStatus==='configured'&&!!context;
-  const comparable=configured&&fullMonth&&metric!=null&&coverage==='complete'&&Number(target.target)>0;
+  const expectedDays=Number(bounds.end.slice(-2)),coveredDays=actual?.coveredDays??0;
+  const comparable=configured&&fullMonth&&coveredDays===expectedDays&&metric!=null&&coverage==='complete'&&Number(target.target)>0;
   return {sellerId:target.sellerId,sellerName:target.sellerName,month:target.month,goalType:target.goalType,target:configured?target.target:null,
     targetSource:target.targetType,currency:context?.currency||null,marketplace:context?.marketplace||null,actual:metric??null,coverage:coverage||'unknown',
-    fullMonth,status:!context?'unverified_context':!configured?'conflicting_or_missing':!fullMonth?'partial_month':coverage!=='complete'||metric==null?'insufficient_coverage':Number(target.target)<=0?'zero_target':'comparable',
+    fullMonth,coveredDays,expectedDays,status:!context?'unverified_context':!configured?'conflicting_or_missing':!fullMonth?'partial_month':coverage!=='complete'||metric==null||coveredDays!==expectedDays?'insufficient_coverage':Number(target.target)<=0?'zero_target':'comparable',
     attainmentPct:comparable?ratio(metric,target.target,100):null};
 }
 async function readCanonicalTargets({pool,sql,user,query}){
@@ -50,8 +51,8 @@ async function readCanonicalTargets({pool,sql,user,query}){
     // definitions are flagged instead of added or arbitrarily selected.
     const tr=await targetReq.query("SELECT t.SellerId AS [sellerId],s.Name AS [sellerName],s.Marketplace AS [catalogMarketplace],UPPER(t.GoalType) AS [goalType],UPPER(t.TargetType) AS [targetType],CONCAT(t.[Year],'-',RIGHT('0'+CONVERT(varchar(2),m.[monthNo]),2)) AS [month],CONVERT(varchar(80),CONVERT(decimal(38,10),m.[target])) AS [target] FROM dbo.GmsTargets t JOIN dbo.Sellers s ON s.Id=t.SellerId CROSS APPLY (SELECT t.[Month] AS [monthNo],t.TotalTargetValue AS [target] WHERE UPPER(t.TargetType)='MONTHLY' UNION ALL SELECT b.PeriodValue,b.TargetValue FROM dbo.GmsTargetBreakdowns b WHERE b.TargetId=t.Id AND UPPER(b.PeriodType)='MONTH' AND UPPER(t.TargetType)='YEARLY') m WHERE UPPER(t.GoalType) IN ('ADS','ACOS') AND m.[monthNo] BETWEEN 1 AND 12 AND t.[Year]*100+m.[monthNo] BETWEEN YEAR(CONVERT(date,@start,23))*100+MONTH(CONVERT(date,@start,23)) AND YEAR(CONVERT(date,@end,23))*100+MONTH(CONVERT(date,@end,23))"+targetScope+";");
     const actualReq=tx.request(),actualScope=bind(actualReq,'p');
-    const a=await actualReq.query("SELECT p.SellerId,p.Marketplace,p.Currency AS [currency],CONVERT(varchar(7),p.[Date],23) AS [month],"+aggregateProjection+" FROM dbo.AdsProductDailyFacts p WHERE p.ReportType='daily' AND p.[Date]>=CONVERT(date,@start,23) AND p.[Date]<=CONVERT(date,@end,23)"+actualScope+" GROUP BY p.SellerId,p.Marketplace,p.Currency,CONVERT(varchar(7),p.[Date],23);");
-    const actuals=new Map(a.recordset.map(r=>[JSON.stringify([r.SellerId,r.Marketplace,r.currency,r.month]),shapeSummary(r)]));
+    const a=await actualReq.query("SELECT p.SellerId,p.Marketplace,p.Currency AS [currency],CONVERT(varchar(7),p.[Date],23) AS [month],COUNT(DISTINCT p.[Date]) AS coveredDays,"+aggregateProjection+" FROM dbo.AdsProductDailyFacts p WHERE p.ReportType='daily' AND p.[Date]>=CONVERT(date,@start,23) AND p.[Date]<=CONVERT(date,@end,23)"+actualScope+" GROUP BY p.SellerId,p.Marketplace,p.Currency,CONVERT(varchar(7),p.[Date],23);");
+    const actuals=new Map(a.recordset.map(r=>[JSON.stringify([r.SellerId,r.Marketplace,r.currency,r.month]),{...shapeSummary(r),coveredDays:Number(r.coveredDays)}]));
     const rows=chooseTargets(tr.recordset).map(t=>{
       const c=resolveContext({Id:t.sellerId,Marketplace:t.catalogMarketplace});
       const actual=c?actuals.get(JSON.stringify([t.sellerId,c.marketplace,c.currency,t.month])):null;

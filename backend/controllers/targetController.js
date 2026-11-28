@@ -3,6 +3,8 @@ const { getPool, sql, generateId } = require('../database/db');
 const { buildInClause } = require('../utils/sqlHelpers');
 const { endOfMonth, startOfMonth, format, addDays } = require('date-fns');
 const SystemLogService = require('../services/SystemLogService');
+const {strictScope,resolveContext}=require('../services/adsCanonicalScope');
+const {projection:adsProjection,summarize:adsSummary}=require('../services/adsConsumerMetrics');
 
 // Helper to calculate start and end dates for a specific month
 function getMonthRange(year, month) {
@@ -201,39 +203,30 @@ exports.getTargets = async (req, res) => {
         const maxYear = Math.max(...targets.map(t => t.Year));
 
         const dailyStats = {};
+        const adsStats=new Map();
+        const adsScope=strictScope(req.user);
+        const adsSellers=sellerIds.filter(id=>adsScope.unrestricted||adsScope.sellerIds.includes(String(id)));
         if (sellerIds.length > 0) {
-            const statsRequest = pool.request();
-            const sellerInClause = buildInClause(statsRequest, 'sId', sellerIds, sql.NVarChar);
-            statsRequest.input('minDate', sql.Date, `${minYear}-01-01`);
-            statsRequest.input('maxDate', sql.Date, `${maxYear}-12-31`);
-
-            const dailyQuery = `
-                SELECT s.Id AS ReadableSellerId, p.Date,
-                       SUM(ISNULL(p.AdSpend, 0)) as AdSpend,
-                       SUM(ISNULL(p.AdSales, 0)) as AdSales,
-                       SUM(ISNULL(p.OrganicSales, 0)) as OrganicSales
-                FROM Asins a
-                INNER JOIN AdsPerformance p ON a.AsinCode = p.Asin
-                INNER JOIN Sellers s ON a.SellerId = s.Id
-                WHERE s.Id IN (${sellerInClause})
-                  AND p.Date >= @minDate AND p.Date <= @maxDate
-                GROUP BY s.Id, p.Date
-            `;
-            const dailyResult = await statsRequest.query(dailyQuery);
-
-            dailyResult.recordset.forEach(row => {
-                const sId = row.ReadableSellerId;
-                if (row.Date) {
-                    const dateStr = format(new Date(row.Date), 'yyyy-MM-dd');
-                    if (!dailyStats[sId]) dailyStats[sId] = {};
-                    dailyStats[sId][dateStr] = {
-                        adSpend: parseFloat(row.AdSpend || 0),
-                        adSales: parseFloat(row.AdSales || 0),
-                        organicSales: parseFloat(row.OrganicSales || 0),
-                        gmsRevenue: 0
-                    };
+            if(adsSellers.length){
+                const statsRequest=pool.request();
+                const sellerInClause=buildInClause(statsRequest,'sId',adsSellers,sql.NVarChar);
+                statsRequest.input('minDate',sql.VarChar(10),`${minYear}-01-01`);
+                statsRequest.input('maxDate',sql.VarChar(10),`${maxYear}-12-31`);
+                const dailyResult=await statsRequest.query(`
+                    SELECT p.SellerId AS ReadableSellerId,p.Marketplace,p.Currency,s.Marketplace AS CatalogMarketplace,CONVERT(varchar(10),p.[Date],23) AS [Date],${adsProjection('p')}
+                    FROM dbo.AdsProductDailyFacts p JOIN Sellers s ON s.Id=p.SellerId
+                    WHERE p.SellerId IN (${sellerInClause}) AND p.ReportType='daily' AND p.Currency='INR'
+                    AND p.[Date]>=CONVERT(date,@minDate,23) AND p.[Date]<=CONVERT(date,@maxDate,23)
+                    GROUP BY p.SellerId,p.Marketplace,p.Currency,s.Marketplace,p.[Date]
+                `);
+                for(const row of dailyResult.recordset){
+                    const ctx=resolveContext({Id:row.ReadableSellerId,Marketplace:row.CatalogMarketplace});
+                    if(!ctx||ctx.marketplace!==row.Marketplace||ctx.currency!==row.Currency)continue;
+                    const key=String(row.ReadableSellerId);
+                    if(!adsStats.has(key))adsStats.set(key,[]);
+                    adsStats.get(key).push(row);
                 }
-            });
+            }
 
             // 4. Fetch GMS daily data for GMS goal type achievements
             const gmsRequest = pool.request();
@@ -268,59 +261,27 @@ exports.getTargets = async (req, res) => {
             });
         }
 
-        // Helper to calculate dynamic achievement from in-memory dailyStats
-        const calculateAchievementInMemory = (sellerId, startDateStr, endDateStr, goalType) => {
-            const sellerData = dailyStats[sellerId];
-            if (!sellerData) return 0;
-
-            let totalAdSpend = 0;
-            let totalAdSales = 0;
-            let totalOrganicSales = 0;
-            let totalGmsRevenue = 0;
-
-            let curr = new Date(startDateStr);
-            const end = new Date(endDateStr);
-
-            while (curr <= end) {
-                const dateStr = format(curr, 'yyyy-MM-dd');
-                const stats = sellerData[dateStr];
-                if (stats) {
-                    totalAdSpend += stats.adSpend;
-                    totalAdSales += stats.adSales;
-                    totalOrganicSales += stats.organicSales;
-                    totalGmsRevenue += (stats.gmsRevenue || 0);
-                }
-                curr = addDays(curr, 1);
-            }
-
-            if (goalType === 'GMS') {
-                return totalGmsRevenue;
-            } else if (goalType === 'ADS') {
-                return totalAdSpend;
-            } else if (goalType === 'ACOS') {
-                return totalAdSales > 0 ? (totalAdSpend / totalAdSales) * 100 : 0;
-            } else {
-                return totalAdSales + totalOrganicSales;
-            }
+        // Ads goals use canonical observed facts, never an average of daily ACoS.
+        const adsActual=(sellerId,startDateStr,endDateStr,goalType)=>{
+            const rows=(adsStats.get(String(sellerId))||[]).filter(r=>r.Date>=startDateStr&&r.Date<=endDateStr);
+            const data=adsSummary(rows);
+            const expectedDays=Math.round((Date.parse(endDateStr)-Date.parse(startDateStr))/86400000)+1;
+            const coveredDays=new Set(rows.map(r=>r.Date)).size;
+            const observed=goalType==='ADS'?data.totals.AdSpend:data.ratios.acos;
+            const status=goalType==='ADS'?data.coverage.AdSpend.status:data.ratioCoverage.acos;
+            const comparable=expectedDays>0&&expectedDays===coveredDays&&status==='complete'&&observed!==null;
+            return {actual:comparable?observed:null,observed,coverage:status,coveredDays,expectedDays,currency:'INR'};
         };
-
-        const calculateDayAchievementInMemory = (sellerId, dateStr, goalType) => {
-            const sellerData = dailyStats[sellerId];
-            if (!sellerData) return 0;
-
-            const stats = sellerData[dateStr];
-            if (!stats) return 0;
-
-            if (goalType === 'GMS') {
-                return stats.gmsRevenue || 0;
-            } else if (goalType === 'ADS') {
-                return stats.adSpend;
-            } else if (goalType === 'ACOS') {
-                return stats.adSales > 0 ? (stats.adSpend / stats.adSales) * 100 : 0;
-            } else {
-                return stats.adSales + stats.organicSales;
-            }
+        const calculateAchievementInMemory=(sellerId,startDateStr,endDateStr,goalType)=>{
+            if(goalType==='ADS'||goalType==='ACOS')return adsActual(sellerId,startDateStr,endDateStr,goalType).actual;
+            if(goalType!=='GMS')return null;
+            const sellerData=dailyStats[sellerId];
+            if(!sellerData)return 0;
+            let total=0;
+            for(const [date,stats] of Object.entries(sellerData))if(date>=startDateStr&&date<=endDateStr)total+=stats.gmsRevenue||0;
+            return total;
         };
+        const calculateDayAchievementInMemory=(sellerId,dateStr,goalType)=>calculateAchievementInMemory(sellerId,dateStr,dateStr,goalType);
 
         const enrichedTargets = [];
 
@@ -382,9 +343,15 @@ exports.getTargets = async (req, res) => {
                 }
             }
 
+            let adsActualCoverage;
+            if(goalType==='ADS'||goalType==='ACOS'){
+                const range=targetType==='YEARLY'?{startDate:`${year}-01-01`,endDate:`${year}-12-31`}:getMonthRange(year,targetMonth);
+                adsActualCoverage=adsActual(sellerId,range.startDate,range.endDate,goalType);
+                overallAchieved=adsActualCoverage.actual;
+            }
             enrichedTargets.push({
                 ...target,
-                overallAchieved,
+                overallAchieved,adsActualCoverage,
                 monthlyBreakdown,
                 weeklyBreakdown,
                 dailyBreakdown

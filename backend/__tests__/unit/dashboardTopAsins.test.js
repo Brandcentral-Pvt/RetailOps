@@ -40,7 +40,7 @@ const buildPool = () => makeFakePool([
     { match: /FROM Actions/, rows: [{ Status: 'Pending', Count: 2 }] },
     {
         // Per-day ads aggregate over current + previous window.
-        match: /FROM dbo\.AdsProductDailyFacts AP/,
+        match: /FROM dbo\.AdsProductDailyFacts AP[\s\S]*GROUP BY AP\.Date/,
         rows: [
             { Date: NOW, AdSales: 100, AdSpend: 25, Orders: 5, OrganicSales: 150, Impressions: 900, Clicks:40,FactRows:1,AdSalesCount:1,AdSpendCount:1,TotalSalesCount:1,OrganicSalesCount:1,OrdersCount:1,ImpressionsCount:1,ClicksCount:1,acosPairCount:1,tacosPairCount:1,adSharePairCount:1,roasPairCount:1,ctrPairCount:1,cpcPairCount:1,TotalSales:500 },
             // previous-window row (must NOT leak into current KPIs / series)

@@ -51,6 +51,7 @@ export default function CanonicalAdsWorkspace(){
     const [paging,setPaging]=useState({key:'',page:1,limit:50});
     const [drill,setDrill]=useState(null);
     const [importOpen,setImportOpen]=useState(false);
+    const [importSeller,setImportSeller]=useState(null);
     const [exportBusy,setExportBusy]=useState(false);
     const [exportError,setExportError]=useState(null);
     // Include principal and current scope in the client cache key. No stale
@@ -88,7 +89,9 @@ export default function CanonicalAdsWorkspace(){
         // and invalidate all affected local queries after the committed response.
         setSeller(info.sellerId);setBrand(undefined);setCategory(undefined);setCurrency(info.currency);
         setSearch('');setSearchInput('');setDrill(null);setPaging({key:'',page:1,limit:50});
-        updateDateRange({startDate:new Date(info.startDate+'T00:00:00'),endDate:new Date(info.endDate+'T00:00:00'),rangeType:'custom'});
+        const end=new Date(info.endDate+'T00:00:00'),start=new Date(info.startDate+'T00:00:00');
+        const earliest=new Date(end);earliest.setDate(earliest.getDate()-365);
+        updateDateRange({startDate:start<earliest?earliest:start,endDate:end,rangeType:'custom'});
         refresh();
     };
     const choices=options.data||{};
@@ -104,7 +107,7 @@ export default function CanonicalAdsWorkspace(){
     return <div className="ops ads-page" style={{display:'grid',gap:12}}>
         <Card size="small"><Space wrap style={{width:'100%',justifyContent:'space-between'}}>
             <Space direction="vertical" size={2}><Typography.Title level={4} style={{margin:0}}>Ads Intelligence</Typography.Title><Typography.Text type="secondary">Canonical daily product reports · source contract v1</Typography.Text></Space>
-            <Space wrap>{hasPermission('adsreport_import')&&<Button onClick={()=>setImportOpen(true)}>Import CSV</Button>}{hasPermission('adsreport_export')&&<Button onClick={exportReport} loading={exportBusy} disabled={!data||report.isError||report.isFetching}>Export XLSX</Button>}<Button onClick={refresh} loading={report.isFetching}>Refresh</Button></Space>
+            <Space wrap>{hasPermission('adsreport_import')&&<Button onClick={()=>{setImportSeller(seller||null);setImportOpen(true);}}>Import CSV</Button>}{hasPermission('adsreport_export')&&<Button onClick={exportReport} loading={exportBusy} disabled={!data||report.isError||report.isFetching}>Export XLSX</Button>}<Button onClick={refresh} loading={report.isFetching}>Refresh</Button></Space>
         </Space></Card>
         <Alert showIcon type="info" message="Canonical analytics cutover"
             description="Totals use explicit source values; currency groups remain separate, including financial ranking. Import requires validation and explicit confirmation. Workbook export includes all matching entities up to the safety limit. AI and full source-history exports are later phases."/>
@@ -153,6 +156,6 @@ export default function CanonicalAdsWorkspace(){
                 {history.data.current.map(s=><Summary key={'cur'+s.currency} summary={s} title="Current"/>)}{history.data.previous.map(s=><Summary key={'prev'+s.currency} summary={s} title="Previous"/>)}<TrendTable series={history.data.series}/>
             </>}
         </Drawer>
-        {hasPermission('adsreport_import')&&<AdsImportModal isOpen={importOpen} onClose={()=>setImportOpen(false)} selectedSeller={seller||null} onComplete={imported}/>}
+        {hasPermission('adsreport_import')&&<AdsImportModal isOpen={importOpen} onClose={()=>setImportOpen(false)} selectedSeller={importSeller} onComplete={imported}/>}
     </div>;
 }

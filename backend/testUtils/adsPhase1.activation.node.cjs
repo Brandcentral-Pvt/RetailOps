@@ -30,3 +30,11 @@ test('export preserves null, numeric ratios and values beyond Excel precision',(
  assert.equal(numericCell('123456789012345678.123456789').value,'123456789012345678.123456789');
  assert.throws(()=>numericCell('=1+2'));
 });
+
+// Missing or mismatched populations never become zero in dashboard consumers.
+test('dashboard consumer aggregates preserve unknown metrics and matched ratios',()=>{
+ const {summarize}=require('../services/adsConsumerMetrics');
+ const unknown=summarize([]); assert.equal(unknown.totals.AdSpend,null);assert.equal(unknown.ratios.tacos,null);
+ const actual=summarize([{FactRows:2,AdSpend:20,AdSpendCount:2,AdSales:100,AdSalesCount:1,acosPairCount:1,TotalSales:250,TotalSalesCount:2,tacosPairCount:2}]);
+ assert.equal(actual.ratios.acos,null);assert.equal(actual.ratios.tacos,8);assert.equal(actual.coverage.AdSales.status,'partial');
+});
