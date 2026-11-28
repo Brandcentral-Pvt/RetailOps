@@ -41,6 +41,7 @@ router.get('/canonical-summary', authenticate, canViewAds, require('../controlle
 const canonicalReport = require('../controllers/adsCanonicalReportController');
 router.get('/canonical-report', authenticate, canViewAds, canonicalReport.report);
 router.get('/canonical-insights', authenticate, canViewAds, canonicalReport.insights);
+router.get('/canonical-portfolio', authenticate, canViewAds, canonicalReport.portfolio);
 router.get('/canonical-options', authenticate, canViewAds, canonicalReport.options);
 router.get('/canonical-targets', authenticate, canViewAds, require('../controllers/adsCanonicalTargetsController').targets);
 // Separate export permission. Also require view, since this is a report read.

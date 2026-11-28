@@ -223,3 +223,55 @@ test('Phase 3 comparisons and full-scope review load on demand without page trun
  await open.click();
  await expect(page.getByRole('dialog').getByText('B000000001 | '+longName,{exact:true})).toBeVisible();
 });
+
+test('Phase 3B portfolio analysis exposes full-population counts, segments, aligned trends and scoped breakdowns',async({page})=>{
+ await page.setViewportSize({width:1440,height:900});await mock(page);
+ const currency='INR',item={key:'portfolio-1',entityKey:'B000000001',sellerId:'s1',sellerName:'Seller One',currency,marketplace:'amazon.in',spend:'20',sales:'80',totalSales:'100',roas:'4',cvr:'10',currentDays:2,expectedDays:2,currentRows:'2',spendRows:'2',salesRows:'2',evidenceStatus:'complete_observed'};
+ const concentration={metric:'totalSales',positiveTotal:'10000',netObserved:'9900',positiveEntities:95,leadingCount:22,leadingAmount:'8100',leadingSharePct:'81',remainingCount:73,remainingAmount:'1900',remainingSharePct:'19',zeroEntities:2,negativeEntities:1,unknownEntities:1,priorOnlyEntities:1,partialPositiveEntities:10,samples:[{...item,rank:1,amount:'100',tier:'leading_80',sharePct:'1',cumulativePct:'1',coverage:'complete_observed'}]};
+ const group={currency,totalEntities:100,currentEntities:99,concentration:[concentration,{...concentration,metric:'spend'}],reference:{roas:'2.5',eligibleEntities:60,completeObservedEntities:45,spend:'1000',sales:'2500'},segments:[{code:'above_reference',label:'Above weighted ROAS reference',action:'Review efficiency.',count:34,completeObserved:20,observed:{spend:{value:'100',entities:34},sales:{value:'400',entities:34},clicks:{value:'50',entities:34},conversions:{value:'5',entities:34}},compatibleRoas:{value:'4',entities:34},compatibleCvr:{value:'10',entities:34},items:[item]}]};
+ const current={currency,coveredDays:2,totals:{totalSales:'100',sales:'80',spend:'20'},coverage:{totalSales:{status:'complete'}},ratios:{roas:{value:'4',status:'complete'}}};
+ const previous={...current,totals:{totalSales:'80',sales:'40',spend:'20'}};
+ const trend={currency,bucket:'2026-05-01',currentStart:'2026-05-01',currentEnd:'2026-05-02',previousStart:'2026-04-29',previousEnd:'2026-04-30',days:2,current,previous,comparison:{metrics:{totalSales:{status:'comparable',unit:'absolute',delta:'20',percentChange:'25'}},ratios:{}}};
+ const breakdown={currency,dimension:'seller',totalGroups:'25',items:[{key:'seller-s1',groupKey:'s1',label:'Seller One',marketplace:'amazon.in',current,previous,comparison:trend.comparison}]};
+ let requests=0,lastPortfolio,lastReport;
+ await page.route('**/api/ads/canonical-report?*',route=>{
+  lastReport=new URL(route.request().url()).searchParams;
+  return route.fulfill({json:{success:true,data:{period,empty:false,current:[summary],previous:[summary],series:[],rows,total:rows.length,page:1,limit:50}}});
+ });
+ await page.route('**/api/ads/canonical-options?*',route=>route.fulfill({json:{success:true,data:{sellers:[{id:'s1',name:'Seller One'}],currencies:['INR'],marketplaces:['amazon.in'],brands:[],categories:[],parentAvailable:true}}}));
+ await page.route('**/api/ads/canonical-portfolio?*',route=>{
+  requests++;lastPortfolio=new URL(route.request().url()).searchParams;
+  return route.fulfill({json:{success:true,data:{empty:false,groups:[group],trends:[trend,{...trend,bucket:'2026-05-03',currentStart:'2026-05-03',currentEnd:'2026-05-03',previousStart:'2026-05-01',previousEnd:'2026-05-01',days:1,current:null,previous:null}],breakdowns:[breakdown,{...breakdown,dimension:'brand',items:[{...breakdown.items[0],key:'brand-a',groupKey:'Brand A',label:'Brand A'}]}]}}});
+ });
+ await page.goto('/tests/fixtures/ads-layout.html');
+ const panel=page.getByTestId('ads-portfolio-panel');
+ await expect(panel.getByRole('button',{name:'Analyze portfolio'})).toBeVisible();expect(requests).toBe(0);
+ await panel.getByRole('button',{name:'Analyze portfolio'}).click();
+ await expect(panel.getByText('100 products',{exact:true})).toBeVisible();
+ await expect(panel.getByText('81% actual contribution',{exact:true})).toBeVisible();
+ await expect(panel.getByText('Top 1 of 95 positive products',{exact:false})).toBeVisible();
+ expect(lastPortfolio.get('groupBy')).toBe('asin');expect(lastPortfolio.get('granularity')).toBe('week');
+ expect(lastPortfolio.has('page')).toBe(false);expect(lastPortfolio.has('limit')).toBe(false);
+ await panel.getByRole('tab',{name:'Efficiency matrix'}).click();
+ await expect(panel.getByText('Weighted ROAS reference',{exact:true})).toBeVisible();
+ await expect(panel.getByText('34 compatible products',{exact:true}).first()).toBeVisible();
+ await panel.getByRole('tab',{name:'Aligned trends'}).click();
+ await expect(panel.getByRole('img',{name:/Total sales current and prior aligned trend/})).toBeVisible();
+ await expect(panel.getByText('2026-04-29 to 2026-04-30',{exact:true})).toBeVisible();
+ const missingBucket=panel.getByRole('row').filter({has:panel.getByRole('cell',{name:'2026-05-03',exact:true})});
+ await expect(missingBucket).toBeVisible();
+ await expect(missingBucket.getByRole('cell',{name:'N/A',exact:true})).toHaveCount(2);
+ await panel.locator('#ads-portfolio-trend-granularity').click();
+ await page.getByRole('option',{name:'Monthly',exact:true}).click();
+ await expect.poll(()=>lastPortfolio?.get('granularity')).toBe('month');
+ await expect(panel.getByRole('img',{name:/Total sales current and prior aligned trend/})).toBeVisible();
+ await panel.getByRole('tab',{name:'Brand comparison'}).click();
+ await expect(panel.getByRole('button',{name:'Brand A',exact:true})).toBeVisible();
+ await panel.getByRole('tab',{name:'Seller comparison'}).click();
+ await expect(panel.getByText('Showing 1 of 25 seller / marketplace groups',{exact:false})).toBeVisible();
+ await assertContained(page);
+ await page.setViewportSize({width:1024,height:900});await assertContained(page);
+ await panel.getByRole('button',{name:'Seller One',exact:true}).click();
+ await expect.poll(()=>[lastReport?.get('sellerId'),lastReport?.get('marketplace'),lastReport?.get('currency')]).toEqual(['s1','amazon.in','INR']);
+ await expect(panel.getByRole('button',{name:'Analyze portfolio'})).toBeVisible();
+});

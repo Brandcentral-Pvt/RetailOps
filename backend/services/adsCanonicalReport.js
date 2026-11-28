@@ -4,6 +4,7 @@
 const {strictScope,explicitSeller,AdsScopeError}=require('./adsCanonicalScope');
 const {METRICS,aggregateProjection,shapeSummary,validateWindow}=require('./adsCanonicalMetrics');
 const {comparePeriods,compareCurrencies,readReviewSignals,emptyReview}=require('./adsAnalyticsV3');
+const {readPortfolioAnalytics,emptyPortfolio}=require('./adsPortfolioAnalytics');
 const GROUPS=new Set(['asin','parent','seller']);
 const SORTS=new Set(['totalSales','sales','spend','organicSales','totalOrders','orders','conversions','clicks','impressions','units','entityKey']);
 const GRANULARITIES=new Set(['day','week','month']);
@@ -103,10 +104,10 @@ function emptyReport(filters){
   return {...scopeMeta(filters),current:[],previous:[],comparisons:[],series:[],rows:[],total:0,page:1,limit:filters.limit,totalPages:1,empty:true};
 }
 const MAX_EXPORT_ENTITIES=5000;
-async function readCanonicalReport({pool,sql,user,query,exportAll=false,insightsOnly=false}){
-  const f=parseReport(user,query);
-  if(insightsOnly&&(f.entityKey||f.groupBy!=='asin'))invalid('Product review requires ASIN grouping without entity drill-down.');
-  if(f.scope.empty)return insightsOnly?{...scopeMeta(f),...emptyReview()}:emptyReport(f);
+async function readCanonicalReport({pool,sql,user,query,exportAll=false,insightsOnly=false,portfolioOnly=false}){
+  const f=parseReport(user,query),analysisOnly=insightsOnly||portfolioOnly;
+  if(analysisOnly&&(f.entityKey||f.groupBy!=='asin'))invalid('Portfolio analysis requires ASIN grouping without entity drill-down.');
+  if(f.scope.empty)return portfolioOnly?{...scopeMeta(f),...emptyPortfolio()}:insightsOnly?{...scopeMeta(f),...emptyReview()}:emptyReport(f);
   const tx=new sql.Transaction(pool);
   await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
   let stage='scope';
@@ -129,9 +130,9 @@ async function readCanonicalReport({pool,sql,user,query,exportAll=false,insights
       [metaValue('title'),metaValue('brand'),metaValue('category'),'a.[matches]',entity,'CONVERT(nvarchar(255),s.Name)',"CASE WHEN p.[Date]>=CONVERT(date,@start,23) THEN 'current' ELSE 'previous' END"].join(',')+
       ' FROM dbo.AdsProductDailyFacts p JOIN dbo.Sellers s ON s.Id=p.SellerId '+catalogApply(columns)+where+';');
     stage='aggregates';
-    const totals=insightsOnly?{recordset:[]}:await tx.request().query('SELECT p.[Currency] AS [currency],p.[periodKey],'+aggregateProjection+','+unmapped+','+dayCoverage+' FROM #AdsScope p GROUP BY p.[Currency],p.[periodKey] ORDER BY p.[Currency],p.[periodKey];');
+    const totals=analysisOnly?{recordset:[]}:await tx.request().query('SELECT p.[Currency] AS [currency],p.[periodKey],'+aggregateProjection+','+unmapped+','+dayCoverage+' FROM #AdsScope p GROUP BY p.[Currency],p.[periodKey] ORDER BY p.[Currency],p.[periodKey];');
     const bucket=bucketExpr(f.granularity);
-    const series=insightsOnly?{recordset:[]}:await tx.request().query('SELECT p.[Currency] AS [currency],p.[periodKey],'+bucket+' AS [bucket],'+aggregateProjection+','+unmapped+','+dayCoverage+
+    const series=analysisOnly?{recordset:[]}:await tx.request().query('SELECT p.[Currency] AS [currency],p.[periodKey],'+bucket+' AS [bucket],'+aggregateProjection+','+unmapped+','+dayCoverage+
       ' FROM #AdsScope p GROUP BY p.[Currency],p.[periodKey],'+bucket+' ORDER BY p.[Currency],p.[periodKey],[bucket];');
     let total=0,page=1,totalPages=1,rows=[];
     if(!f.entityKey){
@@ -147,9 +148,9 @@ async function readCanonicalReport({pool,sql,user,query,exportAll=false,insights
         (f.groupBy==='asin'?'MAX(p.[CatalogBrand])':'CAST(NULL AS nvarchar(255))')+' AS [CatalogBrand],'+
         (f.groupBy==='asin'?'MAX(p.[CatalogCategory])':'CAST(NULL AS nvarchar(255))')+' AS [CatalogCategory],'+aggregateProjection+','+unmapped+','+dayCoverage+
         ' INTO #AdsGroups FROM #AdsScope p GROUP BY '+groupFields.map(c=>'p.'+c).join(',')+'; SELECT DISTINCT '+keys.join(',')+' INTO #AdsEntities FROM #AdsGroups; SELECT TOP(0) CAST(0 AS bigint) AS [rank],'+keys.join(',')+' INTO #AdsPage FROM #AdsEntities;');
-      if(insightsOnly){
-        stage='review_signals';
-        const review=await readReviewSignals({tx,sql,days:f.period.days});
+      if(analysisOnly){
+        stage=portfolioOnly?'portfolio_analytics':'review_signals';
+        const review=portfolioOnly?await readPortfolioAnalytics({tx,sql,period:f.period,granularity:f.granularity}):await readReviewSignals({tx,sql,days:f.period.days});
         await tx.request().batch('DROP TABLE #AdsPage; DROP TABLE #AdsEntities; DROP TABLE #AdsGroups; DROP TABLE #AdsScope;');
         await tx.commit();return {...scopeMeta(f),...review};
       }
@@ -184,7 +185,7 @@ async function readCanonicalReport({pool,sql,user,query,exportAll=false,insights
 }
 async function readCanonicalOptions({pool,sql,user,sellerId}){
   const all=strictScope(user),selected=strictScope(user,sellerId);
-  if(all.empty)return {sellers:[],brands:[],categories:[],currencies:[],truncated:false};
+  if(all.empty)return {sellers:[],brands:[],categories:[],currencies:[],marketplaces:[],truncated:false};
   const sellerReq=pool.request(),scope=scopeWhere(sellerReq,sql,all,'s.Id');
   const sellerRows=await sellerReq.query('SELECT TOP (1001) s.Id AS [id],s.Name AS [name],s.Marketplace AS [marketplace] FROM dbo.Sellers s WHERE 1=1'+scope+' ORDER BY s.Name,s.Id;');
   const columns=await catalogColumns(pool.request());
@@ -195,9 +196,9 @@ async function readCanonicalOptions({pool,sql,user,sellerId}){
     return r.recordset.map(x=>x.value);
   }
   const currencyReq=pool.request(),currencyScope=scopeWhere(currencyReq,sql,selected,'p.SellerId');
-  const currencies=await currencyReq.query('SELECT DISTINCT p.Currency AS [value] FROM dbo.AdsProductDailyFacts p WHERE 1=1'+currencyScope+' ORDER BY [value];');
+  const currencies=await currencyReq.query('SELECT DISTINCT p.Currency AS [value] FROM dbo.AdsProductDailyFacts p WHERE 1=1'+currencyScope+' ORDER BY [value]; SELECT DISTINCT p.Marketplace AS [value] FROM dbo.AdsProductDailyFacts p WHERE 1=1'+currencyScope+' ORDER BY [value];');
   const brands=await distinct('Brand'),categories=await distinct('Category');
-  return {sellers:sellerRows.recordset.slice(0,1000),brands:brands.slice(0,500),categories:categories.slice(0,500),currencies:currencies.recordset.map(x=>x.value),parentAvailable:columns.has('parentasin'),
+  return {sellers:sellerRows.recordset.slice(0,1000),brands:brands.slice(0,500),categories:categories.slice(0,500),currencies:currencies.recordsets[0].map(x=>x.value),marketplaces:currencies.recordsets[1].map(x=>x.value),parentAvailable:columns.has('parentasin'),
     truncated:sellerRows.recordset.length>1000||brands.length>500||categories.length>500};
 }
 module.exports={parseReport,readCanonicalReport,readCanonicalOptions,combineRows,MAX_EXPORT_ENTITIES};
