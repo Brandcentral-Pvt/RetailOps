@@ -25,3 +25,12 @@ test('AI receives no seller identifiers and can only select approved findings',a
  for(const rank of [async()=>'{bad',async()=>{throw Error('provider unavailable');}])assert.equal((await reviewSnapshot(data,{enabled:true,useAI:true,rank})).mode,'rules');
  assert.equal((await reviewSnapshot(data,{enabled:false,useAI:true,rank:async()=>{throw Error('must not call');}})).reason,'ai_disabled');
 });
+
+test('analyst activation distinguishes explicit opt-in and configured provider',()=>{
+ const {analystAvailability}=require('../services/adsAnalystReview');
+ assert.equal(analystAvailability({}),'ai_disabled');
+ assert.equal(analystAvailability({ADS_ANALYST_AI_ENABLED:'false',NVIDIA_NIM_API_KEY:'test'}),'ai_disabled');
+ assert.equal(analystAvailability({ADS_ANALYST_AI_ENABLED:'true',NIM_API_KEY:'legacy'}),'provider_not_configured');
+ assert.equal(analystAvailability({ADS_ANALYST_AI_ENABLED:'true',NVIDIA_NIM_API_KEY:'  '}),'provider_not_configured');
+ assert.equal(analystAvailability({ADS_ANALYST_AI_ENABLED:'true',NVIDIA_NIM_API_KEY:'test'}),null);
+});
