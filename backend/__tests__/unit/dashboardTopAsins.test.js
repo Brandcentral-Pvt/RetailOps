@@ -49,7 +49,7 @@ const buildPool = () => makeFakePool([
     },
     {
         // Per-day GMS aggregate over current + previous window.
-        match: /FROM GmsDailyPerformance g\s+WHERE g\.Date BETWEEN @prevStart AND @endDate\s+AND EXISTS/,
+        match: /GROUP BY g\.Date\b/,
         rows: [
             { Date: NOW, Revenue: 1000, Units: 10, ShippedRevenue: 900, Returns: 1 },
             { Date: daysAgo(45), Revenue: 800, Units: 8, ShippedRevenue: 700, Returns: 0 },
@@ -84,12 +84,12 @@ const buildPool = () => makeFakePool([
         // Per-ASIN sparkline rows for the leaders.
         match: /AND g\.Asin IN \(/,
         rows: [
-            { Asin: 'B0GMSKING', Date: NOW, Revenue: 400, Units: 4 },
-            { Asin: 'B0GMSKING', Date: daysAgo(1), Revenue: 300, Units: 3 },
+            { Asin: 'B0GMSKING', SellerId: 's1', Date: NOW, Revenue: 400, Units: 4 },
+            { Asin: 'B0GMSKING', SellerId: 's1', Date: daysAgo(1), Revenue: 300, Units: 3 },
         ],
     },
     {
-        match: /GROUP BY A\.SellerId, S\.Name, S\.Marketplace/,
+        match: /GROUP BY COALESCE\(g\.SellerId,a\.SellerId\), S\.Name, S\.Marketplace/,
         rows: [{ SellerId: 's1', SellerName: 'ACME', Marketplace: 'Amazon', Revenue: 1000, Units: 10, PrevRevenue: 800, AsinsWithSales: 2 }],
     },
 ]);
@@ -140,15 +140,15 @@ describe('getDashboardData — top products are ranked by GMS, not ads', () => {
         const topAsins = mockState.pool.callWhere(/TOP 200/);
         // GMS aggregate is the driving table…
         expect(topAsins.sql).toMatch(/WITH GmsAgg AS \([\s\S]*FROM GmsDailyPerformance g[\s\S]*GROUP BY g\.Asin/);
-        expect(topAsins.sql).toMatch(/FROM GmsAgg G\s+JOIN Asins A ON A\.AsinCode = G\.Asin/);
-        expect(topAsins.sql).toMatch(/ORDER BY G\.GmsRevenue DESC, G\.GmsUnits DESC/);
+        expect(topAsins.sql).toMatch(/FROM GmsAgg G\s+CROSS APPLY \(SELECT TOP\(1\)[\s\S]*c\.SellerId=G\.SellerId/);
+        expect(topAsins.sql).toMatch(/ORDER BY TRY_CONVERT\(decimal\(38,2\),G\.GmsRevenue\) DESC, TRY_CONVERT\(bigint,G\.GmsUnits\) DESC/);
         // …ads is only LEFT JOINed, window + daily restricted.
-        expect(topAsins.sql).toMatch(/LEFT JOIN AdsAgg AD ON AD\.Asin = G\.Asin AND AD\.SellerId = A\.SellerId/);
+        expect(topAsins.sql).toMatch(/LEFT JOIN AdsAgg AD ON AD\.Asin = G\.Asin AND AD\.SellerId = G\.SellerId/);
         expect(topAsins.sql).toMatch(/AP\.Date BETWEEN @startDate AND @endDate\s+AND AP\.ReportType = 'daily'/);
         // Never ordered by ad orders again.
         expect(topAsins.sql).not.toMatch(/ORDER BY TotalOrders/);
         // Seller scope is applied on the aliased Asins table.
-        expect(topAsins.sql).toMatch(/AND A\.SellerId IN \(@dashSeller_0\)/);
+        expect(topAsins.sql).toMatch(/AND a\.SellerId IN \(@dashSeller_0\)/i);
     });
 
     test('revenue/units are the ASIN GMS (ordered revenue/units) — no CurrentPrice or ad-sales leak', async () => {
@@ -162,7 +162,7 @@ describe('getDashboardData — top products are ranked by GMS, not ads', () => {
         expect(king.gmsRevenue).toBe(700);
         expect(king.units).toBe(7);
         expect(king.asp).toBe(100);
-        expect(king.deltaPct).toBe(100);       // 700 vs 350
+        expect(king.deltaPct).toBeNull(); // sparse coverage: suppress incomparable changes
         expect(king.adSales).toBeNull();
         expect(king.tacos).toBeNull();
         expect(king.acos).toBe('N/A');
@@ -205,6 +205,8 @@ describe('getDashboardData — top products are ranked by GMS, not ads', () => {
         expect(payload.ordersSeries.reduce((a, b) => a + b, 0)).toBe(5);
         expect(payload.unitsSeries.reduce((a, b) => a + b, 0)).toBe(5);
         expect(payload.gms.series.reduce((a, b) => a + b, 0)).toBe(1000);
+        expect(payload.gms.series).toContain(null);
+        expect(payload.gms.coverage).toEqual({observedDays:1,expectedDays:30,complete:false});
         expect(payload.gms.series.length).toBe(payload.labels.length);
     });
 
@@ -214,7 +216,7 @@ describe('getDashboardData — top products are ranked by GMS, not ads', () => {
         expect(payload.gms.revenue).toBe(1000);
         expect(payload.gms.units).toBe(10);
         expect(payload.gms.prevRevenue).toBe(800);
-        expect(payload.gms.deltaPct).toBe(25);
+        expect(payload.gms.deltaPct).toBeNull(); // incomplete coverage in both windows
         expect(payload.gms.tacos).toBe(5);      // 25 spend ÷ 1000 GMS
         expect(payload.gms.adShare).toBe(20);     // 100 ad sales ÷ 1000 GMS
         expect(payload.gms.asinsWithSales).toBe(2);
@@ -234,7 +236,7 @@ describe('getDashboardData — top products are ranked by GMS, not ads', () => {
         expect(payload.period.prevEndDate < payload.period.startDate).toBe(true);
 
         expect(payload.gmsBySeller).toEqual([
-            expect.objectContaining({ sellerId: 's1', sellerName: 'ACME', revenue: 1000, prevRevenue: 800, deltaPct: 25, share: 100 }),
+            expect.objectContaining({ sellerId: 's1', sellerName: 'ACME', revenue: 1000, prevRevenue: 800, deltaPct: null, share: 100 }),
         ]);
         expect(payload.gmsByMarketplace[0]).toEqual(expect.objectContaining({ name: 'Amazon', revenue: 1000 }));
     });
@@ -270,8 +272,31 @@ describe('getDashboardData — top products are ranked by GMS, not ads', () => {
         expect(topAsins.inputs.dashSeller_0).toBe('s1');
         expect(topAsins.inputs.dashSeller_1).toBe('s2');
         // The GMS daily series is scoped to the same sellers via EXISTS.
-        const gmsDaily = mockState.pool.callWhere(/FROM GmsDailyPerformance g\s+WHERE g\.Date BETWEEN @prevStart AND @endDate\s+AND EXISTS/);
-        expect(gmsDaily.sql).toMatch(/AND A\.SellerId IN \(@dashSeller_0,@dashSeller_1\)/);
+        const gmsDaily = mockState.pool.callWhere(/GROUP BY g\.Date\b/);
+        expect(gmsDaily.sql).toMatch(/AND a\.SellerId IN \(@dashSeller_0,@dashSeller_1\)/);
         expect(gmsDaily.inputs.dashSeller_1).toBe('s2');
+    });
+});
+
+describe('Phase 1 date and GMS coverage regressions',()=>{
+    test.each([{period:'0d'},{period:'999d'},{period:'bad'},{startDate:'2026-02-30',endDate:'2026-03-01'},{startDate:'2026-03-02',endDate:'2026-03-01'},{startDate:'2026-03-01'}])('invalid window %j fails before SQL',async query=>{
+        const {statusCode}=await invoke({query,user:bmUser('invalid-window')});
+        expect(statusCode).toBe(400);
+        expect(mockState.pool.calls).toHaveLength(0);
+    });
+    test('30d includes exactly 30 calendar dates',async()=>{
+        const {payload}=await invoke({query:{period:'30d'},user:bmUser('range')});
+        expect((Date.parse(payload.period.endDate)-Date.parse(payload.period.startDate))/86400000+1).toBe(30);
+    });
+    test('every GMS aggregate uses ownership resolution, including sparkline',async()=>{
+        await invoke({query:{period:'30d'},user:bmUser('scope')});
+        const reads=mockState.pool.calls.filter(x=>x.sql.includes('FROM GmsDailyPerformance g'));
+        expect(reads).toHaveLength(5);
+        for(const q of reads){
+            expect(q.sql).toMatch(/OUTER APPLY/);
+            expect(q.sql).toMatch(/a\.SellerId IN \(@dashSeller_0\)/i);
+            expect(q.sql).toMatch(/NOT EXISTS/);
+            expect(q.inputs.dashSeller_0).toBe('s1');
+        }
     });
 });
