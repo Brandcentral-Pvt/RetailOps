@@ -157,7 +157,7 @@ export const TrendPanel = ({ dashboardRaw, status, onRetry, mode, onMode, focusS
     const granularity = dashboardRaw?.period?.granularity || 'day';
     const days = dashboardRaw?.period?.days;
     const ready = status !== 'error' && labels.length > 0 && series.length > 0;
-    const hasAny = series.some((s) => s.data.some((v) => Number(v) > 0));
+    const hasAny = series.some(s=>s.data.some(v=>v!=null&&Number.isFinite(Number(v))));
 
     const toggle = (key) => setHidden((h) => {
         const cur = new Set(h[mode] || []);
@@ -180,12 +180,12 @@ export const TrendPanel = ({ dashboardRaw, status, onRetry, mode, onMode, focusS
                 />
             )}
         >
-            {status === 'error' ? (
+            {status==='loading'?<MiniState title="Loading trend" />:status === 'error' ? (
                 <MiniState tone="error" title="Trend unavailable" note="Revenue history could not be loaded." onRetry={onRetry} />
             ) : !ready ? (
                 <MiniState tone="empty" title="No trend data" note="No series available for this selection and period." />
             ) : !hasAny ? (
-                <MiniState tone="empty" title={`No ${CHART_MODES[mode].label.toLowerCase()} recorded`} note="Every point in this period is zero for the selected series." />
+                <MiniState tone="empty" title={`No ${CHART_MODES[mode].label.toLowerCase()} recorded`} note="No observed values are available for the selected series and period." />
             ) : (
                 <AreaTrendChart
                     labels={labels}
@@ -223,7 +223,7 @@ export const BrandLeaderboardPanel = ({ rows = [], status, onRetry, activeSeller
                 </button>
             ) : null}
         >
-            {status === 'error' ? (
+            {status==='loading'?<MiniState title="Loading report" />:status === 'error' ? (
                 <MiniState tone="error" title="Brand GMS unavailable" note="Seller-level GMS could not be loaded." onRetry={onRetry} />
             ) : rows.length === 0 ? (
                 <MiniState tone="empty" title="No brand GMS" note="No seller recorded ordered revenue for this selection and period." />
@@ -399,7 +399,7 @@ export const MixPanel = ({ dashboardRaw, status, onRetry }) => {
                 </span>
             )}
         >
-            {status === 'error' ? (
+            {status==='loading'?<MiniState title="Loading report" />:status === 'error' ? (
                 <MiniState tone="error" title="Mix unavailable" note="Marketplace distribution could not be loaded." onRetry={onRetry} />
             ) : rows.length === 0 ? (
                 <MiniState tone="empty" title={effective === 'gms' ? 'No GMS by marketplace' : 'No ASINs'} note="No data for this selection." />
