@@ -1,4 +1,3 @@
-const { isGlobalUserRole } = require('../utils/roleUtils');
 const { sql, getPool } = require('../database/db');
 const { dateWindow }=require('../utils/gmsPhase1');
 const {readFinancialBatch}=require('../services/dashboardFinancialRead');
@@ -48,12 +47,14 @@ function parseDashboardWindow(start,end,period){
  * Get dashboard summary data (SQL Version)
  */
 exports.getDashboardData = async (req, res) => {
+  const requestController=new AbortController();
+  const onClose=()=>{if(!res.writableEnded)requestController.abort();};
+  res.once?.('close',onClose);
   try {
     res.set?.('Cache-Control','private, no-store');
     const { period = '30d', startDate: startQuery, endDate: endQuery, sellerId,managerId,mode='full' } = req.query;
     if(!['full','overview','products'].includes(mode))throw new AdsScopeError('invalid_dashboard_mode','Invalid dashboard section.',400);
     const started=Date.now();
-    const userId = req.user?.Id || req.user?._id?.toString() || '';
 
     const range=parseDashboardWindow(startQuery,endQuery,period);
     const pool=await getPool();
@@ -97,9 +98,6 @@ exports.getDashboardData = async (req, res) => {
     const prevEndKey = toDateKey(prevEnd);
     const isCurrentRow = (row) => toDateKey(row.Date) >= startKey;
 
-    const requestController=new AbortController();
-    const onClose=()=>{if(!res.writableEnded)requestController.abort();};
-    res.once?.('close',onClose);
     const reportRequest=buildDashReq()
       .input('startDate',sql.Date,startDate)
       .input('endDate',sql.Date,endDate)
@@ -160,7 +158,6 @@ exports.getDashboardData = async (req, res) => {
       buildDashReq().query('SELECT Id, Marketplace FROM Sellers '+sellerFilter)
     ]);
     const financial=await financialPromise;
-    res.off?.('close',onClose);
     if(requestController.signal.aborted)return;
     if(financial.error)throw financial.error;
     const {data:{gmsDaily,adsDaily,sellerRows,sellingRows,topRows,sparkRows}}=financial;
@@ -434,10 +431,15 @@ exports.getDashboardData = async (req, res) => {
     if(mode==='products')return res.json({scope:response.scope,period:response.period,tableData,rankedAsins:topRows.length,rankedRevenue:round2(rankedTotal),gmsRevenue:response.gms.revenue});
     res.json({...response,productsIncluded:mode==='full'});
   } catch (error) {
+    requestController.abort();
     if(!res.destroyed&&!res.headersSent){
       if(!(error instanceof AdsScopeError))console.error('[dashboard read failed]',error.code||error.name,error.message);
-      res.status(error instanceof AdsScopeError?error.status:500).json({error:error instanceof AdsScopeError?error.message:'Dashboard data unavailable',code:error instanceof AdsScopeError?error.code:'dashboard_unavailable'});
+      const timeout=error.code==='ETIMEOUT';
+      const status=error instanceof AdsScopeError?error.status:timeout?504:500;
+      res.status(status).json({error:error instanceof AdsScopeError?error.message:timeout?'Dashboard query timed out. Retry or narrow the date range.':'Dashboard data unavailable',code:error instanceof AdsScopeError?error.code:timeout?'dashboard_timeout':'dashboard_unavailable'});
     }
+  } finally {
+    res.off?.('close',onClose);
   }
 };
 
