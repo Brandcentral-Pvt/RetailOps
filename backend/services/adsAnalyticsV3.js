@@ -72,7 +72,7 @@ function reviewRulesSql(){
 }
 // Materialized groups are already owner-scoped and filtered. Count/rank every
 // entity in SQL; only a bounded sample per currency and rule leaves SQL Server.
-async function readReviewSignals({tx,sql,days}){
+async function readReviewSignals({tx,sql,days,full=false}){
  const populations=await tx.request().input('days',sql.Int,days).query(
   "SELECT e.[Currency] AS [currency],CONVERT(varchar(30),COUNT_BIG(*)) AS [totalEntities],"+
   "CONVERT(varchar(30),COUNT_BIG(c.[periodKey])) AS [currentEntities],CONVERT(varchar(30),COUNT_BIG(p.[periodKey])) AS [previousEntities],"+
@@ -86,6 +86,23 @@ async function readReviewSignals({tx,sql,days}){
   'INSERT #AdsReviewSignals ('+keys.map(k=>'['+k+']').join(',')+',[code],[rankValue],[evidenceStatus]) SELECT '+keys.map(k=>'e.['+k+']').join(',')+',sig.[code],sig.[rankValue],sig.[evidenceStatus]'+join+
   ' CROSS APPLY(VALUES '+reviewRulesSql()+') sig([code],[matched],[rankValue],[evidenceStatus]) WHERE sig.[matched]=1;');
  const counts=await tx.request().query("SELECT [Currency] AS [currency],[code],CONVERT(varchar(30),COUNT_BIG(*)) AS [total] FROM #AdsReviewSignals GROUP BY [Currency],[code] ORDER BY [Currency],[code];");
+ if(full){
+  const count=counts.recordset.reduce((n,r)=>n+Number(r.total),0);
+  await tx.request().batch("SELECT ROW_NUMBER() OVER(ORDER BY [Currency],[code],CASE WHEN [rankValue] IS NULL THEN 1 ELSE 0 END,[rankValue] DESC,[SellerId],[Marketplace],[EntityKey]) AS [exportRank],* INTO #AdsReviewExport FROM #AdsReviewSignals; CREATE UNIQUE CLUSTERED INDEX IX_AdsReviewExport_Rank ON #AdsReviewExport([exportRank]); DROP TABLE #AdsReviewSignals;");
+  const rows=async function*(){
+   let after=0;
+   try{
+    while(true){
+     const r=await tx.request().input('after',sql.BigInt,after).input('size',sql.Int,500).query(
+      "SELECT TOP(@size) e.[exportRank],e.[Currency] AS [currency],e.[SellerId] AS [sellerId],e.[Marketplace] AS [marketplace],e.[EntityKey] AS [entityKey],e.[code],e.[evidenceStatus],COALESCE(c.[SellerName],p.[SellerName],e.[SellerId]) AS [sellerName],COALESCE(c.[CatalogTitle],p.[CatalogTitle]) AS [title],c.[spend],c.[sales],c.[totalSales],c.[clicks],c.[conversions],p.[spend] AS [priorSpend],p.[sales] AS [priorSales],c.[coveredDays] AS [currentDays],p.[coveredDays] AS [previousDays] FROM #AdsReviewExport e LEFT JOIN #AdsGroups c ON "+eq('e','c')+" AND c.[periodKey]='current' LEFT JOIN #AdsGroups p ON "+eq('e','p')+" AND p.[periodKey]='previous' WHERE e.[exportRank]>@after ORDER BY e.[exportRank];");
+     if(!r.recordset.length)break;
+     for(const row of r.recordset){if(Number(row.exportRank)!==after+1)throw Error('Review export cursor mismatch');after++;yield row;}
+    }
+    if(after!==count)throw Error('Review export count mismatch');
+   }finally{await tx.request().batch('DROP TABLE IF EXISTS #AdsReviewExport;');}
+  };
+  return {count,rows};
+ }
  const sampled=await tx.request().input('sample',sql.Int,SAMPLE_LIMIT).query(
   ";WITH ranked AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY [Currency],[code] ORDER BY CASE WHEN [rankValue] IS NULL THEN 1 ELSE 0 END,[rankValue] DESC,[SellerId],[Marketplace],[EntityKey]) AS [sampleRank] FROM #AdsReviewSignals) "+
   "SELECT e.[Currency] AS [currency],e.[SellerId] AS [sellerId],e.[Marketplace] AS [marketplace],e.[EntityKey] AS [entityKey],e.[code],e.[evidenceStatus],"+
