@@ -4,7 +4,8 @@ const {readFinancialBatch}=require('../services/dashboardFinancialRead');
 const {exactSum,percentage:pct,change:deltaPct,rounded:round2,periodCoverage}=require('../services/dashboardFinancialMetrics');
 const { AdsScopeError } = require('../services/adsCanonicalScope');
 const dashboardScope=require('../services/dashboardScope');
-const { summarize:adsSummary, rounded:adsRound } = require('../services/adsConsumerMetrics');
+const { summarize:adsSummary, rounded:adsRound,periodComparison }=require('../services/dashboardAdsMetrics');
+const {shapePortfolio}=require('../services/dashboardIntelligence');
 
 // Helper to parse period strings (e.g., '30d', '3M', '1y')
 const parsePeriod = (period) => {
@@ -160,7 +161,7 @@ exports.getDashboardData = async (req, res) => {
     const financial=await financialPromise;
     if(requestController.signal.aborted)return;
     if(financial.error)throw financial.error;
-    const {data:{gmsDaily,adsDaily,sellerRows,sellingRows,topRows,sparkRows}}=financial;
+    const {data:{gmsDaily,adsDaily,sellerRows,sellingRows,topRows,sparkRows,portfolioRows}}=financial;
     console.info('[dashboard financial read]',{mode,days,elapsedMs:Date.now()-started,gmsDays:gmsDaily.length,products:topRows.length});
 
     const sellerCounts = sellerCountsResult;
@@ -195,6 +196,7 @@ exports.getDashboardData = async (req, res) => {
     const adsData = allAdsRows.filter(isCurrentRow);
     const prevAdsData = allAdsRows.filter(r => !isCurrentRow(r));
     const currentAds=adsSummary(adsData),priorAds=adsSummary(prevAdsData);
+    const adsComparison=periodComparison(currentAds,priorAds,days,adsData.length,prevAdsData.length);
     const {AdSales:totalAdSales,AdSpend:totalAdSpend,Orders:totalOrders,OrganicSales:totalOrganicSales,Impressions:totalImpressions,Clicks:totalClicks}=currentAds.totals;
     const totalCatalogValue = (asinCounts.recordset && asinCounts.recordset[0]) ? asinCounts.recordset[0].PortfolioValue || 0 : 0;
 
@@ -221,7 +223,7 @@ exports.getDashboardData = async (req, res) => {
     // Chart processing
     const {
       revenueData, areaSeries, stackedBarSeries, adsPerformanceSeries,
-      ordersSeries, unitsSeries, acosSeries, labels, bucketKeys,
+      ordersSeries, unitsSeries, acosSeries, roasSeries, ctrSeries,cvrSeries,labels, bucketKeys,
       gmsSeries, gmsUnitsSeries, tacosSeries, granularity, bucketize
     } = processChartData(days, adsData, endDate, gmsRows);
 
@@ -256,6 +258,7 @@ exports.getDashboardData = async (req, res) => {
     }
 
     const rankedTotal = exactSum(topRows,'GmsRevenue');
+    const portfolio=mode==='overview'?null:shapePortfolio(portfolioRows,coverage);
     const shareBase = gmsRevenue;
 
     const tableData = topRows.map((asin, i) => {
@@ -303,6 +306,7 @@ exports.getDashboardData = async (req, res) => {
         // Ads context (never the ranking basis)
         adSales:adsRound(adSales),adSpend:adsRound(adSpend),adOrders:ad.totals.Orders,
         adTotalSales:adsRound(ad.totals.TotalSales),adsCoverage:ad.coverage,adsRatioCoverage:ad.ratioCoverage,
+        roas:adsRound(ad.ratios.roas),ctr:adsRound(ad.ratios.ctr),cvr:adsRound(ad.ratios.cvr),
         acosPct:adsRound(acos),tacos:adsRound(ad.ratios.tacos),adShare:adsRound(ad.ratios.adShare),
         trend: trend?trend.map(rows=>exactSum(rows,'Revenue')):null,
         unitsTrend: trend?trend.map(rows=>exactSum(rows,'Units',0)):null,
@@ -352,7 +356,7 @@ exports.getDashboardData = async (req, res) => {
       // returned, leaving KPI sparklines (orders/units/ACoS) empty.
       ordersSeries,
       unitsSeries,
-      acosSeries,
+      acosSeries,roasSeries,ctrSeries,cvrSeries,
       labels,
       category: categoryData,
       tableData,
@@ -408,6 +412,8 @@ exports.getDashboardData = async (req, res) => {
       },
       ads: {
         source:'canonical_v1',currency:'INR',coverage:currentAds.coverage,ratioCoverage:currentAds.ratioCoverage,
+        exactTotals:currentAds.exactTotals,exactRatios:currentAds.exactRatios,comparison:adsComparison,
+        conversions:currentAds.totals.Conversions,totalUnits:currentAds.totals.TotalUnits,cvr:adsRound(currentAds.ratios.cvr),
         adSales:adsRound(totalAdSales),adSpend:adsRound(totalAdSpend),totalSales:adsRound(currentAds.totals.TotalSales),
         orders:totalOrders,organicSales:adsRound(totalOrganicSales),impressions:totalImpressions,clicks:totalClicks,
         ctr:adsRound(currentAds.ratios.ctr),cpc:adsRound(currentAds.ratios.cpc),acos:adsRound(currentAds.ratios.acos),
@@ -425,10 +431,10 @@ exports.getDashboardData = async (req, res) => {
         tacos:adsRound(priorAds.ratios.tacos),
       },
       gmsBySeller,
-      gmsByMarketplace,
+      gmsByMarketplace,portfolio,
     };
 
-    if(mode==='products')return res.json({scope:response.scope,period:response.period,tableData,rankedAsins:topRows.length,rankedRevenue:round2(rankedTotal),gmsRevenue:response.gms.revenue});
+    if(mode==='products')return res.json({scope:response.scope,period:response.period,tableData,rankedAsins:topRows.length,rankedRevenue:round2(rankedTotal),gmsRevenue:response.gms.revenue,portfolio});
     res.json({...response,productsIncluded:mode==='full'});
   } catch (error) {
     requestController.abort();
@@ -537,8 +543,8 @@ function processChartData(days, adsData = [], endDate, gmsRows = []) {
     ordersSeries: values('Orders'),
     // ✅ Fix: units were estimated as orders * 1.48 — report actual orders
     // instead of fabricating a conversion multiplier.
-    unitsSeries: values('Orders'),
-    acosSeries: ratios('acos'),
+    unitsSeries: values('TotalUnits'),
+    acosSeries: ratios('acos'),roasSeries:ratios('roas'),ctrSeries:ratios('ctr'),cvrSeries:ratios('cvr'),
     // GMS (merchandise) series, bucket-aligned with the ads series above.
     gmsSeries: buckets.map(b=>exactSum(b.gmsRows,'Revenue')),
     gmsUnitsSeries: buckets.map(b=>exactSum(b.gmsRows,'Units',0)),
