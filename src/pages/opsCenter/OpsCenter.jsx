@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { dashboardPrincipal,canDashboardPermission } from '../../utils/dashboardScope.mjs';
 import { useDashboardData } from '../../hooks/useDashboardData';
 import { marketSyncApi } from '../../services/api';
-import { Panel, MiniState, SkeletonPage, fmtNum, timeAgo, useNow } from './primitives';
+import { Panel, MiniState, fmtNum, timeAgo, useNow } from './primitives';
 import {
     KpiRow, TrendPanel, MixPanel, AchievementPanel, AsinHealthPanel,
     TasksPanel, AlertsPanel, PipelinePanel, ActivityPanel,
@@ -79,7 +79,7 @@ const ScopedOpsCenter = () => {
     const {
         userSellers, managers, activityLogs, scrapeTasks,
         optimizationTasks, topProducts, orch,
-        loading, isHydrated, refresh, matchesManagerFilter,
+        refresh, matchesManagerFilter,
         canTasks,canPipeline,canLogs,optionsError,pipelineStatus,activityStatus,tasksLoading,
         tasksError, sectionStatus,
     } = useDashboardData(dashboardFilters);
@@ -167,13 +167,13 @@ const ScopedOpsCenter = () => {
         skuReport: hasPermission('skureport_view') ? '/sku-report' : null,
     }), [hasPermission]);
 
-    if (loading && !isHydrated) return <SkeletonPage />;
 
     const conn = CONNECTION_LABEL[orch.connectionStatus] || CONNECTION_LABEL.offline;
     const raw = orch.dashboardRaw;
     const stats = raw?.stats || {};
     const period = raw?.period;
     const kpisErrored = sectionStatus?.kpis === 'error';
+    const kpisLoading=sectionStatus?.kpis==='loading';
     const activeSeller = filters.sellerId !== 'all' ? userSellers.find((s) => String(s.id) === String(filters.sellerId)) : null;
 
     return (
@@ -190,7 +190,7 @@ const ScopedOpsCenter = () => {
                             {conn.label}
                         </span>
                         <span>
-                            Updated {timeAgo(orch.syncTimestamp || new Date())}
+                            {orch.syncTimestamp?`Updated ${timeAgo(orch.syncTimestamp)}`:'Loading selected period'}
                             {' · '}
                             {fmtNum(stats.totalSellers)} sellers · {fmtNum(stats.totalAsins)} ASINs
                             {period ? (
@@ -257,23 +257,24 @@ const ScopedOpsCenter = () => {
             </div>
 
             {/* ── Section failure banner ────────────────────────────── */}
+            {kpisLoading&&<div className="ops-banner" role="status">Loading financial data for the selected date range...</div>}
             {orchErrors.length > 0 && (
                 <div className="ops-banner" role="alert">
                     <span className="ops-banner__text">
                         <strong>{orchErrors.length} section{orchErrors.length === 1 ? '' : 's'} failed to load.</strong>
                         {' '}
-                        {orchErrors.map(([section]) => section).join(', ')} — figures for those sections are hidden, not zeroed.
+                        {orchErrors.map(([section,message]) => `${section}: ${message}`).join(' · ')} — figures for those sections are hidden, not zeroed.
                     </span>
                     <button type="button" className="ops-retry" onClick={refresh}>Retry all</button>
                 </div>
             )}
 
             {/* ── Insights (rule-based, from the loaded data only) ──── */}
-            {!kpisErrored && <InsightsPanel insights={insights} onJump={jumpTo} />}
+            {!kpisErrored && !kpisLoading && <InsightsPanel insights={insights} onJump={jumpTo} />}
 
             {/* ── Grid ──────────────────────────────────────────────── */}
             <div className="ops-grid">
-                {kpisErrored ? (
+                {kpisLoading?<Panel span={12} kicker="Key metrics"><MiniState title="Loading key metrics" note="Fetching the selected reporting period." /></Panel>:kpisErrored ? (
                     <Panel span={12} kicker="Key metrics">
                         <MiniState
                             tone="error"
@@ -312,14 +313,14 @@ const ScopedOpsCenter = () => {
                     labels={raw?.labels || []}
                     granularity={period?.granularity || 'day'}
                     periodDays={period?.days || 0}
-                    periodTotal={raw?.gms?.revenue??null}
+                    periodTotal={orch.productsRevenue}
                     links={links}
                 />
 
                 {hasPermission('targets_view')&&<AchievementPanel targets={visibleTargets} status={sectionStatus?.targets} onRetry={refresh} />}
                 <MixPanel dashboardRaw={raw} status={sectionStatus?.categories} onRetry={refresh} />
 
-                <AsinHealthPanel stats={stats} gms={raw?.gms} />
+                {raw?<AsinHealthPanel stats={stats} gms={raw.gms}/>:null}
                 {canTasks&&<TasksPanel tasks={optimizationTasks} error={tasksError} loading={tasksLoading} onRetry={refresh} />}
                 <AlertsPanel alerts={orch.alerts || []} status={sectionStatus?.alerts} onRetry={refresh} canOpen={hasPermission('activitylogs_view')} />
 
