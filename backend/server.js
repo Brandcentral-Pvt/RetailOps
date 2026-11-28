@@ -934,6 +934,8 @@ server.listen(PORT, '0.0.0.0', () => {
     }
     require('./services/gmsImportService').startWorker();
     logger.info('GMS schema verified; import worker started');
+    const gmsExports=require('./services/gmsExportJobs');
+    try{if(await gmsExports.ensureSchema(await getPool(),process.env.RUN_MIGRATIONS_ON_STARTUP!=='false')){gmsExports.startWorker(getPool);logger.info('GMS export worker started');}else logger.error('GMS export job schema not ready');}catch(error){logger.error('GMS export job startup failed',{error:error.message});}
   }).catch(err => logger.error('GMS schema/worker startup failed', { error: err.message }));
   // Registration is independent of Ads facts and older migration failures.
   // Do not call the broad role seed: it can replace existing role grants.

@@ -548,10 +548,10 @@ test('Ads export configures independent filters, handles queue errors and downlo
  await page.route('**/api/ads/export-jobs?*',route=>{
   reads++;
   const done=reads>1;
-  const row={id,format:'xlsx',filters,sellerScope:{global:false,ids:['s1']},status:done?'COMPLETED':'QUEUED',stage:done?'completed':'queued',createdAt:'2026-11-28T09:00:00Z',rawCount:done?12:null,bytes:done?1024:null,attemptCount:done?1:0};
+  const row={id,format:'xlsx',filters,sellerScope:{global:false,ids:['s1']},status:done?'COMPLETED':'QUEUED',stage:done?'completed':'queued',createdAt:'2026-11-28T09:00:00Z',rawCount:done?12:null,bytes:done?26:null,attemptCount:done?1:0};
   return route.fulfill({json:{success:true,data:{rows:created?[row]:[],total:created?1:0,activeCount:done?0:1}}});
  });
- await page.route('**/api/ads/export-jobs/'+id+'/download',route=>route.fulfill({contentType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',body:Buffer.from('test artifact')}));
+ await page.route('**/api/ads/export-jobs/'+id+'/download',route=>route.fulfill({contentType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',body:Buffer.from('504b0304504b0506000000000000000000000000000000000000','hex')}));
  await page.goto('/tests/fixtures/ads-layout.html');
  await page.getByRole('button',{name:'Export XLSX',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Export advertising report'});
@@ -565,7 +565,7 @@ test('Ads export configures independent filters, handles queue errors and downlo
  await dialog.getByRole('button',{name:'Queue Excel export'}).click();
  await expect(dialog.getByText('Queue unavailable. Retry.')).toBeVisible();
  await dialog.getByRole('button',{name:'Queue Excel export'}).click();
- const center=page.getByRole('dialog',{name:'Ads Download Center'});
+ const center=page.getByRole('dialog').filter({hasText:'Exports Center'});
  await expect(center).toBeVisible();
  expect(posts).toHaveLength(2);expect(posts[0].clientId).toBe(posts[1].clientId);
  expect(posts[1].filters).toMatchObject({sellerId:'s1',search:'B000000001',granularity:'week'});

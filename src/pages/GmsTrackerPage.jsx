@@ -56,6 +56,7 @@ export default function GmsTrackerPage(){
   const [lastLoadedAt,setLastLoadedAt]=useState(null);
   const [importOpen,setImportOpen]=useState(false),[importTab,setImportTab]=useState('upload');
   const [exportOpen,setExportOpen]=useState(false);
+  const exportRequest=useRef(null);
   const from=day(startDate,dayjs().startOf('month')),to=day(endDate,dayjs().endOf('month'));
   const filterKey=JSON.stringify([userKey,from,to,selectedSellers,selectedManagers,debouncedSearch,level]);
   const page=pager.key===filterKey?pager.page:1,pageSize=pager.pageSize;
@@ -171,16 +172,20 @@ export default function GmsTrackerPage(){
     if(!can('gms_tracker_export')||loading||error)throw new Error('Wait for the active report to finish loading.');
     if(values.exportBrandType==='current'&&selectedManagers.length&&(metadataLoading||!directory.managerOK||directory.userKey!==userKey))throw new Error('Manager assignments are unavailable. Refresh report filters.');
     const custom=values.exportCustomDates;
-    const result=await exportApi.startGmsExport({
+    const filters={
       exportLevel:values.exportLevel,exportDataType:values.exportDataType,exportFileType:values.exportFileType,
-      exportDateType:values.exportDateType,exportBrandType:values.exportBrandType,exportCustomBrands:[],
+      exportDateType:values.exportDateType,exportBrandType:values.exportBrandType,
       exportCustomDates:values.exportDateType==='custom'?[custom[0].format('YYYY-MM-DD'),custom[1].format('YYYY-MM-DD')]:null,
       startDate:values.exportDateType==='current'?from:null,endDate:values.exportDateType==='current'?to:null,
       sellerIds:values.exportBrandType==='current'?currentSellerIds:values.exportBrandType==='custom'?values.exportCustomBrands:null,
       search:values.exportBrandType==='current'?search:'',
-    });
-    if(!result?.success)throw new Error(result?.message||'Export could not be started.');
-    message.success('GMS export started. Track it in Downloads.');
+    };
+    const signature=JSON.stringify([userKey,filters]);
+    if(exportRequest.current?.signature!==signature)exportRequest.current={signature,clientId:crypto.randomUUID()};
+    const result=await exportApi.queueGmsExport({clientId:exportRequest.current.clientId,format:values.exportFileType,filters});
+    if(!result?.success||!result.data?.id)throw new Error(result?.message||'Export could not be started.');
+    exportRequest.current=null;
+    message.success('GMS export queued. Track it in Downloads.');
     window.dispatchEvent(new CustomEvent('export-started'));
   };
 
@@ -190,7 +195,7 @@ export default function GmsTrackerPage(){
       search={search} onSellersChange={setSelectedSellers} onManagersChange={setSelectedManagers} onSearchChange={setSearch} onReset={resetFilters}
       metadataLoading={metadataLoading} metadataError={directory.error} analytics={analytics} loading={loading} reportLoading={reportLoading}
       error={error} lastLoadedAt={lastLoadedAt} onRefresh={()=>load({refreshMetadata:true})}
-      canImport={can('gms_tracker_import')} canExport={can('gms_tracker_export')} onImport={()=>showImport('upload')} onHistory={()=>showImport('history')} onExport={()=>setExportOpen(true)}/>
+      canImport={can('gms_tracker_import')} canExport={can('gms_tracker_export')} onImport={()=>showImport('upload')} onHistory={()=>showImport('history')} onExport={()=>{exportRequest.current=null;setExportOpen(true);}}/>
     {error?<Alert type="error" showIcon title="Unable to load the report" description={error} action={<Button size="small" onClick={()=>load({refreshMetadata:true})}>Retry</Button>}/>:<>
       <GmsFinancialSummary analytics={analytics} loading={reportLoading} metric={metric}
         onMetricChange={next=>{setMetric(next);setWorkspaceTab('analysis');}}

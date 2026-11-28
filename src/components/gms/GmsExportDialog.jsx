@@ -25,7 +25,7 @@ export default function GmsExportDialog({open,onClose,onSubmit,level,startDate,e
     finally{lock.current=false;setBusy(false);}
   }
   return <Drawer open={open} title="Export GMS report" width="min(560px, 100vw)" forceRender onClose={()=>{if(!busy)onClose();}} mask={{closable:!busy}} keyboard={!busy}
-    footer={<Flex justify="flex-end" gap={8}><Button disabled={busy} onClick={onClose}>Cancel</Button><Button aria-label={format==='csv'?'Export complete CSV':'Export complete Excel'} type="primary" icon={<DownloadOutlined/>} loading={busy} disabled={disabled} onClick={()=>form.submit()}>Export {format==='csv'?'complete CSV':'complete Excel'}</Button></Flex>}>
+    footer={<Flex justify="flex-end" gap={8}><Button disabled={busy} onClick={onClose}>Cancel</Button><Button aria-label={format==='csv'?'Export complete CSV':'Export complete Excel'} type="primary" icon={<DownloadOutlined/>} loading={busy} disabled={disabled} onClick={()=>form.submit()}>Queue {format==='csv'?'complete CSV':'complete Excel'}</Button></Flex>}>
     <Form form={form} layout="vertical" initialValues={defaults} onFinish={submit} requiredMark={false} className="gms-export-form">
       {error&&<Alert type="error" showIcon title={error} style={{marginBottom:16}}/>}
       <Form.Item name="exportFileType" label="Report format">
@@ -36,7 +36,7 @@ export default function GmsExportDialog({open,onClose,onSubmit,level,startDate,e
       </Form.Item>
       <Alert type="info" showIcon title={format==='xlsx'?'Complete financial workbook':'Complete daily records'}
         description={format==='xlsx'?'Includes the complete daily data, executive summary, ASIN and seller analytics, daily/weekly/monthly comparisons, prior period detail when available, and a revenue matrix.':'Includes all six financial metrics, date, ASIN, uploaded title and seller mapping. Use Excel for separate analytical worksheets.'}/>
-      <Text type="secondary" className="gms-export-note">Every matching stored record is exported, regardless of the current table page.</Text>
+      <Text type="secondary" className="gms-export-note">Every matching stored record is exported, regardless of the current table page. Reports run in the background; follow progress, retry or cancel in Downloads.</Text>
       {format==='xlsx'&&<>
         <Form.Item name="exportLevel" label="Revenue matrix grouping"><Segmented block options={[{label:'ASIN wise',value:'asin'},{label:'Seller wise',value:'seller'}]}/></Form.Item>
         <Form.Item name="exportDataType" label="Revenue matrix detail"><Segmented block options={[{label:'Daily',value:'daily'},{label:'Weekly',value:'weekly'},{label:'Monthly',value:'monthly'}]}/></Form.Item>
@@ -62,7 +62,7 @@ export default function GmsExportDialog({open,onClose,onSubmit,level,startDate,e
       {sellerMode==='custom'&&<Form.Item name="exportCustomBrands" label="Sellers" rules={[{required:true,type:'array',min:1,message:'Select at least one seller'}]}>
         <Select mode="multiple" allowClear showSearch optionFilterProp="label" options={sellerOptions} placeholder="Choose sellers"/>
       </Form.Item>}
-      {sellerMode==='current'&&currentSellerIds?.length===0&&<Alert type="warning" showIcon title="No sellers match the current filters" description="The export will contain no matching records. Change the page filters or choose another seller scope."/>}
+      {sellerMode==='current'&&currentSellerIds?.length===0&&<Alert type="warning" showIcon title="No sellers match the current filters" description="Change the page filters or choose another seller scope before exporting."/>}
       {sellerMode==='current'&&search.trim()&&<Text type="secondary">Search included: {search}</Text>}
       {dateMode==='all'&&format==='xlsx'&&<Alert style={{marginTop:12}} type="warning" showIcon title="All-time report" description="There is no single preceding equal-length period for all-time data. Large exports may take longer or require a narrower date range."/>}
     </Form>

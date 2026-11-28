@@ -1853,6 +1853,7 @@ export const taskApi = {
     }
 };
 
+const reportJobsPath=kind=>{if(kind==='ads')return '/ads/export-jobs';if(kind==='gms')return '/export/gms-jobs';throw new Error('Unsupported report type');};
 export const exportApi = {
     startExport: async (params) => {
         const res = await fetch(`${API_BASE}/export/start`, {
@@ -1887,28 +1888,34 @@ export const exportApi = {
     },
     // Canonical Ads artifacts are persisted separately from legacy Downloads.
     // Keep the security boundary and integrity checks at their original API.
-    getAdsDownloads: async ({page=1,limit=50,signal}={}) => {
+    getReportDownloads: async (kind,{page=1,limit=50,signal}={}) => {
         const query=new URLSearchParams({page:String(page),limit:String(limit)});
-        const res=await fetch(API_BASE+'/ads/export-jobs?'+query,{
+        const res=await fetch(API_BASE+reportJobsPath(kind)+'?'+query,{
             credentials:'include',cache:'no-store',headers:{...getAuthHeader()},signal
         });
-        return handleResponse(res,'Failed to load Ads export history');
+        return handleResponse(res,'Failed to load Report export history');
     },
-    mutateAdsDownload: async (id,action) => {
+    mutateReportDownload: async (kind,id,action) => {
         if(!['retry','cancel'].includes(action))throw new Error('Unsupported export action');
-        return handleResponse(await fetch(API_BASE+'/ads/export-jobs/'+encodeURIComponent(id)+'/'+action,{
+        return handleResponse(await fetch(API_BASE+reportJobsPath(kind)+'/'+encodeURIComponent(id)+'/'+action,{
             method:'POST',credentials:'include',headers:{'Content-Type':'application/json',...getAuthHeader()},body:'{}'
-        }),'Unable to update Ads export');
+        }),'Unable to update Report export');
     },
-    downloadAdsFile: async (id,{fileName,fileSize}={}) => {
-        const res=await fetch(API_BASE+'/ads/export-jobs/'+encodeURIComponent(id)+'/download',{
+    downloadReportFile: async (kind,id,{fileName,fileSize}={}) => {
+        const res=await fetch(API_BASE+reportJobsPath(kind)+'/'+encodeURIComponent(id)+'/download',{
             credentials:'include',cache:'no-store',headers:{...getAuthHeader()}
         });
-        if(!res.ok)return handleResponse(res,'Ads download failed or file not ready');
+        if(!res.ok)return handleResponse(res,'Report download failed or file not ready');
         const format=exportResponseFormat(res.headers,fileName);
         const expectedSize=res.headers.get('x-export-file-size')||fileSize||(!res.headers.get('content-encoding')?res.headers.get('content-length'):null);
         return validateExportBlob(await res.blob(),format,expectedSize);
     },
+    getAdsDownloads: (options) => exportApi.getReportDownloads('ads',options),
+    mutateAdsDownload: (id,action) => exportApi.mutateReportDownload('ads',id,action),
+    downloadAdsFile: (id,options) => exportApi.downloadReportFile('ads',id,options),
+    queueGmsExport: async (body) => handleResponse(await fetch(API_BASE+reportJobsPath('gms'),{
+        method:'POST',credentials:'include',headers:{'Content-Type':'application/json',...getAuthHeader()},body:JSON.stringify(body)
+    }),'Unable to queue GMS export'),
     getFields: async () => {
         const res = await fetch(`${API_BASE}/export/fields`, {
             headers: { ...getAuthHeader() }

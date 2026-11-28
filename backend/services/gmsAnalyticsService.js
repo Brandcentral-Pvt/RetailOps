@@ -222,11 +222,12 @@ function buildAnalytics(raw,{window,filters={},level='asin',groups=null,includeO
   }
   return {matrixRows,monthGroups,...(includeOverview?buildOverview(facts,window):{})};
 }
-async function queryFacts(pool,user,window,filters={}, {signal}={}){
+async function queryFacts(pool,user,window,filters={}, {signal,maxRows}={}){
   if(signal?.aborted)throw new Error('GMS query cancelled');
   const scope=resolveSellerScope(user),spec=filterSpec(filters);
   if(scope.empty||spec.sellerIds?.length===0)return [];
   const q=pool.request();let where='WHERE 1=1';
+  if(maxRows!==undefined){if(!Number.isSafeInteger(maxRows)||maxRows<1)throw Error('Invalid export capacity');q.input('maxRows',sql.Int,maxRows+1);}
   if(!scope.isGlobal){
     q.input('allowedSellerIds',sql.NVarChar(sql.MAX),JSON.stringify(scope.allowed));
     where+=' AND EXISTS (SELECT 1 FROM OPENJSON(@allowedSellerIds) j WHERE j.value=a.SellerId)';
@@ -247,12 +248,13 @@ async function queryFacts(pool,user,window,filters={}, {signal}={}){
   signal?.addEventListener('abort',cancel,{once:true});
   try {
   const result=await q.query(
-    'SELECT CONVERT(char(10),g.Date,23) AS date,g.Asin AS asin,g.Brand AS brand,g.StoreCode AS storeCode,'+
+    'SELECT '+(maxRows===undefined?'':'TOP (@maxRows) ')+'CONVERT(char(10),g.Date,23) AS date,g.Asin AS asin,g.Brand AS brand,g.StoreCode AS storeCode,'+
     'CONVERT(varchar(50),g.OrderedRevenue) AS orderedRevenue,g.OrderedUnits AS orderedUnits,'+
     'CONVERT(varchar(50),g.ShippedRevenue) AS shippedRevenue,CONVERT(varchar(50),g.ShippedCOGS) AS shippedCOGS,'+
     'g.ShippedUnits AS shippedUnits,g.CustomerReturns AS customerReturns,COALESCE(g.SellerId,a.SellerId) AS sellerId,s.Name AS dbBrand,g.ReportProductTitle AS reportProductTitle,a.Title AS catalogProductTitle,COALESCE(g.ReportProductTitle,a.Title) AS productTitle '+
     'FROM GmsDailyPerformance g '+gmsCatalogApplySql+' LEFT JOIN Sellers s ON COALESCE(g.SellerId,a.SellerId)=s.Id '+where+' ORDER BY g.Date DESC,g.Asin,g.Id'
   );
+  if(maxRows!==undefined&&result.recordset.length>maxRows){const {AdsScopeError}=require('./adsCanonicalScope');throw new AdsScopeError('export_too_large','GMS export exceeds '+maxRows.toLocaleString('en-US')+' source facts including comparison history. Narrow the report; no records were truncated.',422);}
   return result.recordset.filter(r=>r.date);
   }finally{signal?.removeEventListener('abort',cancel);}
 }

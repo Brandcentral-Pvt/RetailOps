@@ -11,6 +11,7 @@ const DownloadDrawer=()=>{
  const {user}=useAuth();
  const permissions=user?.permissions||[];
  const canAds=['adsreport_view','adsreport_export'].every(p=>permissions.includes('*')||permissions.includes(p));
+ const canGms=permissions.includes('*')||permissions.includes('gms_tracker_export');
  const principal=JSON.stringify([user?.Id||user?.id||user?._id,user?.role?.name,user?.assignedSellers,permissions]);
  const [notice,setNotice]=useState({principal:null,ready:false});
  const seen=useRef(new Set());
@@ -27,7 +28,7 @@ const DownloadDrawer=()=>{
   let stopped=false,timer,controller;
   const check=async()=>{
    controller=new AbortController();
-   const [legacy,ads]=await Promise.allSettled([exportApi.getDownloads(),canAds?exportApi.getAdsDownloads({signal:controller.signal}):Promise.resolve(null)]);
+   const [legacy,ads,gms]=await Promise.allSettled([exportApi.getDownloads(),canAds?exportApi.getReportDownloads('ads',{signal:controller.signal}):Promise.resolve(null),canGms?exportApi.getReportDownloads('gms',{signal:controller.signal}):Promise.resolve(null)]);
    if(stopped)return;
    const ready=[];
    if(legacy.status==='fulfilled'&&legacy.value?.success&&Array.isArray(legacy.value.data)){
@@ -36,6 +37,9 @@ const DownloadDrawer=()=>{
    if(ads.status==='fulfilled'&&ads.value?.success&&Array.isArray(ads.value.data?.rows)){
     for(const j of ads.value.data.rows)if(j.status==='COMPLETED')ready.push('ads:'+j.id);
    }
+   if(gms.status==='fulfilled'&&gms.value?.success&&Array.isArray(gms.value.data?.rows)){
+    for(const j of gms.value.data.rows)if(j.status==='COMPLETED')ready.push('gms:'+j.id);
+   }
    let fresh=false;
    for(const id of ready){if(!seen.current.has(id)){seen.current.add(id);fresh=true;}}
    if(fresh&&!openRef.current)setNotice({principal,ready:true});
@@ -43,7 +47,7 @@ const DownloadDrawer=()=>{
   };
   void check();
   return ()=>{stopped=true;clearTimeout(timer);controller?.abort();};
- },[principal,canAds,revision,Boolean(user)]);
+ },[principal,canAds,canGms,revision,Boolean(user)]);
  const hasNew=notice.principal===principal&&notice.ready&&!downloadOpen;
  const handleOpen=()=>{setNotice({principal,ready:false});setDownloadOpen(true);};
  const handleClose=()=>{setNotice({principal,ready:false});setDownloadOpen(false);setRevision(v=>v+1);};

@@ -110,7 +110,7 @@ const getStatusConfig = (status) => {
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
-const DownloadsDrawer = ({ isOpen, onClose }) => {
+const DownloadsDrawer = ({ isOpen, onClose,refreshRevision:externalRevision=0 }) => {
     const [downloads, setDownloads] = useState([]);
     const [loading, setLoading] = useState(false);
     const [filterStatus, setFilterStatus] = useState('all');
@@ -119,36 +119,35 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
     const permissions=user?.permissions||[];
     const canAds=['adsreport_view','adsreport_export'].every(p=>permissions.includes('*')||permissions.includes(p));
     const principal=JSON.stringify([user?.Id||user?.id||user?._id,user?.role?.name,user?.assignedSellers,permissions]);
-    const [ads,setAds]=useState({principal:null,rows:[],total:0,activeCount:0});
-    const [adsPage,setAdsPage]=useState(1);
-    const [adsError,setAdsError]=useState(null);
+    const canGms=permissions.includes('*')||permissions.includes('gms_tracker_export');
+    const [reports,setReports]=useState({});
+    const [pages,setPages]=useState({ads:1,gms:1});
     const [action,setAction]=useState(null);
     const actionLock=useRef(false);
     const [source,setSource]=useState('all');
     const [refreshRevision,setRefreshRevision]=useState(0);
-    const activeCount=ads.principal===principal?ads.activeCount:0;
-    useEffect(()=>{setAdsPage(1);setSource('all');setAdsError(null);},[principal]);
+    useEffect(()=>{setPages({ads:1,gms:1});setSource('all');setReports({});},[principal]);
     useEffect(()=>{
-        if(!isOpen||!canAds)return;
+        if(!isOpen)return;
         let stopped=false,timer,controller;
+        const kinds=[...(canAds?['ads']:[]),...(canGms?['gms']:[])];
+        if(!kinds.length)return;
         const load=async()=>{
             controller=new AbortController();
-            let delay=15000;
-            try{
-                const res=await exportApi.getAdsDownloads({page:adsPage,signal:controller.signal});
-                if(stopped)return;
-                if(!res.success||!Array.isArray(res.data?.rows))throw Error('Invalid Ads export history response');
-                setAds({principal,...res.data});setAdsError(null);
-                delay=res.data.activeCount>0?3000:15000;
-            }catch(e){if(!stopped){setAds({principal,rows:[],total:0,activeCount:0});setAdsError(e.message);}}
-            finally{if(!stopped)timer=setTimeout(load,delay);}
+            const results=await Promise.allSettled(kinds.map(kind=>exportApi.getReportDownloads(kind,{page:pages[kind],signal:controller.signal})));
+            if(stopped)return;
+            const next={};let active=false;
+            results.forEach((result,i)=>{
+                const kind=kinds[i],data=result.status==='fulfilled'&&result.value?.success?result.value.data:null;
+                if(data&&Array.isArray(data.rows)){next[kind]={principal,...data};active=active||data.activeCount>0;}
+                else next[kind]={principal,rows:[],total:0,error:result.status==='rejected'?result.reason?.message:'Invalid report history response'};
+            });
+            setReports(next);
+            timer=setTimeout(load,active?3000:15000);
         };
-        const refresh=()=>{clearTimeout(timer);controller?.abort();};
-        // Each effect has a single request chain; refresh restarts it below.
         void load();
-        return ()=>{stopped=true;refresh();};
-    },[isOpen,canAds,principal,adsPage,refreshRevision]);
-
+        return ()=>{stopped=true;clearTimeout(timer);controller?.abort();};
+    },[isOpen,canAds,canGms,principal,pages,refreshRevision,externalRevision]);
 
     // Normalize schema
     const normalize = useCallback((d) => {
@@ -182,7 +181,7 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
             setLoading(true);
             fetchDownloads().finally(() => setLoading(false));
         }
-    }, [isOpen, fetchDownloads]);
+    }, [isOpen, fetchDownloads,externalRevision]);
 
     // Real-time socket events integration
     useEffect(() => {
@@ -220,15 +219,20 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
     // Normalize all downloads
     const normalizedDownloads = useMemo(() => {
         const legacy=downloads.map(normalize).map(d=>({...d,source:'legacy',key:'legacy:'+d.id}));
-        const canonical=canAds&&ads.principal===principal?ads.rows.map(j=>({
-            id:j.id,key:'ads:'+j.id,source:'ads',status:String(j.status).toLowerCase(),
-            fileName:'ads-intelligence-'+(j.filters?.allHistory?'all-history':j.filters?.startDate+'-'+j.filters?.endDate)+'.'+j.format,
-            format:j.format,rowCount:j.rawCount,fileSize:j.bytes,createdAt:j.createdAt,
-            expiresAt:j.expiresAt,stage:j.stage,attemptCount:j.attemptCount,errorMessage:j.errorCode,
-            scope:j.filters?.sellerId||'All authorized sellers'
-        })):[];
+        const canonical=['ads','gms'].flatMap(kind=>{
+            if(!(kind==='ads'?canAds:canGms)||reports[kind]?.principal!==principal)return [];
+            return reports[kind].rows.map(j=>{
+                const f=j.filters||{};
+                const range=kind==='ads'?(f.allHistory?'all-history':f.startDate+'-'+f.endDate):(f.exportDateType==='all'?'all-history':f.exportDateType==='custom'?(f.exportCustomDates||[]).join('-'):f.startDate+'-'+f.endDate);
+                return {id:j.id,key:kind+':'+j.id,source:kind,status:String(j.status).toLowerCase(),
+                    fileName:(kind==='ads'?'ads-intelligence-':'gms_export_'+f.exportLevel+'_')+range+'.'+j.format,
+                    format:j.format,rowCount:j.rawCount,fileSize:j.bytes,createdAt:j.createdAt,
+                    expiresAt:j.expiresAt,stage:j.stage,attemptCount:j.attemptCount,errorMessage:j.errorCode,
+                    scope:j.sellerScope?.global?'All authorized sellers':j.sellerScope?.ids?.length?j.sellerScope.ids.length+' authorized seller(s)':f.sellerId||f.sellerIds?.join(', ')||'Authorized sellers'};
+            });
+        });
         return [...legacy,...canonical].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
-    }, [downloads, normalize, ads, canAds, principal]);
+    }, [downloads, normalize, reports, canAds,canGms, principal]);
 
     // Compute stats
     const stats = useMemo(() => {
@@ -261,7 +265,7 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
         message.loading({ content: `Preparing ${item.fileName}...`, key, duration: 0 });
 
         try {
-            const blob = await (item.source==='ads'?exportApi.downloadAdsFile:exportApi.downloadFile)(item.id,{fileName:item.fileName,fileSize:item.fileSize});
+            const blob = await (item.source==='legacy'?exportApi.downloadFile(item.id,{fileName:item.fileName,fileSize:item.fileSize}):exportApi.downloadReportFile(item.source,item.id,{fileName:item.fileName,fileSize:item.fileSize}));
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
@@ -277,10 +281,10 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
         }
     };
 
-    const handleAdsAction=async(item,operation)=>{
+    const handleReportAction=async(item,operation)=>{
         if(actionLock.current)return;
         actionLock.current=true;setAction(item.id+operation);
-        try{await exportApi.mutateAdsDownload(item.id,operation);message.success(operation==='retry'?'Export queued again':'Export cancelled');}
+        try{await exportApi.mutateReportDownload(item.source,item.id,operation);message.success(operation==='retry'?'Export queued again':'Export cancelled');}
         catch(e){message.error(e.message);}
         finally{actionLock.current=false;setAction(null);setRefreshRevision(v=>v+1);}
     };
@@ -402,8 +406,8 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                             </Row>
                         )}
 
-                        {canAds&&<Segmented block value={source} onChange={setSource} options={[{label:'All reports',value:'all'},{label:'Ads',value:'ads'},{label:'Other exports',value:'legacy'}]}/>}
-                        {canAds&&adsError&&<Alert type="error" showIcon message={adsError} action={<Button size="small" onClick={handleRefresh}>Retry</Button>}/>}
+                        {(canAds||canGms)&&<Segmented block value={source} onChange={setSource} options={[{label:'All',value:'all'},...(canAds?[{label:'Ads',value:'ads'}]:[]),...(canGms?[{label:'GMS',value:'gms'}]:[]),{label:'Other',value:'legacy'}]}/>}
+                        {['ads','gms'].filter(kind=>reports[kind]?.principal===principal&&reports[kind]?.error).map(kind=><Alert key={kind} type="error" showIcon message={kind.toUpperCase()+': '+reports[kind].error} action={<Button size="small" onClick={handleRefresh}>Retry</Button>}/>)}
                         {/* Navigation Tabs */}
                         {stats.total > 0 && (
                             <Segmented
@@ -505,15 +509,15 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                                                             <span style={{ color: '#bfbfbf' }}>{formatRelativeTime(item.createdAt)}</span>
                                                         </Space>
 
-                                                        {item.source==='ads'&&<div style={{marginTop:6}}>
-                                                            <Text type="secondary">Ads report · {item.scope}</Text>
-                                                            {['queued','processing'].includes(item.status)&&<div role="status"><Space size={6}><Loader2 size={14} className="spin-animation"/><Text>{({queued:'Waiting for worker',generating:'Reading and reconciling reports',storing:'Validating and saving artifact',retry_wait:'Waiting to retry'})[item.stage]||'Processing export'}</Text></Space></div>}
+                                                        {item.source!=='legacy'&&<div style={{marginTop:6}}>
+                                                            <Text type="secondary">{item.source.toUpperCase()} report · {item.scope}</Text>
+                                                            {['queued','processing'].includes(item.status)&&<div role="status"><Space size={6}><Loader2 size={14} className="spin-animation"/><Text>{({queued:'Waiting for worker',generating:'Reading and reconciling reports',writing:'Writing financial workbook',verifying:'Verifying report',storing:'Validating and saving artifact',retry_wait:'Waiting to retry'})[item.stage]||'Processing export'}</Text></Space></div>}
                                                             {item.attemptCount>0&&<div><Text type="secondary">Attempt {item.attemptCount}/3</Text></div>}
                                                             {item.expiresAt&&item.status==='completed'&&<div><Text type="secondary">Expires {new Date(item.expiresAt).toLocaleString()}</Text></div>}
                                                             {['queued','processing','failed'].includes(item.status)&&<Button size="small" style={{marginTop:6}} disabled={!!action} loading={action===item.id+(item.status==='failed'?'retry':'cancel')} onClick={e=>{e.stopPropagation();handleAdsAction(item,item.status==='failed'?'retry':'cancel');}}>{item.status==='failed'?'Retry':'Cancel'}</Button>}
                                                         </div>}
                                                         {/* Native Ant Design Progress */}
-                                                        {item.status === 'processing' && item.source!=='ads' && (
+                                                        {item.status === 'processing' && item.source==='legacy' && (
                                                             <div style={{ marginTop: 6 }}>
                                                                 <Progress
                                                                     percent={Math.round(item.progress || 0)}
@@ -569,7 +573,7 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                             />
                         </div>
 
-                        {canAds&&source!=='legacy'&&ads.principal===principal&&ads.total>50&&<Pagination size="small" current={adsPage} pageSize={50} total={ads.total} showSizeChanger={false} onChange={setAdsPage}/>}
+                        {['ads','gms'].filter(kind=>(source==='all'||source===kind)&&reports[kind]?.principal===principal&&reports[kind].total>50).map(kind=><div key={kind}><Text type="secondary">{kind.toUpperCase()} history</Text><Pagination size="small" current={pages[kind]} pageSize={50} total={reports[kind].total} showSizeChanger={false} onChange={page=>setPages(prev=>({...prev,[kind]:page}))}/></div>)}
                         {/* Footer Status Metadata */}
                         {stats.total > 0 && (
                             <div style={{
