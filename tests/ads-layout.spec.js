@@ -27,7 +27,9 @@ async function assertContained(page){
  const bounds=await page.evaluate(()=>{
   const shell=document.querySelector('.routes-container'),root=document.querySelector('.ads-workspace');
   const edge=Math.min(shell.getBoundingClientRect().right,window.innerWidth);
-  const rects=[root,...root.querySelectorAll(':scope > *, .ads-heading-actions > *, .ads-filters > *, .ads-table-shell')].map(e=>{
+  // Hidden Ant tab panes have no rendered client rectangles. Inspect every
+  // rendered shell, while the root and app scroll widths remain unconditional.
+  const rects=[root,...root.querySelectorAll(':scope > *, .ads-heading-actions > *, .ads-filters > *, .ads-table-shell')].filter(e=>e.getClientRects().length>0).map(e=>{
    const r=e.getBoundingClientRect();return {name:e.className?.toString().slice(0,90),right:r.right,left:r.left};
   });
   return {edge,left:shell.getBoundingClientRect().left,rootWidth:root.clientWidth,rootScrollWidth:root.scrollWidth,shellWidth:shell.clientWidth,shellScrollWidth:shell.scrollWidth,rects};
@@ -347,4 +349,28 @@ test('Ads numeric display uses grouped currency and integer counts without raw S
  await expect(product.getByText('11',{exact:false}).first()).toBeVisible();
  await expect(page.getByText('7100.0300000000',{exact:false})).toHaveCount(0);
  await expect(page.getByText('11.0000000000',{exact:false})).toHaveCount(0);
+});
+
+test('Phase 3D reconciliation is on demand, scoped, exact and distinguishes data gaps from failures',async({page})=>{
+ await page.setViewportSize({width:1440,height:900});await mock(page);
+ let requests=0,params;
+ const checks=[{code:'entity_rollup',label:'ASIN aggregation',status:'passed',comparisons:86,mismatchCount:0,mismatches:[]},{code:'source_aliases',label:'Business alias equality',status:'failed',comparisons:3,mismatchCount:1,mismatches:[{currency:'INR',periodKey:'current',field:'totalSalesAliasMismatch',expected:'0.0000000000',actual:'0.0000000001'}]}];
+ await page.route('**/api/ads/canonical-reconciliation?*',route=>{
+  requests++;params=new URL(route.request().url()).searchParams;
+  return route.fulfill({json:{success:true,data:{status:requests===1?'failed':'passed',empty:false,checks:requests===1?checks:[checks[0]],quality:[{currency:'INR',periodKey:'current',rowCount:'1000',missingSpend:'22',zeroSpend:'7',nonAdditiveRevenueRows:'15'}],baseline:[{...summary,periodKey:'current',coveredDays:20,totals:{...summary.totals,spend:'7100.0300000000'}}]}}});
+ });
+ await page.goto('/tests/fixtures/ads-layout.html');
+ const panel=page.getByTestId('ads-reconciliation-panel');
+ await expect(panel.getByRole('button',{name:'Run reconciliation'})).toBeVisible();expect(requests).toBe(0);
+ await panel.getByRole('button',{name:'Run reconciliation'}).click();
+ await expect(panel.getByText('Analytics discrepancies detected',{exact:true})).toBeVisible();
+ await expect(panel.getByText('0.0000000001',{exact:true})).toBeVisible();
+ expect(params.get('groupBy')).toBe('asin');expect(params.has('page')).toBe(false);expect(params.has('limit')).toBe(false);
+ await panel.getByRole('button',{name:'View source details'}).click();
+ await expect(panel.getByText('Ad + organic differs from total sales',{exact:true})).toBeVisible();
+ await expect(panel.getByText('INR 7,100.03',{exact:true})).toBeVisible();
+ await assertContained(page);
+ await panel.getByRole('button',{name:'Run again'}).click();
+ await expect(panel.getByText('Stored analytics checks passed',{exact:true})).toBeVisible();
+ await expect(panel.getByText('Exact mismatch details',{exact:true})).toHaveCount(0);
 });
