@@ -12,6 +12,11 @@ function validateSelection(raw,candidates){
  if(!parsed||typeof parsed!=='object'||Array.isArray(parsed)||Object.keys(parsed).join(',')!=='findingIds'||!Array.isArray(parsed.findingIds)||parsed.findingIds.length<1||parsed.findingIds.length>MAX_SELECTION||new Set(parsed.findingIds).size!==parsed.findingIds.length||parsed.findingIds.some(id=>typeof id!=='string'||!allowed.has(id)))throw Error('Invalid analyst selection');
  return parsed.findingIds;
 }
+function analystAvailability(env=process.env){
+ if(env.ADS_ANALYST_AI_ENABLED!=='true')return 'ai_disabled';
+ if(!String(env.NVIDIA_NIM_API_KEY||'').trim())return 'provider_not_configured';
+ return null;
+}
 async function rankWithNim(messages){
  const nim=require('./nimService');
  if(!nim.isConfigured())throw Error('Provider not configured');
@@ -40,4 +45,4 @@ async function reviewSnapshot(snapshot,{useAI=false,rank=rankWithNim,enabled=pro
   return {...snapshot,mode:'ai_ranked',reason:null,recommendations:selected};
  }catch{return fallback('provider_unavailable_or_invalid');}
 }
-module.exports={reviewSnapshot,validateSelection,candidatesFor};
+module.exports={reviewSnapshot,validateSelection,candidatesFor,analystAvailability};
