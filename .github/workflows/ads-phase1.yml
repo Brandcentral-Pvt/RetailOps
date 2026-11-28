@@ -40,6 +40,11 @@ on:
       - 'backend/controllers/dashboardController.js'
       - 'backend/services/dashboardFinancialMetrics.js'
       - 'backend/services/dashboardFinancialRead.js'
+      - 'backend/services/dashboardAdsMetrics.js'
+      - 'backend/services/dashboardIntelligence.js'
+      - 'backend/services/dashboardTargets.js'
+      - 'backend/services/dashboardTaskIntelligence.js'
+      - 'backend/testUtils/dashboardPhase3.*'
       - 'backend/testUtils/dashboardBatchFixture.js'
       - 'src/utils/dashboardRange.mjs'
       - 'src/services/__tests__/dashboardRange.test.mjs'
@@ -138,11 +143,15 @@ jobs:
           node --check backend/controllers/dashboardController.js
           node --check backend/services/dashboardFinancialMetrics.js
           node --check backend/services/dashboardFinancialRead.js
+          node --check backend/services/dashboardAdsMetrics.js
+          node --check backend/services/dashboardIntelligence.js
+          node --check backend/services/dashboardTargets.js
+          node --check backend/services/dashboardTaskIntelligence.js
           node --check backend/services/dashboardScope.js
           node --check backend/controllers/alertsController.js
           node --check backend/controllers/marketDataSyncController.js
           node --check backend/services/SystemLogService.js
-          node --test backend/testUtils/dashboardPhase1.contract.node.cjs backend/testUtils/dashboardPhase2.scope.node.cjs
+          node --test backend/testUtils/dashboardPhase1.contract.node.cjs backend/testUtils/dashboardPhase2.scope.node.cjs backend/testUtils/dashboardPhase3.contract.node.cjs
           node --check backend/controllers/targetController.js
           node --check backend/controllers/adsCanonicalExportController.js
           node --check backend/services/adsExportSnapshot.js
