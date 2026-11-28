@@ -1,7 +1,7 @@
-import React,{useMemo,useState} from 'react';
+import React,{lazy,Suspense,useMemo,useState} from 'react';
 import {Alert,Button,Card,Empty,Flex,Segmented,Select,Skeleton,Space,Tag,Tooltip,Typography,theme} from 'antd';
 import {InfoCircleOutlined,LineChartOutlined} from '@ant-design/icons';
-import Chart from 'react-apexcharts';
+const Chart=lazy(()=>import('react-apexcharts'));
 import dayjs from 'dayjs';
 import {METRICS,metricValue,changeLabel,changeTone,dailySeries,isKnown} from './gmsPresentation.mjs';
 
@@ -77,7 +77,7 @@ export function GmsTrend({analytics,loading,metric,onMetricChange}){
       <Text type="secondary">{new Date(single.x).toISOString().slice(0,10)}</Text>
       <Typography.Title level={3} style={{margin:0}}>{metricValue(selected,single.y)}</Typography.Title>
       <Text strong>Only one observed reporting day</Text><Text type="secondary">At least two observed values are needed for a meaningful trend.</Text>
-    </div>:observed.length>1?<div className="gms-trend-chart" aria-label={selected.label+' daily chart'}><Chart key={chartType+selected.key} options={options} series={series} type={chartType} height={280}/></div>:<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No observed values for this metric"/>}
+    </div>:observed.length>1?<div className="gms-trend-chart" aria-label={selected.label+' daily chart'}><Suspense fallback={<Skeleton active paragraph={{rows:4}}/>}><Chart key={chartType+selected.key} options={options} series={series} type={chartType} height={280}/></Suspense></div>:<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No observed values for this metric"/>}
   </Card>;
 }
 export function GmsComparisonTable({analytics}){
