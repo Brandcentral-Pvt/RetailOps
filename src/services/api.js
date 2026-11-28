@@ -1885,6 +1885,30 @@ export const exportApi = {
         if (!res.ok) throw new Error('Failed to fetch downloads');
         return res.json();
     },
+    // Canonical Ads artifacts are persisted separately from legacy Downloads.
+    // Keep the security boundary and integrity checks at their original API.
+    getAdsDownloads: async ({page=1,limit=50,signal}={}) => {
+        const query=new URLSearchParams({page:String(page),limit:String(limit)});
+        const res=await fetch(API_BASE+'/ads/export-jobs?'+query,{
+            credentials:'include',cache:'no-store',headers:{...getAuthHeader()},signal
+        });
+        return handleResponse(res,'Failed to load Ads export history');
+    },
+    mutateAdsDownload: async (id,action) => {
+        if(!['retry','cancel'].includes(action))throw new Error('Unsupported export action');
+        return handleResponse(await fetch(API_BASE+'/ads/export-jobs/'+encodeURIComponent(id)+'/'+action,{
+            method:'POST',credentials:'include',headers:{'Content-Type':'application/json',...getAuthHeader()},body:'{}'
+        }),'Unable to update Ads export');
+    },
+    downloadAdsFile: async (id,{fileName,fileSize}={}) => {
+        const res=await fetch(API_BASE+'/ads/export-jobs/'+encodeURIComponent(id)+'/download',{
+            credentials:'include',cache:'no-store',headers:{...getAuthHeader()}
+        });
+        if(!res.ok)return handleResponse(res,'Ads download failed or file not ready');
+        const format=exportResponseFormat(res.headers,fileName);
+        const expectedSize=res.headers.get('x-export-file-size')||fileSize||(!res.headers.get('content-encoding')?res.headers.get('content-length'):null);
+        return validateExportBlob(await res.blob(),format,expectedSize);
+    },
     getFields: async () => {
         const res = await fetch(`${API_BASE}/export/fields`, {
             headers: { ...getAuthHeader() }
