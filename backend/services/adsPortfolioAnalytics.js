@@ -168,7 +168,7 @@ async function* pages({tx,sql,query,cursor}){
   }
  }
 }
-async function readProducts({tx,sql,days}){
+async function readProducts({tx,sql,days,exportMode=false}){
  await tx.request().batch(
  "SELECT ROW_NUMBER() OVER(ORDER BY e.[Currency],e.[SellerId],e.[Marketplace],e.[EntityKey]) AS [rowNo],"+keys.map(k=>'e.['+k+']').join(',')+
  ",COALESCE(c.[SellerName],p.[SellerName],e.[SellerId]) AS [sellerName],COALESCE(c.[CatalogTitle],p.[CatalogTitle]) AS [title],COALESCE(c.[CatalogBrand],p.[CatalogBrand]) AS [brand],c.[coveredDays] AS [currentDays],"+
@@ -181,6 +181,29 @@ async function readProducts({tx,sql,days}){
  const entities=()=>pages({tx,sql,cursor:'rowNo',query:'SELECT TOP (@pageSize) '+compactProjection('p')+' FROM #AdsPortfolio p WHERE p.[rowNo]>@after ORDER BY p.[rowNo];'});
  const ranked=()=>pages({tx,sql,cursor:'rankNo',query:'SELECT TOP (@pageSize) r.[rankNo],r.[metric],CONVERT(varchar(80),r.[amount]) AS [amount],'+compactProjection('p')+' FROM #AdsPortfolioRanked r JOIN #AdsPortfolio p ON p.[rowNo]=r.[rowNo] WHERE r.[rankNo]>@after ORDER BY r.[rankNo];'});
  const groups=await summarizePortfolio({entities,ranked,days});
+ if(exportMode){
+  const lookup=new Map(groups.map(g=>[g.currency,g]));
+  const members=async function*(){
+   for await(const row of entities()){
+    const group=lookup.get(row.currency);
+    const ref={spend:exact(group.reference.spend)||0n,sales:exact(group.reference.sales)||0n};
+    const classification=classify(row,ref,days);
+    yield {...publicItem(row,days),segment:classification.code,evidence:classification.evidence};
+   }
+  };
+  const ranking=async function*(){
+   const progress=new Map();
+   for await(const row of ranked()){
+    const key=JSON.stringify([row.currency,row.metric]),g=lookup.get(row.currency);
+    const total=exact(g.concentration.find(c=>c.metric===row.metric).positiveTotal);
+    const state=progress.get(key)||{sum:0n,count:0};
+    const amount=exact(row.amount),leading=state.sum*5n<total*4n;
+    state.sum+=amount;state.count++;progress.set(key,state);
+    yield {...publicItem(row,days),metric:row.metric,amount:decimal(amount),rank:state.count,tier:leading?'leading_80':'remaining_positive',sharePct:pct(amount,total),cumulativePct:pct(state.sum,total),coverage:complete(row,days,[row.metric])?'complete_observed':'observed_partial'};
+   }
+  };
+  return {groups,members,ranking,memberCount:groups.reduce((n,g)=>n+g.totalEntities,0),rankCount:groups.reduce((n,g)=>n+g.concentration.reduce((s,c)=>s+c.positiveEntities,0),0),cleanup:()=>tx.request().batch('DROP TABLE IF EXISTS #AdsPortfolioRanked; DROP TABLE IF EXISTS #AdsPortfolio;')};
+ }
  await tx.request().batch('DROP TABLE #AdsPortfolioRanked; DROP TABLE #AdsPortfolio;');
  return groups;
 }
@@ -276,10 +299,11 @@ async function readBreakdowns({tx,sql,days,onMaterialized,full=false}){
 }
 function emptyPortfolio(){return {version:'v1',sampleLimit:SAMPLE_LIMIT,breakdownLimit:BREAKDOWN_LIMIT,groups:[],trends:[],breakdowns:[],empty:true};}
 async function readPortfolioAnalytics({tx,sql,period,granularity,exportMode=false}){
- const groups=await readProducts({tx,sql,days:period.days});
- if(!groups.length)return emptyPortfolio();
+ const products=await readProducts({tx,sql,days:period.days,exportMode});
+ const groups=exportMode?products.groups:products;
+ if(!groups.length){if(exportMode)await products.cleanup();return emptyPortfolio();}
  const trends=await readTrends({tx,sql,period,granularity,groups});
  const breakdowns=await readBreakdowns({tx,sql,days:period.days,full:exportMode});
- return {...emptyPortfolio(),groups,trends,breakdowns,empty:false};
+ return {...emptyPortfolio(),groups,trends,breakdowns,...(exportMode?{products}:{}),empty:false};
 }
 module.exports={summarizePortfolio,classify,trendBuckets,pairTrends,readProducts,readAlignedTrendRows,readBreakdowns,readPortfolioAnalytics,emptyPortfolio,PARETO_METRICS,SEGMENTS,SAMPLE_LIMIT,BREAKDOWN_LIMIT};
