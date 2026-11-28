@@ -1,4 +1,5 @@
 'use strict';
+const {performance}=require('node:perf_hooks');
 const {isAdsSchemaError,sendAdsSchemaUnavailable}=require('../database/adsSchema');
 const {getPool,sql}=require('../database/db');
 const {strictScope,AdsScopeError}=require('../services/adsCanonicalScope');
@@ -19,6 +20,7 @@ function requestKey(user,parsed,mode){
  return JSON.stringify([user.Id||user.id||user._id,mode,{...parsed,scope}]);
 }
 async function runRead(req,res,mode){
+ const started=performance.now();
  try{
   const {refresh,...query}=req.query;
   if(refresh!==undefined&&refresh!=='true')throw new AdsScopeError('invalid_ads_filter','Invalid refresh flag.');
@@ -36,7 +38,7 @@ async function runRead(req,res,mode){
    pending.then(clear,clear);
   }
   const {data,status}=await pending;
-  if(!res.destroyed){res.set('X-Ads-Cache',status);return res.json({success:true,data});}
+  if(!res.destroyed){res.set('X-Ads-Cache',status);res.set('Server-Timing','ads_report;dur='+Math.round(performance.now()-started));return res.json({success:true,data});}
  }catch(e){if(!res.destroyed)return failure(res,e);}
 }
 const report=(req,res)=>runRead(req,res,'report');

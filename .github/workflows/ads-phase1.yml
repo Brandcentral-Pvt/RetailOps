@@ -53,7 +53,9 @@ on:
       - 'src/services/sessionRestore.mjs'
       - 'src/services/__tests__/sessionRestore.test.mjs'
       - 'src/services/__tests__/adsNumberFormat.test.mjs'
-      - 'src/services/__tests__/adsOverviewModel.test.mjs src/services/__tests__/adsWorkspacePerformance.test.mjs'
+      - 'src/services/__tests__/adsOverviewModel.test.mjs'
+      - 'src/services/__tests__/adsWorkspacePerformance.test.mjs'
+      - 'backend/database/db.js'
       - 'backend/utils/errors.js'
       - 'backend/__tests__/routes/adsImportActions.test.js'
       - 'tests/fixtures/ads-layout.*'
@@ -71,6 +73,7 @@ jobs:
         with:
           node-version: '22'
       - run: |
+          node --check backend/database/db.js
           node --check backend/database/adsSchema.js
           node --check backend/database/adsPermissions.js
           node --check backend/migrations/100_ads_permissions.js
@@ -182,7 +185,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: node --test src/services/__tests__/sessionRestore.test.mjs src/services/__tests__/adsNumberFormat.test.mjs src/services/__tests__/adsOverviewModel.test.mjs
+      - run: node --test src/services/__tests__/sessionRestore.test.mjs src/services/__tests__/adsNumberFormat.test.mjs src/services/__tests__/adsOverviewModel.test.mjs src/services/__tests__/adsWorkspacePerformance.test.mjs
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test tests/ads-layout.spec.js
