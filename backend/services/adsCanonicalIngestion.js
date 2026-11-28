@@ -25,7 +25,7 @@ function actorId(user){
 function bindScope(request,sql,{sellerId,marketplace,currency}){
   return request.input('seller',sql.VarChar(50),sellerId).input('marketplace',sql.NVarChar(50),marketplace).input('currency',sql.Char(3),currency);
 }
-async function ingestCanonicalReport({pool,sql,user,sellerId,reportType,input,expectedContext=null}){
+async function ingestCanonicalReport({pool,sql,user,sellerId,reportType,input,expectedContext=null,lifecycle=null}){
   const seller=explicitSeller(user,sellerId);
   const actor=actorId(user);
   if(reportType!=='daily')throw new AdsIngestionError('unsupported_report_type','Only product_daily v1 is supported.');
@@ -38,6 +38,8 @@ async function ingestCanonicalReport({pool,sql,user,sellerId,reportType,input,ex
   await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
   let stage='staging';
   try{
+    if(lifecycle?.begin){stage='job_lock';await lifecycle.begin(tx,report);}
+    stage='staging';
     // batch (not query) creates a connection-local temp table that survives subsequent
     // sp_executesql requests on this transaction's pinned connection.
     await tx.request().batch('SELECT TOP (0) '+stageColumns+' INTO #AdsStage FROM dbo.AdsProductDailyFacts; CREATE UNIQUE CLUSTERED INDEX IX_AdsStage ON #AdsStage(Asin,[Date]);');
@@ -98,9 +100,11 @@ async function ingestCanonicalReport({pool,sql,user,sellerId,reportType,input,ex
       " WHERE t.Currency=@currency AND NOT EXISTS (SELECT "+selectCols('s')+" EXCEPT SELECT "+selectCols('t')+");");
     if(Number(reconciled.recordset[0].reconciled)!==staged)throw new AdsIngestionError('reconciliation_failed','Persisted facts do not match the validated report.');
     await tx.request().batch('DROP TABLE #AdsStage;');
+    const output={sellerId:seller,...context,reportType:'daily',inserted,unchanged:staged-inserted,sourceFileSha256:report.sourceFileSha256,report};
+    if(lifecycle?.complete){stage='job_complete';await lifecycle.complete(tx,output);}
     stage='commit';
     await tx.commit();
-    return {sellerId:seller,...context,reportType:'daily',inserted,unchanged:staged-inserted,sourceFileSha256:report.sourceFileSha256,report};
+    return output;
   }catch(e){
     try{await tx.rollback();}catch{/* SQL may already have rolled back. */}
     if(e instanceof AdsIngestionError||e instanceof AdsScopeError||e instanceof AdsValidationError)throw e;

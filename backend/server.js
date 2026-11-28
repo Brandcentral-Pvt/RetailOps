@@ -350,6 +350,12 @@ app.get('/api/health/ads', async (_req,res) => {
     return res.status(503).json({status:'not-ready'});
   }
 });
+app.get('/api/health/ads-imports',async(_req,res)=>{
+  try{
+    const state=await require('./database/adsImportSchema').inspectAdsImportSchema();
+    return res.status(state.ready?200:503).json({status:state.ready?'ready':'not-ready'});
+  }catch(error){logger.error('Ads import schema health failed',{error:error.message});return res.status(503).json({status:'not-ready'});}
+});
 app.get('/api/health/liveness', (req, res) => {
   res.status(200).json({ status: 'alive', uptime: Math.floor(process.uptime()) });
 });
@@ -932,7 +938,12 @@ server.listen(PORT, '0.0.0.0', () => {
     if(!isPrimaryWorker)return;
     const state=await require('./database/adsSchema').ensureAdsSchema({apply:process.env.RUN_MIGRATIONS_ON_STARTUP!=='false'});
     if(!state.ready)logger.error('Ads schema is not ready',state);
-    else logger.info('Ads canonical schema verified');
+    else {
+      logger.info('Ads canonical schema verified');
+      const imports=await require('./database/adsImportSchema').ensureAdsImportSchema({apply:process.env.RUN_MIGRATIONS_ON_STARTUP!=='false'});
+      if(!imports.ready)logger.error('Ads import job schema is not ready',imports);
+      else {require('./services/adsImportJobs').startExpirySweep(getPool);logger.info('Ads import job schema verified');}
+    }
   }).catch(err=>logger.error('Ads schema startup failed',{error:err.message}));
 });
 
