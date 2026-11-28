@@ -16,6 +16,7 @@ import { useRealTimeDashboard } from './useRealTimeDashboard';
 import { useOptimisticMutation } from './useOptimisticMutation';
 import { useAuth } from '../contexts/AuthContext';
 import { dashboardPrincipal,canDashboardPermission,matchesDashboardScope } from '../utils/dashboardScope.mjs';
+import {dashboardRangeError,dashboardErrorText,matchesDashboardPeriod,sameDashboardScope} from '../utils/dashboardRange.mjs';
 
 // ─── Segment enum ─────────────────────────────────────────────────────────────
 
@@ -92,22 +93,36 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
     // No placeholder data or progressive snapshots across authorization keys.
     // Each request is independently authorized by its endpoint.
     const filters={sellerId,managerId,startDate,endDate,period};
+    const rangeError=dashboardRangeError(startDate,endDate);
+    const retryTransient=(count:number,error:any)=>count<1&&![400,401,403,404,422,429,502,504].includes(error?.response?.status)&&error?.code!=='ECONNABORTED';
     const dashboardQuery=useQuery({
         queryKey:[...QK_DASHBOARD,'scoped',principal,sellerId??'all',managerId??'all',startDate,endDate,period],
-        enabled:!!principal,
+        enabled:!!principal&&!rangeError,
         queryFn:async({signal})=>{
-            const data=(await apiClient.get('/dashboard',{params:filters,signal})).data;
+            const data=(await apiClient.get('/dashboard',{params:{...filters,mode:'overview'},signal,timeout:45000})).data;
             if(!data?.scope||typeof data.scope.empty!=='boolean'||typeof data.scope.unrestricted!=='boolean'||!Array.isArray(data.scope.sellerIds))throw Error('Dashboard scope unavailable');
+            if(!matchesDashboardPeriod(data,startDate,endDate))throw Error('Dashboard response date range mismatch');
             return data;
         },
         staleTime:60_000,gcTime:0,placeholderData:undefined,refetchOnWindowFocus:false,refetchOnReconnect:true,
-        retry:(count,error:any)=>![400,401,403,404,422].includes(error?.response?.status)&&count<retries,
+        retry:retryTransient,
         retryDelay:dashboardBackoff,refetchInterval:pollInt>0?pollInt*1000:false,
     });
-    const dashData=dashboardQuery.isError?null:dashboardQuery.data??null;
+    const dashData=rangeError||dashboardQuery.isError?null:dashboardQuery.data??null;
     const scope=dashData?.scope;
     const scopeKey=scope?JSON.stringify([scope.unrestricted,scope.empty,scope.sellerIds]):'unresolved';
     const scopedEnabled=!!principal&&!!scope&&!scope.empty;
+    const productsQuery=useQuery({
+        queryKey:[...QK_DASHBOARD,'products',principal,sellerId??'all',managerId??'all',startDate,endDate,period,scopeKey],
+        enabled:scopedEnabled,
+        queryFn:async({signal})=>{
+            const data=(await apiClient.get('/dashboard',{params:{...filters,mode:'products'},signal,timeout:45000})).data;
+            if(!matchesDashboardPeriod(data,startDate,endDate)||!sameDashboardScope(data.scope,scope)||!Array.isArray(data.tableData))throw Error('Dashboard product response scope or date range mismatch');
+            return data;
+        },
+        staleTime:60_000,gcTime:0,placeholderData:undefined,refetchOnWindowFocus:false,refetchOnReconnect:true,
+        retry:retryTransient,retryDelay:dashboardBackoff,
+    });
     const targetsQuery=useQuery({
         queryKey:[...QK_TARGETS,'dashboard',principal,sellerId??'all',managerId??'all',scopeKey,startDate,endDate],
         enabled:scopedEnabled&&canTargets,
@@ -207,8 +222,9 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
         // stuck unresolved if a refetch failed). Now we only invalidate and
         // refetch — React Query keeps showing current data until fresh data
         // lands, and the progressive loader updates in place.
-        await Promise.all([dashboardQuery.refetch(),...(scopedEnabled?[alertsQuery.refetch(),...(canTargets?[targetsQuery.refetch()]:[])]:[])]);
-    }, [dashboardQuery.refetch,alertsQuery.refetch,targetsQuery.refetch,scopedEnabled,canTargets]);
+        if(rangeError)return;
+        await Promise.all([dashboardQuery.refetch(),...(scopedEnabled?[productsQuery.refetch(),alertsQuery.refetch(),...(canTargets?[targetsQuery.refetch()]:[])]:[])]);
+    }, [dashboardQuery.refetch,productsQuery.refetch,alertsQuery.refetch,targetsQuery.refetch,scopedEnabled,canTargets,rangeError]);
 
     // ✅ Fix 2 + Fix 14: correct mutation call signature + real async wait
     const updateAsinTag = useCallback(
@@ -259,15 +275,18 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
     const kpisData=dashData?.kpi??null;
     const alertsData2=scopedEnabled&&!alertsQuery.isError?(alertsQuery.data??[]).filter(a=>matchesDashboardScope(scope,a.SellerId??a.sellerId??a.seller?._id)):[];
     const targetsData2=scopedEnabled&&canTargets&&!targetsQuery.isError?(targetsQuery.data??[]).filter(t=>matchesDashboardScope(scope,t.SellerId??t.sellerId)):[];
-    const topProductsData=dashData?.tableData??null;
-    const dashStatus=dashboardQuery.isError?'error':dashData?'ready':'loading';
+    const productsData=scopedEnabled&&!productsQuery.isError&&sameDashboardScope(productsQuery.data?.scope,scope)?productsQuery.data:null;
+    const topProductsData=productsData?.tableData??[];
+    const dashStatus=rangeError||dashboardQuery.isError?'error':dashData?'ready':'loading';
+    const productStatus=dashStatus==='error'?'error':scope?.empty?'ready':productsQuery.isError?'error':productsData?'ready':'loading';
     const sectionStatus={
-        kpis:dashStatus,revenueSeries:dashStatus,adsPerformance:dashStatus,categories:dashStatus,topProducts:dashStatus,
+        kpis:dashStatus,revenueSeries:dashStatus,adsPerformance:dashStatus,categories:dashStatus,topProducts:productStatus,
         alerts:!scope?'loading':scope.empty?'ready':alertsQuery.isError?'error':alertsQuery.isSuccess?'ready':'loading',
         targets:!canTargets?'forbidden':!scope?'loading':scope.empty?'ready':targetsQuery.isError?'error':targetsQuery.isSuccess?'ready':'loading',
     };
     const errors:Record<string,string>={};
-    if(dashboardQuery.isError)errors.kpis='Dashboard unavailable';
+    if(rangeError||dashboardQuery.isError)errors.kpis=rangeError||dashboardErrorText(dashboardQuery.error);
+    if(scopedEnabled&&productsQuery.isError)errors.topProducts=dashboardErrorText(productsQuery.error);
     if(scopedEnabled&&alertsQuery.isError)errors.alerts='Alerts unavailable';
     if(scopedEnabled&&canTargets&&targetsQuery.isError)errors.targets='Targets unavailable';
 
@@ -285,15 +304,16 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
 
         // ✅ Fix 6: dashboardRaw comes from React Query cache directly — never stale
         dashboardRaw: dashData,
+        productsRevenue:productsData?.gmsRevenue??null,
 
         // Loading states
-        isLoadingKpis: dashboardQuery.isPending,
+        isLoadingKpis: !rangeError&&dashboardQuery.isPending,
         isLoadingAlerts: scopedEnabled&&alertsQuery.isPending,
         isLoadingTargets: scopedEnabled&&canTargets&&targetsQuery.isPending,
 
         // Orchestration state
         errors,
-        isHydrated: !dashboardQuery.isPending,
+        isHydrated: !!rangeError||!dashboardQuery.isPending,
         priorityFlood: false,
 
         // Actions

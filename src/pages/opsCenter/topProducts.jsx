@@ -242,7 +242,7 @@ export const TopProductsPanel = ({
                 </span>
             ) : null}
         >
-            {status === 'error' ? (
+            {status==='loading'?<MiniState title="Loading product analytics" note="Key metrics are available independently while product rankings are calculated." />:status === 'error' ? (
                 <MiniState tone="error" title="Top products unavailable" note="Product GMS could not be loaded." onRetry={onRetry} />
             ) : products.length === 0 ? (
                 <MiniState tone="empty" title="No product GMS" note="No ASIN recorded ordered revenue for this selection and period. Upload GMS data in the GMS tracker to populate this table." />

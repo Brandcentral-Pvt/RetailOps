@@ -23,7 +23,7 @@ jest.mock('../../database/db', () => {
     };
 });
 
-const { makeFakePool } = require('../../testUtils/fakePool');
+const { makeDashboardPool } = require('../../testUtils/dashboardBatchFixture');
 const dashboardController = require('../../controllers/dashboardController');
 
 const NOW = new Date();
@@ -33,14 +33,14 @@ const daysAgo = (n) => {
     return d;
 };
 
-const buildPool = () => makeFakePool([
+const buildPool = () => makeDashboardPool([
     { match: /SUM\(CASE WHEN Status IN/, rows: [{ Total: 10, Active: 8, OutOfStock: 1, NewThisMonth: 2, PortfolioValue: 5000 }] },
     { match: /COUNT\(\*\) as Total/, rows: [{ Total: 3, Active: 2 }] },
     { match: /TOP 5/, rows: [] },
     { match: /FROM Actions/, rows: [{ Status: 'Pending', Count: 2 }] },
     {
         // Per-day ads aggregate over current + previous window.
-        match: /FROM dbo\.AdsProductDailyFacts AP[\s\S]*GROUP BY AP\.Date/,
+        section: 'ads',
         rows: [
             { Date: NOW, AdSales: 100, AdSpend: 25, Orders: 5, OrganicSales: 150, Impressions: 900, Clicks:40,FactRows:1,AdSalesCount:1,AdSpendCount:1,TotalSalesCount:1,OrganicSalesCount:1,OrdersCount:1,ImpressionsCount:1,ClicksCount:1,acosPairCount:1,tacosPairCount:1,adSharePairCount:1,roasPairCount:1,ctrPairCount:1,cpcPairCount:1,TotalSales:500 },
             // previous-window row (must NOT leak into current KPIs / series)
@@ -49,18 +49,18 @@ const buildPool = () => makeFakePool([
     },
     {
         // Per-day GMS aggregate over current + previous window.
-        match: /GROUP BY g\.Date\b/,
+        section: 'daily',
         rows: [
             { Date: NOW, Revenue: 1000, Units: 10, ShippedRevenue: 900, Returns: 1 },
             { Date: daysAgo(45), Revenue: 800, Units: 8, ShippedRevenue: 700, Returns: 0 },
         ],
     },
-    { match: /SELECT COUNT\(DISTINCT g\.Asin\) AS AsinsWithSales/, rows: [{ AsinsWithSales: 2 }] },
+    { section: 'selling', rows: [{ AsinsWithSales: 2 }] },
     { match: /SELECT SellerId, COUNT\(\*\) as Count/, rows: [{ SellerId: 's1', Count: 4 }] },
     { match: /SELECT Id, Marketplace FROM Sellers/, rows: [{ Id: 's1', Marketplace: 'Amazon' }] },
     {
         // GMS-ranked top products (already ordered by GmsRevenue DESC).
-        match: /TOP 200/,
+        section: 'products',
         rows: [
             {
                 Id: 'a2', AsinCode: 'B0GMSKING', Sku: 'SKU-2', Title: 'Best seller (no ads)',
@@ -82,14 +82,14 @@ const buildPool = () => makeFakePool([
     },
     {
         // Per-ASIN sparkline rows for the leaders.
-        match: /AND g\.Asin IN \(/,
+        section: 'spark',
         rows: [
             { Asin: 'B0GMSKING', SellerId: 's1', Date: NOW, Revenue: 400, Units: 4 },
             { Asin: 'B0GMSKING', SellerId: 's1', Date: daysAgo(1), Revenue: 300, Units: 3 },
         ],
     },
     {
-        match: /GROUP BY COALESCE\(g\.SellerId,a\.SellerId\), S\.Name, S\.Marketplace/,
+        section: 'sellers',
         rows: [{ SellerId: 's1', SellerName: 'ACME', Marketplace: 'Amazon', Revenue: 1000, Units: 10, PrevRevenue: 800, AsinsWithSales: 2 }],
     },
 ]);
@@ -126,7 +126,7 @@ describe('getDashboardData — top products are ranked by GMS, not ads', () => {
         expect(statusCode).toBeUndefined(); // 200 path — res.json called without status()
         expect(payload.tableData).toBeDefined();
 
-        const topAsins = mockState.pool.callWhere(/TOP 200/);
+        const topAsins = mockState.pool.callWhere(/INTO #DashLeaders/);
         expect(topAsins).not.toBeNull();
         expect(topAsins.inputs.dashSeller_0).toBe('s1');
         expect(topAsins.inputs.startDate).toBeDefined();
@@ -137,18 +137,18 @@ describe('getDashboardData — top products are ranked by GMS, not ads', () => {
     test('ranking source is GmsDailyPerformance ordered by GMS revenue; ads is context only', async () => {
         await invoke({ query: { period: '14d' }, user: bmUser('u-unit-source') });
 
-        const topAsins = mockState.pool.callWhere(/TOP 200/);
+        const topAsins = mockState.pool.callWhere(/INTO #DashLeaders/);
         // GMS aggregate is the driving table…
-        expect(topAsins.sql).toMatch(/WITH GmsAgg AS \([\s\S]*FROM GmsDailyPerformance g[\s\S]*GROUP BY g\.Asin/);
-        expect(topAsins.sql).toMatch(/FROM GmsAgg G\s+CROSS APPLY \(SELECT TOP\(1\)[\s\S]*c\.SellerId=G\.SellerId/);
-        expect(topAsins.sql).toMatch(/ORDER BY TRY_CONVERT\(decimal\(38,2\),G\.GmsRevenue\) DESC, TRY_CONVERT\(bigint,G\.GmsUnits\) DESC/);
+        expect(topAsins.sql).toMatch(/WITH GmsAgg AS \([\s\S]*FROM #DashGms g[\s\S]*GROUP BY g\.Asin,g\.SellerId,g\.CatalogId/);
+        expect(topAsins.sql).toMatch(/FROM GmsAgg G JOIN dbo\.Sellers S ON G\.SellerId=S\.Id/);
+        expect(topAsins.sql).toMatch(/ORDER BY TRY_CONVERT\(decimal\(38,2\),G\.GmsRevenue\) DESC,TRY_CONVERT\(bigint,G\.GmsUnits\) DESC/);
         // …ads is only LEFT JOINed, window + daily restricted.
-        expect(topAsins.sql).toMatch(/LEFT JOIN AdsAgg AD ON AD\.Asin = G\.Asin AND AD\.SellerId = G\.SellerId/);
-        expect(topAsins.sql).toMatch(/AP\.Date BETWEEN @startDate AND @endDate\s+AND AP\.ReportType = 'daily'/);
+        expect(topAsins.sql).toMatch(/LEFT JOIN AdsAgg AD ON AD\.Asin=L\.Asin AND AD\.SellerId=L\.SellerId/);
+        expect(topAsins.sql).toMatch(/AP\.Date>=@startDate AND AP\.Date<DATEADD\(day,1,@endDate\) AND AP\.ReportType='daily'/);
         // Never ordered by ad orders again.
         expect(topAsins.sql).not.toMatch(/ORDER BY TotalOrders/);
         // Seller scope is applied on the aliased Asins table.
-        expect(topAsins.sql).toMatch(/AND a\.SellerId IN \(@dashSeller_0\)/i);
+        expect(topAsins.sql).toMatch(/AND u\.SellerId IN \(@dashSeller_0\)/i);
     });
 
     test('revenue/units are the ASIN GMS (ordered revenue/units) — no CurrentPrice or ad-sales leak', async () => {
@@ -186,11 +186,11 @@ describe('getDashboardData — top products are ranked by GMS, not ads', () => {
     test('sparkline query is restricted to the leaders and the current window', async () => {
         await invoke({ query: { period: '30d' }, user: bmUser('u-unit-spark') });
 
-        const spark = mockState.pool.callWhere(/AND g\.Asin IN \(/);
+        const spark = mockState.pool.callWhere(/L\.RankNumber<=25/);
         expect(spark).not.toBeNull();
-        expect(spark.sql).toMatch(/WHERE g\.Date BETWEEN @startDate AND @endDate/);
-        expect(spark.inputs.sparkAsin_0).toBe('B0GMSKING');
-        expect(spark.inputs.sparkAsin_1).toBe('B0TEST0001');
+        expect(spark.sql).toMatch(/WHERE g\.Date>=@startDate AND L\.RankNumber<=25/);
+        expect(spark.sql).toContain('L.Asin=g.Asin AND L.SellerId=g.SellerId');
+        expect(spark.inputs.dashSeller_0).toBe('s1');
     });
 
     test('returns orders/units/ACoS series with actual order counts from the current window only', async () => {
@@ -268,12 +268,12 @@ describe('getDashboardData — top products are ranked by GMS, not ads', () => {
         });
 
         expect(statusCode).toBeUndefined();
-        const topAsins = mockState.pool.callWhere(/TOP 200/);
+        const topAsins = mockState.pool.callWhere(/INTO #DashLeaders/);
         expect(topAsins.inputs.dashSeller_0).toBe('s1');
         expect(topAsins.inputs.dashSeller_1).toBe('s2');
         // The GMS daily series is scoped to the same sellers via EXISTS.
         const gmsDaily = mockState.pool.callWhere(/GROUP BY g\.Date\b/);
-        expect(gmsDaily.sql).toMatch(/AND a\.SellerId IN \(@dashSeller_0,@dashSeller_1\)/);
+        expect(gmsDaily.sql).toMatch(/AND u\.SellerId IN \(@dashSeller_0,@dashSeller_1\)/);
         expect(gmsDaily.inputs.dashSeller_1).toBe('s2');
     });
 });
@@ -290,13 +290,28 @@ describe('Phase 1 date and GMS coverage regressions',()=>{
     });
     test('every GMS aggregate uses ownership resolution, including sparkline',async()=>{
         await invoke({query:{period:'30d'},user:bmUser('scope')});
-        const reads=mockState.pool.calls.filter(x=>x.sql.includes('FROM GmsDailyPerformance g'));
-        expect(reads).toHaveLength(5);
+        const reads=mockState.pool.calls.filter(x=>x.sql.includes('FROM dbo.GmsDailyPerformance g'));
+        expect(reads).toHaveLength(1);
         for(const q of reads){
-            expect(q.sql).toMatch(/OUTER APPLY/);
-            expect(q.sql).toMatch(/a\.SellerId IN \(@dashSeller_0\)/i);
-            expect(q.sql).toMatch(/NOT EXISTS/);
+            expect(q.sql).toMatch(/INTO #DashMap/);
+            expect(q.sql).toMatch(/u\.SellerId IN \(@dashSeller_0\)/i);
+            expect(q.sql).toMatch(/COUNT_BIG\(DISTINCT SellerId\)=1/);
             expect(q.inputs.dashSeller_0).toBe('s1');
         }
     });
+});
+
+describe('Dashboard range loading hotfix',()=>{
+ test('overview excludes heavy rankings, products are separate',async()=>{
+  const user=bmUser('range');
+  const a=await invoke({user,query:{mode:'overview',period:'30d'}});
+  expect(a.payload.productsIncluded).toBe(false);
+  expect(a.payload.gms.revenue).toBe(1000);
+  expect(a.payload.tableData).toEqual([]);
+  expect(mockState.pool.callWhere(/INTO #DashLeaders/)).toBeNull();
+  const b=await invoke({user,query:{mode:'products',period:'30d'}});
+  expect(b.payload.tableData).toHaveLength(2);
+  expect(b.payload.gmsRevenue).toBe(a.payload.gms.revenue);
+  expect(b.payload.period).toEqual(a.payload.period);
+ });
 });

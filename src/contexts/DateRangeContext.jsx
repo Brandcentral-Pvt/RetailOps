@@ -114,7 +114,7 @@ const AdvancedDateRangePicker = ({
     initialEndDate,
     initialRangeType = 'last30'
 }) => {
-    const [startDate, setStartDate] = useState(initialStartDate || subDays(new Date(), 30));
+    const [startDate, setStartDate] = useState(initialStartDate || subDays(new Date(), 29));
     const [endDate, setEndDate] = useState(initialEndDate || new Date());
     const [activeInput, setActiveInput] = useState(null);
     const [currentMonth, setCurrentMonth] = useState(startDate);
@@ -221,15 +221,15 @@ const AdvancedDateRangePicker = ({
                 newEnd = endOfMonth(prevMonth);
                 break;
             case 'last7':
-                newStart = subDays(startOfDay(now), 7);
+                newStart = subDays(startOfDay(now), 6);
                 newEnd = endOfDay(now);
                 break;
             case 'last30':
-                newStart = subDays(startOfDay(now), 30);
+                newStart = subDays(startOfDay(now), 29);
                 newEnd = endOfDay(now);
                 break;
             case 'last90':
-                newStart = subDays(startOfDay(now), 90);
+                newStart = subDays(startOfDay(now), 89);
                 newEnd = endOfDay(now);
                 break;
             default:
@@ -274,7 +274,7 @@ const AdvancedDateRangePicker = ({
     };
 
     const handleCancel = () => {
-        setStartDate(initialStartDate || subDays(new Date(), 30));
+        setStartDate(initialStartDate || subDays(new Date(), 29));
         setEndDate(initialEndDate || new Date());
         setRangeType(initialRangeType);
         onClose();
@@ -447,7 +447,7 @@ const DateRangeContext = React.createContext();
 
 export const DateRangeProvider = ({ children }) => {
     const [rangeType, setRangeType] = useState('last30');
-    const [startDate, setStartDate] = useState(subDays(startOfDay(new Date()), 30));
+    const [startDate, setStartDate] = useState(subDays(startOfDay(new Date()), 29));
     const [endDate, setEndDate] = useState(endOfDay(new Date()));
     const [isPickerOpen, setIsPickerOpen] = useState(false);
 

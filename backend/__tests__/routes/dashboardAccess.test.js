@@ -59,17 +59,17 @@ jest.mock('../../middleware/auth', () => {
 
 const dataRoutes = require('../../routes/dataRoutes');
 const alertsRoutes = require('../../routes/alertsRoutes');
-const { makeFakePool } = require('../../testUtils/fakePool');
+const { makeDashboardPool } = require('../../testUtils/dashboardBatchFixture');
 
 const NOW = new Date();
 
-const dashboardPool = () => makeFakePool([
+const dashboardPool = () => makeDashboardPool([
     { match: /SUM\(CASE WHEN Status IN/, rows: [{ Total: 10, Active: 8, OutOfStock: 1, NewThisMonth: 2, PortfolioValue: 5000 }] },
     { match: /COUNT\(\*\) as Total/, rows: [{ Total: 3, Active: 2 }] },
     { match: /TOP 5/, rows: [] },
     { match: /FROM Actions/, rows: [{ Status: 'Pending', Count: 2 }] },
     {
-        match: /FROM dbo\.AdsProductDailyFacts AP[\s\S]*GROUP BY AP\.Date/,
+        section: 'ads',
         rows: [{
             AsinCode: 'B0TEST0001',
             Date: NOW,
@@ -85,7 +85,7 @@ const dashboardPool = () => makeFakePool([
     { match: /SELECT Id, Marketplace FROM Sellers/, rows: [{ Id: 's1', Marketplace: 'Amazon' }] },
     {
         // GMS-ranked top products: revenue/units come from GmsDailyPerformance.
-        match: /TOP 200/,
+        section: 'products',
         rows: [{
             Id: 'a1', AsinCode: 'B0TEST0001', Sku: 'SKU-1', Title: 'Widget',
             Category: 'Home', CurrentPrice: 4999, SellerId: 's1', SellerName: 'ACME', Marketplace: 'Amazon',
@@ -167,7 +167,7 @@ describe('GET /api/dashboard — SQL binding & period correctness', () => {
 
         // THE regression: the top-ASINs query used pool.request() (no params
         // bound) while its SQL referenced @dashSeller_0 → MSSQL error.
-        const topAsins = mockState.pool.callWhere(/TOP 200/);
+        const topAsins = mockState.pool.callWhere(/INTO #DashLeaders/);
         expect(topAsins).not.toBeNull();
         expect(topAsins.inputs.dashSeller_0).toBe('s1');
 
@@ -183,13 +183,13 @@ describe('GET /api/dashboard — SQL binding & period correctness', () => {
         const res = await request(buildApp()).get('/api/dashboard?period=7d');
         expect(res.status).toBe(200);
 
-        const topAsins = mockState.pool.callWhere(/TOP 200/);
+        const topAsins = mockState.pool.callWhere(/INTO #DashLeaders/);
         // Ranking is driven by GMS (ordered revenue), not by AdsPerformance.
-        expect(topAsins.sql).toMatch(/FROM GmsDailyPerformance g[\s\S]*WHERE g\.Date BETWEEN @prevStart AND @endDate/);
+        expect(topAsins.sql).toMatch(/FROM dbo\.GmsDailyPerformance g[\s\S]*WHERE g\.Date>=@prevStart AND g\.Date<DATEADD\(day,1,@endDate\)/);
         expect(topAsins.sql).toMatch(/ORDER BY TRY_CONVERT\(decimal\(38,2\),G\.GmsRevenue\) DESC/);
         // Ads is context only: LEFT JOIN of a window + daily restricted aggregate.
-        expect(topAsins.sql).toMatch(/LEFT JOIN AdsAgg AD ON AD\.Asin = G\.Asin AND AD\.SellerId = G\.SellerId/);
-        expect(topAsins.sql).toMatch(/AP\.Date BETWEEN @startDate AND @endDate\s+AND AP\.ReportType = 'daily'/);
+        expect(topAsins.sql).toMatch(/LEFT JOIN AdsAgg AD ON AD\.Asin=L\.Asin AND AD\.SellerId=L\.SellerId/);
+        expect(topAsins.sql).toMatch(/AP\.Date>=@startDate AND AP\.Date<DATEADD\(day,1,@endDate\) AND AP\.ReportType='daily'/);
         expect(topAsins.inputs.startDate).toBeDefined();
         expect(topAsins.inputs.endDate).toBeDefined();
 
@@ -229,7 +229,7 @@ describe('Dashboard Phase 2: manager intersections and route permissions',()=>{
         const response=await request(buildApp()).get('/api/dashboard?managerId=m1');
         expect(response.status).toBe(200);
         expect(response.body.scope).toEqual({sellerIds:['s1'],unrestricted:false,empty:false,managerId:'m1'});
-        expect(mockState.pool.callWhere(/TOP 200/).inputs.dashSeller_0).toBe('s1');
+        expect(mockState.pool.callWhere(/INTO #DashLeaders/).inputs.dashSeller_0).toBe('s1');
     });
     test('an empty manager intersection never becomes all sellers',async()=>{
         mockState.user=mkUser({id:'admin',role:'admin'});
