@@ -2,6 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const {up}=require('../migrations/098_ads_product_daily_facts');
 const {readCanonicalReport,readCanonicalOptions}=require('../services/adsCanonicalReport');
+const {readCanonicalTargets}=require('../services/adsCanonicalTargets');
 test('SQL: canonical scope, duplicate catalog protection, current/prior comparison, exact metrics and pagination',{skip:process.env.ADS_SQL_SMOKE!=='1',timeout:120000},async()=>{
  const sql=require(process.env.ADS_TEST_MSSQL_MODULE||'mssql');
  const config={server:'127.0.0.1',user:'sa',password:process.env.ADS_TEST_SQL_PASSWORD,options:{trustServerCertificate:true,encrypt:false}};
@@ -31,6 +32,8 @@ test('SQL: canonical scope, duplicate catalog protection, current/prior comparis
   assert.equal(r.current[0].unmappedRows,'2');assert.equal(r.current[0].ratios.tacos.value,null);
   assert.equal(r.current[0].ratios.cvr.value,'14.285714');assert.equal(r.previous[0].totals.totalSales,'80');
   assert.equal(r.total,3);assert.equal(r.page,2);assert.equal(r.rows.length,1);assert.equal(r.rows[0].current,null);assert.equal(r.rows[0].previous.totals.totalSales,'80');
+  const full=await readCanonicalReport({pool,sql,user,query:{...range,sellerId:'s1',limit:'1',page:'2'},exportAll:true});
+  assert.equal(full.rows.length,3);assert.equal(full.total,3);assert.equal(full.page,1);
   const first=await read({sellerId:'s1',limit:'2',sortBy:'totalSales',sortOrder:'desc'});
   assert.equal(first.rows[0].entityKey,'B000000001');assert.equal(first.rows[0].title,null);
   assert.equal(first.rows[0].current.totals.totalSales,'98.76');
@@ -49,6 +52,11 @@ test('SQL: canonical scope, duplicate catalog protection, current/prior comparis
   await assert.rejects(()=>read({sellerId:'s1,s3'}),{code:'forbidden_seller'});
   const opts=await readCanonicalOptions({pool,sql,user,sellerId:'s1'});
   assert.deepEqual(opts.sellers.map(s=>s.id),['s1','s2']);assert.deepEqual(opts.brands,['A','Other']);assert.equal(opts.parentAvailable,true);
+  await pool.request().query("CREATE TABLE dbo.GmsTargets(Id varchar(50),SellerId varchar(50),GoalType varchar(20),TargetType varchar(20),[Year] int,[Month] int,TotalTargetValue decimal(18,2)); CREATE TABLE dbo.GmsTargetBreakdowns(TargetId varchar(50),PeriodType varchar(20),PeriodValue int,TargetValue decimal(18,2)); INSERT dbo.GmsTargets VALUES('m1','s1','ADS','MONTHLY',2026,4,100),('y1','s1','ADS','YEARLY',2026,NULL,1200),('m2','s1','ACOS','MONTHLY',2026,4,20),('m3','s3','ADS','MONTHLY',2026,4,9999); INSERT dbo.GmsTargetBreakdowns VALUES('y1','MONTH',4,200);");
+  const target=await readCanonicalTargets({pool,sql,user,query:{...range,sellerId:'s1'}});
+  assert.equal(target.rows.length,2);assert.equal(Number(target.rows.find(x=>x.goalType==='ADS').target),100);assert.equal(target.rows.find(x=>x.goalType==='ADS').actual,'15');
+  assert.equal(target.rows.find(x=>x.goalType==='ADS').attainmentPct,null);
+  await assert.rejects(()=>readCanonicalTargets({pool,sql,user,query:{...range,sellerId:'s1,s3'}}),{code:'forbidden_seller'});
   const empty=await read({startDate:'2026-11-01',endDate:'2026-11-30'});
   assert.equal(empty.empty,true);assert.equal(empty.total,0);
  }finally{if(pool)await pool.close();await admin.request().query('ALTER DATABASE ['+database+'] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE ['+database+'];').catch(()=>{});await admin.close();}

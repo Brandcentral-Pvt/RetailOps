@@ -7,6 +7,11 @@ on:
       - 'backend/services/ads*.js'
       - 'backend/controllers/ads*.js'
       - 'backend/routes/adsRoutes.js'
+      - 'backend/routes/dataRoutes.js'
+      - 'backend/routes/exportRoutes.js'
+      - 'backend/controllers/dashboardController.js'
+      - 'backend/controllers/targetController.js'
+      - 'src/pages/opsCenter/**'
       - 'backend/utils/sellerScope.js'
       - 'backend/utils/roleUtils.js'
       - 'backend/migrations/098_ads_product_daily_facts.js'
@@ -39,7 +44,10 @@ jobs:
           node --check backend/controllers/adsCanonicalSummaryController.js
           node --check backend/services/adsCanonicalReport.js
           node --check backend/controllers/adsCanonicalReportController.js
-          node --test backend/testUtils/adsPhase1.contract.node.cjs backend/testUtils/adsPhase1.canonical.node.cjs backend/testUtils/adsPhase1.report.node.cjs
+          node --check backend/services/adsImportConfirmation.js
+          node --check backend/services/adsCanonicalTargets.js
+          node --check backend/controllers/adsCanonicalExportController.js
+          node --test backend/testUtils/adsPhase1.contract.node.cjs backend/testUtils/adsPhase1.canonical.node.cjs backend/testUtils/adsPhase1.report.node.cjs backend/testUtils/adsPhase1.activation.node.cjs
   sql:
     runs-on: ubuntu-latest
     timeout-minutes: 15
