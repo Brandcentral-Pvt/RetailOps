@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../lib/api-client';
-import { dashboardDateKey } from '../utils/dashboardRange.mjs';
+import { dashboardDateKey,sameDashboardScope } from '../utils/dashboardRange.mjs';
 import { useAuth } from '../contexts/AuthContext';
 import { useDashboardOrchestration } from './useDashboardOrchestration';
 import { dashboardPrincipal,matchesDashboardScope,isDashboardGlobal,canDashboardPermission } from '../utils/dashboardScope.mjs';
@@ -123,7 +123,7 @@ export function useDashboardData(filters: DashboardFilters) {
             const r=await apiClient.get('/dashboard/tasks',{params,signal});
             const body: any = (r as any).data ?? r ?? {};
             const list = body?.data?.instances ?? body?.instances ?? body?.data ?? [];
-            if (!Array.isArray(list)) return [];
+            if(!Array.isArray(list)||!sameDashboardScope(body.scope,scope)||!body.summary)throw Error('Dashboard task scope or summary mismatch');
 
             // Normalize the task instance contract (PascalCase + workflow
             // statuses) to the dashboard's task shape. Status mapping keeps
@@ -142,12 +142,12 @@ export function useDashboardData(filters: DashboardFilters) {
                 CANCELLED: 'CANCELLED',
                 REJECTED: 'CANCELLED',
             };
-            return list.map((inst: any) => {
+            const instances=list.map((inst: any) => {
                 const rawStatus = String(inst.Status || inst.status || '').toUpperCase();
                 return {
                     id: inst.Id || inst.id,
                     title: inst.Title || inst.title || 'Untitled task',
-                    status: STATUS_MAP[rawStatus] || rawStatus || 'TODO',
+                    status: inst.DashboardStatus||STATUS_MAP[rawStatus] || rawStatus || 'OTHER',
                     rawStatus,
                     priority: inst.Priority || inst.priority || 'MEDIUM',
                     category: inst.TemplateCategory || inst.Category || inst.category || 'General',
@@ -161,13 +161,15 @@ export function useDashboardData(filters: DashboardFilters) {
                     source: 'tasks',
                 };
             });
+            return {instances,summary:body.summary};
         },
         staleTime: 60_000,
         gcTime:0,placeholderData:undefined,
         refetchOnWindowFocus: false,
     });
 
-    const optimizationTasks=canTasks&&scope&&!scope.empty&&!tasksQuery.isError?(tasksQuery.data??[]).filter(t=>matchesDashboardScope(scope,t.sellerId)):[];
+    const taskSummary=canTasks&&scope&&!scope.empty&&!tasksQuery.isError?tasksQuery.data?.summary??null:null;
+    const optimizationTasks=canTasks&&scope&&!scope.empty&&!tasksQuery.isError?(tasksQuery.data?.instances??[]).filter(t=>matchesDashboardScope(scope,t.sellerId)):[];
     // ✅ Explicit task-section state so the dashboard can render an
     // unavailable state instead of a silent zero count.
     const tasksLoading=canTasks&&!!scope&&!scope.empty&&tasksQuery.isPending;
@@ -336,12 +338,12 @@ export function useDashboardData(filters: DashboardFilters) {
                 campaigns: 0,
             },
             tasks: {
-                total: tasks.length,
-                completed: taskCompleted,
-                pending: taskPending,
-                overdue: taskOverdue,
-                inProgress: taskInProgress,
-                todo: taskTodo,
+                total: taskSummary?.total??0,
+                completed: taskSummary?.counts?.COMPLETED??0,
+                pending: taskSummary?.counts?.PENDING??0,
+                overdue: taskSummary?.overdue??0,
+                inProgress: taskSummary?.counts?.IN_PROGRESS??0,
+                todo: taskSummary?.counts?.TODO??0,
             },
             alerts: {
                 total: finalLogs.length,
@@ -359,7 +361,7 @@ export function useDashboardData(filters: DashboardFilters) {
             },
         };
     }, [orch.targets, orch.dashboardRaw, optimizationTasks,
-        activityLogs, scrapeTasks, filters, matchesManagerFilter,scope]);
+        activityLogs, scrapeTasks, filters, matchesManagerFilter,scope,taskSummary]);
 
     const filteredTasks=optimizationTasks;
     const filteredScrapeTasks=scrapeTasks;
@@ -385,7 +387,7 @@ export function useDashboardData(filters: DashboardFilters) {
         loading: orch.isLoadingKpis,
         isHydrated: orch.isHydrated,
         tasksLoading,
-        tasksError,
+        tasksError,taskSummary,
         canTasks,canPipeline,canLogs,
         optionsError:optionsQuery.isError,
         pipelineStatus:scope?.empty?'ready':pipelineQuery.isError?'error':pipelineQuery.isPending?'loading':'ready',
