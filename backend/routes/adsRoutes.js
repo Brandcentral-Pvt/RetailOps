@@ -39,6 +39,7 @@ router.get('/overview', authenticate, canViewAds, retired);
 // Isolated read-only diagnostic. Existing page continues to use legacy endpoints until cutover.
 router.get('/canonical-summary', authenticate, canViewAds, require('../controllers/adsCanonicalSummaryController').getSummary);
 const canonicalReport = require('../controllers/adsCanonicalReportController');
+router.post('/canonical-analyst/evidence', authenticate, canViewAds, aiLimiter, require('../controllers/adsAnalystController').evidence);
 router.get('/canonical-overview', authenticate, canViewAds, canonicalReport.overview);
 router.get('/canonical-report', authenticate, canViewAds, canonicalReport.report);
 router.get('/canonical-insights', authenticate, canViewAds, canonicalReport.insights);
