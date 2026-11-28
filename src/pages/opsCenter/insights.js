@@ -1,5 +1,4 @@
 import { fmtINR, fmtPct, pctDelta, pointDelta } from './primitives';
-import { targetAchievementPct } from '../../utils/targetMetrics';
 
 /**
  * Rule-based insights computed from the dashboard payload. Every insight is
@@ -16,7 +15,7 @@ const shortTitle = (t, n = 34) => {
     return s.length > n ? `${s.slice(0, n - 1)}…` : s;
 };
 
-export function buildInsights({ dashboardRaw, products = [], targets = [], tasks = [], pipeline = [], now = Date.now() }) {
+export function buildInsights({ dashboardRaw, portfolio,taskSummary, products = [], targets = [], tasks = [], pipeline = [], now = Date.now() }) {
     const out = [];
     const raw = dashboardRaw || {};
     const gms = raw.gms;
@@ -37,8 +36,8 @@ export function buildInsights({ dashboardRaw, products = [], targets = [], tasks
     }
 
     // ── TACoS drift (ad spend relative to merchandise sales) ─────────
-    if (gms?.tacos!=null&&prev?.tacos!=null&&raw.ads?.ratioCoverage?.tacos==='complete'&&prev.adsRatioCoverage?.tacos==='complete') {
-        const pts = pointDelta(gms.tacos, prev.tacos);
+    if (gms?.tacos!=null&&raw.ads?.comparison?.ratios?.tacos!=null) {
+        const pts=raw.ads.comparison.ratios.tacos;
         if (pts !== null && Math.abs(pts) >= 0.5) {
             out.push({
                 id: 'tacos',
@@ -60,7 +59,7 @@ export function buildInsights({ dashboardRaw, products = [], targets = [], tasks
             out.push({
                 id: 'gainer',
                 tone: 'pos',
-                text: `Top gainer ${gainer.asin} · +${fmtINR(gainer.gmsRevenue - gainer.prevGmsRevenue)} (${signed(pctDelta(gainer.gmsRevenue, gainer.prevGmsRevenue))}) — ${shortTitle(gainer.title)}`,
+                text: `Leading displayed gainer ${gainer.asin} · +${fmtINR(gainer.gmsRevenue - gainer.prevGmsRevenue)} (${signed(pctDelta(gainer.gmsRevenue, gainer.prevGmsRevenue))}) — ${shortTitle(gainer.title)}`,
                 target: 'ops-top-products',
                 priority: 3,
             });
@@ -70,26 +69,17 @@ export function buildInsights({ dashboardRaw, products = [], targets = [], tasks
             out.push({
                 id: 'decliner',
                 tone: drop <= -30 ? 'neg' : 'warn',
-                text: `Biggest drop ${decliner.asin} · −${fmtINR(decliner.prevGmsRevenue - decliner.gmsRevenue)} (${signed(drop)}) — ${shortTitle(decliner.title)}`,
+                text: `Leading displayed decline ${decliner.asin} · −${fmtINR(decliner.prevGmsRevenue - decliner.gmsRevenue)} (${signed(drop)}) — ${shortTitle(decliner.title)}`,
                 target: 'ops-top-products',
                 priority: drop <= -30 ? 1 : 2,
             });
         }
     }
 
-    // ── Concentration risk ───────────────────────────────────────────
-    if (gms && gms.revenue > 0 && products.length >= 3 && products.slice(0,3).every(p=>p.gmsRevenue!=null)) {
-        const top3 = products.slice(0, 3).reduce((s, p) => s + (Number(p.gmsRevenue) || 0), 0);
-        const share = (top3 / gms.revenue) * 100;
-        if (share >= 40) {
-            out.push({
-                id: 'concentration',
-                tone: share >= 60 ? 'warn' : 'info',
-                text: `Top 3 ASINs hold ${fmtPct(share, 0)} of GMS${share >= 60 ? ' — concentration risk' : ''}`,
-                target: 'ops-top-products',
-                priority: share >= 60 ? 2 : 4,
-            });
-        }
+    // Concentration uses the complete mapped positive-revenue population.
+    if(portfolio?.status==='observed_complete'&&portfolio.positiveProducts>=3&&portfolio.top3RevenueShare>=40){
+        const share=portfolio.top3RevenueShare;
+        out.push({id:'concentration',tone:share>=60?'warn':'info',text:`Top three seller-ASINs hold ${fmtPct(share,0)} of positive mapped revenue`,target:'ops-portfolio',priority:share>=60?2:4});
     }
 
     // ── Unadvertised leaders ─────────────────────────────────────────
@@ -149,12 +139,12 @@ export function buildInsights({ dashboardRaw, products = [], targets = [], tasks
 
     // ── Targets at risk ──────────────────────────────────────────────
     if (targets.length > 0) {
-        const atRisk = targets.filter((t) => targetAchievementPct(t) < 50).length;
+        const atRisk=targets.filter(t=>['below_target','over_limit'].includes(t.status)).length;
         if (atRisk > 0) {
             out.push({
                 id: 'targets',
                 tone: atRisk / targets.length >= 0.5 ? 'neg' : 'warn',
-                text: `${atRisk} of ${targets.length} target${targets.length === 1 ? '' : 's'} below 50% achievement`,
+                text: `${atRisk} of ${targets.length} target${targets.length === 1 ? '' : 's'} below closed revenue target or above spending/ACoS limit`,
                 target: 'ops-goals',
                 priority: 2,
             });
