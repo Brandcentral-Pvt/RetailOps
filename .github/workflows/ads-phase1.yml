@@ -17,6 +17,7 @@ on:
       - 'backend/migrations/104_ads_import_error_retention.js'
       - 'backend/migrations/105_ads_export_jobs.js'
       - 'backend/migrations/107_ads_report_covering_index.js'
+      - 'backend/migrations/108_ads_report_revision.js'
       - 'backend/services/accessProfileService.js'
       - 'backend/testUtils/adsPhase2.*'
       - 'backend/testUtils/adsPhase3.*'
@@ -114,12 +115,14 @@ jobs:
           node --check backend/services/adsCompleteWorkbook.js
           node --check backend/migrations/105_ads_export_jobs.js
           node --check backend/migrations/107_ads_report_covering_index.js
+          node --check backend/migrations/108_ads_report_revision.js
+          node --check backend/services/adsReportCache.js
           node --check backend/services/adsExportJobs.js
           node --check backend/services/reportExportJobs.js
           node --check backend/controllers/reportExportJobsController.js
           node --check backend/services/adsExportCsv.js
           node --check backend/controllers/adsExportJobsController.js
-          node --test backend/testUtils/adsPhase1.contract.node.cjs backend/testUtils/adsPhase1.canonical.node.cjs backend/testUtils/adsPhase1.report.node.cjs backend/testUtils/adsPhase1.activation.node.cjs backend/testUtils/adsPhase2.preview.node.cjs backend/testUtils/adsPhase3.analytics.node.cjs backend/testUtils/adsPhase3.portfolio.node.cjs backend/testUtils/adsPhase3.budget.node.cjs backend/testUtils/adsPhase3.reconciliation.node.cjs
+          node --test backend/testUtils/adsPhase1.contract.node.cjs backend/testUtils/adsPhase1.canonical.node.cjs backend/testUtils/adsPhase1.report.node.cjs backend/testUtils/adsPhase1.activation.node.cjs backend/testUtils/adsPhase2.preview.node.cjs backend/testUtils/adsPhase3.analytics.node.cjs backend/testUtils/adsPhase3.portfolio.node.cjs backend/testUtils/adsPhase3.budget.node.cjs backend/testUtils/adsPhase3.reconciliation.node.cjs backend/testUtils/adsPhase6.cache.node.cjs
   sql:
     runs-on: ubuntu-latest
     timeout-minutes: 15
