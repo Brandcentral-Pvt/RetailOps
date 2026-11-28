@@ -54,7 +54,6 @@ export function useRealTimeDashboard(options?: RealTimeDashboardOptions) {
 
         const queryClient = useQueryClient();
     const setConnection = useDashboardStore((s) => s.setConnection);
-    const setAlerts     = useDashboardStore((s) => s.setAlerts);
     const connection    = useDashboardStore((s) => s.connection);
     const lastBeatRef = useRef<number>(Date.now());
 
@@ -69,8 +68,7 @@ export function useRealTimeDashboard(options?: RealTimeDashboardOptions) {
             { evt: 'socket:asinUpdated',    fn: () => queryClient.invalidateQueries({ queryKey: ['asins'] }) },
             { evt: 'socket:targetReached',  fn: () => { queryClient.invalidateQueries({ queryKey: ['goals'] });
                                                              queryClient.invalidateQueries({ queryKey: ['metrics-overview'] }); } },
-            { evt: 'socket:alerts',         fn: (data) => { queryClient.invalidateQueries({ queryKey: ['alerts'] });
-                                                             if (data) setAlerts(data as any); } },
+            { evt: 'socket:alerts',         fn: () => { queryClient.invalidateQueries({ queryKey: ['alerts'] }); } },
             { evt: 'socket:sellerSynced',   fn: () => queryClient.invalidateQueries({ queryKey: ['sellers'] }) },
             { evt: 'socket:taskUpdated',    fn: () => queryClient.invalidateQueries({ queryKey: ['tasks'] }) },
         ];
@@ -80,7 +78,7 @@ export function useRealTimeDashboard(options?: RealTimeDashboardOptions) {
             return () => bus.off(evt, fn as EventListener);
         });
         return () => { unsub.forEach((fn) => fn()); };
-    }, [queryClient, setConnection, setAlerts]);
+    }, [queryClient, setConnection]);
 
     // ── Socket-channels via realtimeService ─────────────────────────────────────
     useEffect(() => {
