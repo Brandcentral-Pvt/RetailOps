@@ -953,7 +953,7 @@ server.listen(PORT, '0.0.0.0', () => {
       logger.info('Ads canonical schema verified');
       const imports=await require('./database/adsImportSchema').ensureAdsImportSchema({apply:process.env.RUN_MIGRATIONS_ON_STARTUP!=='false'});
       if(!imports.ready)logger.error('Ads import job schema is not ready',imports);
-      else {require('./services/adsImportJobs').startExpirySweep(getPool);logger.info('Ads import job schema verified');}
+      else {require('./services/adsImportJobs').startExpirySweep(getPool);require('./services/adsImportWorker').startWorker({getPool,sql,resolveProfile:require('./services/accessProfileService').resolveAccessProfile});logger.info('Ads import job schema verified; background worker started');}
     }
   }).catch(err=>logger.error('Ads schema startup failed',{error:err.message}));
 });

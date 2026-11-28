@@ -3,7 +3,6 @@
 // Confirmation uses the same canonical writer transaction for facts + job completion.
 const {randomUUID,createHash}=require('node:crypto');
 const {validateReport,replayValidatedRows,AdsValidationError,MAX_FILE_BYTES}=require('./adsProductContract');
-const {ingestCanonicalReport,AdsIngestionError}=require('./adsCanonicalIngestion');
 const {strictScope,explicitSeller,resolveContext,AdsScopeError}=require('./adsCanonicalScope');
 const {importsEnabled}=require('./adsImportConfirmation');
 const MAX_STORED_ISSUES=10000,MAX_PENDING_OWNER=3,MAX_PENDING_GLOBAL=50;
@@ -14,13 +13,13 @@ const ownerId=user=>{
  return id;
 };
 const normalizeName=name=>String(name||'report.csv').split(/[\\/]/).pop().replace(/[\u0000-\u001f\u007f]/g,'_').slice(0,255)||'report.csv';
-const cols="j.Id,j.OwnerId,j.SellerId,j.Marketplace,j.Currency,j.FileName,j.SourceFileSha256,j.Status,j.SummaryJson,j.ResultJson,CONVERT(varchar(33),j.CreatedAt,126)+'Z' AS CreatedAt,CONVERT(varchar(33),j.ExpiresAt,126)+'Z' AS ExpiresAt,CONVERT(varchar(33),j.CompletedAt,126)+'Z' AS CompletedAt,CASE WHEN j.ExpiresAt<=SYSUTCDATETIME() THEN 1 ELSE 0 END AS IsExpired";
+const cols="j.AttemptCount,j.Stage,j.StagedRows,CONVERT(varchar(33),j.QueuedAt,126)+'Z' AS QueuedAt,CONVERT(varchar(33),j.StartedAt,126)+'Z' AS StartedAt,CONVERT(varchar(33),j.NextAttemptAt,126)+'Z' AS NextAttemptAt,j.Id,j.OwnerId,j.SellerId,j.Marketplace,j.Currency,j.FileName,j.SourceFileSha256,j.Status,j.SummaryJson,j.ResultJson,CONVERT(varchar(33),j.CreatedAt,126)+'Z' AS CreatedAt,CONVERT(varchar(33),j.ExpiresAt,126)+'Z' AS ExpiresAt,CONVERT(varchar(33),j.CompletedAt,126)+'Z' AS CompletedAt,CASE WHEN j.ExpiresAt<=SYSUTCDATETIME() THEN 1 ELSE 0 END AS IsExpired";
 function publicJob(row){
  if(!row)return null;
  return {id:row.Id,sellerId:row.SellerId,marketplace:row.Marketplace,currency:row.Currency,fileName:row.FileName,
    sourceFileSha256:row.SourceFileSha256,status:row.Status==='READY'&&row.IsExpired?'EXPIRED':row.Status,
    summary:JSON.parse(row.SummaryJson),result:row.ResultJson?JSON.parse(row.ResultJson):null,
-   createdAt:row.CreatedAt,expiresAt:row.ExpiresAt,completedAt:row.CompletedAt,importsEnabled:importsEnabled()};
+   createdAt:row.CreatedAt,expiresAt:row.ExpiresAt,completedAt:row.CompletedAt,queuedAt:row.QueuedAt,startedAt:row.StartedAt,nextAttemptAt:row.NextAttemptAt,attemptCount:row.AttemptCount,stage:row.Stage,stagedRows:row.StagedRows,importsEnabled:importsEnabled()};
 }
 function scopedRequest(pool,sql,user,id){
  const owner=ownerId(user),scope=strictScope(user);
@@ -86,7 +85,7 @@ async function createPreview({pool,sql,user,sellerId,input,fileName}){
    await tx.request().query("DECLARE @lock int; EXEC @lock=sp_getapplock @Resource='retailops:ads-job-create',@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=10000; IF @lock<0 THROW 51042,'Ads job capacity lock unavailable',1;");
    await tx.request().query(expireSql);
    if(ready){
-     const limits=await tx.request().input('owner',sql.VarChar(50),owner).query("SELECT COUNT_BIG(*) AS total,COUNT_BIG(CASE WHEN OwnerId=@owner THEN 1 END) AS owned FROM dbo.AdsImportJobs WHERE Status='READY';");
+     const limits=await tx.request().input('owner',sql.VarChar(50),owner).query("SELECT COUNT_BIG(*) AS total,COUNT_BIG(CASE WHEN OwnerId=@owner THEN 1 END) AS owned FROM dbo.AdsImportJobs WHERE Status IN ('READY','QUEUED','PROCESSING');");
      if(Number(limits.recordset[0].total)>=MAX_PENDING_GLOBAL||Number(limits.recordset[0].owned)>=MAX_PENDING_OWNER)throw jobError('import_capacity','Pending import capacity reached. Cancel an old preview or confirm it before staging another.',429);
    }
    await tx.request().input('id',sql.VarChar(50),id).input('owner',sql.VarChar(50),owner).input('seller',sql.VarChar(50),sellerId)
@@ -102,57 +101,24 @@ async function createPreview({pool,sql,user,sellerId,input,fileName}){
 async function cancelJob({pool,sql,user,id}){
  if(id===undefined)throw jobError('invalid_job_id','An import identifier is required.',400);
  const {request,where}=scopedRequest(pool,sql,user,id);
- await request.query("UPDATE j SET Status='CANCELLED',SourceBytes=NULL,CompletedAt=SYSUTCDATETIME() FROM dbo.AdsImportJobs j"+where+" AND j.Status='READY' AND j.ExpiresAt>SYSUTCDATETIME();");
+ await request.query("UPDATE j SET Status='CANCELLED',SourceBytes=NULL,CompletedAt=SYSUTCDATETIME() FROM dbo.AdsImportJobs j"+where+" AND (j.Status='QUEUED' OR (j.Status='READY' AND j.ExpiresAt>SYSUTCDATETIME()));");
  const job=await getJob({pool,sql,user,id});
  if(!job)throw jobError('job_not_found','Import not found.',404);
  if(job.status!=='CANCELLED')throw jobError('job_not_ready','Import cannot be cancelled in its current state.');
  return job;
 }
 async function confirmJob({pool,sql,user,id}){
- const row=await getRow({pool,sql,user,id,payload:true});
- if(!row)throw jobError('job_not_found','Import not found.',404);
- const initial=publicJob(row);
- if(initial.status==='COMPLETED')return initial;
- if(initial.status!=='READY'||!row.SourceBytes)throw jobError('job_not_ready','Import is not ready or has expired.');
- if(!importsEnabled())throw jobError('ads_import_disabled','Ads confirmation is paused by server configuration. An administrator must set ADS_CANONICAL_IMPORT_ENABLED=true or remove the explicit pause and restart the backend.');
- explicitSeller(user,row.SellerId);
- const owner=ownerId(user);
- const lifecycle={
-  begin:async(tx,report)=>{
-    // Same row lock protects cancel, expiry and concurrent confirmation.
-    const r=await tx.request().input('id',sql.VarChar(50),id).input('owner',sql.VarChar(50),owner)
-      .query("SELECT SellerId,Marketplace,Currency,SourceFileSha256,Status,CASE WHEN ExpiresAt<=SYSUTCDATETIME() THEN 1 ELSE 0 END AS expired FROM dbo.AdsImportJobs WITH(UPDLOCK,HOLDLOCK) WHERE Id=@id AND OwnerId=@owner;");
-    const current=r.recordset[0];
-    if(!current||current.Status!=='READY'||current.expired)throw jobError('job_not_ready','Import is no longer ready.');
-    if(!importsEnabled())throw jobError('ads_import_disabled','Ads confirmation is paused by server configuration. An administrator must set ADS_CANONICAL_IMPORT_ENABLED=true or remove the explicit pause and restart the backend.');
-    if(current.SellerId!==row.SellerId||current.Marketplace!==row.Marketplace||current.Currency!==row.Currency||current.SourceFileSha256!==report.sourceFileSha256)
-      throw jobError('job_source_changed','Staged source or seller context changed. Validate again.');
-  },
-  complete:async(tx,result)=>{
-    const output={sellerId:result.sellerId,marketplace:result.marketplace,currency:result.currency,inserted:result.inserted,unchanged:result.unchanged,sourceFileSha256:result.sourceFileSha256,startDate:result.report.startDate,endDate:result.report.endDate,totals:result.report.totals,persisted:true};
-    const r=await tx.request().input('id',sql.VarChar(50),id).input('owner',sql.VarChar(50),owner).input('result',sql.NVarChar(sql.MAX),JSON.stringify(output))
-      .query("UPDATE dbo.AdsImportJobs SET Status='COMPLETED',SourceBytes=NULL,ResultJson=@result,CompletedAt=SYSUTCDATETIME() WHERE Id=@id AND OwnerId=@owner AND Status='READY'; SELECT @@ROWCOUNT AS changed;");
-    if(Number(r.recordset[0].changed)!==1)throw jobError('job_not_ready','Import completion could not be recorded.');
-  }
- };
- try{
-   await ingestCanonicalReport({pool,sql,user,sellerId:row.SellerId,reportType:'daily',input:row.SourceBytes,expectedContext:{marketplace:row.Marketplace,currency:row.Currency},lifecycle});
- }catch(e){
-   const current=await getJob({pool,sql,user,id});
-   if(current?.status==='COMPLETED')return current; // ambiguous commit or concurrent request
-   // Do not convert SQL timeouts/connection failures into a false terminal failure.
-   // Transaction rollback leaves a READY job available for safe retry.
-   if(e instanceof AdsIngestionError||e instanceof AdsValidationError){
-     const {request,where}=scopedRequest(pool,sql,user,id);
-     const detail={code:e.code,message:e.message,details:e.details||null,persisted:false};
-     const issue={row:null,column:null,code:e.code,message:e.message};
-     await request.input('result',sql.NVarChar(sql.MAX),JSON.stringify(detail)).input('issues',sql.NVarChar(sql.MAX),JSON.stringify([issue]))
-       .query("UPDATE j SET Status='FAILED',SourceBytes=NULL,ResultJson=@result,IssuesJson=@issues,CompletedAt=SYSUTCDATETIME() FROM dbo.AdsImportJobs j"+where+" AND j.Status='READY';");
-     return getJob({pool,sql,user,id});
-   }
-   throw e;
- }
- return getJob({pool,sql,user,id});
+ const job=await getJob({pool,sql,user,id});
+ if(!job)throw jobError('job_not_found','Import not found.',404);
+ if(['QUEUED','PROCESSING','COMPLETED'].includes(job.status))return job;
+ if(job.status!=='READY')throw jobError('job_not_ready','Import is not ready or has expired.');
+ if(!importsEnabled())throw jobError('ads_import_disabled','Ads confirmation is paused by server configuration.');
+ explicitSeller(user,job.sellerId);
+ const {request,where}=scopedRequest(pool,sql,user,id);
+ await request.query("UPDATE j SET Status='QUEUED',Stage='queued',QueuedAt=SYSUTCDATETIME(),NextAttemptAt=SYSUTCDATETIME(),StagedRows=0 FROM dbo.AdsImportJobs j"+where+" AND j.Status='READY' AND j.ExpiresAt>SYSUTCDATETIME();");
+ const current=await getJob({pool,sql,user,id});
+ if(!current||!['QUEUED','PROCESSING','COMPLETED','FAILED'].includes(current.status))throw jobError('job_not_ready','Import could not be queued in its current state.');
+ return current;
 }
 async function getIssues(args){
  const row=await getRow({...args,issues:true});

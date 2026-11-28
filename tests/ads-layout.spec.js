@@ -55,7 +55,9 @@ test('wide tables scroll inside the workspace and preserve the pinned product co
  await expect(table.getByRole('button',{name:'B000000001',exact:true})).toBeVisible();
  await assertContained(page);
  const body=table.locator('.ant-table-body');
- const pin=table.locator('tbody tr').first().locator('td.ads-pinned-cell');
+ // Ant inserts a hidden measurement row ahead of actual data rows.
+ const pin=body.locator('tr[data-row-key="row-0"]').getByTestId('ads-pinned-product');
+ await expect(pin).toBeVisible();
  const before=await pin.evaluate(e=>e.getBoundingClientRect().left);
  const sizes=await body.evaluate(e=>{const result={width:e.clientWidth,scrollWidth:e.scrollWidth};e.scrollLeft=600;return {...result,scrollLeft:e.scrollLeft};});
  expect(sizes.scrollWidth).toBeGreaterThan(sizes.width+300);expect(sizes.scrollLeft).toBeGreaterThan(0);
