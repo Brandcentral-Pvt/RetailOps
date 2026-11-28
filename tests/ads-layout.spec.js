@@ -589,3 +589,41 @@ test('Ads export all history CSV sends no invented date window',async({page})=>{
  expect(body.format).toBe('csv');expect(body.filters.allHistory).toBe(true);
  expect(body.filters).not.toHaveProperty('startDate');expect(body.filters).not.toHaveProperty('endDate');expect(body.filters).not.toHaveProperty('sellerId');
 });
+
+test('debounced product search sends only the settled value',async({page})=>{
+ await mock(page);
+ const searches=[];
+ await page.route('**/api/ads/canonical-report?*',route=>{
+  const q=new URL(route.request().url()).searchParams;searches.push(q.get('search'));
+  return route.fulfill({json:{success:true,data:{period,empty:false,current:[summary],previous:[summary],series:[],rows,total:rows.length,page:1,limit:50}}});
+ });
+ await page.goto('/tests/fixtures/ads-layout.html');await goView(page,'products');
+ await expect(page.getByTestId('ads-product-table')).toBeVisible();
+ const input=page.getByRole('textbox',{name:'Search products'});
+ await input.fill('B');await input.fill('B000');await input.fill('B000000001');
+ await expect.poll(()=>searches.filter(Boolean)).toEqual(['B000000001']);
+});
+test('page transitions retain same-scope rows but seller changes discard them',async({page})=>{
+ await mock(page);
+ let releasePage,releaseSeller;
+ const pageGate=new Promise(resolve=>{releasePage=resolve;});
+ const sellerGate=new Promise(resolve=>{releaseSeller=resolve;});
+ await page.route('**/api/ads/canonical-report?*',async route=>{
+  const q=new URL(route.request().url()).searchParams,p=Number(q.get('page')||1),seller=q.get('sellerId');
+  if(seller==='s1')await sellerGate;else if(p===2)await pageGate;
+  const nextRows=p===2?rows.map(r=>({...r,key:'next-'+r.key,entityKey:'C'+r.entityKey.slice(1)})):rows;
+  await route.fulfill({json:{success:true,data:{period,empty:false,current:[summary],previous:[summary],series:[],rows:nextRows,total:100,page:p,limit:50}}}).catch(()=>{});
+ });
+ await page.goto('/tests/fixtures/ads-layout.html');await goView(page,'products');
+ const table=page.getByTestId('ads-product-table');
+ await expect(table.getByRole('button',{name:'B000000001',exact:true})).toBeVisible();
+ await table.locator('.ant-pagination-next').click();
+ await expect(table.getByText('Loading page 2; showing page 1 until it is ready.')).toBeVisible();
+ await expect(table.getByRole('button',{name:'B000000001',exact:true})).toBeVisible();
+ await page.getByRole('combobox',{name:'Seller',exact:true}).click();
+ await page.getByRole('option',{name:longName,exact:true}).click();
+ await expect(page.getByRole('button',{name:'B000000001',exact:true})).toHaveCount(0);
+ releasePage();releaseSeller();
+ await expect(table.getByRole('button',{name:'B000000001',exact:true})).toBeVisible();
+ await expect(table.getByRole('button',{name:'C000000001',exact:true})).toHaveCount(0);
+});

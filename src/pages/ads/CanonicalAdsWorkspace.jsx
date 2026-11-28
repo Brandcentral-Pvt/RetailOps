@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { Alert, Button, Card, Drawer, Empty, Input, Select, Segmented, Form, Radio, Flex, Skeleton, Spin, Table, Tabs, Tag, Typography } from 'antd';
 import {AppstoreOutlined,BarChartOutlined,BulbOutlined,DashboardOutlined,DownloadOutlined,FilterOutlined,HistoryOutlined,ReloadOutlined,SafetyCertificateOutlined,UploadOutlined,WalletOutlined} from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -10,12 +10,15 @@ import { apiClient } from '../../lib/api-client';
 import AdsImportModal from '../../components/ads/AdsImportModal';
 import ReportDateRangePicker from '../../components/common/ReportDateRangePicker';
 import {AdsComparisonPanel,AdsOpportunityPanel,DeltaText} from './AdsPerformanceReview';
-import AdsPortfolioPanel from './AdsPortfolioPanel';
-import AdsReconciliationPanel from './AdsReconciliationPanel';
-import AdsOverview from './AdsOverview';
-import {AdsBudgetPanel,AdsProductDiagnosticPanel} from './AdsBudgetIntelligence';
+
 import {adsCount,adsMoney,adsRate} from './adsNumberFormat.mjs';
 import './canonicalAdsWorkspace.css';
+import {sameProductPageScope} from './adsWorkspacePerformance.mjs';
+const AdsPortfolioPanel=lazy(()=>import('./AdsPortfolioPanel'));
+const AdsReconciliationPanel=lazy(()=>import('./AdsReconciliationPanel'));
+const AdsOverview=lazy(()=>import('./AdsOverview'));
+const AdsBudgetPanel=lazy(()=>import('./AdsBudgetIntelligence').then(m=>({default:m.AdsBudgetPanel})));
+const AdsProductDiagnosticPanel=lazy(()=>import('./AdsBudgetIntelligence').then(m=>({default:m.AdsProductDiagnosticPanel})));
 
 const iso=value=>{
     if(!value)return undefined;
@@ -55,7 +58,7 @@ function AdsExportDialog({open,onClose,initial,principal,onSubmit,busy,error}){
  const change=(key,value)=>setDraft(old=>({...old,[key]:value}));
  const selectedSellers=Array.isArray(draft.sellerId)?draft.sellerId:draft.sellerId?[draft.sellerId]:[];
  const sellerId=selectedSellers.join(',')||undefined;
- const options=useQuery({queryKey:['ads-canonical',principal,'options',sellerId],queryFn:({signal})=>get('canonical-options',{sellerId},signal),enabled:open,staleTime:0,retry:false});
+ const options=useQuery({queryKey:['ads-canonical',principal,'options',sellerId],queryFn:({signal})=>get('canonical-options',{sellerId},signal),enabled:open,staleTime:30000,retry:false,refetchOnWindowFocus:false});
  const choices=options.data||{};
  const days=(Date.parse(draft.endDate)-Date.parse(draft.startDate))/86400000+1;
  const validDates=dateMode==='all'||days>=1&&days<=366;
@@ -98,6 +101,7 @@ const exportErrorText=async e=>{
  if(detail instanceof Blob){try{detail=JSON.parse(await detail.text());}catch{detail=null;}}
  return detail?.message||e.message||'Export failed.';
 };
+const ProductTable=React.memo(function ProductTable(props){return <Table {...props}/>;});
 function ReportLoading(){return <div className="ads-report-loading" role="status" aria-label="Loading advertising report"><div className="ads-kpi-grid">{Array.from({length:8},(_,i)=><Card key={i} size="small"><Skeleton active title={{width:'55%'}} paragraph={{rows:2}}/></Card>)}</div><Card size="small"><Skeleton active paragraph={{rows:4}}/></Card></div>;}
 const TrendTable=({series})=>series.length===0?<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No historical records in this period"/>:<div className="ads-table-shell" data-testid="ads-trend-table"><Table tableLayout="fixed" size="small" rowKey={r=>JSON.stringify([r.currency,r.periodKey,r.bucket])} dataSource={series} pagination={{pageSize:10}} scroll={{x:760}}
     columns={[{title:'Period',dataIndex:'periodKey',width:100},{title:'Date / bucket',dataIndex:'bucket',width:125},{title:'Currency',dataIndex:'currency',width:90},
@@ -110,7 +114,7 @@ export default function CanonicalAdsWorkspace(){
     const [view,setView]=useState('overview');
     const rootRef=useRef(null);
     const [overviewPreferences,setOverviewPreferences]=useState({metric:'sales_spend',period:'current',currency:null});
-    const setOverviewPreference=(key,value)=>setOverviewPreferences(prev=>({...prev,[key]:value}));
+    const setOverviewPreference=useCallback((key,value)=>setOverviewPreferences(prev=>prev[key]===value?prev:{...prev,[key]:value}),[]);
     useEffect(()=>{const shell=rootRef.current?.closest('.routes-container');if(shell)shell.scrollTop=0;},[view]);
     const [preset,setPreset]=useState('performance');
     const [showPrior,setShowPrior]=useState(true);
@@ -133,6 +137,7 @@ export default function CanonicalAdsWorkspace(){
     const [granularity,setGranularity]=useState('day');
     const [search,setSearch]=useState('');
     const [searchInput,setSearchInput]=useState('');
+    useEffect(()=>{const next=searchInput.trim();if(next===search)return;const timer=setTimeout(()=>setSearch(next),350);return ()=>clearTimeout(timer);},[searchInput,search]);
     const [sort,setSort]=useState({sortBy:'totalSales',sortOrder:'desc'});
     const [paging,setPaging]=useState({key:'',page:1,limit:50});
     const [drill,setDrill]=useState(null);
@@ -146,11 +151,11 @@ export default function CanonicalAdsWorkspace(){
     const [exportBusy,setExportBusy]=useState(false);
     const exportLock=useRef(false);
     const [exportError,setExportError]=useState(null);
-    // Include principal and current scope in the client cache key. No stale
-    // placeholder data is used across filters, pages, or account changes.
+    // Retain placeholder rows only for a page transition within the identical
+    // principal, filters, sort and page size. Never across scope changes.
     const principal=JSON.stringify([user?._id||user?.Id||user?.id,user?.role?.name||user?.role?.Name||user?.role,user?.assignedSellers,user?.permissions]);
     const enabled=!!user&&hasPermission(PERMISSIONS.ADSREPORT_VIEW);
-    const options=useQuery({queryKey:['ads-canonical',principal,'options',seller],queryFn:({signal})=>get('canonical-options',{sellerId:seller},signal),enabled,staleTime:0,retry:false});
+    const options=useQuery({queryKey:['ads-canonical',principal,'options',seller],queryFn:({signal})=>get('canonical-options',{sellerId:seller},signal),enabled,staleTime:30000,retry:false,refetchOnWindowFocus:false});
     const filters=useMemo(()=>({startDate:iso(startDate),endDate:iso(endDate),sellerId:seller,brand,category,currency,marketplace,groupBy,granularity,search:search||undefined,...sort}),[startDate,endDate,seller,brand,category,currency,marketplace,groupBy,granularity,search,sort]);
     const signature=JSON.stringify([principal,filters]);
     const page=paging.key===signature?paging.page:1,limit=paging.limit;
@@ -159,7 +164,7 @@ export default function CanonicalAdsWorkspace(){
     const reportView=view==='overview'||view==='products';
     const overviewFilters=useMemo(()=>({startDate:filters.startDate,endDate:filters.endDate,sellerId:seller,brand,category,currency,marketplace,search:search||undefined,groupBy,granularity}),[filters.startDate,filters.endDate,seller,brand,category,currency,marketplace,search,groupBy,granularity]);
     const overviewReport=useQuery({queryKey:['ads-canonical',principal,'overview',overviewFilters],queryFn:({signal})=>get('canonical-overview',overviewFilters,signal),enabled:enabled&&hasDates&&view==='overview',staleTime:0,retry:false,refetchOnWindowFocus:false});
-    const productReport=useQuery({queryKey:['ads-canonical',principal,'report',filters,page,limit],queryFn:({signal})=>get('canonical-report',{...filters,page,limit},signal),enabled:enabled&&hasDates&&view==='products',staleTime:0,retry:false,refetchOnWindowFocus:false});
+    const productReport=useQuery({queryKey:['ads-canonical',principal,'report',filters,page,limit],queryFn:({signal})=>get('canonical-report',{...filters,page,limit},signal),enabled:enabled&&hasDates&&view==='products',staleTime:0,retry:false,refetchOnWindowFocus:false,placeholderData:(previous,previousQuery)=>sameProductPageScope(previousQuery?.queryKey,['ads-canonical',principal,'report',filters,page,limit])?previous:undefined});
     const report=view==='overview'?overviewReport:productReport;
     const drillTarget=drill?.signature===signature?drill.row:null;
     const drillGrouping=drill?.groupBy||groupBy;
@@ -206,18 +211,25 @@ export default function CanonicalAdsWorkspace(){
         void queryClient.invalidateQueries({queryKey:['ads-canonical',principal]});
     };
     const openImport=tab=>{setImportTab(tab);setImportOpen(true);};
-    const openDrill=(row,group)=>{setDrillTab('overview');setDrill({signature,row,groupBy:group});};
+    const openDrill=useCallback((row,group)=>{setDrillTab('overview');setDrill({signature,row,groupBy:group});},[signature]);
     const clearFilters=()=>{setSeller(undefined);setBrand(undefined);setCategory(undefined);setCurrency(undefined);setMarketplace(undefined);setSearch('');setSearchInput('');setDrill(null);setPaging({key:'',page:1,limit});setRequestedReview(null);setRequestedPortfolio(null);setRequestedReconciliation(null);};
     const applySearch=()=>setSearch(searchInput.trim());
     const selectPreset=value=>{setPreset(value);if(sort.sortBy!=='entityKey'&&!PRESETS[value].includes(sort.sortBy)){setSort({sortBy:DEFAULT_SORT[value],sortOrder:'desc'});setPaging({key:'',page:1,limit});}};
     const activeFilters=[seller,brand,category,currency,marketplace,search].filter(Boolean).length;
     const choices=options.data||{};
-    const columns=[
+    const columns=useMemo(()=>[
         {title:groupBy==='seller'?'Seller':groupBy==='parent'?'Parent ASIN':'ASIN',key:'entityKey',fixed:'left',width:200,className:'ads-pinned-cell',onCell:()=>({className:'ads-pinned-cell','data-testid':'ads-pinned-product'}),onHeaderCell:()=>({className:'ads-pinned-cell'}),sorter:true,render:(_,r)=><><Button type="link" className="ads-entity-link" onClick={()=>openDrill(r,groupBy)}>{r.entityKey}</Button><div className="ads-product-title" title={r.title||r.sellerName}>{r.title||r.sellerName}</div></>},
         {title:'Seller / marketplace',key:'sellerContext',width:190,render:(_,r)=><><div className="ads-product-title" title={r.sellerName}>{r.sellerName}</div><div className="ads-analytics-note">{r.marketplace} · {r.currency}</div></>},
         ...METRIC_COLUMNS.filter(([,key])=>PRESETS[preset].includes(key)).map(([title,key,money])=>({title,key,width:155,align:'right',sorter:true,render:(_,r)=><><span className="ads-table-number" title={r.current?.totals?.[key]??'Unknown'}>{amount(r.current?.totals?.[key],money?r.currency:null)}</span>{showPrior&&<><div className="ads-table-prior">Prior: {amount(r.previous?.totals?.[key],money?r.currency:null)}</div><DeltaText change={r.comparison?.metrics?.[key]} money={money} currency={r.currency}/></>}{coverageLabel(r.current?.coverage?.[key])}</>})),
         ...RATIO_COLUMNS.filter(([,key])=>PRESETS[preset].includes(key)).map(([title,key,suffix])=>({title,key,width:140,align:'right',render:(_,r)=><><span className="ads-table-number" title={r.current?.ratios?.[key]?.value??'Unknown'}>{ratioValue(r.current?.ratios?.[key],suffix)}</span>{showPrior&&<><div className="ads-table-prior">Prior: {ratioValue(r.previous?.ratios?.[key],suffix)}</div><DeltaText change={r.comparison?.ratios?.[key]} currency={r.currency}/></>}{coverageLabel(r.current?.ratios?.[key])}</>}))
-    ].map(c=>({...c,sortOrder:c.key===sort.sortBy?(sort.sortOrder==='asc'?'ascend':'descend'):undefined}));
+    ].map(c=>({...c,sortOrder:c.key===sort.sortBy?(sort.sortOrder==='asc'?'ascend':'descend'):undefined})),[groupBy,preset,showPrior,sort,openDrill]);
+    const tableScroll=useMemo(()=>({x:columns.reduce((n,c)=>n+c.width,0),y:520}),[columns]);
+    const tablePagination=useMemo(()=>data?({current:report.isPlaceholderData?page:data.page,pageSize:data.limit,total:data.total,showSizeChanger:true,pageSizeOptions:[25,50,100],showTotal:total=>adsCount(total)+' entities'}):false,[data,page,report.isPlaceholderData]);
+    const onTableChange=useCallback((p,_f,s,extra)=>{
+        if(report.isPlaceholderData&&extra.action!=='paginate')return;
+        if(extra.action==='sort'){setSort({sortBy:s.order?s.columnKey:DEFAULT_SORT[preset],sortOrder:s.order==='ascend'?'asc':'desc'});setPaging({key:'',page:1,limit:p.pageSize||limit});}
+        else if(extra.action==='paginate')setPaging({key:signature,page:p.pageSize!==limit?1:p.current,limit:p.pageSize});
+    },[report.isPlaceholderData,preset,limit,signature]);
     const selector=(label,values,value,onChange)=><Select aria-label={label} placeholder={label} allowClear showSearch value={value} onChange={onChange} options={(values||[]).map(v=>({value:v,label:v}))}/>;
     const refresh=()=>{options.refetch();if(reportView&&hasDates){
         const isOverview=view==='overview';
@@ -228,7 +240,7 @@ export default function CanonicalAdsWorkspace(){
         void queryClient.cancelQueries({queryKey:key,exact:true}).then(()=>queryClient.fetchQuery({queryKey:key,queryFn:({signal})=>get(isOverview?'canonical-overview':'canonical-report',{...params,refresh:'true'},signal),staleTime:0,retry:false})).catch(()=>{});
     }if(view==='budgets'&&targetsApplicable&&hasDates)targets.refetch();if(drillTarget)history.refetch();if(view==='opportunities'&&reviewRequested)review.refetch();if(view==='portfolio'&&portfolioRequested)portfolio.refetch();if(view==='quality'&&reconciliationRequested)reconciliation.refetch();};
     const refreshing=options.isFetching||(reportView&&report.isFetching)||(view==='budgets'&&targets.isFetching)||(view==='opportunities'&&review.isFetching)||(view==='portfolio'&&portfolio.isFetching)||(view==='quality'&&reconciliation.isFetching);
-    const navigate=key=>{setView(key);setDrill(null);};
+    const navigate=useCallback(key=>{setView(key);setDrill(null);},[]);
     if(!enabled)return <Alert type="warning" message="Advertising view permission is required." showIcon/>;
     return <div ref={rootRef} className="ads-workspace ads-phase4" data-testid="ads-workspace">
         <header className="ads-page-header">
@@ -256,7 +268,7 @@ export default function CanonicalAdsWorkspace(){
             {choices.truncated&&<Typography.Paragraph className="ads-filter-note" type="secondary">Filter options are capped; select a seller to narrow catalog choices.</Typography.Paragraph>}
         </Card>
         <ViewNav view={view} onChange={navigate}/>
-        {!hasDates?<Card><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Select a valid reporting range of up to 366 days."/></Card>:<>
+        <Suspense fallback={<ReportLoading/>}>{!hasDates?<Card><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Select a valid reporting range of up to 366 days."/></Card>:<>
           {reportView&&(report.isError?<Alert type="error" showIcon message={errorText(report.error)} action={<Button onClick={()=>report.refetch()}>Retry</Button>}/>:report.isPending?<ReportLoading/>:data&&<>
             <div className="ads-period-note ads-comparison-period"><span>Current: <strong>{data.period.startDate} to {data.period.endDate}</strong></span><span>Previous: <strong>{data.period.prevStart} to {data.period.prevEnd}</strong></span>{report.isFetching&&<span role="status">Refreshing report…</span>}</div>
             {data.empty?<Card className="ads-empty-card"><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No canonical advertising records in the selected dates.">{hasPermission(PERMISSIONS.ADSREPORT_IMPORT)&&<Button type="primary" onClick={()=>openImport('upload')}>Import a report</Button>}</Empty></Card>:view==='overview'?<>
@@ -270,13 +282,10 @@ export default function CanonicalAdsWorkspace(){
                     <Field label="Comparison"><Segmented aria-label="Product comparison display" value={showPrior?'compare':'current'} onChange={v=>setShowPrior(v==='compare')} options={[{label:'Current + prior',value:'compare'},{label:'Current only',value:'current'}]}/></Field>
                     <Field label="Density"><Segmented aria-label="Product table density" value={density} onChange={setDensity} options={[{label:'Compact',value:'compact'},{label:'Comfortable',value:'comfortable'}]}/></Field>
                 </div>
-                <div className="ads-table-shell" data-testid="ads-product-table" data-density={density}>
-                    <Table tableLayout="fixed" rowKey="key" columns={columns} dataSource={data.rows} size={density==='compact'?'small':'middle'} sticky scroll={{x:columns.reduce((n,c)=>n+c.width,0),y:520}} loading={report.isFetching}
-                        pagination={{current:data.page,pageSize:data.limit,total:data.total,showSizeChanger:true,pageSizeOptions:[25,50,100],showTotal:total=>adsCount(total)+' entities'}}
-                        onChange={(p,_f,s,extra)=>{
-                            if(extra.action==='sort'){setSort({sortBy:s.order?s.columnKey:DEFAULT_SORT[preset],sortOrder:s.order==='ascend'?'asc':'desc'});setPaging({key:'',page:1,limit:p.pageSize||limit});}
-                            else if(extra.action==='paginate')setPaging({key:signature,page:p.pageSize!==limit?1:p.current,limit:p.pageSize});
-                        }}/>
+                <div className="ads-table-shell" data-testid="ads-product-table" data-density={density} aria-busy={report.isFetching}>
+                    {report.isPlaceholderData&&<div role="status" className="ads-analytics-note">Loading page {page}; showing page {data.page} until it is ready.</div>}
+                    <ProductTable tableLayout="fixed" rowKey="key" columns={columns} dataSource={data.rows} size={density==='compact'?'small':'middle'} sticky scroll={tableScroll} loading={report.isFetching&&!report.isPlaceholderData}
+                        pagination={tablePagination} onChange={onTableChange}/>
                 </div>
                 <div className="ads-chart-footer"><span>ASIN / seller identity stays pinned. Scroll horizontally to view all metrics. Null values remain N/A.</span><Button type="link" onClick={()=>navigate('opportunities')}>Review opportunities</Button></div>
             </Card>}
@@ -285,14 +294,14 @@ export default function CanonicalAdsWorkspace(){
           {view==='portfolio'&&<AdsPortfolioPanel portfolio={portfolio} requested={portfolioRequested} onAnalyze={analyzePortfolio} granularity={portfolioGranularity} onGranularity={setPortfolioGranularity} onOpen={row=>openDrill(row,'asin')} onFilter={(dimension,row)=>{if(dimension==='seller')setSeller(row.groupKey);else setBrand(row.groupKey);setCurrency(row.current?.currency||row.previous?.currency);setMarketplace(row.marketplace);setDrill(null);}}/>}
           {view==='quality'&&<AdsReconciliationPanel key={reviewSignature} audit={reconciliation} requested={reconciliationRequested} onRun={reconcile}/>}
           {view==='budgets'&&<AdsBudgetPanel key={JSON.stringify([principal,targetFilters])} applicable={targetsApplicable} budget={targets} onRetry={()=>targets.refetch()}/>}
-        </>}
+        </>}</Suspense>
         <Drawer rootClassName="ads-history-drawer ads-phase4-drawer" title={drillTarget?drillTarget.entityKey+' | '+drillTarget.sellerName:'Product history'} open={!!drillTarget} onClose={()=>setDrill(null)} width="min(1040px, 96vw)">
             {drillTarget&&<div className="ads-drawer-identity"><div><span>{drillGrouping==='seller'?'Seller':drillGrouping==='parent'?'Parent ASIN':'ASIN'}</span><strong>{drillTarget.entityKey}</strong></div><div><span>Marketplace / currency</span><strong>{drillTarget.marketplace} · {drillTarget.currency}</strong></div><div><span>Report dates</span><strong>{filters.startDate} to {filters.endDate}</strong></div>{drillTarget.title&&<p title={drillTarget.title}>{drillTarget.title}</p>}</div>}
-            {history.isError?<Alert type="error" message={errorText(history.error)} action={<Button onClick={()=>history.refetch()}>Retry</Button>}/>:history.isPending?<Spin/>:history.data&&<Tabs activeKey={drillTab} onChange={setDrillTab} destroyOnHidden items={[
+            <Suspense fallback={<Spin/>}>{drillTarget&&(history.isError?<Alert type="error" message={errorText(history.error)} action={<Button onClick={()=>history.refetch()}>Retry</Button>}/>:history.isPending?<Spin/>:history.data&&<Tabs activeKey={drillTab} onChange={setDrillTab} destroyOnHidden items={[
                 {key:'overview',label:'Overview',children:<>{history.data.empty?<Empty description="No stored records in these dates"/>:<AdsOverview key={drillTarget?.key} report={history.data} granularity="day" compactMode/>}<AdsComparisonPanel report={history.data}/></>},
                 ...(drillGrouping==='asin'?[{key:'diagnostics',label:'ASIN diagnostics',children:history.data.diagnostics?<AdsProductDiagnosticPanel diagnostics={history.data.diagnostics}/>:<Empty description="No ASIN diagnostic observations"/>}]:[]),
                 {key:'history',label:'Daily history',children:<Card size="small" title="Daily report records"><TrendTable series={history.data.series||[]}/></Card>}
-            ]}/>}
+            ]}/>)}</Suspense>
         </Drawer>
         {hasPermission(PERMISSIONS.ADSREPORT_EXPORT)&&exportConfig?.principal===principal&&<AdsExportDialog open initial={exportConfig.filters} principal={principal} onClose={()=>setExportConfig(null)} onSubmit={exportReport} busy={exportBusy} error={exportError}/>}
         {hasPermission(PERMISSIONS.ADSREPORT_IMPORT)&&<AdsImportModal key={principal} isOpen={importOpen} initialTab={importTab} onClose={()=>setImportOpen(false)} onComplete={imported}/>}
