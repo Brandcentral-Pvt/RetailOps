@@ -462,8 +462,11 @@ test('Phase 4 product presets and comparison controls preserve pinned identity a
  await expect(table.getByRole('columnheader',{name:/Ad sales/})).toHaveCount(0);
  await expect.poll(()=>lastReport?.get('sortBy')).toBe('clicks');
  await expect(table.getByRole('button',{name:'B000000001',exact:true})).toBeVisible();
+ const cell=table.locator('tr[data-row-key="row-0"]').getByTestId('ads-pinned-product');
+ const compactPadding=await cell.evaluate(e=>parseFloat(getComputedStyle(e).paddingTop));
  await page.getByText('Comfortable',{exact:true}).click();
- await expect(table.locator('.ant-table-middle')).toBeVisible();
+ await expect(table).toHaveAttribute('data-density','comfortable');
+ await expect.poll(()=>cell.evaluate(e=>parseFloat(getComputedStyle(e).paddingTop))).toBeGreaterThan(compactPadding);
  await assertContained(page);
  await table.getByRole('button',{name:'B000000001',exact:true}).click();
  const drawer=page.getByRole('dialog');

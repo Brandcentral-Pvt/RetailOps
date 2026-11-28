@@ -205,7 +205,7 @@ export default function CanonicalAdsWorkspace(){
                     <Field label="Comparison"><Segmented aria-label="Product comparison display" value={showPrior?'compare':'current'} onChange={v=>setShowPrior(v==='compare')} options={[{label:'Current + prior',value:'compare'},{label:'Current only',value:'current'}]}/></Field>
                     <Field label="Density"><Segmented aria-label="Product table density" value={density} onChange={setDensity} options={[{label:'Compact',value:'compact'},{label:'Comfortable',value:'comfortable'}]}/></Field>
                 </div>
-                <div className="ads-table-shell" data-testid="ads-product-table">
+                <div className="ads-table-shell" data-testid="ads-product-table" data-density={density}>
                     <Table tableLayout="fixed" rowKey="key" columns={columns} dataSource={data.rows} size={density==='compact'?'small':'middle'} sticky scroll={{x:columns.reduce((n,c)=>n+c.width,0),y:520}} loading={report.isFetching}
                         pagination={{current:data.page,pageSize:data.limit,total:data.total,showSizeChanger:true,pageSizeOptions:[25,50,100],showTotal:total=>adsCount(total)+' entities'}}
                         onChange={(p,_f,s,extra)=>{
