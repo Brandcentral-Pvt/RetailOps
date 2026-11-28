@@ -147,7 +147,7 @@ export default function AdsImportModal({isOpen,initialTab='upload',onClose,onCom
  const handleTab=key=>{if(busy)return;setError(null);setTab(key);if(key==='history')loadHistory(1);};
  const currentStep=job?.status==='COMPLETED'?4:job?.status==='PROCESSING'||job?.status==='QUEUED'?3:job?.status==='READY'?2:previewJob(job?.status)?1:0;
  const stopped=['FAILED','CANCELLED','EXPIRED','REJECTED'].includes(job?.status);
- const steps=<div className="ads-import-steps" aria-label="Import workflow">{['Upload','Validate','Confirm','Commit'].map((label,i)=><div key={label} className="ads-import-step" data-state={stopped?'idle':i<currentStep?'done':i===currentStep?'active':'idle'}><strong>{i+1}. {label}</strong>{stopped?'See result':i<currentStep?'Done':i===currentStep?'Current step':'Pending'}</div>)}</div>;
+ const steps=<div className="ads-import-steps" aria-label="Import workflow">{['Upload','Validate','Confirm','Commit'].map((label,i)=><div key={label} className="ads-import-step" aria-current={!stopped&&i===currentStep?'step':undefined} data-state={stopped?'idle':i<currentStep?'done':i===currentStep?'active':'idle'}><strong>{i+1}. {label}</strong>{stopped?'See result':i<currentStep?'Done':i===currentStep?'Current step':'Pending'}</div>)}</div>;
  const uploadContent=<Space direction="vertical" size="middle" style={{width:'100%'}}>
   <Alert showIcon type="info" message="Validate once, confirm from history"
    description="Seller ownership is detected from each ASIN in the RetailOps catalog. Shared, unknown or unauthorized ASINs and mixed currencies are rejected. Validation runs in the background after upload. Validated reports remain available for confirmation for 24 hours. No Ads facts are written until you confirm."/>

@@ -37,11 +37,14 @@ function TrendTooltip({active,payload,mode,currency}){
  const r=payload[0]?.payload;if(!r)return null;
  return <div className="ads-portfolio-tooltip"><strong>{range(r.start,r.end)}</strong>
   {mode.keys.map(k=><div key={k}>{LABELS[k]}: <strong title={r.exact[k]??'Unknown'}>{formatAdsValue(r.exact[k],mode.unit,currency)}</strong><div className="ads-analytics-note">{COVERAGE[metricCoverage(r.source,k)]||'Unknown'}</div></div>)}
-  <div className="ads-analytics-note">{r.source?.coveredDays??0}/{r.days} stored days</div>
+  <div className="ads-analytics-note">{r.source?adsCount(r.source.coveredDays):'0'}/{r.days} stored days</div>
  </div>;
 }
-export function AdsOverviewTrend({report,currency,granularity,onGranularity,onPortfolio,compactMode=false}){
- const [periodKey,setPeriodKey]=useState('current'),[modeKey,setModeKey]=useState('sales_spend');
+export function AdsOverviewTrend({report,currency,granularity,onGranularity,onPortfolio,compactMode=false,preferences,onPreference}){
+ const [localPeriod,setLocalPeriod]=useState('current'),[localMetric,setLocalMetric]=useState('sales_spend');
+ const periodKey=preferences?.period||localPeriod,modeKey=preferences?.metric||localMetric;
+ const setPeriodKey=value=>onPreference?onPreference('period',value):setLocalPeriod(value);
+ const setModeKey=value=>onPreference?onPreference('metric',value):setLocalMetric(value);
  const mode=CHARTS.find(x=>x.value===modeKey)||CHARTS[0];
  const rows=useMemo(()=>buildOverviewTrend({report,currency,periodKey,granularity,keys:mode.keys}),[report,currency,periodKey,granularity,mode]);
  const has=rows.some(r=>mode.keys.some(k=>r[k]!==null)),missing=rows.filter(r=>!r.source).length;
@@ -63,8 +66,10 @@ export function AdsOverviewTrend({report,currency,granularity,onGranularity,onPo
   <div className="ads-chart-footer"><span>{adsCount(missing)} of {adsCount(rows.length)} calendar buckets have no stored facts. Missing values are gaps, not zero.</span>{onPortfolio&&<Button type="link" onClick={onPortfolio}>Compare aligned periods</Button>}</div>
  </Card>;
 }
-export default function AdsOverview({report,granularity,onGranularity,onNavigate,compactMode=false}){
- const [selectedCurrency,setCurrency]=useState(null);
+export default function AdsOverview({report,granularity,onGranularity,onNavigate,compactMode=false,preferences,onPreference}){
+ const [localCurrency,setLocalCurrency]=useState(null);
+ const selectedCurrency=preferences?preferences.currency:localCurrency;
+ const setCurrency=value=>onPreference?onPreference('currency',value):setLocalCurrency(value);
  const currencies=reportCurrencies(report),currency=currencies.includes(selectedCurrency)?selectedCurrency:currencies[0];if(!currency)return null;
  const current=report.current.find(s=>s.currency===currency),previous=report.previous.find(s=>s.currency===currency),comparison=report.comparisons?.find(s=>s.currency===currency),days=report.period.days;
  return <section className={'ads-overview'+(compactMode?' ads-overview-compact':'')} aria-label="Performance overview" data-testid="ads-overview">
@@ -74,7 +79,7 @@ export default function AdsOverview({report,granularity,onGranularity,onNavigate
   <div className="ads-kpi-grid">{METRICS.map(metric=><Kpi key={metric[0]} metric={metric} current={current} previous={previous} comparison={comparison} currency={currency} days={days}/>)}</div>
   {!current&&<div className="ads-evidence-note"><InfoCircleOutlined/> No current-period records. Prior values remain visible; missing current values are not treated as zero.</div>}
   <div className={'ads-overview-lower'+(compactMode?' ads-overview-single':'')}>
-   <AdsOverviewTrend report={report} currency={currency} granularity={granularity} onGranularity={onGranularity} onPortfolio={onNavigate?()=>onNavigate('portfolio'):null} compactMode={compactMode}/>
+   <AdsOverviewTrend report={report} currency={currency} granularity={granularity} onGranularity={onGranularity} onPortfolio={onNavigate?()=>onNavigate('portfolio'):null} compactMode={compactMode} preferences={preferences} onPreference={onPreference}/>
    <Card size="small" title="Reporting evidence" className="ads-overview-evidence">
     {[['Current dates',adsCount(current?.coveredDays)+' / '+adsCount(days)],['Prior dates',adsCount(previous?.coveredDays)+' / '+adsCount(days)],['Current source rows',adsCount(current?.rowCount)],['Prior source rows',adsCount(previous?.rowCount)],['Unmapped current rows',adsCount(current?.unmappedRows)]].map(([label,value])=><div className="ads-evidence-row" key={label}><span>{label}</span><strong>{value}</strong></div>)}
     <div className="ads-evidence-note"><InfoCircleOutlined/> Stored coverage does not establish that every advertising report was uploaded. Financial totals are never reconstructed from ad plus organic sales.</div>

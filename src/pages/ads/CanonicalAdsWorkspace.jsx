@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, Card, Drawer, Empty, Input, Select, Segmented, Skeleton, Spin, Table, Tabs, Tag, Typography } from 'antd';
 import {AppstoreOutlined,BarChartOutlined,BulbOutlined,CalendarOutlined,DashboardOutlined,DownloadOutlined,FilterOutlined,HistoryOutlined,ReloadOutlined,SafetyCertificateOutlined,UploadOutlined,WalletOutlined} from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -56,6 +56,10 @@ export default function CanonicalAdsWorkspace(){
     const {user}=useAuth();
     const queryClient=useQueryClient();
     const [view,setView]=useState('overview');
+    const rootRef=useRef(null);
+    const [overviewPreferences,setOverviewPreferences]=useState({metric:'sales_spend',period:'current',currency:null});
+    const setOverviewPreference=(key,value)=>setOverviewPreferences(prev=>({...prev,[key]:value}));
+    useEffect(()=>{const shell=rootRef.current?.closest('.routes-container');if(shell)shell.scrollTop=0;},[view]);
     const [preset,setPreset]=useState('performance');
     const [showPrior,setShowPrior]=useState(true);
     const [density,setDensity]=useState('compact');
@@ -161,13 +165,13 @@ export default function CanonicalAdsWorkspace(){
     const refreshing=options.isFetching||(reportView&&report.isFetching)||(view==='budgets'&&targets.isFetching)||(view==='opportunities'&&review.isFetching)||(view==='portfolio'&&portfolio.isFetching)||(view==='quality'&&reconciliation.isFetching);
     const navigate=key=>{setView(key);setDrill(null);};
     if(!enabled)return <Alert type="warning" message="Advertising view permission is required." showIcon/>;
-    return <div className="ads-workspace ads-phase4" data-testid="ads-workspace">
+    return <div ref={rootRef} className="ads-workspace ads-phase4" data-testid="ads-workspace">
         <header className="ads-page-header">
             <div className="ads-heading-copy"><div className="ads-eyebrow">REPORTS / ADVERTISING</div><h1>Ads Intelligence</h1><p>Performance, portfolio decisions and report quality in one workspace.</p></div>
             <div className="ads-heading-actions">
-                {hasPermission(PERMISSIONS.ADSREPORT_IMPORT)&&<><Button icon={<HistoryOutlined/>} onClick={()=>openImport('history')}>Import history</Button><Button type="primary" icon={<UploadOutlined/>} onClick={()=>openImport('upload')}>Import CSV</Button></>}
-                {hasPermission(PERMISSIONS.ADSREPORT_EXPORT)&&<Button icon={<DownloadOutlined/>} onClick={exportReport} loading={exportBusy} disabled={!hasDates||exportBusy}>Export XLSX</Button>}
-                <Button icon={<ReloadOutlined/>} onClick={refresh} loading={refreshing}>Refresh</Button>
+                {hasPermission(PERMISSIONS.ADSREPORT_IMPORT)&&<><Button aria-label="Import history" icon={<HistoryOutlined aria-hidden="true"/>} onClick={()=>openImport('history')}>Import history</Button><Button aria-label="Import CSV" type="primary" icon={<UploadOutlined aria-hidden="true"/>} onClick={()=>openImport('upload')}>Import CSV</Button></>}
+                {hasPermission(PERMISSIONS.ADSREPORT_EXPORT)&&<Button aria-label="Export XLSX" icon={<DownloadOutlined aria-hidden="true"/>} onClick={exportReport} loading={exportBusy} disabled={!hasDates||exportBusy}>Export XLSX</Button>}
+                <Button aria-label="Refresh" icon={<ReloadOutlined aria-hidden="true"/>} onClick={refresh} loading={refreshing}>Refresh</Button>
             </div>
         </header>
         <div className="ads-source-strip"><span className="ads-source-dot" aria-hidden="true"/><strong>Imported daily reports</strong><span>Currency groups remain separate. Data reflects uploaded reports, not live advertising delivery.</span></div>
@@ -191,7 +195,7 @@ export default function CanonicalAdsWorkspace(){
           {reportView&&(report.isError?<Alert type="error" showIcon message={errorText(report.error)} action={<Button onClick={()=>report.refetch()}>Retry</Button>}/>:report.isPending?<ReportLoading/>:data&&<>
             <div className="ads-period-note ads-comparison-period"><span>Current: <strong>{data.period.startDate} to {data.period.endDate}</strong></span><span>Previous: <strong>{data.period.prevStart} to {data.period.prevEnd}</strong></span>{report.isFetching&&<span role="status">Refreshing report…</span>}</div>
             {data.empty?<Card className="ads-empty-card"><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No canonical advertising records in the selected dates.">{hasPermission(PERMISSIONS.ADSREPORT_IMPORT)&&<Button type="primary" onClick={()=>openImport('upload')}>Import a report</Button>}</Empty></Card>:view==='overview'?<>
-                <AdsOverview key={reviewSignature} report={data} granularity={granularity} onGranularity={setGranularity} onNavigate={navigate}/>
+                <AdsOverview key={reviewSignature} report={data} granularity={granularity} onGranularity={setGranularity} onNavigate={navigate} preferences={overviewPreferences} onPreference={setOverviewPreference}/>
                 <AdsComparisonPanel report={data}/>
             </>:<Card size="small" className="ads-product-card">
                 <div className="ads-section-heading"><div><h2>Product and seller analytics</h2><p>{adsCount(data.total)} matching entities · Server-side sorting and pagination</p></div><Tag>{showPrior?'Current vs prior':'Current only'}</Tag></div>
@@ -225,6 +229,6 @@ export default function CanonicalAdsWorkspace(){
                 {key:'history',label:'Daily history',children:<Card size="small" title="Daily report records"><TrendTable series={history.data.series||[]}/></Card>}
             ]}/>}
         </Drawer>
-        {hasPermission(PERMISSIONS.ADSREPORT_IMPORT)&&<AdsImportModal isOpen={importOpen} initialTab={importTab} onClose={()=>setImportOpen(false)} onComplete={imported}/>}
+        {hasPermission(PERMISSIONS.ADSREPORT_IMPORT)&&<AdsImportModal key={principal} isOpen={importOpen} initialTab={importTab} onClose={()=>setImportOpen(false)} onComplete={imported}/>}
     </div>;
 }

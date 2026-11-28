@@ -402,6 +402,19 @@ test('Phase 4 overview and focused views keep filter scope and defer heavy reque
  await expect(page.getByTestId('ads-reconciliation-panel')).toHaveCount(0);
  expect(requests.some(r=>/canonical-(budget|portfolio|insights|reconciliation)$/.test(r.pathname))).toBe(false);
  await expect(page.getByTestId('ads-overview-trend').getByRole('img',{name:'Ad sales & spend current trend in INR'})).toBeVisible();
+ // Granularity changes trigger a new request; chart selections must survive
+ // that loading transition, not silently return to the default metric.
+ await page.locator('#ads-overview-trend-metric').click();
+ await page.getByRole('option',{name:'Total sales',exact:true}).click();
+ await page.locator('#ads-overview-trend-granularity').click();
+ await page.getByRole('option',{name:'Monthly',exact:true}).click();
+ await expect.poll(()=>requests.filter(r=>r.pathname.endsWith('/canonical-report')).at(-1)?.searchParams.get('granularity')).toBe('month');
+ await expect(page.getByTestId('ads-overview-trend').locator('.ant-select').first()).toContainText('Total sales');
+ // Return to the day view for the remainder of the shared-scope regression.
+ await page.locator('#ads-overview-trend-granularity').click();
+ await page.getByRole('option',{name:'Daily',exact:true}).click();
+ await expect.poll(()=>requests.filter(r=>r.pathname.endsWith('/canonical-report')).at(-1)?.searchParams.get('granularity')).toBe('day');
+
  await assertContained(page);
  await page.locator('#ads-product-search').fill('B000000001');
  await page.getByRole('button',{name:'Apply',exact:true}).click();
