@@ -110,7 +110,11 @@ test('SQL durable Ads job lifecycle, scope, atomic confirmation, retries and exp
   // A queued job survives a process restart. Expire a claimed lease without
   // executing its writer, then verify a new worker takes over and stale tokens fail.
   const recover=await preview([{...row,date:'2026-04-05'}]);await confirmJob({...ctx,id:recover.id});
+  const waiting=await preview([{...row,date:'2026-04-08'}]);await confirmJob({...ctx,id:waiting.id});
   const firstClaim=await claimNext({pool,sql});assert.equal(firstClaim.Id,recover.id);
+  assert.equal(await claimNext({pool,sql}),null);
+  assert.equal((await getJob({...ctx,id:waiting.id})).status,'QUEUED');
+  await cancelJob({...ctx,id:waiting.id});
   assert.equal((await getJob({...ctx,id:recover.id})).status,'PROCESSING');
   await assert.rejects(()=>cancelJob({...ctx,id:recover.id}),{code:'job_not_ready'});
   await pool.request().input('id',sql.VarChar(50),recover.id).query("UPDATE dbo.AdsImportJobs SET LeaseUntil=DATEADD(second,-1,SYSUTCDATETIME()) WHERE Id=@id;");
