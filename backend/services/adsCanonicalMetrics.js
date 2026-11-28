@@ -85,6 +85,7 @@ const pairSelect=Object.entries(RATIOS).flatMap(([key,[n,d]])=>{
     sumText('CASE WHEN '+condition+' THEN '+a+' END')+' AS ['+key+'PairNumerator]',
     sumText('CASE WHEN '+condition+' THEN '+b+' END')+' AS ['+key+'PairDenominator]'];
 });
+const aggregateProjection=[count('*')+' AS [rowCount]',...metricSelect,...pairSelect].join(',');
 async function readCanonicalSummary({pool,sql,user,sellerId,startDate,endDate}){
   const scope=strictScope(user,sellerId),period=validateWindow(startDate,endDate);
   if(scope.empty)return {period,reportType:'daily',currencies:[],empty:true,source:'canonical_v1'};
@@ -94,9 +95,11 @@ async function readCanonicalSummary({pool,sql,user,sellerId,startDate,endDate}){
     request.input('sellerIds',sql.NVarChar(sql.MAX),JSON.stringify(scope.sellerIds));
     predicate=" AND EXISTS (SELECT 1 FROM OPENJSON(@sellerIds) WITH (id varchar(50) '$') x WHERE x.id=p.SellerId)";
   }
-  const result=await request.query("SELECT p.Currency AS currency,"+count('*')+" AS rowCount,"+
-    [...metricSelect,...pairSelect].join(',')+" FROM dbo.AdsProductDailyFacts p WHERE p.ReportType='daily' AND p.[Date]>=CONVERT(date,@startDate,23) AND p.[Date]<=CONVERT(date,@endDate,23)"+predicate+" GROUP BY p.Currency ORDER BY p.Currency;");
+  let result;
+  try { result=await request.query("SELECT p.Currency AS [currency],"+count('*')+" AS [rowCount],"+
+    [...metricSelect,...pairSelect].join(',')+" FROM dbo.AdsProductDailyFacts p WHERE p.ReportType='daily' AND p.[Date]>=CONVERT(date,@startDate,23) AND p.[Date]<=CONVERT(date,@endDate,23)"+predicate+" GROUP BY p.Currency ORDER BY p.Currency;"); }
+  catch(error){throw new Error('Canonical currency summary SQL failed: '+error.message,{cause:error});}
   const currencies=result.recordset.map(shapeSummary);
   return {period,reportType:'daily',currencies,empty:currencies.length===0,source:'canonical_v1'};
 }
-module.exports={METRICS,RATIOS,ratio,shapeSummary,validateWindow,readCanonicalSummary};
+module.exports={METRICS,RATIOS,ratio,shapeSummary,validateWindow,readCanonicalSummary,aggregateProjection};

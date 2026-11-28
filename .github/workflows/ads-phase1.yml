@@ -14,6 +14,7 @@ on:
       - 'backend/testUtils/adsPhase1.*'
       - 'backend/scripts/validateAdsProductReport.js'
       - 'src/components/ads/**'
+      - 'src/pages/ads/**'
       - '.github/workflows/ads-phase1.yml'
   workflow_dispatch:
 permissions:
@@ -36,7 +37,9 @@ jobs:
           node --check backend/services/adsCanonicalMetrics.js
           node --check backend/services/adsCanonicalScope.js
           node --check backend/controllers/adsCanonicalSummaryController.js
-          node --test backend/testUtils/adsPhase1.contract.node.cjs backend/testUtils/adsPhase1.canonical.node.cjs
+          node --check backend/services/adsCanonicalReport.js
+          node --check backend/controllers/adsCanonicalReportController.js
+          node --test backend/testUtils/adsPhase1.contract.node.cjs backend/testUtils/adsPhase1.canonical.node.cjs backend/testUtils/adsPhase1.report.node.cjs
   sql:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -55,8 +58,19 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --prefix /tmp/ads-test-sql --ignore-scripts --no-audit --no-fund mssql@12.7.11
-      - run: node --test --test-concurrency=1 backend/testUtils/adsPhase1.sql.node.cjs backend/testUtils/adsPhase1.writer.sql.node.cjs
+      - run: node --test --test-concurrency=1 backend/testUtils/adsPhase1.sql.node.cjs backend/testUtils/adsPhase1.writer.sql.node.cjs backend/testUtils/adsPhase1.report.sql.node.cjs
         env:
           ADS_SQL_SMOKE: '1'
           ADS_TEST_SQL_PASSWORD: 'AdsDisposable#2026!'
           ADS_TEST_MSSQL_MODULE: '/tmp/ads-test-sql/node_modules/mssql'
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build

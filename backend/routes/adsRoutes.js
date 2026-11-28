@@ -36,6 +36,9 @@ router.get('/meta', authenticate, cacheRoute('ads:meta', 300), controller.getMet
 router.get('/overview', authenticate, canViewAds, controller.getOverview);
 // Isolated read-only diagnostic. Existing page continues to use legacy endpoints until cutover.
 router.get('/canonical-summary', authenticate, canViewAds, require('../controllers/adsCanonicalSummaryController').getSummary);
+const canonicalReport = require('../controllers/adsCanonicalReportController');
+router.get('/canonical-report', authenticate, canViewAds, canonicalReport.report);
+router.get('/canonical-options', authenticate, canViewAds, canonicalReport.options);
 router.get('/series', authenticate, canViewAds, controller.getSeries);
 router.get('/table', authenticate, canViewAds, controller.getTable);
 router.get('/history', authenticate, canViewAds, controller.getHistory);
