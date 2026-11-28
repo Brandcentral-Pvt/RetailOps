@@ -33,20 +33,25 @@ const aiLimiter = createLimiter('STRICT');
 
 router.get('/meta', authenticate, cacheRoute('ads:meta', 300), controller.getMeta);
 
-router.get('/overview', authenticate, canViewAds, controller.getOverview);
+// Old financial contracts are retired, not silently redirected to incompatible shapes.
+const retired=(_req,res)=>res.status(410).json({success:false,code:'ads_legacy_retired',message:'This legacy Ads endpoint has been retired. Use canonical reporting.'});
+router.get('/overview', authenticate, canViewAds, retired);
 // Isolated read-only diagnostic. Existing page continues to use legacy endpoints until cutover.
 router.get('/canonical-summary', authenticate, canViewAds, require('../controllers/adsCanonicalSummaryController').getSummary);
 const canonicalReport = require('../controllers/adsCanonicalReportController');
 router.get('/canonical-report', authenticate, canViewAds, canonicalReport.report);
 router.get('/canonical-options', authenticate, canViewAds, canonicalReport.options);
-router.get('/series', authenticate, canViewAds, controller.getSeries);
-router.get('/table', authenticate, canViewAds, controller.getTable);
-router.get('/history', authenticate, canViewAds, controller.getHistory);
-router.get('/filter-options', authenticate, canViewAds, cacheRoute('ads:meta', 120), controller.getFilterOptions);
-router.get('/insights', authenticate, canViewAds, controller.getInsights);
-router.get('/report', authenticate, canViewAds, controller.getReport);
+router.get('/canonical-targets', authenticate, canViewAds, require('../controllers/adsCanonicalTargetsController').targets);
+// Separate export permission. Also require view, since this is a report read.
+router.get('/canonical-export', authenticate, canViewAds, requirePermission('adsreport_export'), require('../controllers/adsCanonicalExportController').download);
+router.get('/series', authenticate, canViewAds, retired);
+router.get('/table', authenticate, canViewAds, retired);
+router.get('/history', authenticate, canViewAds, retired);
+router.get('/filter-options', authenticate, canViewAds, retired);
+router.get('/insights', authenticate, canViewAds, retired);
+router.get('/report', authenticate, canViewAds, retired);
 
-router.post('/ai-review', authenticate, canViewAds, aiLimiter, controller.postAiReview);
+router.post('/ai-review', authenticate, canViewAds, aiLimiter, retired);
 
 // ── Saved views (filter presets) ────────────────────────────────────────
 

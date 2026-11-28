@@ -69,7 +69,7 @@ const dashboardPool = () => makeFakePool([
     { match: /TOP 5/, rows: [] },
     { match: /FROM Actions/, rows: [{ Status: 'Pending', Count: 2 }] },
     {
-        match: /FROM AdsPerformance AP\s+JOIN Asins A/,
+        match: /FROM dbo\.AdsProductDailyFacts AP[\s\S]*GROUP BY AP\.Date/,
         rows: [{
             AsinCode: 'B0TEST0001',
             Date: NOW,
@@ -78,7 +78,7 @@ const dashboardPool = () => makeFakePool([
             Orders: 5,
             OrganicSales: 150,
             Impressions: 900,
-            Clicks: 40,
+            Clicks:40,FactRows:1,AdSalesCount:1,AdSpendCount:1,TotalSalesCount:1,OrganicSalesCount:1,OrdersCount:1,ImpressionsCount:1,ClicksCount:1,acosPairCount:1,tacosPairCount:1,adSharePairCount:1,roasPairCount:1,ctrPairCount:1,cpcPairCount:1,TotalSales:500,
         }],
     },
     { match: /SELECT SellerId, COUNT\(\*\) as Count/, rows: [{ SellerId: 's1', Count: 4 }] },
@@ -91,7 +91,7 @@ const dashboardPool = () => makeFakePool([
             Category: 'Home', CurrentPrice: 4999, SellerId: 's1', SellerName: 'ACME', Marketplace: 'Amazon',
             GmsRevenue: 250, GmsUnits: 5, ShippedRevenue: 200, Returns: 0,
             PrevGmsRevenue: 0, PrevGmsUnits: 0, ActiveDays: 1,
-            AdSales: 100, AdSpend: 25, AdOrders: 5,
+            AdSales:100,AdSpend:25,Orders:5,FactRows:1,AdSalesCount:1,AdSpendCount:1,TotalSalesCount:1,OrganicSalesCount:1,OrdersCount:1,ImpressionsCount:1,ClicksCount:1,acosPairCount:1,tacosPairCount:1,adSharePairCount:1,roasPairCount:1,ctrPairCount:1,cpcPairCount:1,TotalSales:500,
         }],
     },
     // /alerts endpoint
@@ -169,7 +169,7 @@ describe('GET /api/dashboard — SQL binding & period correctness', () => {
         expect(topAsins).not.toBeNull();
         expect(topAsins.inputs.dashSeller_0).toBe('s1');
 
-        const adsQuery = mockState.pool.callWhere(/FROM AdsPerformance AP\s+JOIN Asins A/);
+        const adsQuery = mockState.pool.callWhere(/FROM dbo\.AdsProductDailyFacts AP[\s\S]*GROUP BY AP\.Date/);
         expect(adsQuery.inputs.dashSeller_0).toBe('s1');
 
         const asinCounts = mockState.pool.callWhere(/SUM\(CASE WHEN Status IN/);
@@ -186,7 +186,7 @@ describe('GET /api/dashboard — SQL binding & period correctness', () => {
         expect(topAsins.sql).toMatch(/FROM GmsDailyPerformance g\s+WHERE g\.Date BETWEEN @prevStart AND @endDate/);
         expect(topAsins.sql).toMatch(/ORDER BY G\.GmsRevenue DESC/);
         // Ads is context only: LEFT JOIN of a window + daily restricted aggregate.
-        expect(topAsins.sql).toMatch(/LEFT JOIN AdsAgg AD ON AD\.Asin = G\.Asin/);
+        expect(topAsins.sql).toMatch(/LEFT JOIN AdsAgg AD ON AD\.Asin = G\.Asin AND AD\.SellerId = A\.SellerId/);
         expect(topAsins.sql).toMatch(/AP\.Date BETWEEN @startDate AND @endDate\s+AND AP\.ReportType = 'daily'/);
         expect(topAsins.inputs.startDate).toBeDefined();
         expect(topAsins.inputs.endDate).toBeDefined();

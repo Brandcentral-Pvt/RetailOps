@@ -73,17 +73,17 @@ export const KpiRow = ({ dashboardRaw, focus, onFocus, span = 2 }) => {
     const days = dashboardRaw?.period?.days;
     const vs = days ? `vs prev ${days}d` : 'vs prev period';
 
-    const adSales = adsBlock ? Number(adsBlock.adSales) : (adsPerf[0]?.data || []).reduce((a, b) => a + b, 0);
-    const adSpend = adsBlock ? Number(adsBlock.adSpend) : (adsPerf[1]?.data || []).reduce((a, b) => a + b, 0);
-    const adOrders = adsBlock ? Number(adsBlock.orders) : (dashboardRaw?.ordersSeries || []).reduce((a, b) => a + b, 0);
-    const acos = adSales > 0 ? (adSpend / adSales) * 100 : 0;
-    const roas = adSpend > 0 ? adSales / adSpend : 0;
-    const dailySpend = days > 0 ? adSpend / days : Number(dashboardRaw?.dailySpend || 0);
+    const numeric=v=>v==null?null:Number(v);
+    const adSales=numeric(adsBlock?.adSales),adSpend=numeric(adsBlock?.adSpend),adOrders=numeric(adsBlock?.orders);
+    const acos=numeric(adsBlock?.acos),roas=numeric(adsBlock?.roas);
+    const dailySpend=days>0&&adSpend!=null?adSpend/days:null;
+    const show=(v,fmt)=>v==null?'N/A':fmt(v);
+    const metricDelta=(key,a,b)=>a!=null&&b!=null&&adsBlock?.coverage?.[key]?.status==='complete'&&prev?.adsCoverage?.[key]?.status==='complete'?pctDelta(a,b):null;
+    const ratioDelta=(key,a,b,fn)=>a!=null&&b!=null&&adsBlock?.ratioCoverage?.[key]==='complete'&&prev?.adsRatioCoverage?.[key]==='complete'?fn(a,b):null;
     const hasGms = !!gms;
     const gmsRevenue = Number(gms?.revenue) || 0;
     const gmsUnits = Number(gms?.units) || 0;
-    const tacos = gmsRevenue > 0 ? (adSpend / gmsRevenue) * 100 : null;
-    const adShare = gmsRevenue > 0 ? (adSales / gmsRevenue) * 100 : null;
+    const tacos=numeric(adsBlock?.tacos),adShare=numeric(adsBlock?.adShare);
 
     const tiles = [
         {
@@ -103,32 +103,32 @@ export const KpiRow = ({ dashboardRaw, focus, onFocus, span = 2 }) => {
             spark: <Sparkline data={gms?.unitsSeries || []} color={OPS_COLOR.accent} />,
         },
         {
-            key: 'adSales', label: 'Ad sales', tip: 'Ad-attributed sales in the period (AdsPerformance).',
-            value: fmtINR(adSales),
-            sub: adShare !== null ? `${fmtPct(adShare)} of GMS · ${fmtNum(adOrders)} ad orders` : `${fmtNum(adOrders)} ad orders`,
-            delta: <Delta value={prev ? pctDelta(adSales, prev.adSales) : null} label={vs} compact />,
+            key: 'adSales', label: 'Ad sales', tip: 'Observed ad-attributed sales in INR from canonical facts.',
+            value: show(adSales,fmtINR),
+            sub: adShare !== null ? `${fmtPct(adShare)} of reported total sales · ${show(adOrders,fmtNum)} ad orders` : `${show(adOrders,fmtNum)} ad orders`,
+            delta: <Delta value={metricDelta('AdSales',adSales,prev?.adSales)} label={vs} compact />,
             spark: <Sparkline data={adsPerf[0]?.data || []} color={OPS_COLOR.pos} />,
         },
         {
-            key: 'adSpend', label: 'Ad spend', tip: 'Advertising spend in the period. Change is informational (neither good nor bad on its own).',
-            value: fmtINR(adSpend),
-            sub: tacos !== null ? `TACoS ${fmtPct(tacos)} · ${fmtINR(dailySpend)} / day` : `${fmtINR(dailySpend)} / day`,
-            delta: <Delta value={prev ? pctDelta(adSpend, prev.adSpend) : null} label={vs} compact neutral />,
+            key: 'adSpend', label: 'Ad spend', tip: 'Observed advertising spend in INR. Missing observations are unknown.',
+            value: show(adSpend,fmtINR),
+            sub: tacos !== null ? `TACoS ${fmtPct(tacos)} · ${show(dailySpend,fmtINR)} / day` : `${show(dailySpend,fmtINR)} / day`,
+            delta: <Delta value={metricDelta('AdSpend',adSpend,prev?.adSpend)} label={vs} compact neutral />,
             spark: <Sparkline data={adsPerf[1]?.data || []} color={OPS_COLOR.warn} />,
         },
         {
             key: 'acos', label: 'ACoS', tip: 'Ad spend ÷ ad sales. Lower is better; change shown in percentage points.',
-            value: fmtPct(acos),
+            value: show(acos,fmtPct),
             sub: 'spend ÷ ad sales · lower is better',
-            delta: <Delta value={prev && prev.adSales > 0 ? pointDelta(acos, prev.acos) : null} label={vs} compact invert points />,
+            delta: <Delta value={ratioDelta('acos',acos,prev?.acos,pointDelta)} label={vs} compact invert points />,
             spark: <Sparkline data={dashboardRaw?.acosSeries || []} color={OPS_COLOR.warn} />,
         },
         {
             key: 'roas', label: 'ROAS', tip: 'Ad sales ÷ ad spend. Shown as ACoS on the trend chart.',
-            value: roas.toFixed(2), unit: '×',
+            value: roas==null?'N/A':roas.toFixed(2), unit: roas==null?'':'×',
             sub: 'ad sales ÷ spend',
-            delta: <Delta value={prev && prev.adSpend > 0 ? pctDelta(roas, prev.roas) : null} label={vs} compact />,
-            spark: <Sparkline data={(dashboardRaw?.acosSeries || []).map((v) => (v > 0 ? 100 / v : 0))} color={OPS_COLOR.pos} />,
+            delta: <Delta value={ratioDelta('roas',roas,prev?.roas,pctDelta)} label={vs} compact />,
+            spark: <Sparkline data={(dashboardRaw?.acosSeries || []).map((v) => (v > 0 ? 100 / v : null))} color={OPS_COLOR.pos} />,
         },
     ];
 
@@ -446,8 +446,6 @@ export const MixPanel = ({ dashboardRaw, status, onRetry }) => {
 
 const GOAL_DISPLAY = [
     { type: 'GMS', name: 'GMS', color: OPS_COLOR.accent, note: 'Merchandise value vs target' },
-    { type: 'ADS', name: 'Ad revenue', color: OPS_COLOR.pos, note: 'Ad sales vs target' },
-    { type: 'ACOS', name: 'ACoS', color: OPS_COLOR.warn, note: 'Target ÷ actual — lower is better', lower: true },
 ];
 
 const targetLabel = (t) => t.SellerName || t.sellerName || t.Seller?.Name || t.SellerId || 'Target';
@@ -472,7 +470,7 @@ export const AchievementPanel = ({ targets, status, onRetry }) => {
     const openGroup = groups.find((g) => g.type === open);
 
     return (
-        <Panel id="ops-goals" span={8} kicker="Goal achievement" meta={`${targets.length} targets in view · click a goal for its targets`}>
+        <Panel id="ops-goals" span={8} kicker="GMS goal achievement" meta="Advertising targets are available in Ads Intelligence">
             {status === 'error' ? (
                 <MiniState tone="error" title="Achievement unavailable" note="Targets could not be loaded." onRetry={onRetry} />
             ) : groups.length === 0 ? (

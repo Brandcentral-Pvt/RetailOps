@@ -100,7 +100,8 @@ function scopeMeta(filters){
 function emptyReport(filters){
   return {...scopeMeta(filters),current:[],previous:[],series:[],rows:[],total:0,page:1,limit:filters.limit,totalPages:1,empty:true};
 }
-async function readCanonicalReport({pool,sql,user,query}){
+const MAX_EXPORT_ENTITIES=5000;
+async function readCanonicalReport({pool,sql,user,query,exportAll=false}){
   const f=parseReport(user,query);
   if(f.scope.empty)return emptyReport(f);
   const tx=new sql.Transaction(pool);
@@ -146,11 +147,14 @@ async function readCanonicalReport({pool,sql,user,query}){
       const n=await tx.request().query('SELECT CONVERT(varchar(30),COUNT_BIG(*)) AS [total] FROM #AdsEntities;');
       total=Number(n.recordset[0].total);
       if(!Number.isSafeInteger(total)||total<0)throw new Error('Entity count exceeds supported pagination range.');
-      totalPages=Math.max(1,Math.ceil(total/f.limit));page=Math.min(f.page,totalPages);
+      if(exportAll&&total>MAX_EXPORT_ENTITIES)throw new AdsScopeError('export_too_large','This export exceeds 5,000 entities. Narrow seller, currency, date or catalog filters; no rows were truncated.',422);
+      const effectiveLimit=exportAll?Math.max(1,total):f.limit;
+      totalPages=Math.max(1,Math.ceil(total/effectiveLimit));page=exportAll?1:Math.min(f.page,totalPages);
       const sort=f.sortBy==='entityKey'?'e.[EntityKey]':'TRY_CONVERT(decimal(38,10),c.['+f.sortBy+'])';
-      const ordering='CASE WHEN '+sort+' IS NULL THEN 1 ELSE 0 END,'+sort+' '+f.sortOrder.toUpperCase()+','+aliases;
+      const ties=keys.filter(c=>c!=='[Currency]'&&(f.sortBy!=='entityKey'||c!=='[EntityKey]')).map(c=>'e.'+c).join(',');
+      const ordering='e.[Currency] ASC,CASE WHEN '+sort+' IS NULL THEN 1 ELSE 0 END,'+sort+' '+f.sortOrder.toUpperCase()+(ties?','+ties:'');
       stage='page';
-      await tx.request().input('offset',sql.BigInt,(page-1)*f.limit).input('limit',sql.Int,f.limit).query(
+      await tx.request().input('offset',sql.BigInt,(page-1)*effectiveLimit).input('limit',sql.Int,effectiveLimit).query(
         'INSERT #AdsPage ([rank],'+keys.join(',')+') SELECT ROW_NUMBER() OVER (ORDER BY '+ordering+'),'+aliases+
         " FROM #AdsEntities e LEFT JOIN #AdsGroups c ON "+equal('e','c')+" AND c.[periodKey]='current' ORDER BY "+ordering+' OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY;');
       const result=await tx.request().query('SELECT g.* FROM #AdsPage e JOIN #AdsGroups g ON '+equal('e','g')+' ORDER BY e.[rank],g.[periodKey];');
@@ -186,4 +190,4 @@ async function readCanonicalOptions({pool,sql,user,sellerId}){
   return {sellers:sellerRows.recordset.slice(0,1000),brands:brands.slice(0,500),categories:categories.slice(0,500),currencies:currencies.recordset.map(x=>x.value),parentAvailable:columns.has('parentasin'),
     truncated:sellerRows.recordset.length>1000||brands.length>500||categories.length>500};
 }
-module.exports={parseReport,readCanonicalReport,readCanonicalOptions,combineRows};
+module.exports={parseReport,readCanonicalReport,readCanonicalOptions,combineRows,MAX_EXPORT_ENTITIES};

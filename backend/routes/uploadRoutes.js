@@ -50,10 +50,9 @@ const upload = multer({
 });
 
 router.post('/upload/upload-monthly', authenticate, upload.single('file'), uploadController.uploadMonthlyData);
-// The v1 fact model is not yet connected to the transactional writer or all readers.
-// Fail closed instead of letting old clients bypass owner-aware ingestion.
+// Retire the unconfirmed legacy writer. New clients validate and explicitly confirm.
 router.post('/upload/upload-ads', authenticate, requirePermission('adsreport_import'), (_req,res) =>
-  res.status(409).json({success:false,code:'ads_import_paused',message:'Advertising imports are paused until canonical ingestion is enabled. Use report validation instead.'}));
+  res.status(409).json({success:false,code:'ads_import_confirmation_required',message:'Validate the report and confirm through the canonical import workflow.'}));
 const adsValidation = require('../controllers/adsProductValidationController');
 const { MAX_FILE_BYTES: ADS_MAX_FILE_BYTES } = require('../services/adsProductContract');
 const adsCsvUpload = multer({
@@ -65,14 +64,17 @@ const adsCsvUpload = multer({
   fileFilter: (_req,file,cb) => /\.csv$/i.test(file.originalname)?cb(null,true):cb(new Error('Only CSV supported'))
 }).single('file');
 router.get('/upload/ads-validation-sellers', authenticate, requirePermission('adsreport_import'), adsValidation.listSellers);
-router.post('/upload/ads-validate', authenticate, requirePermission('adsreport_import'), (req,res,next) => {
+const receiveAdsCsv=(req,res,next) => {
   adsCsvUpload(req,res,err => {
     if(err) return res.status(err.code==='LIMIT_FILE_SIZE'?413:400).json({
       success:false,code:'invalid_upload',message:'Select one UTF-8 CSV up to 32 MiB.'
     });
     next();
   });
-}, adsValidation.validate);
+};
+const adsImportLimiter = require('../middleware/rateLimiter').createLimiter('STRICT');
+router.post('/upload/ads-validate', authenticate, requirePermission('adsreport_import'), adsImportLimiter, receiveAdsCsv, adsValidation.validate);
+router.post('/upload/ads-confirm', authenticate, requirePermission('adsreport_import'), adsValidation.importGate, adsImportLimiter, receiveAdsCsv, adsValidation.confirm);
 router.post('/upload/octoparse', authenticate, upload.single('file'), uploadController.uploadOctoparseData);
 router.get('/upload/upload-stats', authenticate, uploadController.getUploadStats);
 

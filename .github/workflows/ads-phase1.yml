@@ -7,6 +7,11 @@ on:
       - 'backend/services/ads*.js'
       - 'backend/controllers/ads*.js'
       - 'backend/routes/adsRoutes.js'
+      - 'backend/routes/dataRoutes.js'
+      - 'backend/routes/exportRoutes.js'
+      - 'backend/controllers/dashboardController.js'
+      - 'backend/controllers/targetController.js'
+      - 'src/pages/opsCenter/**'
       - 'backend/utils/sellerScope.js'
       - 'backend/utils/roleUtils.js'
       - 'backend/migrations/098_ads_product_daily_facts.js'
@@ -39,7 +44,13 @@ jobs:
           node --check backend/controllers/adsCanonicalSummaryController.js
           node --check backend/services/adsCanonicalReport.js
           node --check backend/controllers/adsCanonicalReportController.js
-          node --test backend/testUtils/adsPhase1.contract.node.cjs backend/testUtils/adsPhase1.canonical.node.cjs backend/testUtils/adsPhase1.report.node.cjs
+          node --check backend/services/adsImportConfirmation.js
+          node --check backend/services/adsCanonicalTargets.js
+          node --check backend/services/adsConsumerMetrics.js
+          node --check backend/controllers/dashboardController.js
+          node --check backend/controllers/targetController.js
+          node --check backend/controllers/adsCanonicalExportController.js
+          node --test backend/testUtils/adsPhase1.contract.node.cjs backend/testUtils/adsPhase1.canonical.node.cjs backend/testUtils/adsPhase1.report.node.cjs backend/testUtils/adsPhase1.activation.node.cjs
   sql:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -74,3 +85,19 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+  consumer-regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: backend
+      - run: npm test -- --runInBand __tests__/routes/adsRoutes.test.js __tests__/routes/dashboardAccess.test.js __tests__/unit/dashboardTopAsins.test.js
+        working-directory: backend
+      - run: node --test testUtils/adsPhase1.workbook.node.cjs
+        working-directory: backend

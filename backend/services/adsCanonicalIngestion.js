@@ -1,6 +1,5 @@
 'use strict';
-// Internal transactional writer. Deliberately not exposed through an HTTP import
-// route until canonical UI/readers/export are ready and the activation gate passes.
+// Canonical transactional writer. HTTP callers must authenticate, authorize and verify confirmation before invocation.
 const contract=require('../contracts/ads-product-daily-v1.json');
 const {validateReport,replayValidatedRows,AdsValidationError,MAX_FILE_BYTES}=require('./adsProductContract');
 const {explicitSeller,resolveContext,AdsScopeError}=require('./adsCanonicalScope');
@@ -26,7 +25,7 @@ function actorId(user){
 function bindScope(request,sql,{sellerId,marketplace,currency}){
   return request.input('seller',sql.VarChar(50),sellerId).input('marketplace',sql.NVarChar(50),marketplace).input('currency',sql.Char(3),currency);
 }
-async function ingestCanonicalReport({pool,sql,user,sellerId,reportType,input}){
+async function ingestCanonicalReport({pool,sql,user,sellerId,reportType,input,expectedContext=null}){
   const seller=explicitSeller(user,sellerId);
   const actor=actorId(user);
   if(reportType!=='daily')throw new AdsIngestionError('unsupported_report_type','Only product_daily v1 is supported.');
@@ -67,6 +66,8 @@ async function ingestCanonicalReport({pool,sql,user,sellerId,reportType,input}){
     if(!sellerRow||sellerRow.Id!==seller)throw new AdsIngestionError('seller_not_found','The selected seller is not available.');
     const context=resolveContext(sellerRow);
     if(!context)throw new AdsIngestionError('seller_context_unverified','The seller marketplace and currency must be verified.');
+    if(expectedContext&&(expectedContext.marketplace!==context.marketplace||expectedContext.currency!==context.currency))
+      throw new AdsIngestionError('seller_context_changed','Seller marketplace or currency changed after validation. Validate again.');
     const scope={sellerId:seller,...context};
     // Require exactly one catalog mapping under the explicit seller. A shared ASIN
     // owned by this seller and another is allowed; foreign-only, unknown, and

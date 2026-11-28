@@ -9,7 +9,7 @@ const {
     getExportFields,
     startGmsExport
 } = require('../controllers/exportController');
-const { startAdsExport } = require('../controllers/exportAdsController');
+const startAdsExport=(_req,res)=>res.status(410).json({success:false,code:'ads_legacy_retired',message:'Use the canonical Ads Intelligence workbook export.'});
 
 router.post('/start', auth, startExport);
 router.post('/start-ads', auth, requirePermission('adsreport_export'), startAdsExport);

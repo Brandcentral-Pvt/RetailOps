@@ -10,8 +10,9 @@ router.get('/master-revenue', authenticate, requirePermission('skureport_view'),
 router.get('/chart-data', authenticate, requirePermission('dashboard_view'), controller.getChartData); // Monthly trend
 router.get('/chart-size-bar', authenticate, requirePermission('dashboard_view'), controller.getRevenueBySize); // Revenue by size
 router.get('/chart-size-pie', authenticate, requirePermission('dashboard_view'), controller.getSizeShare); // Size share pie
-router.get('/data/ads-report', authenticate, requirePermission('adsreport_view'), controller.getAdsReport);
-router.get('/data/ads-manager', authenticate, requirePermission('adsreport_view'), controller.getAdsManagerData);
+const retiredAds=(_req,res)=>res.status(410).json({success:false,code:'ads_legacy_retired',message:'Use the canonical Ads Intelligence report.'});
+router.get('/data/ads-report', authenticate, requirePermission('adsreport_view'), retiredAds);
+router.get('/data/ads-manager', authenticate, requirePermission('adsreport_view'), retiredAds);
 router.get('/data/sku-report', authenticate, requirePermission('skureport_view'), controller.getSkuReport);
 router.get('/data/parent-asin-report', authenticate, requirePermission('parentreport_view'), controller.getParentAsinReport);
 router.get('/data/month-wise-report', authenticate, requirePermission('monthlyreport_view'), controller.getMonthWiseReport);
@@ -20,6 +21,6 @@ router.get('/search', authenticate, controller.globalSearch);
 // ✅ Permission alignment: brand managers reach the dashboard via the
 // targets_view permission (frontend ProtectedRoute allows this), so the
 // backend must accept either permission — otherwise they get a 403 here.
-router.get('/dashboard', authenticate, requireAnyPermission(['dashboard_view', 'targets_view']), cacheRoute('data:dashboard', 30), dashboardController.getDashboardData);
+router.get('/dashboard', authenticate, requireAnyPermission(['dashboard_view', 'targets_view']), dashboardController.getDashboardData);
 
 module.exports = router;
