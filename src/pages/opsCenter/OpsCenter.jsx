@@ -3,7 +3,7 @@ import { Select, Button } from 'antd';
 import { usePageTitle } from '../../contexts/PageTitleContext';
 import { useDateRange } from '../../contexts/DateRangeContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { dashboardPrincipal } from '../../utils/dashboardScope.mjs';
+import { dashboardPrincipal,canDashboardPermission } from '../../utils/dashboardScope.mjs';
 import { useDashboardData } from '../../hooks/useDashboardData';
 import { marketSyncApi } from '../../services/api';
 import { Panel, MiniState, SkeletonPage, fmtNum, timeAgo, useNow } from './primitives';
@@ -56,7 +56,8 @@ const fmtRange = (start, end) => {
 const ScopedOpsCenter = () => {
     const { setPageTitle } = usePageTitle();
     const { startDate, endDate } = useDateRange();
-    const { hasPermission } = useAuth();
+    const {user}=useAuth();
+    const hasPermission=useCallback(permission=>canDashboardPermission(user,permission),[user]);
 
     useEffect(() => {
         setPageTitle('Operations Command Center');
@@ -79,7 +80,7 @@ const ScopedOpsCenter = () => {
         userSellers, managers, activityLogs, scrapeTasks,
         optimizationTasks, topProducts, orch,
         loading, isHydrated, refresh, matchesManagerFilter,
-        canTasks,canPipeline,canLogs,optionsError,pipelineStatus,activityStatus,
+        canTasks,canPipeline,canLogs,optionsError,pipelineStatus,activityStatus,tasksLoading,
         tasksError, sectionStatus,
     } = useDashboardData(dashboardFilters);
 
@@ -319,11 +320,11 @@ const ScopedOpsCenter = () => {
                 <MixPanel dashboardRaw={raw} status={sectionStatus?.categories} onRetry={refresh} />
 
                 <AsinHealthPanel stats={stats} gms={raw?.gms} />
-                {canTasks&&<TasksPanel tasks={optimizationTasks} error={tasksError} onRetry={refresh} />}
-                <AlertsPanel alerts={orch.alerts || []} status={sectionStatus?.alerts} onRetry={refresh} />
+                {canTasks&&<TasksPanel tasks={optimizationTasks} error={tasksError} loading={tasksLoading} onRetry={refresh} />}
+                <AlertsPanel alerts={orch.alerts || []} status={sectionStatus?.alerts} onRetry={refresh} canOpen={hasPermission('activitylogs_view')} />
 
                 {canPipeline&&<PipelinePanel tasks={scrapeTasks} status={pipelineStatus} onRetry={refresh} />}
-                {canLogs&&(activityStatus==='error'?<Panel title="Activity unavailable"><button onClick={refresh}>Retry</button></Panel>:<ActivityPanel logs={activityLogs} />)}
+                {canLogs&&(activityStatus==='loading'?<Panel kicker="Recent activity"><MiniState title="Loading activity" /></Panel>:activityStatus==='error'?<Panel kicker="Activity unavailable"><button onClick={refresh}>Retry</button></Panel>:<ActivityPanel logs={activityLogs} />)}
             </div>
         </div>
     );
