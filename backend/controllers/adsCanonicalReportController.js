@@ -22,4 +22,11 @@ async function options(req,res){
     return res.json({success:true,data:await readCanonicalOptions({pool:await getPool(),sql,user:req.user,sellerId:req.query.sellerId})});
   }catch(e){return failure(res,e);}
 }
-module.exports={report,options};
+async function insights(req,res){
+  try{
+    const filters=parseReport(req.user,req.query);
+    if(filters.groupBy!=='asin'||filters.entityKey)throw new AdsScopeError('invalid_ads_filter','Product review requires ASIN grouping.');
+    return res.json({success:true,data:await readCanonicalReport({pool:await getPool(),sql,user:req.user,query:req.query,insightsOnly:true})});
+  }catch(e){return failure(res,e);}
+}
+module.exports={report,options,insights};

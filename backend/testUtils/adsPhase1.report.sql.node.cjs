@@ -61,5 +61,53 @@ test('SQL: canonical scope, duplicate catalog protection, current/prior comparis
   await assert.rejects(()=>readCanonicalTargets({pool,sql,user,query:{...range,sellerId:'s1,s3'}}),{code:'forbidden_seller'});
   const empty=await read({startDate:'2026-11-01',endDate:'2026-11-30'});
   assert.equal(empty.empty,true);assert.equal(empty.total,0);
+  // Two complete 2-day windows. Add 12 zero-sales entities to prove
+  // counts are computed across all products, not the current page or top ten.
+  const signalRows=[];
+  const add=(seller,currency,asin,date,total,sales,spend,conversions,clicks)=>{
+    signalRows.push(row(seller,currency==='USD'?'amazon.com':'amazon.in',currency,asin,date,total,sales,spend,conversions,conversions,1,clicks));
+  };
+  for(let i=11;i<=22;i++){
+   const asin='B'+String(i).padStart(9,'0');
+   add('s1','INR',asin,'2026-05-01',10,0,5,0,10);
+   add('s1','INR',asin,'2026-05-02',10,0,5,0,10);
+  }
+  for(const [d,spend,sales] of [['2026-04-29',5,20],['2026-04-30',5,20],['2026-05-01',7,10],['2026-05-02',7,10]])add('s1','INR','B000000031',d,30,sales,spend,1,10);
+  for(const [d,spend,sales] of [['2026-04-29',8,10],['2026-04-30',8,10],['2026-05-01',4,15],['2026-05-02',4,15]])add('s1','INR','B000000032',d,30,sales,spend,1,10);
+  add('s1','INR','B000000033','2026-05-01',null,null,9,null,5);
+  add('s1','INR','B000000034','2026-05-01',null,20,4,1,5);
+  add('s1','INR','B000000034','2026-05-02',30,null,null,null,null);
+  add('s1','INR','B000000035','2026-04-30',30,10,5,1,5);
+  add('s1','INR','B000000036','2026-05-01',null,0,3,0,25);
+  add('s1','INR','B000000036','2026-05-02',30,null,null,null,null);
+  add('s2','USD','B000000011','2026-05-01',10,0,2,0,22);
+  add('s3','INR','B000000011','2026-05-01',10,0,999,0,30);
+  await pool.request().query(prefix+signalRows.join(','));
+  const signalQuery={startDate:'2026-05-01',endDate:'2026-05-02'};
+  const insights=(extra={},actor=user)=>readCanonicalReport({pool,sql,user:actor,query:{...signalQuery,...extra},insightsOnly:true});
+  const review=await insights({limit:'1',page:'99'});
+  const rule=(code,currency='INR')=>review.signals.find(s=>s.code===code&&s.currency===currency);
+  assert.deepEqual(review.populations.map(r=>r.currency),['INR','USD']);
+  assert.equal(review.populations[0].totalEntities,'18');
+  assert.equal(rule('spend_zero_sales').count,'13');
+  assert.equal(rule('spend_zero_sales').items.length,10);
+  assert.ok(rule('spend_zero_sales').items.every(r=>r.sellerId==='s1'&&r.evidenceStatus==='complete_observed'));
+  assert.equal(rule('clicks_zero_conversions').count,'13');
+  assert.equal(rule('clicks_zero_conversions','USD').count,'1');
+  assert.equal(rule('spend_up_sales_down').items[0].entityKey,'B000000031');
+  assert.equal(rule('sales_up_spend_down').items[0].entityKey,'B000000032');
+  assert.equal(rule('missing_ad_sales').count,'1');
+  assert.equal(rule('tacos_coverage_mismatch').count,'2');
+  assert.equal(rule('prior_only').items[0].entityKey,'B000000035');
+  assert.ok(review.signals.flatMap(s=>s.items).every(r=>r.sellerId!=='s3'));
+  const single=await insights({sellerId:'s1',search:'B000000036'});
+  assert.equal(single.signals.find(s=>s.code==='spend_zero_sales').items[0].evidenceStatus,'observed_partial');
+  const noMatch=await insights({brand:'nonexistent'});assert.equal(noMatch.empty,true);
+  await assert.rejects(()=>insights({sellerId:'s1,s3'}),{code:'forbidden_seller'});
+  const comparison=await readCanonicalReport({pool,sql,user,query:{...signalQuery,sellerId:'s1',search:'B000000031'}});
+  assert.equal(comparison.rows[0].current.coveredDays,2);
+  assert.equal(comparison.rows[0].comparison.metrics.spend.percentChange,'40');
+  assert.equal(comparison.rows[0].comparison.metrics.sales.percentChange,'-50');
+  assert.equal(comparison.comparisons[0].ratios.acos.delta,'45');
  }finally{if(pool)await pool.close();await admin.request().query('ALTER DATABASE ['+database+'] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE ['+database+'];').catch(()=>{});await admin.close();}
 });

@@ -31,6 +31,10 @@ function display(n,digits){
   return (neg?'-':'')+(digits?s.slice(0,-digits):s)+(d?'.'+d:'');
 }
 function canonicalValue(value){return display(fixed(value),10);}
+function difference(current,previous){
+  const a=fixed(current),b=fixed(previous);
+  return a===null||b===null?null:display(a-b,10);
+}
 function ratio(numerator,denominator,multiplier){
   const n=fixed(numerator),d=fixed(denominator);
   if(n===null||d===null||d<=0n)return null;
@@ -102,4 +106,4 @@ async function readCanonicalSummary({pool,sql,user,sellerId,startDate,endDate}){
   const currencies=result.recordset.map(shapeSummary);
   return {period,reportType:'daily',currencies,empty:currencies.length===0,source:'canonical_v1'};
 }
-module.exports={METRICS,RATIOS,ratio,shapeSummary,validateWindow,readCanonicalSummary,aggregateProjection};
+module.exports={METRICS,RATIOS,ratio,difference,shapeSummary,validateWindow,readCanonicalSummary,aggregateProjection};
