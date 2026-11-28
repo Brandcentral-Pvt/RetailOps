@@ -16,8 +16,8 @@ module.exports={up:async pool=>{
       IF NOT EXISTS (
         SELECT 1
         FROM sys.indexes i
-        JOIN sys.index_columns lead ON lead.object_id=i.object_id AND lead.index_id=i.index_id AND lead.key_ordinal=1
-        JOIN sys.columns lc ON lc.object_id=lead.object_id AND lc.column_id=lead.column_id
+        JOIN sys.index_columns leadingColumn ON leadingColumn.object_id=i.object_id AND leadingColumn.index_id=i.index_id AND leadingColumn.key_ordinal=1
+        JOIN sys.columns lc ON lc.object_id=leadingColumn.object_id AND lc.column_id=leadingColumn.column_id
         WHERE i.object_id=@factId AND i.type IN (1,2) AND i.is_disabled=0 AND i.is_hypothetical=0 AND i.has_filter=0
           AND lc.name=N'Date'
           AND (i.type=1 OR NOT EXISTS (
