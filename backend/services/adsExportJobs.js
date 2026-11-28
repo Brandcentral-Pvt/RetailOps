@@ -10,11 +10,13 @@ const {verifyXlsx,checkFileEnvelope}=require('./exportFileIntegrity');
 const {readBudgetIntelligence}=require('./adsBudgetIntelligence');
 const {resolveAccessProfile}=require('./accessProfileService');
 const LEASE=120,MAX_BYTES=512*1024*1024,CHUNK=1024*1024;
+const configuredRetention=Number(process.env.ADS_EXPORT_RETENTION_DAYS||7);
+const RETENTION_DAYS=Number.isInteger(configuredRetention)&&configuredRetention>=1&&configuredRetention<=30?configuredRetention:7;
 const err=(code,message,status=400)=>new AdsScopeError(code,message,status);
 const uid=u=>String(u?.Id||u?.id||u?._id||'');
 const idValid=id=>typeof id==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 const permission=u=>['adsreport_view','adsreport_export'].every(p=>u.permissions?.includes('*')||u.permissions?.includes(p));
-const publicJob=j=>({id:j.Id,format:j.Format,filters:JSON.parse(j.Filters),status:j.Status,stage:j.Stage,attemptCount:j.AttemptCount,createdAt:j.CreatedAt,startedAt:j.StartedAt,completedAt:j.CompletedAt,expiresAt:j.ExpiresAt,bytes:j.FileBytes==null?null:Number(j.FileBytes),rawCount:j.RawCount==null?null:Number(j.RawCount),entityCount:j.EntityCount==null?null:Number(j.EntityCount),errorCode:j.ErrorCode});
+const publicJob=j=>({id:j.Id,format:j.Format,filters:JSON.parse(j.Filters),sellerScope:JSON.parse(j.AccessScope),status:j.Status,stage:j.Stage,attemptCount:j.AttemptCount,createdAt:j.CreatedAt,startedAt:j.StartedAt,completedAt:j.CompletedAt,expiresAt:j.ExpiresAt,bytes:j.FileBytes==null?null:Number(j.FileBytes),rawCount:j.RawCount==null?null:Number(j.RawCount),entityCount:j.EntityCount==null?null:Number(j.EntityCount),errorCode:j.ErrorCode});
 const cols='Id,OwnerId,ClientId,Filters,AccessScope,Format,Status,Stage,AttemptCount,CreatedAt,StartedAt,CompletedAt,ExpiresAt,FileBytes,ArtifactSha256,ChunkCount,RawCount,EntityCount,ErrorCode,ArtifactToken,LeaseToken,LeaseUntil';
 function freezeScope(user,filters){
  const scope=parseReport(user,filters,true).scope;
@@ -74,13 +76,17 @@ async function ownJob(db,sql,user,id,lock=false){
  scopedFilters(user,JSON.parse(j.Filters),JSON.parse(j.AccessScope));return j;
 }
 async function getJob({pool,sql,user,id}){return publicJob(await ownJob(pool,sql,user,id));}
-async function listJobs({pool,sql,user,page=1,limit=20,status}){
+async function listJobs({pool,sql,user,page=1,limit=20,status,search}){
  page=Number(page);limit=Number(limit);
- if(!Number.isInteger(page)||page<1||page>10000||!Number.isInteger(limit)||limit<1||limit>50||status&&!['QUEUED','PROCESSING','COMPLETED','FAILED','CANCELLED','EXPIRED'].includes(status))throw err('invalid_export','Invalid export history filters.');
- // Return only jobs still within current access, including metadata. Scan a bounded recent history.
- const r=await pool.request().input('owner',sql.VarChar(50),uid(user)).query('SELECT TOP(1000) '+cols+' FROM dbo.AdsExportJobs WHERE OwnerId=@owner ORDER BY CreatedAt DESC,Id DESC;');
- const visible=r.recordset.filter(j=>{try{scopedFilters(user,JSON.parse(j.Filters),JSON.parse(j.AccessScope));return !status||j.Status===status;}catch{return false;}});
- return {rows:visible.slice((page-1)*limit,page*limit).map(publicJob),total:visible.length,page,limit,historyCapped:r.recordset.length===1000};
+ if(!permission(user)||!uid(user))throw err('access_changed','Export permission required.',403);
+ if(!Number.isInteger(page)||page<1||page>10000||!Number.isInteger(limit)||limit<1||limit>50||status&&!['QUEUED','PROCESSING','COMPLETED','FAILED','CANCELLED','EXPIRED'].includes(status)||search!==undefined&&(typeof search!=='string'||search.length>120))throw err('invalid_export','Invalid export history filters.');
+ const scope=strictScope(user);
+ const request=pool.request().input('owner',sql.VarChar(50),uid(user)).input('global',sql.Bit,scope.unrestricted).input('allowed',sql.NVarChar(sql.MAX),JSON.stringify(scope.sellerIds)).input('offset',sql.Int,(page-1)*limit).input('limit',sql.Int,limit).input('status',sql.VarChar(12),status||null).input('search',sql.NVarChar(120),search?.trim()||null);
+ const visible=" WHERE OwnerId=@owner AND ((JSON_VALUE(AccessScope,'$.global')='true' AND @global=1) OR (JSON_VALUE(AccessScope,'$.global')='false' AND EXISTS(SELECT 1 FROM OPENJSON(AccessScope,'$.ids')) AND (@global=1 OR NOT EXISTS(SELECT 1 FROM OPENJSON(AccessScope,'$.ids') WITH(id varchar(50) '$') s WHERE s.id IS NULL OR NOT EXISTS(SELECT 1 FROM OPENJSON(@allowed) WITH(id varchar(50) '$') a WHERE a.id=s.id)))))";
+ const filtered=visible+" AND (@status IS NULL OR Status=@status) AND (@search IS NULL OR CHARINDEX(@search,Filters)>0 OR CHARINDEX(@search,Id)>0 OR CHARINDEX(@search,Format)>0 OR CHARINDEX(@search,Status)>0 OR CHARINDEX(@search,CONVERT(varchar(33),CreatedAt,126))>0)";
+ const r=await request.query("SELECT COUNT_BIG(*) AS activeCount FROM dbo.AdsExportJobs"+visible+" AND Status IN ('QUEUED','PROCESSING'); SELECT COUNT_BIG(*) AS total FROM dbo.AdsExportJobs"+filtered+"; SELECT "+cols+" FROM dbo.AdsExportJobs"+filtered+" ORDER BY CreatedAt DESC,Id DESC OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY;");
+ const rows=r.recordsets[2].filter(j=>{try{scopedFilters(user,JSON.parse(j.Filters),JSON.parse(j.AccessScope));return true;}catch{return false;}});
+ return {rows:rows.map(publicJob),total:Number(r.recordsets[1][0].total),activeCount:Number(r.recordsets[0][0].activeCount),page,limit};
 }
 async function mutate({pool,sql,user,id,action}){
  return queueTx(pool,sql,async tx=>{
@@ -137,8 +143,9 @@ async function processNext(pool,sql){
   }
   if(bytes!==stat.size||signal.aborted)throw err('export_interrupted','Export interrupted.',408);
   const fresh=await authorizeOwner(pool,sql,j.OwnerId);scopedFilters(fresh,JSON.parse(j.Filters),JSON.parse(j.AccessScope));
-  const published=await leaseReq(pool,sql,j).input('bytes',sql.BigInt,bytes).input('chunks',sql.Int,chunks).input('raw',sql.BigInt,result.rawCount).input('entities',sql.BigInt,result.entityCount).input('sha',sql.VarChar(64),hash.digest('hex')).query("UPDATE dbo.AdsExportJobs SET Status='COMPLETED',Stage='completed',ArtifactToken=@token,ArtifactSha256=@sha,FileBytes=@bytes,ChunkCount=@chunks,RawCount=@raw,EntityCount=@entities,CompletedAt=SYSUTCDATETIME(),ExpiresAt=DATEADD(day,7,SYSUTCDATETIME()),LeaseToken=NULL,LeaseUntil=NULL WHERE "+leaseWhere+";");
+  const published=await leaseReq(pool,sql,j).input('bytes',sql.BigInt,bytes).input('chunks',sql.Int,chunks).input('raw',sql.BigInt,result.rawCount).input('entities',sql.BigInt,result.entityCount).input('sha',sql.VarChar(64),hash.digest('hex')).input('retention',sql.Int,RETENTION_DAYS).query("UPDATE dbo.AdsExportJobs SET Status='COMPLETED',Stage='completed',ArtifactToken=@token,ArtifactSha256=@sha,FileBytes=@bytes,ChunkCount=@chunks,RawCount=@raw,EntityCount=@entities,CompletedAt=SYSUTCDATETIME(),ExpiresAt=DATEADD(day,@retention,SYSUTCDATETIME()),LeaseToken=NULL,LeaseUntil=NULL WHERE "+leaseWhere+";");
   if(published.rowsAffected[0]!==1)throw err('lease_lost','Export lease lost.',409);
+  console.info('[ads export completed]',{jobId:j.Id,rows:result.rawCount,entities:result.entityCount,bytes,durationMs:Date.now()-new Date(j.StartedAt).getTime()});
  }catch(e){
   const permanent=e instanceof AdsScopeError&&[400,403,422].includes(e.status);
   const fail=permanent||j.AttemptCount>=3;
@@ -151,7 +158,7 @@ async function sweep(pool){
  await pool.request().query("UPDATE TOP(100) dbo.AdsExportJobs SET Status='EXPIRED',Stage='expired',ArtifactToken=NULL WHERE Status='COMPLETED' AND ExpiresAt<=SYSUTCDATETIME();");
  await pool.request().query("DELETE TOP(200) c FROM dbo.AdsExportChunks c JOIN dbo.AdsExportJobs j ON j.Id=c.JobId WHERE c.CreatedAt<DATEADD(hour,-1,SYSUTCDATETIME()) AND (j.ArtifactToken IS NULL OR j.ArtifactToken<>c.AttemptToken) AND (j.LeaseToken IS NULL OR j.LeaseToken<>c.AttemptToken);");
 }
-async function spoolDownload({pool,sql,user,id,filePath}){
+async function spoolDownload({pool,sql,user,id,filePath,signal}){
  const tx=new sql.Transaction(pool);await tx.begin(sql.ISOLATION_LEVEL.READ_COMMITTED);
  let handle;
  try{
@@ -159,12 +166,16 @@ async function spoolDownload({pool,sql,user,id,filePath}){
   if(j.Status!=='COMPLETED'||!j.ArtifactToken||!j.ExpiresAt||new Date(j.ExpiresAt)<=new Date())throw err('artifact_unavailable','Export is not available for download.',409);
   handle=await fs.open(filePath,'wx');let bytes=0;const hash=createHash('sha256');
   for(let i=1;i<=j.ChunkCount;i++){
+   if(signal?.aborted)throw err('download_interrupted','Export download interrupted.',408);
    const r=await tx.request().input('id',sql.VarChar(36),id).input('token',sql.VarChar(36),j.ArtifactToken).input('chunk',sql.Int,i).query('SELECT Payload FROM dbo.AdsExportChunks WHERE JobId=@id AND AttemptToken=@token AND ChunkNo=@chunk;');
    const data=r.recordset[0]?.Payload;if(!Buffer.isBuffer(data)||!data.length)throw err('artifact_corrupt','Export artifact is incomplete.',503);
    await handle.writeFile(data);bytes+=data.length;hash.update(data);
   }
   if(bytes!==Number(j.FileBytes)||hash.digest('hex')!==j.ArtifactSha256)throw err('artifact_corrupt','Export artifact size mismatch.',503);
-  await handle.close();handle=null;await tx.commit();return publicJob(j);
+  await handle.close();handle=null;await tx.commit();
+  const fresh=await authorizeOwner(pool,sql,j.OwnerId);scopedFilters(fresh,JSON.parse(j.Filters),JSON.parse(j.AccessScope));
+  if(signal?.aborted)throw err('download_interrupted','Export download interrupted.',408);
+  return publicJob(j);
  }catch(e){try{await tx.rollback();}catch{}throw e;}finally{if(handle)await handle.close().catch(()=>{});}
 }
 async function ensureSchema(pool,apply){
