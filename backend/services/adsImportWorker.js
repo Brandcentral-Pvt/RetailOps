@@ -36,6 +36,9 @@ async function claimNext({pool,sql,kind='commit'}){
   await tx.request().input('result',sql.NVarChar(sql.MAX),failure).input('issues',sql.NVarChar(sql.MAX),issues)
    .query("UPDATE dbo.AdsImportJobs SET Status='FAILED',Stage='failed',SourceBytes=NULL,LeaseToken=NULL,LeaseUntil=NULL,CompletedAt=SYSUTCDATETIME(),ResultJson=@result,IssuesJson=@issues,IssueToken=NULL WHERE Status='"+states.active+"' AND LeaseUntil<=SYSUTCDATETIME() AND AttemptCount>=3;");
   if(kind==='preview')await tx.request().query("UPDATE dbo.AdsImportJobs SET Status='EXPIRED',Stage='expired',SourceBytes=NULL,NextAttemptAt=NULL,CompletedAt=SYSUTCDATETIME() WHERE Status='PREVIEW_QUEUED' AND ExpiresAt<=SYSUTCDATETIME();");
+  // One active lease per queue kind across replicas, not merely per process.
+  const active=await tx.request().query("SELECT COUNT_BIG(*) AS n FROM dbo.AdsImportJobs WHERE Status='"+states.active+"' AND LeaseUntil>SYSUTCDATETIME();");
+  if(Number(active.recordset[0].n)>=1){await tx.commit();return null;}
   const r=await tx.request().input('token',sql.VarChar(36),token).input('lease',sql.Int,LEASE_SECONDS)
    .query(";WITH candidate AS (SELECT TOP (1) * FROM dbo.AdsImportJobs WITH (UPDLOCK,HOLDLOCK) WHERE AttemptCount<3 AND ((Status='"+states.queued+"' AND NextAttemptAt<=SYSUTCDATETIME()"+previewExpiry+") OR (Status='"+states.active+"' AND LeaseUntil<=SYSUTCDATETIME())) ORDER BY QueuedAt,Id) UPDATE candidate SET Status='"+states.active+"',AttemptCount=AttemptCount+1,LeaseToken=@token,LeaseUntil=DATEADD(second,@lease,SYSUTCDATETIME()),StartedAt=SYSUTCDATETIME(),Stage='"+states.stage+"',StagedRows=0 OUTPUT inserted.Id,inserted.OwnerId,inserted.SellerId,inserted.Marketplace,inserted.Currency,inserted.SourceFileSha256,inserted.OwnershipHash,inserted.SourceBytes,inserted.LeaseToken,inserted.AttemptCount;");
   await tx.commit();
