@@ -30,6 +30,22 @@ async function up(pool){
  IF EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=@fact AND name=N'${name}') THROW 51074,'Existing Ads covering index is incompatible; review before migration',1;
  CREATE INDEX ${name} ON dbo.AdsProductDailyFacts([Date],SellerId,Marketplace,Asin,ReportType) INCLUDE (${includes.map(c=>'['+c+']').join(',')});
  END;
+ -- Catalog lookups retain duplicate detection. Only add a nonunique index
+ -- when both existing key columns are bounded indexable character types.
+ DECLARE @catalog int=OBJECT_ID(N'dbo.Asins',N'U');
+ IF @catalog IS NOT NULL AND
+ (SELECT COUNT(*) FROM sys.columns WHERE object_id=@catalog AND name IN(N'SellerId',N'AsinCode') AND system_type_id IN(167,175,231,239) AND max_length BETWEEN 1 AND 450)=2
+ AND NOT EXISTS(
+ SELECT 1 FROM sys.indexes i JOIN sys.index_columns k1 ON k1.object_id=i.object_id AND k1.index_id=i.index_id AND k1.key_ordinal=1
+ JOIN sys.index_columns k2 ON k2.object_id=i.object_id AND k2.index_id=i.index_id AND k2.key_ordinal=2
+ JOIN sys.columns c1 ON c1.object_id=k1.object_id AND c1.column_id=k1.column_id
+ JOIN sys.columns c2 ON c2.object_id=k2.object_id AND c2.column_id=k2.column_id
+ WHERE i.object_id=@catalog AND i.type IN(1,2) AND i.is_disabled=0 AND i.is_hypothetical=0 AND i.has_filter=0
+ AND ((c1.name=N'SellerId' AND c2.name=N'AsinCode') OR (c1.name=N'AsinCode' AND c2.name=N'SellerId')))
+ BEGIN
+ IF EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=@catalog AND name=N'IX_Asins_AdsOwnerLookup') THROW 51075,'Existing catalog lookup index is incompatible',1;
+ CREATE INDEX IX_Asins_AdsOwnerLookup ON dbo.Asins(SellerId,AsinCode);
+ END;
  COMMIT TRANSACTION;
  END TRY
  BEGIN CATCH
