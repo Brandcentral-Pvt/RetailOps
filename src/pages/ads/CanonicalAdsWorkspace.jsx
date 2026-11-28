@@ -98,60 +98,6 @@ const exportErrorText=async e=>{
  if(detail instanceof Blob){try{detail=JSON.parse(await detail.text());}catch{detail=null;}}
  return detail?.message||e.message||'Export failed.';
 };
-function AdsDownloadCenter({open,onClose,principal,onNew}){
- const [page,setPage]=useState(1),[status,setStatus]=useState(undefined),[search,setSearch]=useState(''),[error,setError]=useState(null),[action,setAction]=useState(null);
- const lock=useRef(false);
- const client=useQueryClient();
- const queryKey=['ads-export-jobs',principal,page,status,search];
- const jobs=useQuery({queryKey,queryFn:({signal})=>get('export-jobs',{page,limit:20,status,search:search||undefined},signal),enabled:open,staleTime:0,retry:false,refetchInterval:q=>q.state.data?.activeCount>0?3000:false,refetchIntervalInBackground:false});
- const data=jobs.data;
- const refresh=()=>client.invalidateQueries({queryKey:['ads-export-jobs',principal]});
- const run=async(job,operation)=>{
-  if(lock.current)return;lock.current=true;setAction(job.id+operation);setError(null);
-  try{
-   if(operation==='download'){
-    const res=await apiClient.get('/ads/export-jobs/'+job.id+'/download',{responseType:'blob',timeout:180000});
-    const type=String(res.headers['content-type']||'');
-    if(!(job.format==='xlsx'?type.includes('spreadsheetml'):type.includes('text/csv')))throw Error('Unexpected export response.');
-    const url=URL.createObjectURL(res.data),a=document.createElement('a');
-    a.href=url;a.download='ads-intelligence-'+(job.filters.allHistory?'all-history':job.filters.startDate+'-'+job.filters.endDate)+'.'+job.format;
-    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
-   }else await apiClient.post('/ads/export-jobs/'+job.id+'/'+operation,{});
-   await refresh();
-  }catch(e){setError(await exportErrorText(e));}finally{lock.current=false;setAction(null);}
- };
- const labels={queued:'Waiting for worker',generating:'Reading and reconciling reports',storing:'Validating and saving artifact',retry_wait:'Waiting to retry',completed:'Ready to download',failed:'Export failed',cancelled:'Cancelled',expired:'File expired'};
- const colors={QUEUED:'default',PROCESSING:'processing',COMPLETED:'success',FAILED:'error',CANCELLED:'default',EXPIRED:'default'};
- const fmtDate=v=>v?new Date(v).toLocaleString():'—';
- const bytes=v=>v==null?'—':v>=1048576?(v/1048576).toFixed(1)+' MB':Math.ceil(v/1024)+' KB';
- return <Drawer open={open} title="Ads Download Center" width="min(1040px, 100vw)" onClose={onClose}
- footer={<Flex justify="space-between" align="center"><Typography.Text type="secondary">Private exports expire at their displayed expiry time.</Typography.Text><Button type="primary" onClick={onNew}>New export</Button></Flex>}>
- <Flex vertical gap={16}>
- <Alert type="info" showIcon message="Background exports" description="Exports continue after this drawer is closed. Progress represents actual worker stages; completed reports are validated before download."/>
- <Flex wrap="wrap" gap={8} align="center">
- <Input.Search placeholder="Search export scope, date or ID" allowClear maxLength={120} onSearch={v=>{setSearch(v.trim());setPage(1);}} style={{width:260}}/>
- <Select aria-label="Export job status" placeholder="All statuses" allowClear value={status} onChange={v=>{setStatus(v);setPage(1);}} options={Object.keys(colors).map(v=>({value:v,label:v}))} style={{width:160}}/>
- <Button icon={<ReloadOutlined/>} onClick={()=>jobs.refetch()} loading={jobs.isFetching}>Refresh history</Button>
- <Typography.Text type="secondary">{data?.activeCount??0} active</Typography.Text>
- </Flex>
- {error&&<Alert type="error" showIcon message={error} closable onClose={()=>setError(null)}/>}
- {jobs.isError&&<Alert type="error" showIcon message={errorText(jobs.error)} action={<Button onClick={()=>jobs.refetch()}>Retry</Button>}/>}
- 
- <Table size="small" rowKey="id" loading={jobs.isPending} dataSource={data?.rows||[]} scroll={{x:850}} locale={{emptyText:'No export jobs match this view'}} pagination={{current:page,pageSize:20,total:data?.total||0,showSizeChanger:false,onChange:setPage}}
- columns={[
- {title:'Report',width:245,render:(_,j)=><><strong>{j.format==='xlsx'?'Complete Excel':'Daily source CSV'}</strong><div>{j.filters.allHistory?'All stored history':j.filters.startDate+' to '+j.filters.endDate}</div><Typography.Text type="secondary">{j.sellerScope?.global?'All authorized sellers':j.sellerScope?.ids?.length?j.sellerScope.ids.length+' authorized seller(s)':j.filters.sellerId?'Seller: '+j.filters.sellerId:'All authorized sellers'}</Typography.Text>{j.filters.search&&<div>Search: {j.filters.search}</div>}</>},
- {title:'Status / stage',width:180,render:(_,j)=><><Tag color={colors[j.status]}>{j.status}</Tag><div>{labels[j.stage]||j.stage}</div>{j.errorCode&&<Typography.Text type="secondary">{j.errorCode}</Typography.Text>}{j.attemptCount>0&&<div>Attempt {j.attemptCount}/3</div>}</>},
- {title:'Created / completed',width:165,render:(_,j)=><><div>{fmtDate(j.createdAt)}</div><Typography.Text type="secondary">{fmtDate(j.completedAt)}</Typography.Text></>},
- {title:'Records / size',width:125,render:(_,j)=><><div>{j.rawCount==null?'—':adsCount(j.rawCount)} records</div><Typography.Text type="secondary">{bytes(j.bytes)}</Typography.Text></>},
- {title:'Actions',width:135,render:(_,j)=><Flex vertical gap={4}>
- {j.status==='COMPLETED'&&<Button size="small" icon={<DownloadOutlined/>} loading={action===j.id+'download'} disabled={!!action} onClick={()=>run(j,'download')}>Download</Button>}
- {j.status==='FAILED'&&<Button size="small" loading={action===j.id+'retry'} disabled={!!action} onClick={()=>run(j,'retry')}>Retry</Button>}
- {['QUEUED','PROCESSING'].includes(j.status)&&<Button size="small" danger loading={action===j.id+'cancel'} disabled={!!action} onClick={()=>run(j,'cancel')}>Cancel</Button>}
- {j.status==='COMPLETED'&&<Typography.Text type="secondary">Expires {fmtDate(j.expiresAt)}</Typography.Text>}
- </Flex>}
- ]}/>
- </Flex></Drawer>;
-}
 function ReportLoading(){return <div className="ads-report-loading" role="status" aria-label="Loading advertising report"><div className="ads-kpi-grid">{Array.from({length:8},(_,i)=><Card key={i} size="small"><Skeleton active title={{width:'55%'}} paragraph={{rows:2}}/></Card>)}</div><Card size="small"><Skeleton active paragraph={{rows:4}}/></Card></div>;}
 const TrendTable=({series})=>series.length===0?<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No historical records in this period"/>:<div className="ads-table-shell" data-testid="ads-trend-table"><Table tableLayout="fixed" size="small" rowKey={r=>JSON.stringify([r.currency,r.periodKey,r.bucket])} dataSource={series} pagination={{pageSize:10}} scroll={{x:760}}
     columns={[{title:'Period',dataIndex:'periodKey',width:100},{title:'Date / bucket',dataIndex:'bucket',width:125},{title:'Currency',dataIndex:'currency',width:90},
@@ -196,7 +142,6 @@ export default function CanonicalAdsWorkspace(){
     const [portfolioGranularity,setPortfolioGranularity]=useState('week');
     const [importOpen,setImportOpen]=useState(false);
     const [exportConfig,setExportConfig]=useState(null);
-    const [downloadsPrincipal,setDownloadsPrincipal]=useState(null);
     const exportRequest=useRef(null);
     const [exportBusy,setExportBusy]=useState(false);
     const exportLock=useRef(false);
@@ -233,7 +178,7 @@ export default function CanonicalAdsWorkspace(){
     const targetsApplicable=!brand&&!category&&!search&&!marketplace;
     const targets=useQuery({queryKey:['ads-canonical',principal,'budget',targetFilters],queryFn:({signal})=>get('canonical-budget',targetFilters,signal),enabled:enabled&&view==='budgets'&&targetsApplicable&&hasDates,staleTime:0,retry:false});
     const data=report.data;
-    const openExport=()=>{setExportError(null);exportRequest.current=null;setDownloadsPrincipal(null);setExportConfig({principal,filters:{...filters}});};
+    const openExport=()=>{setExportError(null);exportRequest.current=null;setExportConfig({principal,filters:{...filters}});};
     const exportReport=async(exportFilters,format)=>{
         if(exportLock.current||!hasPermission(PERMISSIONS.ADSREPORT_EXPORT))return;
         exportLock.current=true;setExportBusy(true);setExportError(null);
@@ -242,8 +187,8 @@ export default function CanonicalAdsWorkspace(){
             if(exportRequest.current?.signature!==signature)exportRequest.current={signature,clientId:crypto.randomUUID()};
             const res=await apiClient.post('/ads/export-jobs',{clientId:exportRequest.current.clientId,format,filters:exportFilters});
             if(!res.data?.data?.id)throw Error('Export job was not acknowledged. Retry the same request.');
-            setExportConfig(null);setDownloadsPrincipal(principal);exportRequest.current=null;
-            void queryClient.invalidateQueries({queryKey:['ads-export-jobs',principal]});
+            setExportConfig(null);window.dispatchEvent(new Event('export-started'));exportRequest.current=null;
+            
         }catch(e){setExportError(await exportErrorText(e));}
         finally{exportLock.current=false;setExportBusy(false);}
     };
@@ -280,7 +225,7 @@ export default function CanonicalAdsWorkspace(){
             <div className="ads-heading-copy"><div className="ads-eyebrow">REPORTS / ADVERTISING</div><h1>Ads Intelligence</h1><p>Performance, portfolio decisions and report quality in one workspace.</p></div>
             <div className="ads-heading-actions">
                 {hasPermission(PERMISSIONS.ADSREPORT_IMPORT)&&<><Button aria-label="Import history" icon={<HistoryOutlined aria-hidden="true"/>} onClick={()=>openImport('history')}>Import history</Button><Button aria-label="Import CSV" type="primary" icon={<UploadOutlined aria-hidden="true"/>} onClick={()=>openImport('upload')}>Import CSV</Button></>}
-                {hasPermission(PERMISSIONS.ADSREPORT_EXPORT)&&<><Button aria-label="Export history" icon={<HistoryOutlined aria-hidden="true"/>} onClick={()=>setDownloadsPrincipal(principal)}>Download Center</Button><Button aria-label="Export XLSX" icon={<DownloadOutlined aria-hidden="true"/>} onClick={openExport} loading={exportBusy} disabled={exportBusy}>Export report</Button></>}
+                {hasPermission(PERMISSIONS.ADSREPORT_EXPORT)&&<><Button aria-label="Export history" icon={<HistoryOutlined aria-hidden="true"/>} onClick={()=>window.dispatchEvent(new Event('export-started'))}>Export history</Button><Button aria-label="Export XLSX" icon={<DownloadOutlined aria-hidden="true"/>} onClick={openExport} loading={exportBusy} disabled={exportBusy}>Export report</Button></>}
                 <Button aria-label="Refresh" icon={<ReloadOutlined aria-hidden="true"/>} onClick={refresh} loading={refreshing}>Refresh</Button>
             </div>
         </header>
@@ -340,7 +285,6 @@ export default function CanonicalAdsWorkspace(){
             ]}/>}
         </Drawer>
         {hasPermission(PERMISSIONS.ADSREPORT_EXPORT)&&exportConfig?.principal===principal&&<AdsExportDialog open initial={exportConfig.filters} principal={principal} onClose={()=>setExportConfig(null)} onSubmit={exportReport} busy={exportBusy} error={exportError}/>}
-        {hasPermission(PERMISSIONS.ADSREPORT_EXPORT)&&downloadsPrincipal===principal&&<AdsDownloadCenter key={principal} open principal={principal} onClose={()=>setDownloadsPrincipal(null)} onNew={openExport}/>}
         {hasPermission(PERMISSIONS.ADSREPORT_IMPORT)&&<AdsImportModal key={principal} isOpen={importOpen} initialTab={importTab} onClose={()=>setImportOpen(false)} onComplete={imported}/>}
     </div>;
 }
