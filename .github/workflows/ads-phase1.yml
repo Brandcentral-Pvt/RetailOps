@@ -90,11 +90,14 @@ jobs:
           node --check backend/controllers/adsCanonicalReportController.js
           node --check backend/services/adsImportConfirmation.js
           node --check backend/services/adsCanonicalTargets.js
+          node --check backend/services/adsBudgetIntelligence.js
+          node --check backend/services/adsProductDiagnostics.js
+          node --check backend/controllers/adsCanonicalTargetsController.js
           node --check backend/services/adsConsumerMetrics.js
           node --check backend/controllers/dashboardController.js
           node --check backend/controllers/targetController.js
           node --check backend/controllers/adsCanonicalExportController.js
-          node --test backend/testUtils/adsPhase1.contract.node.cjs backend/testUtils/adsPhase1.canonical.node.cjs backend/testUtils/adsPhase1.report.node.cjs backend/testUtils/adsPhase1.activation.node.cjs backend/testUtils/adsPhase2.preview.node.cjs backend/testUtils/adsPhase3.analytics.node.cjs backend/testUtils/adsPhase3.portfolio.node.cjs
+          node --test backend/testUtils/adsPhase1.contract.node.cjs backend/testUtils/adsPhase1.canonical.node.cjs backend/testUtils/adsPhase1.report.node.cjs backend/testUtils/adsPhase1.activation.node.cjs backend/testUtils/adsPhase2.preview.node.cjs backend/testUtils/adsPhase3.analytics.node.cjs backend/testUtils/adsPhase3.portfolio.node.cjs backend/testUtils/adsPhase3.budget.node.cjs
   sql:
     runs-on: ubuntu-latest
     timeout-minutes: 15

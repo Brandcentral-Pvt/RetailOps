@@ -1,0 +1,92 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict');
+const {budgetPlan,monthSlice,reportingCutoff,actualCoverage,budgetResult,acosResult,assembleBudgetRows,readBudgetIntelligence}=require('../services/adsBudgetIntelligence');
+const {share,benchmark}=require('../services/adsProductDiagnostics');
+const context={marketplace:'amazon.in',currency:'INR'};
+const target={target:'3100',targetType:'MONTHLY',targetStatus:'configured'};
+const slice=monthSlice('2026-01','2026-01-10');
+const actual={spend:'1200',sales:'6000',rowCount:'10',spendRows:'10',salesRows:'10',pairedRows:'10',coveredDays:10,spendDays:10,salesDays:10,negativeSpendRows:'0',negativeSalesRows:'0'};
+const result=(over={})=>budgetResult({target,context,actual,slice,coverage:actualCoverage(actual,slice),...over});
+test('cutoff uses selected end or previous UTC day, leap year and partial month',()=>{
+ assert.equal(reportingCutoff('2026-11-30',new Date('2026-11-28T00:01:00Z')),'2026-11-27');
+ assert.equal(reportingCutoff('2026-04-15',new Date('2026-11-28T00:01:00Z')),'2026-04-15');
+ assert.deepEqual(monthSlice('2024-02','2024-02-29'),{start:'2024-02-01',end:'2024-02-29',through:'2024-02-29',days:29,elapsed:29,remaining:0});
+ assert.equal(monthSlice('2026-12','2026-11-27').elapsed,0);
+});
+test('weekly allocations use clipped weeks and exact reconciliation, not generated daily records',()=>{
+ const weeks=[100,200,300,400,600].map((n,i)=>({weekNo:i+1,target:String(n)}));
+ assert.equal(budgetPlan('1600',monthSlice('2026-04','2026-04-29'),weeks).value,'1300');
+ assert.equal(budgetPlan('1600',monthSlice('2026-04','2026-04-30'),weeks).value,'1600');
+ assert.equal(budgetPlan('1600',monthSlice('2026-04','2026-04-08'),weeks).value,'128.5714285714');
+ assert.equal(budgetPlan('1000',monthSlice('2026-04','2026-04-30'),weeks.slice(0,4)).value,'1000');
+ assert.equal(budgetPlan('1599',slice,weeks).status,'schedule_conflict');
+ assert.equal(budgetPlan('1600',slice,[...weeks,weeks[0]]).status,'schedule_conflict');
+ assert.equal(budgetPlan('1600',monthSlice('2026-02','2026-02-28'),weeks).status,'schedule_conflict');
+ assert.equal(budgetPlan('3100',slice).source,'calendar_linear');
+ assert.equal(budgetPlan('3100',slice).value,'1000');
+});
+test('complete coverage yields exact budget pace, utilization, remaining and scenario',()=>{
+ const r=result();
+ assert.equal(r.status,'comparable');assert.equal(r.paceStatus,'ahead_of_plan');assert.equal(r.varianceToPlan,'200');
+ assert.equal(r.remainingBudget,'1900');assert.equal(r.remainingDailyAllowance,'90.4761904762');
+ assert.equal(r.projectedMonthEnd,'3720');assert.equal(r.projectedVariance,'620');assert.equal(r.utilizationPct,'38.709677');
+ const zero=result({target:{...target,target:'0'}});
+ assert.equal(zero.utilizationPct,null);assert.equal(zero.remainingBudget,'-1200');assert.equal(zero.remainingDailyAllowance,'0');assert.equal(zero.observedOverBudget,true);
+ const huge='9007199254740993.1234567891';
+ const a={...actual,spend:huge};
+ const exact=result({actual:a,coverage:actualCoverage(a,slice),target:{...target,target:'9007199254740994.1234567891'}});
+ assert.equal(exact.remainingBudget,'1');
+});
+test('sparse, missing, signed, conflicting, zero-baseline and closed periods are not projected',()=>{
+ const sparse={...actual,spendRows:'9',pairedRows:'9',spendDays:9};
+ const partial=result({actual:sparse,coverage:actualCoverage(sparse,slice)});
+ assert.equal(partial.actualSpend,'1200');assert.equal(partial.status,'insufficient_coverage');assert.equal(partial.remainingBudget,null);assert.equal(partial.projectedMonthEnd,null);assert.equal(partial.observedUtilizationPct,'38.709677');
+ const signed={...actual,negativeSpendRows:'1'};
+ assert.equal(result({actual:signed,coverage:actualCoverage(signed,slice)}).forecastStatus,'signed_adjustment');
+ assert.equal(result({conflict:true}).status,'context_conflict');assert.equal(result({conflict:true}).projectedMonthEnd,null);
+ assert.equal(result({matched:false}).target,null);
+ assert.equal(result({target:null}).targetStatus,'missing_target');
+ assert.equal(result({target:{...target,targetStatus:'conflicting_or_missing'}}).status,'conflicting_target');
+ const month=monthSlice('2026-01','2026-01-31'),a={...actual,coveredDays:31,spendDays:31,salesDays:31};
+ assert.equal(result({slice:month,actual:a,coverage:actualCoverage(a,month)}).forecastStatus,'month_closed');
+ assert.equal(result({weekly:[{weekNo:1,target:'3100'}]}).paceStatus,'schedule_conflict');
+ assert.equal(result({weekly:[{weekNo:1,target:'3100'}]}).varianceToPlan,null);
+});
+test('ACoS treats lower as better and compares exact unrounded ratios',()=>{
+ const run=(value,a=actual)=>acosResult({target:{...target,target:value},context,actual:a,slice,coverage:actualCoverage(a,slice)});
+ assert.equal(run('25').status,'below_target');assert.equal(run('25').gapPp,'-5');
+ assert.equal(run('20').status,'at_target');assert.equal(run('10').status,'above_target');
+ const tiny={...actual,spend:'1200.0000000001'};assert.equal(run('20',tiny).status,'above_target');
+ const mismatch={...actual,salesRows:'9',pairedRows:'9'};
+ assert.equal(run('25',mismatch).actual,null);assert.equal(run('25',mismatch).coverage,'incompatible_coverage');
+ assert.equal(run('25',{...actual,sales:'0'}).status,'insufficient_coverage');
+});
+test('no target rows, unknown contexts, conflicts and currencies remain separate',()=>{
+ const common={sellerId:'s1',sellerName:'One',month:'2026-01',catalogMarketplace:'amazon.in'};
+ const t={...common,...target,goalType:'ADS'};
+ const a={...common,...actual,...context};
+ const wrong={...a,currency:'USD',marketplace:'amazon.com'};
+ const rows=assembleBudgetRows({targets:[t],actuals:[a,wrong],weekly:new Map(),asOf:'2026-01-10'});
+ assert.equal(rows.length,2);assert.ok(rows.every(x=>x.contextStatus==='context_conflict'));
+ assert.equal(rows.find(x=>x.currency==='USD').budget.target,null);
+ assert.equal(rows.find(x=>x.currency==='INR').budget.projectedMonthEnd,null);
+ const filtered=assembleBudgetRows({targets:[t],actuals:[a,wrong],weekly:new Map(),asOf:'2026-01-10',currency:'INR'});
+ assert.equal(filtered[0].budget.status,'context_conflict');
+ const observed=assembleBudgetRows({targets:[],actuals:[a],weekly:new Map(),asOf:'2026-01-10'});
+ assert.equal(observed[0].budget.status,'missing_target');assert.equal(observed[0].budget.actualSpend,'1200');
+});
+test('product contribution and seller benchmark retain sparse and signed observations',()=>{
+ const s=(spend,acos,coverage='complete',days=2)=>({coveredDays:days,totals:{spend},coverage:{spend:{status:coverage}},ratios:{acos:{value:acos,status:coverage}}});
+ assert.deepEqual(share(s('25','20'),s('100','25'),'spend',2),{product:'25',seller:'100',value:'25',status:'complete_observed'});
+ assert.equal(share(s('25','20','partial'),s('100','25'),'spend',2).status,'observed_partial');
+ assert.equal(share(s('-5','20'),s('100','25'),'spend',2).value,'-5');
+ assert.equal(share(s('25','20'),s('0','25'),'spend',2).value,null);
+ assert.equal(benchmark(s('25','20'),s('100','25'),'acos',2).delta,'-5');
+ assert.equal(benchmark(s('25','20','partial'),s('100','25'),'acos',2).delta,null);
+});
+test('budget scope fails closed before SQL',async()=>{
+ const args={pool:{request(){throw Error('SQL not expected');}},sql:{},user:{Id:'u',role:{Name:'brand_manager'},assignedSellers:[]},query:{startDate:'2026-01-01',endDate:'2026-01-10'}};
+ assert.deepEqual((await readBudgetIntelligence(args)).rows,[]);
+ await assert.rejects(()=>readBudgetIntelligence({...args,query:{...args.query,sellerId:'foreign'}}),{code:'forbidden_seller'});
+ await assert.rejects(()=>readBudgetIntelligence({...args,query:{...args.query,brand:'A'}}),{code:'invalid_ads_filter'});
+});

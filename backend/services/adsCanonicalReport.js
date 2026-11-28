@@ -5,6 +5,7 @@ const {strictScope,explicitSeller,AdsScopeError}=require('./adsCanonicalScope');
 const {METRICS,aggregateProjection,shapeSummary,validateWindow}=require('./adsCanonicalMetrics');
 const {comparePeriods,compareCurrencies,readReviewSignals,emptyReview}=require('./adsAnalyticsV3');
 const {readPortfolioAnalytics,emptyPortfolio}=require('./adsPortfolioAnalytics');
+const {readProductDiagnostics}=require('./adsProductDiagnostics');
 const GROUPS=new Set(['asin','parent','seller']);
 const SORTS=new Set(['totalSales','sales','spend','organicSales','totalOrders','orders','conversions','clicks','impressions','units','entityKey']);
 const GRANULARITIES=new Set(['day','week','month']);
@@ -171,12 +172,14 @@ async function readCanonicalReport({pool,sql,user,query,exportAll=false,insights
       rows=combineRows(result.recordset);
       if(!exportAll)for(const row of rows)row.comparison=comparePeriods(row.current,row.previous,f.period.days);
     }
+    let diagnostics=null;
+    if(f.entityKey&&f.groupBy==='asin'&&!exportAll){stage='product_diagnostics';diagnostics=await readProductDiagnostics({tx,sql,filters:f,totals:totals.recordset});}
     stage='cleanup';
     await tx.request().batch('DROP TABLE IF EXISTS #AdsPage; DROP TABLE IF EXISTS #AdsEntities; DROP TABLE IF EXISTS #AdsGroups; DROP TABLE #AdsScope;');
     await tx.commit();
     const current=totals.recordset.filter(r=>r.periodKey==='current').map(shape);
     const previous=totals.recordset.filter(r=>r.periodKey==='previous').map(shape);
-    return {...scopeMeta(f),current,previous,comparisons:compareCurrencies(current,previous,f.period.days),series:series.recordset.map(r=>({periodKey:r.periodKey,bucket:r.bucket,...shape(r)})),rows,total,page,limit:f.limit,totalPages,empty:current.length===0&&previous.length===0};
+    return {...scopeMeta(f),current,previous,diagnostics,comparisons:compareCurrencies(current,previous,f.period.days),series:series.recordset.map(r=>({periodKey:r.periodKey,bucket:r.bucket,...shape(r)})),rows,total,page,limit:f.limit,totalPages,empty:current.length===0&&previous.length===0};
   }catch(error){
     try{await tx.rollback();}catch{/* SQL may have aborted already. */}
     if(error instanceof AdsScopeError)throw error;

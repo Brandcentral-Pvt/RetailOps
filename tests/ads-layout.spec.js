@@ -258,7 +258,7 @@ test('Phase 3B portfolio analysis exposes full-population counts, segments, alig
  await panel.getByRole('tab',{name:'Aligned trends'}).click();
  await expect(panel.getByRole('img',{name:/Total sales current and prior aligned trend/})).toBeVisible();
  await expect(panel.getByText('2026-04-29 to 2026-04-30',{exact:true})).toBeVisible();
- const missingBucket=panel.getByRole('row').filter({has:panel.getByRole('cell',{name:'2026-05-03',exact:true})});
+ const missingBucket=panel.getByRole('row').filter({has:page.getByRole('cell',{name:'2026-05-03',exact:true})});
  await expect(missingBucket).toBeVisible();
  await expect(missingBucket.getByRole('cell',{name:'N/A',exact:true})).toHaveCount(2);
  await panel.locator('#ads-portfolio-trend-granularity').click();
