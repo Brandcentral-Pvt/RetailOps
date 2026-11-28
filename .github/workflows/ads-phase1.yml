@@ -23,6 +23,8 @@ on:
       - 'backend/testUtils/adsPhase3.*'
       - 'backend/testUtils/adsPhase5.*'
       - 'backend/testUtils/adsPhase6.*'
+      - 'backend/testUtils/adsPhase7.*'
+      - 'backend/services/cacheService.js'
       - 'backend/server.js'
       - 'Dockerfile.backend'
       - 'backend/services/ads*.js'
@@ -120,12 +122,15 @@ jobs:
           node --check backend/migrations/107_ads_report_covering_index.js
           node --check backend/migrations/108_ads_report_revision.js
           node --check backend/services/adsReportCache.js
+          node --check backend/services/adsAnalystEvidence.js
+          node --check backend/services/adsAnalystReview.js
+          node --check backend/controllers/adsAnalystController.js
           node --check backend/services/adsExportJobs.js
           node --check backend/services/reportExportJobs.js
           node --check backend/controllers/reportExportJobsController.js
           node --check backend/services/adsExportCsv.js
           node --check backend/controllers/adsExportJobsController.js
-          node --test backend/testUtils/adsPhase1.contract.node.cjs backend/testUtils/adsPhase1.canonical.node.cjs backend/testUtils/adsPhase1.report.node.cjs backend/testUtils/adsPhase1.activation.node.cjs backend/testUtils/adsPhase2.preview.node.cjs backend/testUtils/adsPhase3.analytics.node.cjs backend/testUtils/adsPhase3.portfolio.node.cjs backend/testUtils/adsPhase3.budget.node.cjs backend/testUtils/adsPhase3.reconciliation.node.cjs backend/testUtils/adsPhase6.cache.node.cjs
+          node --test backend/testUtils/adsPhase1.contract.node.cjs backend/testUtils/adsPhase1.canonical.node.cjs backend/testUtils/adsPhase1.report.node.cjs backend/testUtils/adsPhase1.activation.node.cjs backend/testUtils/adsPhase2.preview.node.cjs backend/testUtils/adsPhase3.analytics.node.cjs backend/testUtils/adsPhase3.portfolio.node.cjs backend/testUtils/adsPhase3.budget.node.cjs backend/testUtils/adsPhase3.reconciliation.node.cjs backend/testUtils/adsPhase6.cache.node.cjs backend/testUtils/adsPhase7.analyst.node.cjs
   sql:
     runs-on: ubuntu-latest
     timeout-minutes: 15

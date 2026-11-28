@@ -215,7 +215,7 @@ test('new Ads upload has no seller picker and submits automatic ownership CSV',a
 test('Phase 3 comparisons and full-scope review load on demand without page truncation',async({page})=>{
  await page.setViewportSize({width:1440,height:900});await mock(page);
  const comparison={currency:'INR',expectedDays:31,currentDays:31,previousDays:30,metrics:{spend:{status:'incomplete_calendar',unit:'absolute',observedDelta:'15',observedPercentChange:'20'}},ratios:{}};
- await page.route('**/api/ads/canonical-report?*',route=>route.fulfill({json:{success:true,data:{period,empty:false,current:[summary],previous:[summary],comparisons:[comparison],series:[],rows,total:rows.length,page:1,limit:50}}}));
+ await page.route(/\/api\/ads\/canonical-(report|overview)\?/,route=>route.fulfill({json:{success:true,data:{period,empty:false,current:[summary],previous:[summary],comparisons:[comparison],series:[],rows,total:rows.length,page:1,limit:50}}}));
  let requests=0,filters;
  const signalItem={key:'review-1',entityKey:'B000000001',sellerId:'s1',sellerName:longName,currency:'INR',marketplace:'amazon.in',spend:'15',sales:'0',clicks:'25',conversions:'0',evidenceStatus:'observed_partial',currentDays:12,previousDays:null,currentRows:'30',spendRows:'12',salesRows:'12'};
  await page.route('**/api/ads/canonical-insights?*',route=>{
@@ -359,7 +359,7 @@ test('Ads numeric display uses grouped currency and integer counts without raw S
  await mock(page);
  const actual={...summary,totals:{...summary.totals,spend:'7100.0300000000',orders:'11.0000000000',sales:'1234567.1250000000'},ratios:{...summary.ratios,acos:{value:'12.3456000000',status:'complete'}}};
  const formattedRow={...rows[0],current:actual,previous:actual};
- await page.route('**/api/ads/canonical-report?*',route=>route.fulfill({json:{success:true,data:{period,empty:false,current:[actual],previous:[actual],series:[],rows:[formattedRow],total:1,page:1,limit:50}}}));
+ await page.route(/\/api\/ads\/canonical-(report|overview)\?/,route=>route.fulfill({json:{success:true,data:{period,empty:false,current:[actual],previous:[actual],series:[],rows:[formattedRow],total:1,page:1,limit:50}}}));
  await page.goto('/tests/fixtures/ads-layout.html');
  await expect(page.getByText('INR 7,100.03',{exact:true}).first()).toBeVisible();
  await expect(page.getByText('INR 12,34,567.13',{exact:true}).first()).toBeVisible();
@@ -416,17 +416,17 @@ test('Phase 4 overview and focused views keep filter scope and defer heavy reque
  await page.getByRole('option',{name:'Total sales',exact:true}).click();
  await page.locator('#ads-overview-trend-granularity').click();
  await page.getByRole('option',{name:'Monthly',exact:true}).click();
- await expect.poll(()=>requests.filter(r=>r.pathname.endsWith('/canonical-report')).at(-1)?.searchParams.get('granularity')).toBe('month');
+ await expect.poll(()=>requests.filter(r=>r.pathname.endsWith('/canonical-overview')).at(-1)?.searchParams.get('granularity')).toBe('month');
  await expect(page.getByTestId('ads-overview-trend').locator('.ant-select').first()).toContainText('Total sales');
  // Return to the day view for the remainder of the shared-scope regression.
  await page.locator('#ads-overview-trend-granularity').click();
  await page.getByRole('option',{name:'Daily',exact:true}).click();
- await expect.poll(()=>requests.filter(r=>r.pathname.endsWith('/canonical-report')).at(-1)?.searchParams.get('granularity')).toBe('day');
+ await expect.poll(()=>requests.filter(r=>r.pathname.endsWith('/canonical-overview')).at(-1)?.searchParams.get('granularity')).toBe('day');
 
  await assertContained(page);
  await page.locator('#ads-product-search').fill('B000000001');
  await page.getByRole('button',{name:'Apply',exact:true}).click();
- await expect.poll(()=>requests.filter(r=>r.pathname.endsWith('/canonical-report')).at(-1)?.searchParams.get('search')).toBe('B000000001');
+ await expect.poll(()=>requests.filter(r=>r.pathname.endsWith('/canonical-overview')).at(-1)?.searchParams.get('search')).toBe('B000000001');
  await goView(page,'opportunities');
  await expect(page.getByTestId('ads-opportunities').getByRole('button',{name:'Analyze products'})).toBeVisible();
  expect(requests.some(r=>r.pathname.endsWith('/canonical-insights'))).toBe(false);
@@ -503,7 +503,7 @@ test('Ads uses the shared GMS report calendar and preserves filters across date 
  let lastReport,lastBudget;
  page.on('request',r=>{
   const url=new URL(r.url());
-  if(url.pathname.endsWith('/canonical-report'))lastReport=url.searchParams;
+  if(/\/canonical-(report|overview)$/.test(url.pathname))lastReport=url.searchParams;
   if(url.pathname.endsWith('/canonical-budget'))lastBudget=url.searchParams;
  });
  await page.goto('/tests/fixtures/ads-layout.html');
@@ -559,7 +559,7 @@ test('Ads export configures independent filters, handles queue errors and downlo
  await dialog.getByText('Choose seller and filters',{exact:true}).click();
  await expect(dialog.getByRole('button',{name:'Queue Excel export'})).toBeDisabled();
  await dialog.getByLabel('Export seller',{exact:true}).click();
- await page.getByRole('option',{name:longName,exact:true}).click();
+ await page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({hasText:longName}).click();
  await dialog.getByLabel('Export product search').fill('B000000001');
  await dialog.getByText('Weekly',{exact:true}).click();
  await dialog.getByRole('button',{name:'Queue Excel export'}).click();
@@ -621,7 +621,7 @@ test('page transitions retain same-scope rows but seller changes discard them',a
  await expect(table.getByText('Loading page 2; showing page 1 until it is ready.')).toBeVisible();
  await expect(table.getByRole('button',{name:'B000000001',exact:true})).toBeVisible();
  await page.getByRole('combobox',{name:'Seller',exact:true}).click();
- await page.getByRole('option',{name:longName,exact:true}).click();
+ await page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({hasText:longName}).click();
  await expect(page.getByRole('button',{name:'B000000001',exact:true})).toHaveCount(0);
  releasePage();releaseSeller();
  await expect(table.getByRole('button',{name:'B000000001',exact:true})).toBeVisible();
@@ -640,4 +640,19 @@ test('TACoS remains visible in overview and every product preset',async({page})=
  await page.getByRole('combobox',{name:'Product column set'}).click();
  await page.getByRole('option',{name:'Traffic & conversion',exact:true}).click();
  await expect(table.getByRole('columnheader',{name:'TACoS',exact:true})).toBeVisible();
+});
+
+test('AI analyst loads on explicit request and displays canonical evidence',async({page})=>{
+ await mock(page);
+ let calls=0;
+ await page.route('**/api/ads/canonical-analyst/evidence',route=>{
+  calls++;const body=route.request().postDataJSON();expect(body.filters).toHaveProperty('startDate');expect(body.filters).not.toHaveProperty('groupBy');
+  return route.fulfill({json:{success:true,data:{period,empty:false,mode:'rules',reason:'rules_requested',generatedAt:'2026-11-28T12:00:00Z',evidence:[{id:'E1',currency:'INR',period:'current',metric:'tacos',value:'10',coverage:'complete'}],recommendations:[{id:'F1',code:'period_change',evidenceIds:['E1'],action:'Review observed change.'}],limitations:['Missing data is not zero.']}}});
+ });
+ await page.goto('/tests/fixtures/ads-layout.html');await goView(page,'analyst');
+ const panel=page.getByTestId('ads-analyst');
+ await expect(panel.getByRole('button',{name:'Analyze evidence'})).toBeVisible();expect(calls).toBe(0);
+ await panel.getByRole('button',{name:'Analyze evidence'}).click();
+ await expect(panel.getByText('Deterministic evidence review')).toBeVisible();
+ await expect(panel.getByText('10%',{exact:true})).toBeVisible();expect(calls).toBe(1);
 });

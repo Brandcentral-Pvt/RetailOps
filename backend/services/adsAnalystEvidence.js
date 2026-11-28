@@ -25,10 +25,9 @@ function buildEvidence(report){
  }
  const findings=[];
  const addFinding=(record)=>findings.push({id:'F'+(findings.length+1),...record});
- for(const e of evidence.filter(e=>e.period==='current')){
-  if(e.value===null||e.coverage!=='complete'||e.coveredDays!==e.expectedDays){
-   addFinding({code:'coverage_review',evidenceIds:[e.id],action:'Verify source completeness before making a performance decision.'});
-  }
+ for(const currency of [...new Set(evidence.map(e=>e.currency))]){
+  const gaps=evidence.filter(e=>e.currency===currency&&e.period==='current'&&(e.value===null||e.coverage!=='complete'||e.coveredDays!==e.expectedDays));
+  if(gaps.length)addFinding({code:'coverage_review',currency,evidenceIds:gaps.map(e=>e.id),action:'Verify source completeness before making a performance decision.'});
  }
  // All population counts are authoritative; samples are bounded by the SQL rule engine.
  for(const signal of report.review?.signals||[]){
@@ -36,7 +35,7 @@ function buildEvidence(report){
   const id='E'+(evidence.length+1);
   push({currency:signal.currency,period:'current',metric:signal.code,value:signal.count,coverage:'signal_count',sampleCount:signal.items.length});
   addFinding({code:signal.code,evidenceIds:[id],action:signal.action,label:signal.label,currency:signal.currency,
-    products:signal.items.map(p=>({entityKey:p.entityKey,sellerId:p.sellerId,sellerName:p.sellerName,marketplace:p.marketplace,currency:p.currency,evidenceStatus:p.evidenceStatus,spend:p.spend,sales:p.sales,totalSales:p.totalSales,clicks:p.clicks,conversions:p.conversions,currentDays:p.currentDays,previousDays:p.previousDays}))});
+    products:signal.items.map(p=>({key:JSON.stringify([p.sellerId,p.marketplace,p.currency,p.entityKey]),entityKey:p.entityKey,sellerId:p.sellerId,sellerName:p.sellerName,marketplace:p.marketplace,currency:p.currency,evidenceStatus:p.evidenceStatus,spend:p.spend,sales:p.sales,totalSales:p.totalSales,clicks:p.clicks,conversions:p.conversions,currentDays:p.currentDays,previousDays:p.previousDays}))});
  }
  for(const comparison of report.comparisons||[]){
   for(const metric of ['spend','sales','totalSales','acos','tacos','roas']){
