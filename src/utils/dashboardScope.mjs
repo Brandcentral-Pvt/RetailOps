@@ -21,3 +21,8 @@ export function isDashboardGlobal(user){
  const role=String(user?.role?.Name??user?.role?.name??user?.role??'').trim().toLowerCase().replace(/[\s-]+/g,'_');
  return ['admin','super_admin','superadmin','developer','operational_manager','operationalmanager'].includes(role);
 }
+
+export function canDashboardPermission(user,permission){
+ const permissions=user?.permissions;
+ return Array.isArray(permissions)&&(permissions.includes('*')||permissions.includes(permission));
+}
