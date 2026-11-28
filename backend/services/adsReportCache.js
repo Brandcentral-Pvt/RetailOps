@@ -26,7 +26,7 @@ function identity(user,parsed,mode){
  const id=user?.Id||user?.id||user?._id;
  if(!id||parsed.scope.empty||parsed.period.days>MAX_WINDOW_DAYS||parsed.entityKey||!['overview','report'].includes(mode))return null;
  const scope={unrestricted:parsed.scope.unrestricted,ids:sorted(parsed.scope.sellerIds)};
- const fingerprint=hash({id:String(id),mode,parsed:{...parsed,scope}});
+ const fingerprint=hash({id:String(id),mode,role:user?.role?.Name||user?.role?.name||user?.RoleName||null,permissions:sorted(user?.permissions),parsed:{...parsed,scope}});
  // One entry per principal and report mode bounds cache cardinality.
  return {userHash:hash(String(id)),fingerprint,mode};
 }
@@ -40,11 +40,11 @@ function createReportCache({cache,read=readRevision}={}){
   // Read the revision after the cache read, so a commit during the cache
   // lookup cannot validate an entry against the earlier revision.
   const cached=refresh?null:await bounded(()=>store.get(key));
-  const revision=await read(pool);
+  const revision=await bounded(()=>read(pool),800);
   if(!revision)return {data:await load(),status:'no-revision'};
   if(cached?.fingerprint===keyInfo.fingerprint&&cached.revision===revision&&cached.data&&Array.isArray(cached.data.current)&&Array.isArray(cached.data.previous)&&Array.isArray(cached.data.rows)&&Array.isArray(cached.data.series))return {data:cached.data,status:'hit'};
   const data=await load();
-  const after=await read(pool);
+  const after=await bounded(()=>read(pool),800);
   if(!after||after!==revision)return {data,status:'revision-changed'};
   const entry={fingerprint:keyInfo.fingerprint,revision,data};
   if(Buffer.byteLength(JSON.stringify(entry),'utf8')>MAX_BYTES)return {data,status:'oversize'};
