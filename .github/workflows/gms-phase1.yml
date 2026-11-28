@@ -7,6 +7,7 @@ on:
       - 'src/pages/GmsTrackerPage.jsx'
       - 'src/pages/gms.css'
       - 'src/components/gms/**'
+      - 'src/components/common/ReportDateRangePicker.jsx'
       - 'src/services/api.js'
       - 'src/services/exportDownloadIntegrity.mjs'
       - 'src/services/__tests__/exportDownloadIntegrity.test.mjs'

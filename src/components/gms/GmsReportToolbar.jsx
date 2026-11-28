@@ -1,19 +1,11 @@
 import React from 'react';
-import {Alert,Badge,Button,Card,Col,DatePicker,Flex,Input,Row,Select,Space,Tag,Tooltip,Typography} from 'antd';
+import {Alert,Badge,Button,Card,Col,Flex,Input,Row,Select,Space,Tag,Tooltip,Typography} from 'antd';
 import {DownloadOutlined,HistoryOutlined,ReloadOutlined,SearchOutlined,UploadOutlined} from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {formatCount} from './gmsPresentation.mjs';
+import ReportDateRangePicker from '../common/ReportDateRangePicker';
 const {Text}=Typography;
-const presets=[
-  {label:'Today',value:()=>[dayjs().startOf('day'),dayjs().endOf('day')]},
-  {label:'Yesterday',value:()=>[dayjs().subtract(1,'day').startOf('day'),dayjs().subtract(1,'day').endOf('day')]},
-  {label:'Last 7 days',value:()=>[dayjs().subtract(6,'day').startOf('day'),dayjs().endOf('day')]},
-  {label:'Last 30 days',value:()=>[dayjs().subtract(29,'day').startOf('day'),dayjs().endOf('day')]},
-  {label:'This month',value:()=>[dayjs().startOf('month'),dayjs().endOf('day')]},
-  {label:'Previous month',value:()=>[dayjs().subtract(1,'month').startOf('month'),dayjs().subtract(1,'month').endOf('month')]},
-];
 export default function GmsReportToolbar({startDate,endDate,onDateRangeChange,sellers,managers,selectedSellers,selectedManagers,search,onSellersChange,onManagersChange,onSearchChange,onReset,metadataLoading,metadataError,analytics,loading,reportLoading,error,lastLoadedAt,onRefresh,canImport,canExport,onImport,onHistory,onExport}){
-  const range=[dayjs(startDate||dayjs().startOf('month')),dayjs(endDate||dayjs().endOf('month'))];
   const meta=analytics?.meta;
   const filters=selectedSellers.length+selectedManagers.length+(search.trim()?1:0);
   const sync=error?'Sync failed':loading?'Syncing…':lastLoadedAt?'Synced '+dayjs(lastLoadedAt).format('HH:mm:ss'):'Not synced';
@@ -32,10 +24,7 @@ export default function GmsReportToolbar({startDate,endDate,onDateRangeChange,se
       <Row gutter={[12,8]} align="bottom" className="gms-filter-grid">
         <Col xs={24} md={12} xl={8} xxl={7}>
           <label className="gms-field-label" htmlFor="gms-report-range">Reporting dates</label>
-          <DatePicker.RangePicker id={{start:'gms-report-range',end:'gms-report-range-end'}} aria-label="Reporting dates"
-            value={range} allowClear={false} presets={presets} format="DD MMM YYYY" style={{width:'100%'}}
-            disabledDate={d=>d&& (d.isBefore(dayjs('2000-01-01'),'day')||d.isAfter(dayjs('2099-12-31'),'day'))}
-            onChange={dates=>{if(dates?.[0]&&dates?.[1])onDateRangeChange({startDate:dates[0].startOf('day').toDate(),endDate:dates[1].endOf('day').toDate(),rangeType:'custom'});}}/>
+          <ReportDateRangePicker idPrefix="gms-report-range" startDate={startDate} endDate={endDate} onDateRangeChange={onDateRangeChange}/>
         </Col>
         <Col xs={24} sm={12} md={12} xl={5} xxl={5}>
           <label className="gms-field-label" htmlFor="gms-seller-filter">Seller</label>

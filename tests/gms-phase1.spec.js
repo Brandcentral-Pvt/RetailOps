@@ -458,3 +458,15 @@ test('narrow matrix releases the pin while retaining native horizontal scroll',a
   const width=await page.locator('.gms-workspace').evaluate(el=>({client:el.clientWidth,scroll:el.scrollWidth}));
   expect(width.scroll).toBeLessThanOrEqual(width.client+2);
 });
+
+test('GMS reporting calendar retains its existing presets and date request contract',async({page})=>{
+ await page.clock.setFixedTime(new Date('2026-11-28T12:00:00Z'));
+ const state=await setup(page);
+ const start=page.locator('#gms-report-range'),end=page.locator('#gms-report-range-end');
+ await expect(start).toBeVisible();
+ await expect(page.locator('.gms-toolbar .report-date-range-picker')).toHaveCount(1);
+ await start.click();
+ await page.getByText('Previous month',{exact:true}).click();
+ await expect(start).toHaveValue('01 Oct 2026');await expect(end).toHaveValue('31 Oct 2026');
+ await expect.poll(()=>[state.lastRequest()?.startDate,state.lastRequest()?.endDate]).toEqual(['2026-10-01','2026-10-31']);
+});

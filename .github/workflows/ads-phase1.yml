@@ -36,6 +36,7 @@ on:
       - 'backend/testUtils/adsPhase1.*'
       - 'backend/scripts/validateAdsProductReport.js'
       - 'src/components/ads/**'
+      - 'src/components/common/ReportDateRangePicker.jsx'
       - 'src/pages/ads/**'
       - 'tests/ads-layout.spec.js'
       - 'src/contexts/AuthContext.jsx'

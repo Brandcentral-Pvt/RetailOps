@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, Card, Drawer, Empty, Input, Select, Segmented, Skeleton, Spin, Table, Tabs, Tag, Typography } from 'antd';
-import {AppstoreOutlined,BarChartOutlined,BulbOutlined,CalendarOutlined,DashboardOutlined,DownloadOutlined,FilterOutlined,HistoryOutlined,ReloadOutlined,SafetyCertificateOutlined,UploadOutlined,WalletOutlined} from '@ant-design/icons';
+import {AppstoreOutlined,BarChartOutlined,BulbOutlined,DashboardOutlined,DownloadOutlined,FilterOutlined,HistoryOutlined,ReloadOutlined,SafetyCertificateOutlined,UploadOutlined,WalletOutlined} from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import { PERMISSIONS } from '../../constants/permissions';
@@ -8,6 +8,7 @@ import { useDateRange } from '../../contexts/DateRangeContext';
 import { usePageTitle } from '../../contexts/PageTitleContext';
 import { apiClient } from '../../lib/api-client';
 import AdsImportModal from '../../components/ads/AdsImportModal';
+import ReportDateRangePicker from '../../components/common/ReportDateRangePicker';
 import {AdsComparisonPanel,AdsOpportunityPanel,DeltaText} from './AdsPerformanceReview';
 import AdsPortfolioPanel from './AdsPortfolioPanel';
 import AdsReconciliationPanel from './AdsReconciliationPanel';
@@ -40,7 +41,7 @@ const PRESETS={
  all:[...METRIC_COLUMNS.map(x=>x[1]),...RATIO_COLUMNS.map(x=>x[1])]
 };
 const DEFAULT_SORT={performance:'totalSales',traffic:'clicks',efficiency:'spend',all:'totalSales'};
-const Field=({label,children})=><div className="ads-filter-field"><span>{label}</span>{children}</div>;
+const Field=({label,htmlFor,children})=><div className="ads-filter-field">{htmlFor?<label htmlFor={htmlFor}>{label}</label>:<span>{label}</span>}{children}</div>;
 function ViewNav({view,onChange}){
  return <nav className="ads-workspace-nav" aria-label="Ads workspace views">
   {VIEWS.map(([key,label,Icon])=><button type="button" key={key} aria-current={view===key?'page':undefined} data-testid={'ads-view-'+key} className={'ads-view-button'+(view===key?' active':'')} onClick={()=>onChange(key)}><Icon aria-hidden="true"/><span>{label}</span></button>)}
@@ -69,7 +70,7 @@ export default function CanonicalAdsWorkspace(){
     // Global seller scope or a role label is not a permission grant.
     const permissions=Array.isArray(user?.permissions)?user.permissions:[];
     const hasPermission=permission=>permissions.includes('*')||permissions.includes(permission);
-    const {startDate,endDate,openPicker,updateDateRange}=useDateRange();
+    const {startDate,endDate,updateDateRange}=useDateRange();
     const {setPageTitle}=usePageTitle();
     useEffect(()=>{setPageTitle('Ads Intelligence');},[setPageTitle]);
     const [seller,setSeller]=useState(undefined);
@@ -99,7 +100,8 @@ export default function CanonicalAdsWorkspace(){
     const filters=useMemo(()=>({startDate:iso(startDate),endDate:iso(endDate),sellerId:seller,brand,category,currency,marketplace,groupBy,granularity,search:search||undefined,...sort}),[startDate,endDate,seller,brand,category,currency,marketplace,groupBy,granularity,search,sort]);
     const signature=JSON.stringify([principal,filters]);
     const page=paging.key===signature?paging.page:1,limit=paging.limit;
-    const hasDates=!!filters.startDate&&!!filters.endDate;
+    const selectedDays=(Date.parse(filters.endDate)-Date.parse(filters.startDate))/86400000+1;
+    const hasDates=!!filters.startDate&&!!filters.endDate&&selectedDays>=1&&selectedDays<=366;
     const reportView=view==='overview'||view==='products';
     const report=useQuery({queryKey:['ads-canonical',principal,'report',filters,page,limit],queryFn:({signal})=>get('canonical-report',{...filters,page,limit},signal),enabled:enabled&&hasDates&&reportView,staleTime:0,retry:false});
     const drillTarget=drill?.signature===signature?drill.row:null;
@@ -179,7 +181,7 @@ export default function CanonicalAdsWorkspace(){
         <Card size="small" className="ads-filter-card">
             <div className="ads-filter-header"><strong><FilterOutlined/> Report scope</strong><div className="ads-filter-meta">{activeFilters>0&&<span>{activeFilters} active</span>}<Button type="link" size="small" disabled={!activeFilters} onClick={clearFilters}>Clear filters</Button></div></div>
             <div className="ads-filters ads-filter-grid" data-testid="ads-filters">
-                <Field label="Date range"><Button icon={<CalendarOutlined/>} className="ads-date-button" onClick={openPicker}>{filters.startDate||'Start'} to {filters.endDate||'End'}</Button></Field>
+                <Field label="Reporting dates" htmlFor="ads-report-range"><ReportDateRangePicker idPrefix="ads-report-range" startDate={startDate} endDate={endDate} onDateRangeChange={updateDateRange} maxDays={366}/></Field>
                 <Field label="Seller"><Select aria-label="Seller" placeholder="All accessible sellers" allowClear showSearch optionFilterProp="label" value={seller} loading={options.isFetching} options={(choices.sellers||[]).map(s=>({value:s.id,label:s.name||s.id}))} onChange={v=>{setSeller(v);setBrand(undefined);setCategory(undefined);setCurrency(undefined);setMarketplace(undefined);}}/></Field>
                 <Field label="Brand">{selector('Brand',choices.brands,brand,setBrand)}</Field>
                 <Field label="Category">{selector('Category',choices.categories,category,setCategory)}</Field>
@@ -191,7 +193,7 @@ export default function CanonicalAdsWorkspace(){
             {choices.truncated&&<Typography.Paragraph className="ads-filter-note" type="secondary">Filter options are capped; select a seller to narrow catalog choices.</Typography.Paragraph>}
         </Card>
         <ViewNav view={view} onChange={navigate}/>
-        {!hasDates?<Card><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Select a valid date range"/></Card>:<>
+        {!hasDates?<Card><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Select a valid reporting range of up to 366 days."/></Card>:<>
           {reportView&&(report.isError?<Alert type="error" showIcon message={errorText(report.error)} action={<Button onClick={()=>report.refetch()}>Retry</Button>}/>:report.isPending?<ReportLoading/>:data&&<>
             <div className="ads-period-note ads-comparison-period"><span>Current: <strong>{data.period.startDate} to {data.period.endDate}</strong></span><span>Previous: <strong>{data.period.prevStart} to {data.period.prevEnd}</strong></span>{report.isFetching&&<span role="status">Refreshing report…</span>}</div>
             {data.empty?<Card className="ads-empty-card"><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No canonical advertising records in the selected dates.">{hasPermission(PERMISSIONS.ADSREPORT_IMPORT)&&<Button type="primary" onClick={()=>openImport('upload')}>Import a report</Button>}</Empty></Card>:view==='overview'?<>
