@@ -2,12 +2,12 @@
 const {randomUUID,createHash}=require('node:crypto');
 const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path');
 const {createReadStream}=require('node:fs');
-const {once}=require('node:events');
 const {parseReport,readCanonicalReport}=require('./adsCanonicalReport');
 const {strictScope,AdsScopeError}=require('./adsCanonicalScope');
 const {writeCompleteWorkbook}=require('./adsCompleteWorkbook');
 const {writeDailyCsv}=require('./adsExportCsv');
-const {verifyXlsx}=require('./exportFileIntegrity');
+const {verifyXlsx,checkFileEnvelope}=require('./exportFileIntegrity');
+const {readBudgetIntelligence}=require('./adsBudgetIntelligence');
 const {resolveAccessProfile}=require('./accessProfileService');
 const LEASE=120,MAX_BYTES=512*1024*1024,CHUNK=1024*1024;
 const err=(code,message,status=400)=>new AdsScopeError(code,message,status);
@@ -15,7 +15,7 @@ const uid=u=>String(u?.Id||u?.id||u?._id||'');
 const idValid=id=>typeof id==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 const permission=u=>['adsreport_view','adsreport_export'].every(p=>u.permissions?.includes('*')||u.permissions?.includes(p));
 const publicJob=j=>({id:j.Id,format:j.Format,filters:JSON.parse(j.Filters),status:j.Status,stage:j.Stage,attemptCount:j.AttemptCount,createdAt:j.CreatedAt,startedAt:j.StartedAt,completedAt:j.CompletedAt,expiresAt:j.ExpiresAt,bytes:j.FileBytes==null?null:Number(j.FileBytes),rawCount:j.RawCount==null?null:Number(j.RawCount),entityCount:j.EntityCount==null?null:Number(j.EntityCount),errorCode:j.ErrorCode});
-const cols='Id,OwnerId,ClientId,Filters,AccessScope,Format,Status,Stage,AttemptCount,CreatedAt,StartedAt,CompletedAt,ExpiresAt,FileBytes,ChunkCount,RawCount,EntityCount,ErrorCode,ArtifactToken,LeaseToken,LeaseUntil';
+const cols='Id,OwnerId,ClientId,Filters,AccessScope,Format,Status,Stage,AttemptCount,CreatedAt,StartedAt,CompletedAt,ExpiresAt,FileBytes,ArtifactSha256,ChunkCount,RawCount,EntityCount,ErrorCode,ArtifactToken,LeaseToken,LeaseUntil';
 function freezeScope(user,filters){
  const scope=parseReport(user,filters).scope;
  if(scope.empty)throw err('empty_scope','No authorized sellers match this export.',403);
@@ -118,19 +118,25 @@ async function processNext(pool,sql){
   dir=await fs.mkdtemp(path.join(os.tmpdir(),'retailops-ads-job-'));
   const filePath=path.join(dir,'report.'+j.Format);
   const writer=j.Format==='csv'?writeDailyCsv:writeCompleteWorkbook;
-  const result=await readCanonicalReport({pool,sql,user,query:filters,signal,backgroundExport:true,exportWorkbook:snapshot=>writer({filePath,...snapshot,filters,signal,advanced:true})});
+  let budgetInfo=null;
+  if(j.Format==='xlsx'){
+   if(filters.brand||filters.category||filters.search||filters.marketplace)budgetInfo={rows:[],reason:'Not applicable: seller-wide budget data cannot be attributed to catalog, marketplace or search filters.'};
+   else{const query=Object.fromEntries(['sellerId','startDate','endDate','currency'].filter(k=>filters[k]!=null).map(k=>[k,filters[k]]));budgetInfo=await readBudgetIntelligence({pool,sql,user,query});}
+  }
+  const result=await readCanonicalReport({pool,sql,user,query:filters,signal,backgroundExport:true,advancedExport:j.Format==='xlsx',exportWorkbook:snapshot=>writer({filePath,...snapshot,filters,signal,advanced:j.Format==='xlsx',budgetInfo})});
   if(j.Format==='xlsx')await verifyXlsx(filePath,{expectedSheets:result.expectedSheets,signal});
+  else await checkFileEnvelope(filePath,'csv');
   const stat=await fs.stat(filePath);if(!stat.size||stat.size>MAX_BYTES)throw err('artifact_too_large','Export artifact exceeds the 512 MiB storage limit.',422);
   await leaseReq(pool,sql,j).query("UPDATE dbo.AdsExportJobs SET Stage='storing' WHERE "+leaseWhere+";");
-  let chunks=0,bytes=0;
+  let chunks=0,bytes=0;const hash=createHash('sha256');
   for await(const chunk of createReadStream(filePath,{highWaterMark:CHUNK})){
    if(signal.aborted)throw err('export_interrupted','Export interrupted.',408);
    const r=await leaseReq(pool,sql,j).input('chunk',sql.Int,++chunks).input('payload',sql.VarBinary(sql.MAX),chunk).query("INSERT dbo.AdsExportChunks(JobId,AttemptToken,ChunkNo,Payload) SELECT @id,@token,@chunk,@payload WHERE EXISTS(SELECT 1 FROM dbo.AdsExportJobs WHERE "+leaseWhere+");");
-   if(r.rowsAffected[0]!==1)throw err('lease_lost','Export lease lost.',409);bytes+=chunk.length;
+   if(r.rowsAffected[0]!==1)throw err('lease_lost','Export lease lost.',409);bytes+=chunk.length;hash.update(chunk);
   }
   if(bytes!==stat.size||signal.aborted)throw err('export_interrupted','Export interrupted.',408);
   const fresh=await authorizeOwner(pool,sql,j.OwnerId);scopedFilters(fresh,JSON.parse(j.Filters),JSON.parse(j.AccessScope));
-  const published=await leaseReq(pool,sql,j).input('bytes',sql.BigInt,bytes).input('chunks',sql.Int,chunks).input('raw',sql.BigInt,result.rawCount).input('entities',sql.BigInt,result.entityCount).query("UPDATE dbo.AdsExportJobs SET Status='COMPLETED',Stage='completed',ArtifactToken=@token,FileBytes=@bytes,ChunkCount=@chunks,RawCount=@raw,EntityCount=@entities,CompletedAt=SYSUTCDATETIME(),ExpiresAt=DATEADD(day,7,SYSUTCDATETIME()),LeaseToken=NULL,LeaseUntil=NULL WHERE "+leaseWhere+";");
+  const published=await leaseReq(pool,sql,j).input('bytes',sql.BigInt,bytes).input('chunks',sql.Int,chunks).input('raw',sql.BigInt,result.rawCount).input('entities',sql.BigInt,result.entityCount).input('sha',sql.VarChar(64),hash.digest('hex')).query("UPDATE dbo.AdsExportJobs SET Status='COMPLETED',Stage='completed',ArtifactToken=@token,ArtifactSha256=@sha,FileBytes=@bytes,ChunkCount=@chunks,RawCount=@raw,EntityCount=@entities,CompletedAt=SYSUTCDATETIME(),ExpiresAt=DATEADD(day,7,SYSUTCDATETIME()),LeaseToken=NULL,LeaseUntil=NULL WHERE "+leaseWhere+";");
   if(published.rowsAffected[0]!==1)throw err('lease_lost','Export lease lost.',409);
  }catch(e){
   const permanent=e instanceof AdsScopeError&&[400,403,422].includes(e.status);
@@ -150,13 +156,13 @@ async function spoolDownload({pool,sql,user,id,filePath}){
  try{
   const j=await ownJob(tx,sql,user,id,true);
   if(j.Status!=='COMPLETED'||!j.ArtifactToken||!j.ExpiresAt||new Date(j.ExpiresAt)<=new Date())throw err('artifact_unavailable','Export is not available for download.',409);
-  handle=await fs.open(filePath,'wx');let bytes=0;
+  handle=await fs.open(filePath,'wx');let bytes=0;const hash=createHash('sha256');
   for(let i=1;i<=j.ChunkCount;i++){
    const r=await tx.request().input('id',sql.VarChar(36),id).input('token',sql.VarChar(36),j.ArtifactToken).input('chunk',sql.Int,i).query('SELECT Payload FROM dbo.AdsExportChunks WHERE JobId=@id AND AttemptToken=@token AND ChunkNo=@chunk;');
    const data=r.recordset[0]?.Payload;if(!Buffer.isBuffer(data)||!data.length)throw err('artifact_corrupt','Export artifact is incomplete.',503);
-   await handle.writeFile(data);bytes+=data.length;
+   await handle.writeFile(data);bytes+=data.length;hash.update(data);
   }
-  if(bytes!==Number(j.FileBytes))throw err('artifact_corrupt','Export artifact size mismatch.',503);
+  if(bytes!==Number(j.FileBytes)||hash.digest('hex')!==j.ArtifactSha256)throw err('artifact_corrupt','Export artifact size mismatch.',503);
   await handle.close();handle=null;await tx.commit();return publicJob(j);
  }catch(e){try{await tx.rollback();}catch{}throw e;}finally{if(handle)await handle.close().catch(()=>{});}
 }
