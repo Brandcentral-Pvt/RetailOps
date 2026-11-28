@@ -53,7 +53,7 @@ on:
       - 'src/services/sessionRestore.mjs'
       - 'src/services/__tests__/sessionRestore.test.mjs'
       - 'src/services/__tests__/adsNumberFormat.test.mjs'
-      - 'src/services/__tests__/adsOverviewModel.test.mjs'
+      - 'src/services/__tests__/adsOverviewModel.test.mjs src/services/__tests__/adsWorkspacePerformance.test.mjs'
       - 'backend/utils/errors.js'
       - 'backend/__tests__/routes/adsImportActions.test.js'
       - 'tests/fixtures/ads-layout.*'
