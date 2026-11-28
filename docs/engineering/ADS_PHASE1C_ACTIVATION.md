@@ -16,7 +16,7 @@ Seller/month targets scoped using fact ownership and authorized seller selection
 
 ## Legacy retirement
 
-Old Ads overview/table/series/history/report/filter-options/insights/AI and /data/ads-manager, /data/ads-report, /export/start-ads return 410 after permission checks. The canonical workspace is the only routed Ads UI; external/mobile clients using retired payloads must migrate. Saved views/preferences remain stored, advanced AI remains Phase 7. Main dashboard/target achievement compatibility migration is tracked in the companion changes. Other non-Ads report/goal consumers of the legacy table need their own scope/contract review before being switched; do not point them at canonical facts via ASIN-only joins.
+Old Ads overview/table/series/history/report/filter-options/insights/AI and /data/ads-manager, /data/ads-report, /export/start-ads return 410 after permission checks. The canonical workspace is the only routed Ads UI; external/mobile clients using retired payloads must migrate. Saved views/preferences remain stored, advanced AI remains Phase 7. Main dashboard and target achievement now consume canonical owner-scoped facts. The legacy INR-only dashboard excludes other currencies, preserves GMS ranking, exposes observed/coverage values and uses explicit total sales for TACoS. Legacy Ads targets report null for incomplete date or metric coverage and use weighted period ACoS. The dashboard server caches are bypassed during cutover to avoid stale facts and permissions; revision-aware caching and load testing remain later work. Other non-Ads report/goal consumers of the legacy table need their own scope/contract review before being switched; do not point them at canonical facts via ASIN-only joins.
 
 ## Verification
 

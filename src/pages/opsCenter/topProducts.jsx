@@ -22,8 +22,8 @@ const COLUMNS = [
     { key: 'deltaPct', label: 'Δ prev', numeric: true, tip: 'GMS change vs the preceding period of the same length' },
     { key: 'gmsUnits', label: 'Units', numeric: true, tip: 'Ordered units (GMS feed)' },
     { key: 'asp', label: 'ASP', numeric: true, tip: 'Average selling price = GMS ÷ units' },
-    { key: 'adShare', label: 'Ad share', numeric: true, tip: 'Ad-attributed sales as a share of GMS' },
-    { key: 'tacos', label: 'TACoS', numeric: true, tip: 'Total ACoS = ad spend ÷ GMS (lower is better)' },
+    { key: 'adShare', label: 'Ad share', numeric: true, tip: 'Ad-attributed sales as a share of reported total sales' },
+    { key: 'tacos', label: 'TACoS', numeric: true, tip: 'TACoS = ad spend ÷ reported total sales (lower is better)' },
     { key: 'trend', label: 'Trend', numeric: false, sortable: false },
 ];
 
@@ -118,8 +118,8 @@ const ProductDetail = ({ row, labels, granularity, links, periodDays }) => {
                 <Stat label="Units · ASP" value={`${fmtNumFull(row.gmsUnits)} · ${fmtINRFull(row.asp)}`} sub={row.prevGmsUnits > 0 ? <Delta value={row.unitsDeltaPct} label="units" /> : null} />
                 <Stat label="Shipped revenue" value={fmtINRFull(row.shippedRevenue)} sub={row.gmsRevenue > 0 ? `${fmtPct((row.shippedRevenue / row.gmsRevenue) * 100, 0)} of ordered` : null} />
                 <Stat label="Returns" value={fmtNumFull(row.returns)} sub={`${fmtPct(row.returnRate)} of units`} tone={row.returnRate > 10 ? 'neg' : undefined} />
-                <Stat label="Ad sales" value={fmtINRFull(row.adSales)} sub={`${fmtPct(row.adShare)} of GMS · ${fmtNumFull(row.adOrders)} ad orders`} />
-                <Stat label="Ad spend" value={fmtINRFull(row.adSpend)} sub={`TACoS ${fmtPct(row.tacos)} · ACoS ${row.acos}`} tone={row.tacos > 20 ? 'neg' : undefined} />
+                <Stat label="Ad sales" value={row.adSales==null?'N/A':fmtINRFull(row.adSales)} sub={`${row.adShare==null?'N/A':fmtPct(row.adShare)} of reported sales · ${row.adOrders==null?'N/A':fmtNumFull(row.adOrders)} ad orders`} />
+                <Stat label="Ad spend" value={row.adSpend==null?'N/A':fmtINRFull(row.adSpend)} sub={`TACoS ${row.tacos==null?'N/A':fmtPct(row.tacos)} · ACoS ${row.acos}`} tone={row.tacos > 20 ? 'neg' : undefined} />
                 <Stat label="Listing" value={row.currentPrice > 0 ? fmtINRFull(row.currentPrice) : '—'} sub={[row.status, row.availability].filter(Boolean).join(' · ') || 'no listing status'} />
             </div>
             <div className="ops-detail__foot">
@@ -168,10 +168,10 @@ export const TopProductsPanel = ({
         deltaPct: p.deltaPct === null || p.deltaPct === undefined ? null : Number(p.deltaPct),
         asp: Number(p.asp) || ((Number(p.gmsUnits ?? p.units) || 0) > 0 ? (Number(p.gmsRevenue ?? p.revenue) || 0) / Number(p.gmsUnits ?? p.units) : 0),
         share: Number(p.share) || 0,
-        adSales: Number(p.adSales) || 0,
-        adSpend: Number(p.adSpend) || 0,
-        adShare: Number(p.adShare) || 0,
-        tacos: Number(p.tacos) || 0,
+        adSales: p.adSales==null?null:Number(p.adSales),
+        adSpend: p.adSpend==null?null:Number(p.adSpend),
+        adShare: p.adShare==null?null:Number(p.adShare),
+        tacos: p.tacos==null?null:Number(p.tacos),
         returns: Number(p.returns) || 0,
         returnRate: Number(p.returnRate) || 0,
         shippedRevenue: Number(p.shippedRevenue) || 0,
@@ -193,16 +193,17 @@ export const TopProductsPanel = ({
     const totals = useMemo(() => {
         const gms = rows.reduce((s, r) => s + (Number(r.gmsRevenue) || 0), 0);
         const units = rows.reduce((s, r) => s + (Number(r.gmsUnits) || 0), 0);
-        const adSales = rows.reduce((s, r) => s + (Number(r.adSales) || 0), 0);
-        const adSpend = rows.reduce((s, r) => s + (Number(r.adSpend) || 0), 0);
+        const adSales=rows.length&&rows.every(r=>r.adSales!=null&&r.adsCoverage?.AdSales?.status==='complete')?rows.reduce((s,r)=>s+r.adSales,0):null;
+        const adSpend=rows.length&&rows.every(r=>r.adSpend!=null&&r.adsCoverage?.AdSpend?.status==='complete')?rows.reduce((s,r)=>s+r.adSpend,0):null;
+        const reportedTotal=rows.length&&rows.every(r=>r.adTotalSales!=null&&r.adsCoverage?.TotalSales?.status==='complete')?rows.reduce((s,r)=>s+Number(r.adTotalSales),0):null;
         const prev = rows.reduce((s, r) => s + (Number(r.prevGmsRevenue) || 0), 0);
         const base = periodTotal > 0 ? periodTotal : normalized.reduce((s, r) => s + r.gmsRevenue, 0);
         return {
             gms, units, adSales, adSpend, prev,
             share: base > 0 ? (gms / base) * 100 : 0,
             asp: units > 0 ? gms / units : 0,
-            adShare: gms > 0 ? (adSales / gms) * 100 : 0,
-            tacos: gms > 0 ? (adSpend / gms) * 100 : 0,
+            adShare:reportedTotal>0&&adSales!=null?adSales/reportedTotal*100:null,
+            tacos:reportedTotal>0&&adSpend!=null?adSpend/reportedTotal*100:null,
             deltaPct: prev > 0 ? ((gms - prev) / prev) * 100 : null,
         };
     }, [rows, normalized, periodTotal]);
@@ -298,10 +299,10 @@ export const TopProductsPanel = ({
                                             <td className="ops-table__num ops-num">{fmtNumFull(r.gmsUnits)}</td>
                                             <td className="ops-table__num ops-num">{r.asp > 0 ? fmtINRFull(r.asp) : '—'}</td>
                                             <td className="ops-table__num ops-num">
-                                                {r.adSales > 0 ? fmtPct(r.adShare, 0) : <span className="ops-muted">no ads</span>}
+                                                {r.adShare!=null ? fmtPct(r.adShare,0) : <span className="ops-muted">N/A</span>}
                                             </td>
                                             <td className="ops-table__num ops-num">
-                                                {r.adSpend > 0
+                                                {r.tacos!=null
                                                     ? <span style={{ color: r.tacos > 20 ? OPS_COLOR.neg : r.tacos > 10 ? OPS_COLOR.warn : OPS_COLOR.pos }}>{fmtPct(r.tacos)}</span>
                                                     : <span className="ops-muted">—</span>}
                                             </td>
@@ -333,8 +334,8 @@ export const TopProductsPanel = ({
                                 <td className="ops-table__num"><Delta value={totals.deltaPct} compact /></td>
                                 <td className="ops-table__num ops-num">{fmtNumFull(totals.units)}</td>
                                 <td className="ops-table__num ops-num">{totals.asp > 0 ? fmtINRFull(totals.asp) : '—'}</td>
-                                <td className="ops-table__num ops-num">{totals.gms > 0 && totals.adSales > 0 ? fmtPct(totals.adShare, 0) : '—'}</td>
-                                <td className="ops-table__num ops-num">{totals.gms > 0 && totals.adSpend > 0 ? fmtPct(totals.tacos) : '—'}</td>
+                                <td className="ops-table__num ops-num">{totals.adShare!=null ? fmtPct(totals.adShare, 0) : '—'}</td>
+                                <td className="ops-table__num ops-num">{totals.tacos!=null ? fmtPct(totals.tacos) : '—'}</td>
                                 <td colSpan={2} />
                             </tr>
                         </tfoot>

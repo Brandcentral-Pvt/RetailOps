@@ -39,22 +39,6 @@ exports.getDashboardData = async (req, res) => {
 
     const roleName = req.user?.role?.name || req.user?.role;
     const isGlobalUser = isGlobalUserRole(roleName);
-    const assignedSellers = req.user?.assignedSellers || [];
-    const sellerIds = assignedSellers.map(s => typeof s === 'string' ? s : s._id || s.Id);
-
-    // 1. Base Filters & Merchant Selection
-    let finalSellerIds = sellerIds;
-    if (sellerId && sellerId !== 'all') {
-      const parsedSellerIds = sellerId.split(',').map(s => s.trim()).filter(Boolean);
-      const authorizedIds = parsedSellerIds.filter(id => isGlobalUser || sellerIds.includes(id));
-      if (authorizedIds.length > 0) {
-        finalSellerIds = authorizedIds;
-      } else {
-        // Unauthorized selected seller fallback
-        finalSellerIds = ['000000000000000000000000'];
-      }
-    }
-
     const safeSellerIds = canonicalScope.sellerIds.length ? canonicalScope.sellerIds : ['000000000000000000000000'];
     const useWideFilters = canonicalScope.unrestricted;
 

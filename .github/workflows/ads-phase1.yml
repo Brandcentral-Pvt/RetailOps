@@ -46,6 +46,9 @@ jobs:
           node --check backend/controllers/adsCanonicalReportController.js
           node --check backend/services/adsImportConfirmation.js
           node --check backend/services/adsCanonicalTargets.js
+          node --check backend/services/adsConsumerMetrics.js
+          node --check backend/controllers/dashboardController.js
+          node --check backend/controllers/targetController.js
           node --check backend/controllers/adsCanonicalExportController.js
           node --test backend/testUtils/adsPhase1.contract.node.cjs backend/testUtils/adsPhase1.canonical.node.cjs backend/testUtils/adsPhase1.report.node.cjs backend/testUtils/adsPhase1.activation.node.cjs
   sql:

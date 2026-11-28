@@ -18,9 +18,10 @@ test('target precedence, duplicate rejection and coverage-aware comparison',()=>
  const chosen=chooseTargets([{...common,targetType:'YEARLY',target:'200'},{...common,targetType:'MONTHLY',target:'100'}])[0];
  assert.equal(chosen.target,'100');
  assert.equal(chooseTargets([chosen,chosen])[0].target,null);
- const actual={totals:{spend:'25'},coverage:{spend:{status:'complete'}}};
+ const actual={totals:{spend:'25'},coverage:{spend:{status:'complete'}},coveredDays:30};
  const period={startDate:'2026-04-01',endDate:'2026-04-30'};
  assert.equal(targetResult(chosen,actual,period).attainmentPct,'25');
+ assert.equal(targetResult(chosen,{...actual,coveredDays:1},period).attainmentPct,null);
  assert.equal(targetResult(chosen,actual,{...period,endDate:'2026-04-29'}).status,'partial_month');
  assert.equal(targetResult(chosen,{...actual,coverage:{spend:{status:'partial'}}},period).attainmentPct,null);
 });

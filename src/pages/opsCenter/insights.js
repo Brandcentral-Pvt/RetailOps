@@ -37,7 +37,7 @@ export function buildInsights({ dashboardRaw, products = [], targets = [], tasks
     }
 
     // ── TACoS drift (ad spend relative to merchandise sales) ─────────
-    if (gms && prev && gms.revenue > 0 && prev.gmsRevenue > 0 && Number(prev.adSpend) > 0) {
+    if (gms?.tacos!=null&&prev?.tacos!=null&&raw.ads?.ratioCoverage?.tacos==='complete'&&prev.adsRatioCoverage?.tacos==='complete') {
         const pts = pointDelta(gms.tacos, prev.tacos);
         if (pts !== null && Math.abs(pts) >= 0.5) {
             out.push({
@@ -94,7 +94,7 @@ export function buildInsights({ dashboardRaw, products = [], targets = [], tasks
 
     // ── Unadvertised leaders ─────────────────────────────────────────
     const leaders = products.slice(0, 25);
-    const unadvertised = leaders.filter((p) => Number(p.gmsRevenue) > 0 && Number(p.adSpend) === 0);
+    const unadvertised = leaders.filter((p) => Number(p.gmsRevenue)>0&&p.adSpend!=null&&Number(p.adSpend)===0&&p.adsCoverage?.AdSpend?.status==='complete');
     if (leaders.length >= 5 && unadvertised.length > 0 && raw.ads && Number(raw.ads.adSpend) > 0) {
         out.push({
             id: 'unadvertised',
