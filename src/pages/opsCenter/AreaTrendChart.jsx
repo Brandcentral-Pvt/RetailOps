@@ -133,8 +133,8 @@ export const AreaTrendChart = ({
                 {series.map((s) => {
                     const off = hiddenSet.has(s.key);
                     const dim = focused && focused !== s.key;
-                    const total = (s.data || []).reduce((a, b) => a + (numOrNull(b) ?? 0), 0);
-                    const summary = unit === 'pct' ? 'avg' : 'total';
+                    const total=Object.hasOwn(s,'summaryValue')?s.summaryValue:null;
+                    const summary=unit==='pct'||unit==='x'?'period':'total';
                     return (
                         <button
                             key={s.key}
