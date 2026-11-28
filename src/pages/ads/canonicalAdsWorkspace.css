@@ -146,3 +146,15 @@
     .ads-filters .ads-filter-seller,.ads-filters .ads-filter-select,.ads-filters .ads-filter-search {flex:1 1 130px;width:130px;}
     .ads-filters .ads-date-button {flex:1 1 100%;width:100%;}
 }
+
+/* Phase 3A: local responsive analytics panels. */
+.ads-analytics-toolbar {display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;min-width:0;margin-bottom:8px;}
+.ads-analytics-toolbar > * {min-width:0;max-width:100%;overflow-wrap:anywhere;}
+.ads-analytics-note,.ads-delta {font-size:12px;color:var(--ant-color-text-secondary,#64748b);line-height:1.5;overflow-wrap:anywhere;white-space:normal;}
+.ads-delta {margin-top:4px;}
+.ads-signal-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr));gap:8px;min-width:0;margin-top:12px;}
+.ads-signal-choice {display:flex;flex-direction:column;text-align:left;gap:4px;min-width:0;padding:10px 12px;border:1px solid var(--ant-color-border,#d9e1e9);border-radius:8px;background:var(--ant-color-bg-container,#fff);color:inherit;cursor:pointer;overflow-wrap:anywhere;}
+.ads-signal-choice strong {font-size:20px;font-variant-numeric:tabular-nums;line-height:1.1;}
+.ads-signal-choice span {font-size:12px;line-height:1.4;}
+.ads-signal-choice.active {border-color:var(--ant-color-primary,#1677ff);box-shadow:inset 0 0 0 1px var(--ant-color-primary,#1677ff);}
+.ads-signal-choice:focus-visible {outline:2px solid var(--ant-color-primary,#1677ff);outline-offset:2px;}

@@ -196,3 +196,30 @@ test('new Ads upload has no seller picker and submits automatic ownership CSV',a
  await expect(dialog.getByText('Waiting for validation worker',{exact:true})).toBeVisible();
  expect(submitted).toContain('name="reportType"');expect(submitted).not.toContain('name="sellerId"');
 });
+
+test('Phase 3 comparisons and full-scope review load on demand without page truncation',async({page})=>{
+ await page.setViewportSize({width:1440,height:900});await mock(page);
+ const comparison={currency:'INR',expectedDays:31,currentDays:31,previousDays:30,metrics:{spend:{status:'incomplete_calendar',unit:'absolute',observedDelta:'15',observedPercentChange:'20'}},ratios:{}};
+ await page.route('**/api/ads/canonical-report?*',route=>route.fulfill({json:{success:true,data:{period,empty:false,current:[summary],previous:[summary],comparisons:[comparison],series:[],rows,total:rows.length,page:1,limit:50}}}));
+ let requests=0,filters;
+ const signalItem={key:'review-1',entityKey:'B000000001',sellerId:'s1',sellerName:longName,currency:'INR',marketplace:'amazon.in',spend:'15',sales:'0',clicks:'25',conversions:'0',evidenceStatus:'observed_partial',currentDays:12,previousDays:null,currentRows:'30',spendRows:'12',salesRows:'12'};
+ await page.route('**/api/ads/canonical-insights?*',route=>{
+  requests++;filters=new URL(route.request().url()).searchParams;
+  return route.fulfill({json:{success:true,data:{empty:false,populations:[{currency:'INR',totalEntities:'1200',currentEntities:'1100',previousEntities:'1000',currentFullCalendar:'900',alignedSpendSales:'700'}],signals:[{currency:'INR',code:'spend_zero_sales',label:'Spend with zero net ad sales',description:'Explicit zero net sales.',action:'Review attribution.',count:'126',sampleCount:1,items:[signalItem]}]}}});
+ });
+ await page.goto('/tests/fixtures/ads-layout.html');
+ const panel=page.getByTestId('ads-comparison-panel');
+ await expect(panel.getByText('Observed only',{exact:true})).toBeVisible();
+ const opportunities=page.getByTestId('ads-opportunities');
+ await expect(opportunities.getByRole('button',{name:'Analyze products'})).toBeVisible();
+ expect(requests).toBe(0);
+ await opportunities.getByRole('button',{name:'Analyze products'}).click();
+ await expect(opportunities.getByText('1200 products reviewed',{exact:true})).toBeVisible();
+ await expect(opportunities.getByText('Showing 1 of 126 matches in INR.',{exact:false})).toBeVisible();
+ await expect(opportunities.getByText('Partial observation',{exact:true})).toBeVisible();
+ expect(filters.get('groupBy')).toBe('asin');expect(filters.has('page')).toBe(false);expect(filters.has('limit')).toBe(false);
+ await assertContained(page);
+ const open=opportunities.getByRole('button',{name:'B000000001',exact:true});
+ await open.click();
+ await expect(page.getByRole('dialog').getByText('B000000001 | '+longName,{exact:true})).toBeVisible();
+});
