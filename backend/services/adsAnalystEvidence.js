@@ -1,8 +1,8 @@
 'use strict';
 const {AdsScopeError}=require('./adsCanonicalScope');
 const {parseReport,readCanonicalReport}=require('./adsCanonicalReport');
-const METRICS=['spend','sales','totalSales','orders','conversions','clicks','impressions'];
-const RATIOS=['acos','tacos','roas','ctr','cvr'];
+const METRICS=['spend','sales','totalSales','orders','totalOrders','organicSales','conversions','clicks','impressions'];
+const RATIOS=['acos','tacos','roas','ctr','cvr','cpc'];
 function parseAnalystRequest(user,body){
  if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>k!=='filters'))throw new AdsScopeError('invalid_analyst_request','Only report filters are accepted.');
  const input=body.filters;
@@ -46,7 +46,8 @@ function buildEvidence(report){
    addFinding({code:'period_change',currency:comparison.currency,evidenceIds:[id],action:'Review the observed change against current and prior metrics before deciding on an action.'});
   }
  }
- return {period:report.period,empty:report.empty,evidence,findings,limitations:['Uploaded daily product reports only; no campaign or keyword evidence.','Reported total sales are independent of ad-attributed sales.','Missing data is not zero. Currency groups are never combined.','Stored coverage does not prove that all reports were uploaded.'],generatedAt:new Date().toISOString()};
+ const trends=(report.series||[]).map(r=>({currency:r.currency,period:r.periodKey,date:r.bucket,spend:r.totals.spend,sales:r.totals.sales,totalSales:r.totals.totalSales,tacos:r.ratios.tacos?.value??null,acos:r.ratios.acos?.value??null,roas:r.ratios.roas?.value??null,coverage:r.coverage,ratioCoverage:Object.fromEntries(['tacos','acos','roas'].map(k=>[k,r.ratios[k]?.status||'unknown']))}));
+ return {trends,populations:report.review?.populations||[],period:report.period,empty:report.empty,evidence,findings,limitations:['Uploaded daily product reports only; no campaign or keyword evidence.','Reported total sales are independent of ad-attributed sales.','Missing data is not zero. Currency groups are never combined.','Stored coverage does not prove that all reports were uploaded.'],generatedAt:new Date().toISOString()};
 }
 async function loadEvidence({pool,sql,user,body}){
  const query=parseAnalystRequest(user,body);
