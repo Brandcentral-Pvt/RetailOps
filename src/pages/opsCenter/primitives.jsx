@@ -104,6 +104,7 @@ export const TASK_STATUS_COLORS = {
     PENDING: '#98a2b3',
     TODO: '#c7d0dc',
     CANCELLED: '#475467',
+    OTHER: '#94a3b8',
 };
 
 export const PIPELINE_COLORS = {
