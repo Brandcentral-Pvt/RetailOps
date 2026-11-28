@@ -7,12 +7,12 @@ const service=require('../services/adsImportJobs');
 const {writeIssueReport}=require('../services/adsImportIssueReport');
 const failure=(res,e)=>{
  if(e instanceof AdsScopeError)return res.status(e.status).json({success:false,code:e.code,message:e.message});
- if(isAdsSchemaError(e))return res.status(503).json({success:false,code:'ADS_IMPORT_SCHEMA_NOT_READY',message:'Ads import job schema is not ready. Verify migrations 098 and 099.'});
+ if(isAdsSchemaError(e))return res.status(503).json({success:false,code:'ADS_IMPORT_SCHEMA_NOT_READY',message:'Ads import job schema is not ready. Verify migrations 098, 099 and 101.'});
  console.error('[ads import jobs]',e.message);
  return res.status(503).json({success:false,code:'ads_import_unavailable',message:'Import service unavailable. Reopen history to verify the job status before retrying.'});
 };
 const args=async req=>({pool:await getPool(),sql,user:req.user,id:req.params.id});
-let previews=0,confirmations=0,exportsInFlight=0;
+let previews=0,exportsInFlight=0;
 async function preview(req,res){
  const file=req.file;let slot=false;
  try{
@@ -32,13 +32,11 @@ async function get(req,res){try{
  const data=await service.getJob(await args(req));
  return data?res.json({success:true,data}):res.status(404).json({success:false,code:'job_not_found',message:'Import not found.'});
 }catch(e){return failure(res,e);}}
-async function confirm(req,res){let slot=false;try{
- if(confirmations>=2)throw new AdsScopeError('confirm_busy','Two reports are committing. Retry shortly.',429);
- confirmations++;slot=true;
- req.setTimeout?.(600000);res.setTimeout?.(600000);
+async function confirm(req,res){try{
  const data=await service.confirmJob(await args(req));
- return res.status(data.status==='COMPLETED'?200:409).json({success:data.status==='COMPLETED',data,message:data.status==='COMPLETED'?'Import committed and reconciled.':data.result?.message||'Import could not be confirmed.'});
-}catch(e){return failure(res,e);}finally{if(slot)confirmations--;}}
+ const pending=['QUEUED','PROCESSING'].includes(data.status),completed=data.status==='COMPLETED';
+ return res.status(pending?202:completed?200:409).json({success:pending||completed,data,message:pending?'Import queued for background processing.':completed?'Import committed and reconciled.':data.result?.message||'Import could not be confirmed.'});
+}catch(e){return failure(res,e);}}
 async function cancel(req,res){try{return res.json({success:true,data:await service.cancelJob(await args(req))});}catch(e){return failure(res,e);}}
 async function issues(req,res){let dir,slot=false;try{
  if(exportsInFlight>=2)throw new AdsScopeError('issue_export_busy','Error exports are busy. Retry shortly.',429);

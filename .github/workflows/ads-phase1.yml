@@ -11,6 +11,8 @@ on:
       - 'src/constants/permissions.js'
       - 'backend/database/adsImportSchema.js'
       - 'backend/migrations/099_ads_import_jobs.js'
+      - 'backend/migrations/101_ads_import_queue.js'
+      - 'backend/services/accessProfileService.js'
       - 'backend/testUtils/adsPhase2.*'
       - 'backend/server.js'
       - 'Dockerfile.backend'
@@ -58,6 +60,8 @@ jobs:
           node --check backend/controllers/roleController.js
           node --check backend/database/adsImportSchema.js
           node --check backend/migrations/099_ads_import_jobs.js
+          node --check backend/migrations/101_ads_import_queue.js
+          node --check backend/services/adsImportWorker.js
           node --check backend/services/adsImportJobs.js
           node --check backend/controllers/adsImportJobsController.js
           node --check backend/services/adsImportIssueReport.js

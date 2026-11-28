@@ -32,6 +32,7 @@ async function ingestCanonicalReport({pool,sql,user,sellerId,reportType,input,ex
   if(!Buffer.isBuffer(input)||!input.length||input.length>MAX_FILE_BYTES)throw new AdsIngestionError('invalid_file_size','A bounded CSV Buffer is required.');
   // Own the bytes so the caller cannot mutate them between validation and SQL writes.
   const bytes=Buffer.from(input);
+  if(lifecycle?.progress)await lifecycle.progress('validating',0);
   const report=validateReport(bytes);
   if(!report.valid)throw new AdsIngestionError('validation_failed','No data imported; resolve all validation issues.',{issueCount:report.issueCount,issues:report.issues});
   const tx=new sql.Transaction(pool);
@@ -40,6 +41,7 @@ async function ingestCanonicalReport({pool,sql,user,sellerId,reportType,input,ex
   try{
     if(lifecycle?.begin){stage='job_lock';await lifecycle.begin(tx,report);}
     stage='staging';
+    if(lifecycle?.progress)await lifecycle.progress(stage,0);
     // batch (not query) creates a connection-local temp table that survives subsequent
     // sp_executesql requests on this transaction's pinned connection.
     await tx.request().batch('SELECT TOP (0) '+stageColumns+' INTO #AdsStage FROM dbo.AdsProductDailyFacts; CREATE UNIQUE CLUSTERED INDEX IX_AdsStage ON #AdsStage(Asin,[Date]);');
@@ -49,6 +51,7 @@ async function ingestCanonicalReport({pool,sql,user,sellerId,reportType,input,ex
       await tx.request().input('payload',sql.NVarChar(sql.MAX),JSON.stringify(batch))
         .query('INSERT #AdsStage ('+stageColumns+') SELECT '+stageColumns+' FROM OPENJSON(@payload) WITH ('+jsonColumns+');');
       staged+=batch.length;batch=[];
+      if(lifecycle?.progress&&(staged%5000===0||staged===report.validRows))await lifecycle.progress('staging',staged);
     };
     for(const row of replayValidatedRows(bytes,report.sourceFileSha256)){
       batch.push(row);if(batch.length===BATCH_ROWS)await flush();
@@ -59,6 +62,7 @@ async function ingestCanonicalReport({pool,sql,user,sellerId,reportType,input,ex
     // All writers using this service serialize per seller; database key/range locks
     // provide a second protection against conflicting concurrent writes.
     stage='seller_lock';
+    if(lifecycle?.progress)await lifecycle.progress(stage,staged);
     const lockKey='retailops:ads-writer:'+createHash('sha256').update(seller).digest('hex');
     await tx.request().input('resource',sql.NVarChar(255),lockKey).query(
       "DECLARE @lock int; EXEC @lock=sp_getapplock @Resource=@resource,@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=30000; IF @lock<0 THROW 51030,'Ads import lock unavailable',1;");
@@ -75,11 +79,13 @@ async function ingestCanonicalReport({pool,sql,user,sellerId,reportType,input,ex
     // owned by this seller and another is allowed; foreign-only, unknown, and
     // ambiguous same-seller catalog keys are rejected. No catalog auto-creation.
     stage='catalog_ownership';
+    if(lifecycle?.progress)await lifecycle.progress(stage,staged);
     const owner=await bindScope(tx.request(),sql,scope).query(
       "SELECT COUNT_BIG(*) AS invalidKeys FROM (SELECT s.Asin FROM (SELECT DISTINCT Asin FROM #AdsStage) s LEFT JOIN dbo.Asins a WITH (UPDLOCK,HOLDLOCK) ON a.AsinCode=s.Asin AND a.SellerId=@seller GROUP BY s.Asin HAVING COUNT_BIG(a.AsinCode)<>1) x;");
     const invalidKeys=Number(owner.recordset[0].invalidKeys);
     if(invalidKeys)throw new AdsIngestionError('catalog_ownership_conflict','Every source ASIN must have one catalog mapping under the selected seller.',{invalidKeys});
     stage='historical_conflict_check';
+    if(lifecycle?.progress)await lifecycle.progress(stage,staged);
     const conflicts=await bindScope(tx.request(),sql,scope).query(
       "SELECT COUNT_BIG(*) AS conflictCount FROM #AdsStage s JOIN dbo.AdsProductDailyFacts t WITH (UPDLOCK,HOLDLOCK) ON "+matching+" WHERE "+mismatch+"; "+
       "SELECT COUNT_BIG(*) AS currencyConflicts FROM dbo.AdsProductDailyFacts WITH (UPDLOCK,HOLDLOCK) WHERE SellerId=@seller AND Marketplace=@marketplace AND Currency<>@currency;");
@@ -88,6 +94,7 @@ async function ingestCanonicalReport({pool,sql,user,sellerId,reportType,input,ex
     const conflictCount=Number(conflicts.recordsets[0][0].conflictCount);
     if(conflictCount)throw new AdsIngestionError('historical_conflict','Existing facts differ from this report. No rows were replaced.',{conflictCount});
     stage='insert';
+    if(lifecycle?.progress)await lifecycle.progress(stage,staged);
     const result=await bindScope(tx.request(),sql,scope)
       .input('hash',sql.Char(64),report.sourceFileSha256).input('actor',sql.VarChar(50),actor)
       .query("INSERT dbo.AdsProductDailyFacts (SellerId,Marketplace,Currency,ReportType,"+COLUMNS.join(',')+",SourceFileSha256,SourceRowNumber,SourceSchemaVersion,ImportedBy) "+
@@ -95,12 +102,14 @@ async function ingestCanonicalReport({pool,sql,user,sellerId,reportType,input,ex
         "WHERE NOT EXISTS (SELECT 1 FROM dbo.AdsProductDailyFacts t WITH (UPDLOCK,HOLDLOCK) WHERE "+matching+"); SELECT @@ROWCOUNT AS inserted;");
     const inserted=Number(result.recordset[0].inserted);
     stage='reconcile';
+    if(lifecycle?.progress)await lifecycle.progress(stage,staged);
     const reconciled=await bindScope(tx.request(),sql,scope).query(
       "SELECT COUNT_BIG(*) AS reconciled FROM #AdsStage s JOIN dbo.AdsProductDailyFacts t ON "+matching+
       " WHERE t.Currency=@currency AND NOT EXISTS (SELECT "+selectCols('s')+" EXCEPT SELECT "+selectCols('t')+");");
     if(Number(reconciled.recordset[0].reconciled)!==staged)throw new AdsIngestionError('reconciliation_failed','Persisted facts do not match the validated report.');
     await tx.request().batch('DROP TABLE #AdsStage;');
     const output={sellerId:seller,...context,reportType:'daily',inserted,unchanged:staged-inserted,sourceFileSha256:report.sourceFileSha256,report};
+    if(lifecycle?.progress)await lifecycle.progress('commit',staged);
     if(lifecycle?.complete){stage='job_complete';await lifecycle.complete(tx,output);}
     stage='commit';
     await tx.commit();

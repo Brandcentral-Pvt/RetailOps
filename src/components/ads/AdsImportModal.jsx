@@ -1,10 +1,12 @@
-import React,{useEffect,useState} from 'react';
+import React,{useEffect,useRef,useState} from 'react';
 import {Alert,Button,Card,Col,Descriptions,Modal,Progress,Row,Select,Space,Table,Tabs,Tag,Upload} from 'antd';
 import {InboxOutlined,DownloadOutlined,ReloadOutlined} from '@ant-design/icons';
 import {apiClient} from '../../lib/api-client';
 
 const endpoint='/upload/ads-imports';
-const colors={READY:'processing',REJECTED:'error',COMPLETED:'success',FAILED:'error',CANCELLED:'default',EXPIRED:'default'};
+const colors={QUEUED:'warning',PROCESSING:'processing',READY:'processing',REJECTED:'error',COMPLETED:'success',FAILED:'error',CANCELLED:'default',EXPIRED:'default'};
+const activeJob=status=>['QUEUED','PROCESSING'].includes(status);
+const stageNames={queued:'Waiting for worker',retry_wait:'Waiting to retry',validating:'Revalidating source and access',staging:'Staging source records',seller_lock:'Acquiring seller lock',catalog_ownership:'Checking catalog ownership',historical_conflict_check:'Checking historical records',insert:'Inserting facts',reconcile:'Reconciling persisted records',commit:'Committing transaction',completed:'Completed'};
 const count=v=>v==null?'Unknown':Number(v).toLocaleString('en-IN');
 const time=v=>v?new Date(v).toLocaleString():'N/A';
 const errText=(e,fallback)=>{
@@ -23,6 +25,30 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
  const [busy,setBusy]=useState(null),[error,setError]=useState(null),[uploadPct,setUploadPct]=useState(0);
  const seller=sellers.find(s=>s.id===sellerId);
  const summary=job?.summary||{};
+ const completedCallback=useRef(onComplete),notified=useRef(new Set());
+ completedCallback.current=onComplete;
+ const notifyComplete=next=>{
+  if(next?.status==='COMPLETED'&&next.result?.persisted&&!notified.current.has(next.id)){
+   notified.current.add(next.id);completedCallback.current?.(next.result);
+  }
+ };
+ // Poll only while the selected job is active and the modal is open. No
+ // overlapping requests; closing the modal never cancels server work.
+ useEffect(()=>{
+  if(!isOpen||tab!=='detail'||!job?.id||!activeJob(job.status)||busy)return undefined;
+  const controller=new AbortController();let timer;
+  const tick=async()=>{
+   try{
+    const r=await apiClient.get(endpoint+'/'+encodeURIComponent(job.id),{signal:controller.signal,timeout:12000});
+    if(controller.signal.aborted)return;
+    const next=r.data?.data;
+    if(next?.id===job.id){setJob(next);notifyComplete(next);if(!activeJob(next.status))return;}
+   }catch(e){if(controller.signal.aborted)return;}
+   if(!controller.signal.aborted)timer=setTimeout(tick,2500);
+  };
+  timer=setTimeout(tick,1500);
+  return ()=>{controller.abort();clearTimeout(timer);};
+ },[isOpen,tab,job?.id,job?.status,busy]);
  const loadHistory=async(page=1)=>{
   setHistoryLoading(true);
   try{
@@ -63,9 +89,9 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
   if(!job||job.status!=='READY'||!job.importsEnabled||busy)return;
   setBusy('confirm');setError(null);
   try{
-   const r=await apiClient.post(endpoint+'/'+encodeURIComponent(job.id)+'/confirm',{},{timeout:600000});
+   const r=await apiClient.post(endpoint+'/'+encodeURIComponent(job.id)+'/confirm',{},{timeout:30000});
    const next=r.data.data;setJob(next);
-   if(next.status==='COMPLETED'&&next.result?.persisted)onComplete?.(next.result);
+   notifyComplete(next);
   }catch(e){
    const reported=e.response?.data?.data;
    if(reported?.id===job.id)setJob(reported);
@@ -78,7 +104,8 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
      const current=check.data?.data;
      if(current?.id===job.id){
       setJob(current);
-      if(current.status==='COMPLETED'&&current.result?.persisted){onComplete?.(current.result);return;}
+      if(current.status==='COMPLETED'&&current.result?.persisted){notifyComplete(current);return;}
+      if(activeJob(current.status))return;
       if(current.status==='FAILED'){setError(current.result?.message||'Import failed. Check import details.');return;}
      }
     }catch{/* Reopen history before retrying. */}
@@ -87,7 +114,7 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
   }finally{setBusy(null);}
  };
  const cancel=async()=>{
-  if(!job||job.status!=='READY'||busy)return;
+  if(!job||!['READY','QUEUED'].includes(job.status)||busy)return;
   setBusy('cancel');setError(null);
   try{const r=await apiClient.post(endpoint+'/'+encodeURIComponent(job.id)+'/cancel',{});setJob(r.data.data);}
   catch(e){setError(errText(e,'Cancellation failed. Refresh the job to check its current state.'));}
@@ -147,7 +174,9 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
    <Descriptions.Item label="Marketplace">{job.marketplace} · {job.currency}</Descriptions.Item>
    <Descriptions.Item label="Report dates">{summary.startDate||'N/A'} to {summary.endDate||'N/A'}</Descriptions.Item>
    <Descriptions.Item label="Created">{time(job.createdAt)}</Descriptions.Item>
-   <Descriptions.Item label="Expires">{time(job.expiresAt)}</Descriptions.Item>
+   <Descriptions.Item label="Preview expires">{time(job.expiresAt)}</Descriptions.Item>
+   <Descriptions.Item label="Queued">{time(job.queuedAt)}</Descriptions.Item>
+   <Descriptions.Item label="Worker started">{time(job.startedAt)}</Descriptions.Item>
    <Descriptions.Item label="Completed">{time(job.completedAt)}</Descriptions.Item>
   </Descriptions>
   <Row gutter={[10,10]}>{[['Data rows',summary.rows],['Valid rows',summary.validRows],['Invalid rows',summary.invalidRows],['Issues',summary.issueCount]].map(([label,v])=>
@@ -163,6 +192,16 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
   </Descriptions>}
   {job.status==='READY'&&<Alert showIcon type={job.importsEnabled?'success':'warning'} message={job.importsEnabled?'Ready to confirm':'Import confirmation paused'}
    description={job.importsEnabled?'Confirm inserts new records and retains identical records. Changed historical facts are rejected.':'The server has explicitly paused import confirmation. Ask an administrator to check ADS_CANONICAL_IMPORT_ENABLED, then refresh this saved job. Validation and history remain available.'}/>}
+  {activeJob(job.status)&&<Card size="small" title={stageNames[job.stage]||'Import processing'}>
+   <Space direction="vertical" style={{width:'100%'}}>
+    <Alert type={job.importsEnabled?'info':'warning'} showIcon message={job.importsEnabled?'Background import is active':'Imports are paused by server configuration'}
+     description="You may close this window. Reopen import history to see the current status. Only unclaimed queued jobs can be cancelled."/>
+    {job.stage==='staging'&&summary.validRows>0&&<Progress percent={Math.min(100,Math.floor(100*(job.stagedRows||0)/summary.validRows))} status="active" format={v=>v+'% staged'}/>}
+    <div>{count(job.stagedRows||0)} / {count(summary.validRows)} source rows staged · Attempt {job.attemptCount||0} of 3</div>
+    {job.stage==='retry_wait'&&<div>Next retry: {time(job.nextAttemptAt)}</div>}
+    <div>Staging is not a database commit. Success is shown only after all facts and the job outcome are committed together.</div>
+   </Space>
+  </Card>}
   {job.status==='COMPLETED'&&<Alert showIcon type="success" message={count(job.result?.inserted)+' inserted · '+count(job.result?.unchanged)+' unchanged'} description="The database commit and job completion were reconciled together."/>}
   {job.status==='FAILED'&&<Alert showIcon type="error" message={job.result?.message||'Import failed'} description="No partial advertising records were committed by this job."/>}
   {job.status==='EXPIRED'&&<Alert type="warning" message="The staged file expired. Create a new preview."/>}
@@ -174,14 +213,15 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
   {summary.issuesTruncated&&<Alert type="info" message={'Showing '+summary.issues.length+' of '+summary.issueCount+' detected issues.'}/>}
   {summary.issueReportTruncated&&<Alert type="warning" message={'Error workbook retains '+summary.storedIssueCount+' issues. Split the file to retrieve remaining errors.'}/>}
   {(summary.storedIssueCount>0||job.status==='FAILED')&&<Button icon={<DownloadOutlined/>} loading={busy==='errors'} disabled={!!busy&&busy!=='errors'} onClick={downloadErrors}>Download error workbook</Button>}
-  {busy==='confirm'&&<Alert showIcon type="info" message="Committing and reconciling the report" description="The transaction is running. If the connection drops, reopen history to check the outcome. No progress percentage is available yet."/>}
+  {busy==='confirm'&&<Alert showIcon type="info" message="Submitting import confirmation" description="The server will queue the validated report. If the connection drops, check the job status before retrying."/>}
  </Space>;
  return <Modal title="Advertising report imports" open={isOpen} centered width={920} closable={!busy} maskClosable={!busy} keyboard={!busy}
   onCancel={busy?undefined:onClose} styles={{body:{maxHeight:'66vh',overflowY:'auto'}}}
   footer={<Space wrap>
    <Button disabled={!!busy} onClick={onClose}>Close</Button>
    {tab==='upload'&&<Button type="primary" loading={busy==='validate'} disabled={!!busy||!file||!seller?.context||sellerLoading} onClick={validate}>Validate CSV</Button>}
-   {tab==='detail'&&job?.status==='READY'&&<><Button danger loading={busy==='cancel'} disabled={!!busy} onClick={cancel}>Cancel import</Button><Button type="primary" loading={busy==='confirm'} disabled={!!busy||!job.importsEnabled} onClick={confirm}>Confirm import</Button></>}
+   {tab==='detail'&&['READY','QUEUED'].includes(job?.status)&&<Button danger loading={busy==='cancel'} disabled={!!busy} onClick={cancel}>Cancel import</Button>}
+   {tab==='detail'&&job?.status==='READY'&&<Button type="primary" loading={busy==='confirm'} disabled={!!busy||!job.importsEnabled} onClick={confirm}>Confirm import</Button>}
    {tab==='detail'&&job?.status==='COMPLETED'&&<Button type="primary" disabled={!!busy} onClick={()=>onComplete?.(job.result)}>View imported report</Button>}
    {tab==='detail'&&<Button disabled={!!busy} onClick={newImport}>New import</Button>}
   </Space>}>
