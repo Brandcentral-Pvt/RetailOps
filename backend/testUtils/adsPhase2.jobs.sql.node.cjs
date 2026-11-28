@@ -132,8 +132,8 @@ test('SQL durable Ads job lifecycle, scope, atomic confirmation, retries and exp
   const retry=await preview([{...row,date:'2026-04-09'}]);await confirmJob({...ctx,id:retry.id});
   await work({writer:async()=>{throw Error('synthetic transient error');}});
   const pending=await getJob({...ctx,id:retry.id});assert.equal(pending.status,'QUEUED');assert.equal(pending.stage,'retry_wait');assert.equal(pending.attemptCount,1);
-  await pool.request().input('id',sql.VarChar(50),retry.id).query("UPDATE dbo.AdsImportJobs SET NextAttemptAt=SYSUTCDATETIME() WHERE Id=@id;");
-  await work();assert.equal((await getJob({...ctx,id:retry.id})).status,'COMPLETED');
+  await pool.request().input('id',sql.VarChar(50),retry.id).query("UPDATE dbo.AdsImportJobs SET NextAttemptAt=DATEADD(second,-1,SYSUTCDATETIME()) WHERE Id=@id;");
+  assert.equal(await work(),true,'due retry should be claimed');assert.equal((await getJob({...ctx,id:retry.id})).status,'COMPLETED');
   // A stale worker cannot publish a terminal completion after its lease is stolen.
   const fenced=await preview([{...row,date:'2026-04-10'}]);await confirmJob({...ctx,id:fenced.id});
   await work({writer:async args=>{
@@ -166,7 +166,7 @@ test('SQL durable Ads job lifecycle, scope, atomic confirmation, retries and exp
   const retryPreview=await enqueue([{...row,date:'2026-04-14'}]);
   await validateNext({parser:async()=>{throw Error('test parser interruption');}});
   assert.equal((await getJob({...ctx,id:retryPreview.id})).status,'PREVIEW_QUEUED');
-  await pool.request().input('id',sql.VarChar(50),retryPreview.id).query("UPDATE dbo.AdsImportJobs SET NextAttemptAt=SYSUTCDATETIME() WHERE Id=@id;");
+  await pool.request().input('id',sql.VarChar(50),retryPreview.id).query("UPDATE dbo.AdsImportJobs SET NextAttemptAt=DATEADD(second,-1,SYSUTCDATETIME()) WHERE Id=@id;");
   await validateNext();assert.equal((await getJob({...ctx,id:retryPreview.id})).validationAttempts,2);
   await cancelJob({...ctx,id:retryPreview.id});
   const readyOnly=await listJobs({...ctx,status:'READY'});assert.equal(readyOnly.total,0);

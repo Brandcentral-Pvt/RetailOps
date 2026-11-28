@@ -3,6 +3,7 @@
 // once per report, then compute all sections on that same immutable temp scope.
 const {strictScope,explicitSeller,AdsScopeError}=require('./adsCanonicalScope');
 const {METRICS,aggregateProjection,shapeSummary,validateWindow}=require('./adsCanonicalMetrics');
+const {comparePeriods,compareCurrencies,readReviewSignals,emptyReview}=require('./adsAnalyticsV3');
 const GROUPS=new Set(['asin','parent','seller']);
 const SORTS=new Set(['totalSales','sales','spend','organicSales','totalOrders','orders','conversions','clicks','impressions','units','entityKey']);
 const GRANULARITIES=new Set(['day','week','month']);
@@ -83,7 +84,8 @@ function bucketExpr(granularity){
   return "CONVERT(varchar(10),p.[Date],23)";
 }
 const unmapped="CONVERT(varchar(30),SUM(CONVERT(bigint,CASE WHEN p.[CatalogMatches]<>1 THEN 1 ELSE 0 END))) AS [unmappedRows]";
-function shape(row){return {...shapeSummary(row),unmappedRows:row.unmappedRows||'0'};}
+const dayCoverage='COUNT(DISTINCT p.[Date]) AS [coveredDays]';
+function shape(row){return {...shapeSummary(row),unmappedRows:row.unmappedRows||'0',coveredDays:Number(row.coveredDays??0)};}
 function keyOf(r){return JSON.stringify([r.SellerId,r.Marketplace,r.Currency,r.EntityKey]);}
 function combineRows(rows){
   const out=new Map();
@@ -98,12 +100,13 @@ function scopeMeta(filters){
   return {period:filters.period,reportType:'daily',source:'canonical_v1',groupBy:filters.groupBy,granularity:filters.granularity,sortBy:filters.sortBy,sortOrder:filters.sortOrder};
 }
 function emptyReport(filters){
-  return {...scopeMeta(filters),current:[],previous:[],series:[],rows:[],total:0,page:1,limit:filters.limit,totalPages:1,empty:true};
+  return {...scopeMeta(filters),current:[],previous:[],comparisons:[],series:[],rows:[],total:0,page:1,limit:filters.limit,totalPages:1,empty:true};
 }
 const MAX_EXPORT_ENTITIES=5000;
-async function readCanonicalReport({pool,sql,user,query,exportAll=false}){
+async function readCanonicalReport({pool,sql,user,query,exportAll=false,insightsOnly=false}){
   const f=parseReport(user,query);
-  if(f.scope.empty)return emptyReport(f);
+  if(insightsOnly&&(f.entityKey||f.groupBy!=='asin'))invalid('Product review requires ASIN grouping without entity drill-down.');
+  if(f.scope.empty)return insightsOnly?{...scopeMeta(f),...emptyReview()}:emptyReport(f);
   const tx=new sql.Transaction(pool);
   await tx.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
   let stage='scope';
@@ -126,9 +129,9 @@ async function readCanonicalReport({pool,sql,user,query,exportAll=false}){
       [metaValue('title'),metaValue('brand'),metaValue('category'),'a.[matches]',entity,'CONVERT(nvarchar(255),s.Name)',"CASE WHEN p.[Date]>=CONVERT(date,@start,23) THEN 'current' ELSE 'previous' END"].join(',')+
       ' FROM dbo.AdsProductDailyFacts p JOIN dbo.Sellers s ON s.Id=p.SellerId '+catalogApply(columns)+where+';');
     stage='aggregates';
-    const totals=await tx.request().query('SELECT p.[Currency] AS [currency],p.[periodKey],'+aggregateProjection+','+unmapped+' FROM #AdsScope p GROUP BY p.[Currency],p.[periodKey] ORDER BY p.[Currency],p.[periodKey];');
+    const totals=insightsOnly?{recordset:[]}:await tx.request().query('SELECT p.[Currency] AS [currency],p.[periodKey],'+aggregateProjection+','+unmapped+','+dayCoverage+' FROM #AdsScope p GROUP BY p.[Currency],p.[periodKey] ORDER BY p.[Currency],p.[periodKey];');
     const bucket=bucketExpr(f.granularity);
-    const series=await tx.request().query('SELECT p.[Currency] AS [currency],p.[periodKey],'+bucket+' AS [bucket],'+aggregateProjection+','+unmapped+
+    const series=insightsOnly?{recordset:[]}:await tx.request().query('SELECT p.[Currency] AS [currency],p.[periodKey],'+bucket+' AS [bucket],'+aggregateProjection+','+unmapped+','+dayCoverage+
       ' FROM #AdsScope p GROUP BY p.[Currency],p.[periodKey],'+bucket+' ORDER BY p.[Currency],p.[periodKey],[bucket];');
     let total=0,page=1,totalPages=1,rows=[];
     if(!f.entityKey){
@@ -142,8 +145,14 @@ async function readCanonicalReport({pool,sql,user,query,exportAll=false}){
       await tx.request().batch('SELECT '+groupFields.map(c=>'p.'+c).join(',')+',MAX(p.[SellerName]) AS [SellerName],'+
         (f.groupBy==='asin'?'MAX(p.[CatalogTitle])':'CAST(NULL AS nvarchar(512))')+' AS [CatalogTitle],'+
         (f.groupBy==='asin'?'MAX(p.[CatalogBrand])':'CAST(NULL AS nvarchar(255))')+' AS [CatalogBrand],'+
-        (f.groupBy==='asin'?'MAX(p.[CatalogCategory])':'CAST(NULL AS nvarchar(255))')+' AS [CatalogCategory],'+aggregateProjection+','+unmapped+
+        (f.groupBy==='asin'?'MAX(p.[CatalogCategory])':'CAST(NULL AS nvarchar(255))')+' AS [CatalogCategory],'+aggregateProjection+','+unmapped+','+dayCoverage+
         ' INTO #AdsGroups FROM #AdsScope p GROUP BY '+groupFields.map(c=>'p.'+c).join(',')+'; SELECT DISTINCT '+keys.join(',')+' INTO #AdsEntities FROM #AdsGroups; SELECT TOP(0) CAST(0 AS bigint) AS [rank],'+keys.join(',')+' INTO #AdsPage FROM #AdsEntities;');
+      if(insightsOnly){
+        stage='review_signals';
+        const review=await readReviewSignals({tx,sql,days:f.period.days});
+        await tx.request().batch('DROP TABLE #AdsPage; DROP TABLE #AdsEntities; DROP TABLE #AdsGroups; DROP TABLE #AdsScope;');
+        await tx.commit();return {...scopeMeta(f),...review};
+      }
       const n=await tx.request().query('SELECT CONVERT(varchar(30),COUNT_BIG(*)) AS [total] FROM #AdsEntities;');
       total=Number(n.recordset[0].total);
       if(!Number.isSafeInteger(total)||total<0)throw new Error('Entity count exceeds supported pagination range.');
@@ -159,13 +168,14 @@ async function readCanonicalReport({pool,sql,user,query,exportAll=false}){
         " FROM #AdsEntities e LEFT JOIN #AdsGroups c ON "+equal('e','c')+" AND c.[periodKey]='current' ORDER BY "+ordering+' OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY;');
       const result=await tx.request().query('SELECT g.* FROM #AdsPage e JOIN #AdsGroups g ON '+equal('e','g')+' ORDER BY e.[rank],g.[periodKey];');
       rows=combineRows(result.recordset);
+      if(!exportAll)for(const row of rows)row.comparison=comparePeriods(row.current,row.previous,f.period.days);
     }
     stage='cleanup';
     await tx.request().batch('DROP TABLE IF EXISTS #AdsPage; DROP TABLE IF EXISTS #AdsEntities; DROP TABLE IF EXISTS #AdsGroups; DROP TABLE #AdsScope;');
     await tx.commit();
     const current=totals.recordset.filter(r=>r.periodKey==='current').map(shape);
     const previous=totals.recordset.filter(r=>r.periodKey==='previous').map(shape);
-    return {...scopeMeta(f),current,previous,series:series.recordset.map(r=>({periodKey:r.periodKey,bucket:r.bucket,...shape(r)})),rows,total,page,limit:f.limit,totalPages,empty:current.length===0&&previous.length===0};
+    return {...scopeMeta(f),current,previous,comparisons:compareCurrencies(current,previous,f.period.days),series:series.recordset.map(r=>({periodKey:r.periodKey,bucket:r.bucket,...shape(r)})),rows,total,page,limit:f.limit,totalPages,empty:current.length===0&&previous.length===0};
   }catch(error){
     try{await tx.rollback();}catch{/* SQL may have aborted already. */}
     if(error instanceof AdsScopeError)throw error;

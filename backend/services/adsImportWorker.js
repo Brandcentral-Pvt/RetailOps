@@ -76,6 +76,12 @@ async function recordFailure({pool,sql,job,error}){
  const code=permanent?error.code:'retry_exhausted';
  const message=permanent?error.message:'Import interrupted repeatedly. Validate a new report.';
  const req=bind(pool.request(),sql,job);
+ if(!permanent&&!pause){
+  const cause=error?.cause||error;
+  // Do not log source rows, SQL values, account names or arbitrary errors.
+  const safeCode=typeof cause?.code==='string'&&/^[A-Z0-9_]{1,40}$/.test(cause.code)?cause.code:'UNCLASSIFIED';
+  console.warn('[ads import retry]',{kind:kindOf(job),attempt:Number(job.AttemptCount),code:safeCode,sqlNumber:Number.isInteger(cause?.number)?cause.number:null});
+ }
  if(terminal){
   req.input('result',sql.NVarChar(sql.MAX),JSON.stringify({code,message,persisted:false,details:permanent?error.details||null:null}));
   req.input('issues',sql.NVarChar(sql.MAX),JSON.stringify([{row:error.row??null,column:error.column??null,code,message}]));
