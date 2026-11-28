@@ -1,6 +1,7 @@
 const { isGlobalUserRole } = require('../utils/roleUtils');
 const { sql, getPool } = require('../database/db');
 const { buildInClause } = require('../utils/sqlHelpers');
+const { dateWindow,gmsCatalogApplySql }=require('../utils/gmsPhase1');
 const { strictScope, AdsScopeError } = require('../services/adsCanonicalScope');
 const { projection:adsProjection, summarize:adsSummary, rounded:adsRound } = require('../services/adsConsumerMetrics');
 
@@ -25,6 +26,22 @@ const parsePeriod = (period) => {
   }
 };
 
+function parseDashboardWindow(start,end,period){
+  try{
+    let startDate,endDate,days;
+    if(start!==undefined||end!==undefined){
+      const w=dateWindow(start,end,{required:true});
+      startDate=parseLocalDate(w.from);endDate=parseLocalDate(w.to);
+      days=Math.round((Date.parse(w.to)-Date.parse(w.from))/86400000)+1;
+    }else{
+      if(typeof period!=='string'||!/^\d+(d|w|m|mo|mon|q|y)?$/i.test(period))throw Error('Invalid reporting period');
+      days=parsePeriod(period);endDate=parseLocalDate(toDateKey(new Date()));startDate=new Date(endDate);startDate.setDate(startDate.getDate()-days+1);
+    }
+    if(!Number.isSafeInteger(days)||days<1||days>366)throw Error('Reporting range must be between 1 and 366 days');
+    return {startDate,endDate,days};
+  }catch(e){throw new AdsScopeError('invalid_dashboard_range',e.message,400);}
+}
+
 /**
  * Get dashboard summary data (SQL Version)
  */
@@ -35,6 +52,7 @@ exports.getDashboardData = async (req, res) => {
 
     const canonicalScope = strictScope(req.user,sellerId);
 
+    const range=parseDashboardWindow(startQuery,endQuery,period);
     const pool = await getPool();
 
     const roleName = req.user?.role?.name || req.user?.role;
@@ -134,24 +152,7 @@ exports.getDashboardData = async (req, res) => {
       });
     }
 
-    // 5. Date Range Logic
-    let startDate, endDate, days;
-    let cleanStart = (startQuery === 'null' || startQuery === 'undefined') ? null : startQuery;
-    let cleanEnd = (endQuery === 'null' || endQuery === 'undefined') ? null : endQuery;
-
-    if (cleanStart && cleanEnd) {
-      // ✅ Parse yyyy-mm-dd as LOCAL dates: the pool runs with useUTC=false,
-      // so DATE columns round-trip as local midnight. Parsing inputs as UTC
-      // (new Date('yyyy-mm-dd')) shifted the window by a day in IST.
-      startDate = parseLocalDate(cleanStart);
-      endDate = parseLocalDate(cleanEnd);
-      days = Math.max(1, Math.round(Math.abs(endDate - startDate) / (1000 * 60 * 60 * 24)) + 1);
-    } else {
-      days = Math.min(parsePeriod(period), 365);
-      endDate = new Date();
-      startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
-    }
+    const {startDate,endDate,days}=range;
 
     // ✅ Period-over-period: the window immediately preceding the selected
     // range, same length. Used for every "vs previous period" delta.
@@ -171,7 +172,9 @@ exports.getDashboardData = async (req, res) => {
     // Seller restriction for tables that carry only an ASIN code (GMS rows):
     // an EXISTS against Asins avoids double-counting when the same ASIN is
     // tracked under more than one seller.
-    const gmsScopeFilter = `AND EXISTS (SELECT 1 FROM Asins A WHERE A.AsinCode = g.Asin ${asinJoinFilter})`;
+    const ownerExpr='COALESCE(g.SellerId,a.SellerId)';
+    const gmsScopeFilter=useWideFilters?'':canonicalScope.empty?'AND 1=0':`AND ${ownerExpr} IN (${sellerParams.map((_,i)=>'@dashSeller_'+i).join(',')})`;
+    const gmsFrom=`FROM GmsDailyPerformance g ${gmsCatalogApplySql}`;
 
     const buildRangeReq = () => buildDashReq()
       .input('startDate', sql.Date, startDate)
@@ -212,7 +215,7 @@ exports.getDashboardData = async (req, res) => {
           SUM(ISNULL(g.OrderedUnits, 0)) AS Units,
           SUM(ISNULL(g.ShippedRevenue, 0)) AS ShippedRevenue,
           SUM(ISNULL(g.CustomerReturns, 0)) AS Returns
-        FROM GmsDailyPerformance g
+        ${gmsFrom}
         WHERE g.Date BETWEEN @prevStart AND @endDate
         ${gmsScopeFilter}
         GROUP BY g.Date
@@ -290,7 +293,7 @@ exports.getDashboardData = async (req, res) => {
       .query(`
       WITH GmsAgg AS (
         SELECT
-          g.Asin,
+          g.Asin, ${ownerExpr} AS SellerId,
           SUM(CASE WHEN g.Date >= @startDate THEN ISNULL(g.OrderedRevenue, 0) ELSE 0 END) AS GmsRevenue,
           SUM(CASE WHEN g.Date >= @startDate THEN ISNULL(g.OrderedUnits, 0) ELSE 0 END) AS GmsUnits,
           SUM(CASE WHEN g.Date >= @startDate THEN ISNULL(g.ShippedRevenue, 0) ELSE 0 END) AS ShippedRevenue,
@@ -298,9 +301,10 @@ exports.getDashboardData = async (req, res) => {
           SUM(CASE WHEN g.Date < @startDate THEN ISNULL(g.OrderedRevenue, 0) ELSE 0 END) AS PrevGmsRevenue,
           SUM(CASE WHEN g.Date < @startDate THEN ISNULL(g.OrderedUnits, 0) ELSE 0 END) AS PrevGmsUnits,
           COUNT(DISTINCT CASE WHEN g.Date >= @startDate AND ISNULL(g.OrderedRevenue, 0) > 0 THEN g.Date END) AS ActiveDays
-        FROM GmsDailyPerformance g
+        ${gmsFrom}
         WHERE g.Date BETWEEN @prevStart AND @endDate
-        GROUP BY g.Asin
+        ${gmsScopeFilter}
+        GROUP BY g.Asin, ${ownerExpr}
       ),
       AdsAgg AS (
         SELECT
@@ -320,9 +324,9 @@ exports.getDashboardData = async (req, res) => {
         G.PrevGmsRevenue, G.PrevGmsUnits, G.ActiveDays,
         AD.[FactRows],AD.[AdSales],AD.[AdSalesCount],AD.[AdSpend],AD.[AdSpendCount],AD.[TotalSales],AD.[TotalSalesCount],AD.[OrganicSales],AD.[OrganicSalesCount],AD.[Orders],AD.[OrdersCount],AD.[Impressions],AD.[ImpressionsCount],AD.[Clicks],AD.[ClicksCount],AD.[acosPairCount],AD.[tacosPairCount],AD.[adSharePairCount],AD.[roasPairCount],AD.[ctrPairCount],AD.[cpcPairCount]
       FROM GmsAgg G
-      JOIN Asins A ON A.AsinCode = G.Asin
-      JOIN Sellers S ON A.SellerId = S.Id
-      LEFT JOIN AdsAgg AD ON AD.Asin = G.Asin AND AD.SellerId = A.SellerId
+      CROSS APPLY (SELECT TOP(1) c.* FROM Asins c WHERE UPPER(LTRIM(RTRIM(c.AsinCode)))=UPPER(LTRIM(RTRIM(G.Asin))) AND c.SellerId=G.SellerId ORDER BY c.Id) A
+      JOIN Sellers S ON G.SellerId = S.Id
+      LEFT JOIN AdsAgg AD ON AD.Asin = G.Asin AND AD.SellerId = G.SellerId
       WHERE (G.GmsRevenue > 0 OR G.GmsUnits > 0)
       ${asinJoinFilter}
       ORDER BY G.GmsRevenue DESC, G.GmsUnits DESC
@@ -332,17 +336,16 @@ exports.getDashboardData = async (req, res) => {
     const gmsBySellerPromise = buildRangeReq()
       .query(`
         SELECT
-          A.SellerId, S.Name AS SellerName, S.Marketplace,
+          ${ownerExpr} AS SellerId, S.Name AS SellerName, S.Marketplace,
           SUM(CASE WHEN g.Date >= @startDate THEN ISNULL(g.OrderedRevenue, 0) ELSE 0 END) AS Revenue,
           SUM(CASE WHEN g.Date >= @startDate THEN ISNULL(g.OrderedUnits, 0) ELSE 0 END) AS Units,
           SUM(CASE WHEN g.Date < @startDate THEN ISNULL(g.OrderedRevenue, 0) ELSE 0 END) AS PrevRevenue,
           COUNT(DISTINCT CASE WHEN g.Date >= @startDate AND ISNULL(g.OrderedRevenue, 0) > 0 THEN g.Asin END) AS AsinsWithSales
-        FROM GmsDailyPerformance g
-        JOIN Asins A ON A.AsinCode = g.Asin
-        JOIN Sellers S ON S.Id = A.SellerId
+        ${gmsFrom}
+        LEFT JOIN Sellers S ON S.Id = ${ownerExpr}
         WHERE g.Date BETWEEN @prevStart AND @endDate
-        ${asinJoinFilter}
-        GROUP BY A.SellerId, S.Name, S.Marketplace
+        ${gmsScopeFilter}
+        GROUP BY ${ownerExpr}, S.Name, S.Marketplace
         ORDER BY Revenue DESC
       `);
 
@@ -350,7 +353,7 @@ exports.getDashboardData = async (req, res) => {
     const sellingAsinsPromise = buildRangeReq()
       .query(`
         SELECT COUNT(DISTINCT g.Asin) AS AsinsWithSales
-        FROM GmsDailyPerformance g
+        ${gmsFrom}
         WHERE g.Date BETWEEN @startDate AND @endDate
           AND ISNULL(g.OrderedRevenue, 0) > 0
         ${gmsScopeFilter}
@@ -371,22 +374,23 @@ exports.getDashboardData = async (req, res) => {
       const sparkReq = buildRangeReq();
       const sparkClause = buildInClause(sparkReq, 'sparkAsin', sparkAsins);
       const sparkResult = await sparkReq.query(`
-        SELECT g.Asin, g.Date,
+        SELECT g.Asin, ${ownerExpr} AS SellerId, g.Date,
           SUM(ISNULL(g.OrderedRevenue, 0)) AS Revenue,
           SUM(ISNULL(g.OrderedUnits, 0)) AS Units
-        FROM GmsDailyPerformance g
+        ${gmsFrom}
         WHERE g.Date BETWEEN @startDate AND @endDate
-          AND g.Asin IN (${sparkClause})
-        GROUP BY g.Asin, g.Date
+          AND g.Asin IN (${sparkClause}) ${gmsScopeFilter}
+        GROUP BY g.Asin, ${ownerExpr}, g.Date
       `);
       (sparkResult.recordset || []).forEach(row => {
-        if (!trendByAsin[row.Asin]) {
-          trendByAsin[row.Asin] = { revenue: bucketKeys.map(() => 0), units: bucketKeys.map(() => 0) };
+        const key=JSON.stringify([row.SellerId,row.Asin]);
+        if (!trendByAsin[key]) {
+          trendByAsin[key] = { revenue: bucketKeys.map(() => 0), units: bucketKeys.map(() => 0) };
         }
         const idx = bucketize(row.Date);
         if (idx >= 0) {
-          trendByAsin[row.Asin].revenue[idx] += Math.round(Number(row.Revenue) || 0);
-          trendByAsin[row.Asin].units[idx] += Number(row.Units) || 0;
+          trendByAsin[key].revenue[idx] += Math.round(Number(row.Revenue) || 0);
+          trendByAsin[key].units[idx] += Number(row.Units) || 0;
         }
       });
     }
@@ -406,7 +410,7 @@ exports.getDashboardData = async (req, res) => {
       const adSales=ad.totals.AdSales,adSpend=ad.totals.AdSpend;
       const returns=Number(asin.Returns)||0;
       const acos=ad.ratios.acos;
-      const trend = trendByAsin[asin.AsinCode] || null;
+      const trend = trendByAsin[JSON.stringify([asin.SellerId,asin.AsinCode])] || null;
       return {
         rank: i + 1,
         id: asin.Id,
@@ -629,14 +633,8 @@ function processChartData(days, adsData = [], endDate, gmsRows = []) {
 
   const findBucket = (adDateStr) => {
     if (bucketMap[adDateStr]) return bucketMap[adDateStr];
-    const t = parseLocalDate(adDateStr).getTime();
-    let best = buckets[0];
-    let bestDist = Math.abs(buckets[0].ts - t);
-    for (let i = 1; i < buckets.length; i++) {
-      const dist = Math.abs(buckets[i].ts - t);
-      if (dist < bestDist) { bestDist = dist; best = buckets[i]; }
-    }
-    return best;
+    // Buckets are trailing seven-day intervals ending at their label.
+    return buckets.find(b=>b.key>=adDateStr)||buckets[buckets.length-1];
   };
 
   const rowKey = (row) => toDateKey(row.Date) || toDateKey(row);
