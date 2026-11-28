@@ -9,22 +9,12 @@ const WebhookService = require('../services/WebhookService');
  */
 exports.getAlerts = async (req, res) => {
     try {
-        const userId = req.user.Id || req.user._id;
-        const roleName = req.user.role?.name || req.user.role;
-        const isGlobalUser = isGlobalUserRole(roleName);
-        const pool = await getPool();
-
-        let whereClause = 'WHERE 1=1';
-        const request = pool.request();
-
-        if (!isGlobalUser) {
-            const assignedSellerIds = (req.user.assignedSellers || []).map(s => (s._id || s).toString());
-            if (assignedSellerIds.length === 0) {
-                return res.json({ success: true, data: [] });
-            }
-            const inClause = buildInClause(request, 'alertSeller', assignedSellerIds);
-            whereClause += ` AND a.SellerId IN (${inClause})`;
-        }
+        res.set?.('Cache-Control','private, no-store');
+        const pool=await getPool();
+        const scope=await require('../services/dashboardScope').resolveDashboardScope({pool,sql,user:req.user,sellerId:req.query?.sellerId,managerId:req.query?.managerId});
+        if(scope.empty)return res.json({success:true,data:[]});
+        const request=pool.request();
+        const whereClause=scope.unrestricted?'WHERE 1=1':'WHERE a.SellerId IN ('+buildInClause(request,'alertSeller',scope.sellerIds)+')';
 
         const result = await request.query(`
             SELECT a.*, r.Name as RuleName, r.Type as RuleType,
@@ -32,7 +22,7 @@ exports.getAlerts = async (req, res) => {
                    s.Name as SellerName
             FROM Alerts a
             LEFT JOIN AlertRules r ON a.RuleId = r.Id
-            LEFT JOIN Asins asin ON a.AsinId = asin.Id
+            LEFT JOIN Asins asin ON a.AsinId = asin.Id AND a.SellerId=asin.SellerId
             LEFT JOIN Sellers s ON a.SellerId = s.Id
             ${whereClause}
             ORDER BY a.CreatedAt DESC
@@ -54,7 +44,8 @@ exports.getAlerts = async (req, res) => {
         res.json({ success: true, data: alerts });
     } catch (error) {
         console.error('Error fetching alerts:', error);
-        res.status(500).json({ success: false, message: error.message });
+        const {AdsScopeError}=require('../services/adsCanonicalScope');
+        res.status(error instanceof AdsScopeError?error.status:500).json({success:false,message:error instanceof AdsScopeError?error.message:'Alerts unavailable.'});
     }
 };
 

@@ -3,6 +3,7 @@ import { Select, Button } from 'antd';
 import { usePageTitle } from '../../contexts/PageTitleContext';
 import { useDateRange } from '../../contexts/DateRangeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { dashboardPrincipal,canDashboardPermission } from '../../utils/dashboardScope.mjs';
 import { useDashboardData } from '../../hooks/useDashboardData';
 import { marketSyncApi } from '../../services/api';
 import { Panel, MiniState, SkeletonPage, fmtNum, timeAgo, useNow } from './primitives';
@@ -52,10 +53,11 @@ const fmtRange = (start, end) => {
     return `${new Date(start).toLocaleDateString('en-IN', o)} – ${new Date(end).toLocaleDateString('en-IN', o)}`;
 };
 
-const OpsCenter = () => {
+const ScopedOpsCenter = () => {
     const { setPageTitle } = usePageTitle();
     const { startDate, endDate } = useDateRange();
-    const { hasPermission } = useAuth();
+    const {user}=useAuth();
+    const hasPermission=useCallback(permission=>canDashboardPermission(user,permission),[user]);
 
     useEffect(() => {
         setPageTitle('Operations Command Center');
@@ -78,6 +80,7 @@ const OpsCenter = () => {
         userSellers, managers, activityLogs, scrapeTasks,
         optimizationTasks, topProducts, orch,
         loading, isHydrated, refresh, matchesManagerFilter,
+        canTasks,canPipeline,canLogs,optionsError,pipelineStatus,activityStatus,tasksLoading,
         tasksError, sectionStatus,
     } = useDashboardData(dashboardFilters);
 
@@ -103,6 +106,7 @@ const OpsCenter = () => {
     // ── Sync (real ingestion, not just a reload) ────────────────────────
     const [syncing, setSyncing] = useState(false);
     const handleSync = useCallback(async () => {
+        if(!hasPermission('scraping_manage')||!orch.scope?.unrestricted)return;
         if (syncing) return;
         setSyncing(true);
         try {
@@ -117,7 +121,7 @@ const OpsCenter = () => {
         } finally {
             setSyncing(false);
         }
-    }, [syncing, refresh]);
+    }, [syncing, refresh,hasPermission,orch.scope]);
 
     // ── "Updated X ago" ticker (also refreshes overdue/insight clocks) ──
     const now = useNow(30000);
@@ -174,6 +178,8 @@ const OpsCenter = () => {
 
     return (
         <div className="ops">
+            {optionsError&&<div role="alert">Seller and manager options unavailable. <button onClick={refresh}>Retry</button></div>}
+            {orch.scope?.empty&&<div role="status">No authorized sellers match the selected filters.</div>}
             {/* ── Page head ─────────────────────────────────────────── */}
             <div className="ops-head">
                 <div>
@@ -244,9 +250,9 @@ const OpsCenter = () => {
                             { value: 'ACOS', label: 'ACoS' },
                         ]}
                     />
-                    <Button size="small" type="primary" loading={syncing} onClick={handleSync}>
+                    {hasPermission('scraping_manage')&&orch.scope?.unrestricted&&<Button size="small" type="primary" loading={syncing} onClick={handleSync}>
                         Sync
-                    </Button>
+                    </Button>}
                 </div>
             </div>
 
@@ -310,18 +316,21 @@ const OpsCenter = () => {
                     links={links}
                 />
 
-                <AchievementPanel targets={visibleTargets} status={sectionStatus?.targets} onRetry={refresh} />
+                {hasPermission('targets_view')&&<AchievementPanel targets={visibleTargets} status={sectionStatus?.targets} onRetry={refresh} />}
                 <MixPanel dashboardRaw={raw} status={sectionStatus?.categories} onRetry={refresh} />
 
                 <AsinHealthPanel stats={stats} gms={raw?.gms} />
-                <TasksPanel tasks={optimizationTasks} error={tasksError} onRetry={refresh} />
-                <AlertsPanel alerts={orch.alerts || []} status={sectionStatus?.alerts} onRetry={refresh} />
+                {canTasks&&<TasksPanel tasks={optimizationTasks} error={tasksError} loading={tasksLoading} onRetry={refresh} />}
+                <AlertsPanel alerts={orch.alerts || []} status={sectionStatus?.alerts} onRetry={refresh} canOpen={hasPermission('activitylogs_view')} />
 
-                <PipelinePanel tasks={scrapeTasks} onRetry={refresh} />
-                <ActivityPanel logs={activityLogs} />
+                {canPipeline&&<PipelinePanel tasks={scrapeTasks} status={pipelineStatus} onRetry={refresh} />}
+                {canLogs&&(activityStatus==='loading'?<Panel kicker="Recent activity"><MiniState title="Loading activity" /></Panel>:activityStatus==='error'?<Panel kicker="Activity unavailable"><button onClick={refresh}>Retry</button></Panel>:<ActivityPanel logs={activityLogs} />)}
             </div>
         </div>
     );
 };
 
-export default OpsCenter;
+export default function OpsCenter(){
+    const {user}=useAuth();
+    return <ScopedOpsCenter key={dashboardPrincipal(user)}/>;
+}

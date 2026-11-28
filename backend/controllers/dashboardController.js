@@ -3,7 +3,8 @@ const { sql, getPool } = require('../database/db');
 const { buildInClause } = require('../utils/sqlHelpers');
 const { dateWindow,gmsCatalogApplySql,unambiguousSellerSql }=require('../utils/gmsPhase1');
 const {exactSum,metricProjection,percentage:pct,change:deltaPct,rounded:round2,periodCoverage}=require('../services/dashboardFinancialMetrics');
-const { strictScope, AdsScopeError } = require('../services/adsCanonicalScope');
+const { AdsScopeError } = require('../services/adsCanonicalScope');
+const dashboardScope=require('../services/dashboardScope');
 const { projection:adsProjection, summarize:adsSummary, rounded:adsRound } = require('../services/adsConsumerMetrics');
 
 // Helper to parse period strings (e.g., '30d', '3M', '1y')
@@ -48,17 +49,16 @@ function parseDashboardWindow(start,end,period){
  */
 exports.getDashboardData = async (req, res) => {
   try {
-    const { period = '30d', startDate: startQuery, endDate: endQuery, sellerId } = req.query;
+    res.set?.('Cache-Control','private, no-store');
+    const { period = '30d', startDate: startQuery, endDate: endQuery, sellerId,managerId } = req.query;
     const userId = req.user?.Id || req.user?._id?.toString() || '';
 
-    const canonicalScope = strictScope(req.user,sellerId);
-
     const range=parseDashboardWindow(startQuery,endQuery,period);
-    const pool = await getPool();
+    const pool=await getPool();
+    const canonicalScope=await dashboardScope.resolveDashboardScope({pool,sql,user:req.user,sellerId,managerId});
 
-    const roleName = req.user?.role?.name || req.user?.role;
-    const isGlobalUser = isGlobalUserRole(roleName);
-    const safeSellerIds = canonicalScope.sellerIds.length ? canonicalScope.sellerIds : ['000000000000000000000000'];
+    const isGlobalUser=canonicalScope.isGlobal;
+    const safeSellerIds=canonicalScope.sellerIds;
     const useWideFilters = canonicalScope.unrestricted;
 
     let sellerFilter = '';
@@ -66,7 +66,8 @@ exports.getDashboardData = async (req, res) => {
     let alertFilter = '';
     let sellerParams = [];
 
-    if (!useWideFilters && safeSellerIds.length > 0) {
+    if(canonicalScope.empty){sellerFilter='WHERE 1=0';asinFilter='WHERE 1=0';alertFilter='WHERE 1=0';}
+    else if (!useWideFilters && safeSellerIds.length > 0) {
       sellerParams = safeSellerIds;
       const placeholders = safeSellerIds.map((_, i) => `@dashSeller_${i}`).join(',');
       sellerFilter = 'WHERE Id IN (' + placeholders + ')';
@@ -81,6 +82,7 @@ exports.getDashboardData = async (req, res) => {
     };
 
     // 2. Aggregate Counts (parallel independent queries - each with own request)
+    const hasExplicitFilter=canonicalScope.managerId!==null||canonicalScope.requested.length>0||canonicalScope.empty;
     const [
       sellerCountsResult,
       asinCountsResult,
@@ -110,7 +112,7 @@ exports.getDashboardData = async (req, res) => {
         FROM Alerts ${alertFilter} 
         ORDER BY CreatedAt DESC
       `),
-      pool.request()
+      hasExplicitFilter?Promise.resolve({recordset:[]}):pool.request()
         .input('userId', sql.VarChar, req.user.Id || req.user._id.toString())
         .query(`
           SELECT Status, COUNT(*) as Count 
@@ -118,7 +120,7 @@ exports.getDashboardData = async (req, res) => {
           WHERE AssignedTo = @userId 
           GROUP BY Status
         `),
-      isGlobalUser
+      isGlobalUser&&!hasExplicitFilter
         ? pool.request().query(`
             SELECT Status, COUNT(*) as Count FROM Actions GROUP BY Status
           `)
@@ -490,6 +492,7 @@ exports.getDashboardData = async (req, res) => {
     const asinsWithSales = Number((sellingAsinsResult.recordset || [])[0]?.AsinsWithSales) || 0;
 
     const response = {
+      scope:dashboardScope.publicScope(canonicalScope),
       kpi,
       revenue: revenueData,
       areaSeries,
@@ -505,8 +508,8 @@ exports.getDashboardData = async (req, res) => {
       tableData,
       roas: currentAds.ratios.roas==null?null:currentAds.ratios.roas.toFixed(2),
       dailySpend: days>0&&totalAdSpend!=null?(totalAdSpend/days).toFixed(0):null,
-      userStats,
-      teamStats,
+      userStats:hasExplicitFilter?null:userStats,
+      teamStats:hasExplicitFilter?null:teamStats,
       alerts: alertsResult.recordset.map(a => ({
         id: a.Id,
         type: a.Severity || 'info',
@@ -578,7 +581,7 @@ exports.getDashboardData = async (req, res) => {
     res.json(response);
   } catch (error) {
     if (!res.headersSent) {
-      res.status(error instanceof AdsScopeError?error.status:500).json({ error: error.message });
+      res.status(error instanceof AdsScopeError?error.status:500).json({error:error instanceof AdsScopeError?error.message:'Dashboard data unavailable',code:error instanceof AdsScopeError?error.code:'dashboard_unavailable'});
     }
   }
 };
@@ -716,3 +719,21 @@ function formatTimeAgo(date) {
   if (hours < 24) return `${hours}h ago`;
   return `${days}d ago`;
 }
+
+exports.getDashboardOptions=async(req,res)=>{
+ res.set('Cache-Control','private, no-store');
+ try{return res.json({success:true,data:await dashboardScope.options({pool:await getPool(),sql,user:req.user})});}
+ catch(e){return res.status(e instanceof AdsScopeError?e.status:500).json({success:false,code:e.code||'dashboard_options_unavailable',message:e instanceof AdsScopeError?e.message:'Dashboard options unavailable.'});}
+};
+
+exports.getDashboardTasks=async(req,res)=>{
+ res.set('Cache-Control','private, no-store');
+ try{
+  const pool=await getPool();
+  const scope=await dashboardScope.resolveDashboardScope({pool,sql,user:req.user,sellerId:req.query.sellerId,managerId:req.query.managerId});
+  if(scope.empty)return res.json({success:true,instances:[],total:0,scope:dashboardScope.publicScope(scope)});
+  const filters={limit:200,page:1,...(scope.unrestricted?{}:{sellerId:scope.sellerIds.join(',')})};
+  const data=await require('../services/pems/pemsService').getInstances(filters,req.user);
+  return res.json({success:true,...data,scope:dashboardScope.publicScope(scope)});
+ }catch(e){return res.status(e instanceof AdsScopeError?e.status:500).json({success:false,message:e instanceof AdsScopeError?e.message:'Dashboard tasks unavailable.'});}
+};

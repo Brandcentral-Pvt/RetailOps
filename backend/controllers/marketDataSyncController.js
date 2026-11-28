@@ -1023,18 +1023,14 @@ exports.syncAsinsLive = async (req, res) => {
 exports.getGlobalSyncTasks = async (req, res) => {
     try {
         const pool = await getPool();
-        const roleName = req.user?.role?.Name || req.user?.role?.name || req.user?.role;
-        const isGlobalUser = isGlobalUserRole(roleName);
-        
-        let query = "SELECT Id, Name, Marketplace, OctoparseId FROM Sellers WHERE OctoparseId IS NOT NULL AND OctoparseId <> ''";
-        const request = pool.request();
-        
-        if (!isGlobalUser) {
-            if (!req.user.assignedSellers || req.user.assignedSellers.length === 0) {
-                return res.json({ success: true, tasks: [] });
-            }
-            request.input('assignedSellersJson', sql.NVarChar, JSON.stringify(req.user.assignedSellers));
-            query += ` AND Id IN (SELECT value FROM OPENJSON(@assignedSellersJson))`;
+        const scope=await require('../services/dashboardScope').resolveDashboardScope({pool,sql,user:req.user,sellerId:req.query?.sellerId,managerId:req.query?.managerId});
+        res.set?.('Cache-Control','private, no-store');
+        if(scope.empty)return res.json({success:true,tasks:[]});
+        let query="SELECT Id, Name, Marketplace, OctoparseId FROM Sellers WHERE OctoparseId IS NOT NULL AND OctoparseId <> ''";
+        const request=pool.request();
+        if(!scope.unrestricted){
+            request.input('assignedSellersJson',sql.NVarChar(sql.MAX),JSON.stringify(scope.sellerIds));
+            query+=' AND Id IN (SELECT value FROM OPENJSON(@assignedSellersJson))';
         }
 
         const sellersResult = await request.query(query);
@@ -1094,7 +1090,7 @@ exports.getGlobalSyncTasks = async (req, res) => {
         res.json({ success: true, tasks });
     } catch (error) {
         console.error('Get Global Sync Tasks Error:', error.message);
-        res.status(500).json({ success: false, error: 'Failed to fetch sync tasks' });
+        res.status(error instanceof require('../services/adsCanonicalScope').AdsScopeError?error.status:500).json({success:false,error:error instanceof require('../services/adsCanonicalScope').AdsScopeError?error.message:'Failed to fetch sync tasks'});
     }
 };
 

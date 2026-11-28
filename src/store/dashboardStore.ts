@@ -178,14 +178,11 @@ export const useDashboardStore = create<DashboardState>()(
         }),
         {
             name: 'dash-cache',
-            partialize: (state) => ({
-                // Persist only non-bulky cache details to avoid localStorage QuotaExceededError
-                cache: {
-                    ...INITIAL_CACHE,
-                    syncTimestamp: state.cache.syncTimestamp,
-                    filteredAsins: state.cache.filteredAsins,
-                },
-            }),
+            version:2,
+            // Do not persist account-specific dashboard filters or timestamps.
+            // Drop historical persisted data on upgrade.
+            migrate:()=>({cache:{...INITIAL_CACHE}}),
+            partialize:()=>({cache:{...INITIAL_CACHE}}),
         }
     )
 );

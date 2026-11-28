@@ -468,8 +468,8 @@ export const AchievementPanel = ({ targets, status, onRetry }) => {
     const openGroup = groups.find((g) => g.type === open);
 
     return (
-        <Panel id="ops-goals" span={8} kicker="GMS goal achievement" meta="Advertising targets are available in Ads Intelligence">
-            {status === 'error' ? (
+        <Panel id="ops-goals" span={8} kicker="GMS goal achievement" meta="Full target periods overlapping selection">
+            {status==='loading'?<MiniState title="Loading targets" />:status === 'error' ? (
                 <MiniState tone="error" title="Achievement unavailable" note="Targets could not be loaded." onRetry={onRetry} />
             ) : groups.length === 0 ? (
                 <MiniState tone="empty" title="No targets in view" note="No targets match the current brand / manager selection." />
@@ -588,7 +588,7 @@ export const AsinHealthPanel = ({ stats, gms }) => {
 
 const TASK_ORDER = { IN_PROGRESS: 0, PENDING: 1, IN_REVIEW: 2, TODO: 3, COMPLETED: 4, CANCELLED: 5 };
 
-export const TasksPanel = ({ tasks = [], error, onRetry }) => {
+export const TasksPanel = ({ tasks = [], error, loading, onRetry }) => {
     const [filter, setFilter] = useState(null);
     const now = useNow();
     const counts = {};
@@ -613,7 +613,7 @@ export const TasksPanel = ({ tasks = [], error, onRetry }) => {
 
     return (
         <Panel id="ops-tasks" span={4} kicker="Task pipeline" meta={`${tasks.length} workspace tasks${overdue > 0 ? ` · ${overdue} overdue` : ''}`} linkTo="/tasks/operations" linkLabel="Workspace">
-            {error ? (
+            {loading?<MiniState title="Loading tasks" />:error ? (
                 <MiniState tone="error" title="Tasks unavailable" note={String(error)} onRetry={onRetry} />
             ) : tasks.length === 0 ? (
                 <MiniState tone="empty" title="No active tasks" note="Nothing in the task workspace for this selection." />
@@ -655,7 +655,7 @@ const sevBucket = (a) => {
     return 'info';
 };
 
-export const AlertsPanel = ({ alerts = [], status, onRetry }) => {
+export const AlertsPanel = ({ alerts = [], status, onRetry, canOpen=true }) => {
     const [filter, setFilter] = useState(null);
     const counts = { critical: 0, warning: 0, info: 0 };
     alerts.forEach((a) => { counts[sevBucket(a)] += 1; });
@@ -667,8 +667,8 @@ export const AlertsPanel = ({ alerts = [], status, onRetry }) => {
     const top = alerts.filter((a) => !filter || sevBucket(a) === filter).slice(0, 5);
 
     return (
-        <Panel id="ops-alerts" span={4} kicker="Alerts" meta={`${counts.critical} critical · ${counts.warning} warnings`} linkTo="/alerts" linkLabel="All alerts">
-            {status === 'error' ? (
+        <Panel id="ops-alerts" span={4} kicker="Alerts" meta={`${counts.critical} critical · ${counts.warning} warnings`} linkTo={canOpen?'/alerts':null} linkLabel={canOpen?'All alerts':undefined}>
+            {status==='loading'?<MiniState title="Loading alerts" />:status === 'error' ? (
                 <MiniState tone="error" title="Alerts unavailable" note="The alert feed could not be loaded." onRetry={onRetry} />
             ) : alerts.length === 0 ? (
                 <MiniState tone="empty" title="No active alerts" note="Nothing needs attention for this selection." />
@@ -718,7 +718,7 @@ export const PipelinePanel = ({ tasks = [], onRetry, status }) => {
 
     return (
         <Panel id="ops-pipeline" span={6} kicker="Sync pipeline" meta={`${tasks.length} tracked runs`}>
-            {status === 'error' ? (
+            {status==='loading'?<MiniState title="Loading pipeline" />:status === 'error' ? (
                 <MiniState tone="error" title="Pipeline unavailable" note="Sync status could not be loaded." onRetry={onRetry} />
             ) : tasks.length === 0 ? (
                 <MiniState tone="empty" title="No sync activity" note="No marketplace sync runs recorded yet." />

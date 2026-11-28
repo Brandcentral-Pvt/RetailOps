@@ -19,6 +19,12 @@ test('Dashboard SQL: seller ownership, duplicate catalog protection, exact cents
    ('a2','B000000001','s1','Duplicate same owner','Active'),
    ('a3','B000000002','s1','Shared one','Active'),
    ('a4','B000000002','s2','Shared two','Active');
+  CREATE TABLE dbo.Roles(Id varchar(50) PRIMARY KEY,Name nvarchar(50),Level int);
+  INSERT dbo.Roles VALUES('r1','brand_manager',2);
+  CREATE TABLE dbo.Users(Id varchar(50) PRIMARY KEY,FirstName nvarchar(50),LastName nvarchar(50),RoleId varchar(50),IsActive bit);
+  INSERT dbo.Users VALUES('m1','First','Manager','r1',1),('m2','Second','Manager','r1',1),('m3','No','Assignments','r1',1),('m4','Inactive','Manager','r1',0);
+  CREATE TABLE dbo.UserSellers(UserId varchar(50),SellerId varchar(50));
+  INSERT dbo.UserSellers VALUES('m1','s1'),('m2','s2'),('m4','s1');
   CREATE TABLE dbo.Alerts(Id varchar(50),SellerId varchar(50),Severity nvarchar(50),Message nvarchar(255),CreatedAt datetime2);
   CREATE TABLE dbo.Actions(AssignedTo varchar(50),Status nvarchar(50));
   CREATE TABLE dbo.GmsDailyPerformance(Id varchar(50) PRIMARY KEY,Asin nvarchar(30),SellerId varchar(50),[Date] date,OrderedRevenue decimal(18,2),OrderedUnits int,ShippedRevenue decimal(18,2),CustomerReturns int);
@@ -68,6 +74,30 @@ test('Dashboard SQL: seller ownership, duplicate catalog protection, exact cents
    const empty=await request({...manager,assignedSellers:[]});
    assert.equal(empty.gms.revenue,null);
    assert.deepEqual(empty.tableData,[]);
+   // Phase 2: manager assignment must intersect both selected seller and actor.
+   const mgrOne=await request(adminUser,{managerId:'m1'});
+   assert.equal(mgrOne.gms.revenue,120.06);
+   assert.deepEqual(mgrOne.scope,{sellerIds:['s1'],unrestricted:false,empty:false,managerId:'m1'});
+   for(const result of [
+     await request(adminUser,{managerId:'m3'}),
+     await request(adminUser,{managerId:'m4'}),
+     await request(adminUser,{managerId:'m2',sellerId:'s1'}),
+     await request(manager,{managerId:'m2'})
+   ]){
+    assert.equal(result.scope.empty,true);
+    assert.equal(result.gms.revenue,null);
+    assert.equal(result.ads.adSpend,null);
+    assert.equal(result.stats.totalAsins,0);
+    assert.deepEqual(result.tableData,[]);
+   }
+   const {getDashboardOptions}=require('../controllers/dashboardController');
+   let optionResponse;
+   await getDashboardOptions({user:manager},{set(){},json(v){optionResponse=v;},status(){return this;}});
+   assert.equal(optionResponse.success,true);
+   assert.deepEqual(optionResponse.data.sellers.map(s=>s.id),['s1']);
+   assert.deepEqual(optionResponse.data.managers.map(m=>m.id),['m1']);
+   await pool.request().query("DELETE FROM dbo.UserSellers WHERE UserId='m1'");
+   assert.equal((await request(adminUser,{managerId:'m1'})).scope.empty,true);
   }finally{if(previous)require.cache[dbPath]=previous;else delete require.cache[dbPath];}
  }finally{
   if(pool)await pool.close();

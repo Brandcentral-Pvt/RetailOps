@@ -110,43 +110,23 @@ exports.getTargets = async (req, res) => {
         let whereClause = 'WHERE 1=1';
         const request = pool.request();
 
-        if (!isGlobalUser && req.user) {
-            const assignedSellerIds = (req.user.assignedSellers || []).map(s => (s._id || s.Id || s).toString());
-            const bmName = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim();
-            const bmId = req.user.Id || req.user._id || req.user.id;
-
-            const orParts = [];
-            if (assignedSellerIds.length > 0) {
-                const inClause = buildInClause(request, 'sid', assignedSellerIds);
-                orParts.push(`s.Id IN (${inClause})`);
-            }
-            if (bmName) {
-                request.input('bmName', sql.NVarChar, bmName);
-                orParts.push(`t.BrandManager = @bmName`);
-            }
-            if (bmId) {
-                request.input('bmId', sql.VarChar, bmId);
-                orParts.push(`t.UserId = @bmId`);
-            }
-            if (orParts.length > 0) {
-                whereClause += ` AND (${orParts.join(' OR ')})`;
-            }
-        }
-
-        // ✅ Brand filter fix: the dashboard passes sellerId (possibly a
-        // comma-separated list), goalType and brandManager (user id OR name).
-        // These were silently ignored before, so filters never affected results.
-        const { sellerId: sellerIdFilter, goalType: goalTypeFilter, brandManager: brandManagerFilter } = req.query;
-
-        if (sellerIdFilter && sellerIdFilter !== 'all') {
-            const ids = String(sellerIdFilter).split(',').map(s => s.trim()).filter(Boolean);
-            if (ids.length === 1) {
-                request.input('fsellerId', sql.VarChar, ids[0]);
-                whereClause += ' AND t.SellerId = @fsellerId';
-            } else if (ids.length > 1) {
-                const fsellerIn = buildInClause(request, 'fseller', ids);
-                whereClause += ` AND t.SellerId IN (${fsellerIn})`;
-            }
+        const {sellerId:sellerIdFilter,goalType:goalTypeFilter,brandManager:brandManagerFilter,managerId}=req.query;
+        // Preserve legacy manager-name search for the target workspace; the
+        // dashboard sends an authenticated manager ID as a separate filter.
+        const scope=await require('../services/dashboardScope').resolveDashboardScope({pool,sql,user:req.user,sellerId:sellerIdFilter,managerId});
+        res.set?.('Cache-Control','private, no-store');
+        if(scope.empty)return res.json({success:true,data:[]});
+        if(!scope.unrestricted)whereClause+=' AND t.SellerId IN ('+buildInClause(request,'targetScope',scope.sellerIds)+')';
+        // Date selection chooses overlapping target periods; target values
+        // remain full-period obligations, never silently prorated.
+        if(req.query.dashboardFrom!==undefined||req.query.dashboardTo!==undefined){
+            const {dateWindow}=require('../utils/gmsPhase1');
+            let w;try{w=dateWindow(req.query.dashboardFrom,req.query.dashboardTo,{required:true});}catch(e){throw new (require('../services/adsCanonicalScope').AdsScopeError)('invalid_dashboard_range',e.message);}
+            request.input('targetFromYear',sql.Int,Number(w.from.slice(0,4)));
+            request.input('targetToYear',sql.Int,Number(w.to.slice(0,4)));
+            request.input('targetFromMonth',sql.Int,Number(w.from.slice(0,7).replace('-','')));
+            request.input('targetToMonth',sql.Int,Number(w.to.slice(0,7).replace('-','')));
+            whereClause+=" AND ((UPPER(t.TargetType)='YEARLY' AND t.[Year] BETWEEN @targetFromYear AND @targetToYear) OR (UPPER(t.TargetType)='MONTHLY' AND (t.[Year]*100+t.[Month]) BETWEEN @targetFromMonth AND @targetToMonth))";
         }
         if (goalTypeFilter && goalTypeFilter !== 'all') {
             request.input('fgoalType', sql.NVarChar, goalTypeFilter);
@@ -160,7 +140,7 @@ exports.getTargets = async (req, res) => {
 
         const targetsQuery = `
             SELECT 
-                t.Id, t.SellerId, t.BrandManager, t.TargetType, t.Year, t.Month, t.TotalTargetValue, t.GoalType, t.CreatedAt,
+                t.Id, t.SellerId, t.UserId, t.BrandManager, t.TargetType, t.Year, t.Month, t.TotalTargetValue, t.GoalType, t.CreatedAt,
                 s.Name AS SellerName
             FROM GmsTargets t
             LEFT JOIN Sellers s ON t.SellerId = s.Id
@@ -239,10 +219,11 @@ exports.getTargets = async (req, res) => {
                        SUM(ISNULL(g.OrderedRevenue, 0)) as OrderedRevenue,
                        SUM(ISNULL(g.OrderedUnits, 0)) as OrderedUnits
                 FROM GmsDailyPerformance g
-                INNER JOIN Asins a ON g.Asin = a.AsinCode
-                INNER JOIN Sellers s ON a.SellerId = s.Id
+                ${require('../utils/gmsPhase1').gmsCatalogApplySql}
+                INNER JOIN Sellers s ON COALESCE(g.SellerId,a.SellerId)=s.Id
                 WHERE s.Id IN (${gmsSellerClause})
-                  AND g.Date >= @gmsMinDate AND g.Date <= @gmsMaxDate
+                  ${scope.isGlobal?'':'AND a.SellerId IS NOT NULL AND '+require('../utils/gmsPhase1').unambiguousSellerSql('a')}
+                  AND g.Date >= @gmsMinDate AND g.Date < DATEADD(day,1,@gmsMaxDate)
                 GROUP BY s.Id, g.Date
             `;
             const gmsResult = await gmsRequest.query(gmsQuery);
@@ -361,7 +342,7 @@ exports.getTargets = async (req, res) => {
         if (!res.headersSent) res.json({ success: true, data: enrichedTargets });
     } catch (e) {
         console.error("getTargets error:", e);
-        if (!res.headersSent) res.status(500).json({ success: false, message: e.message });
+        if (!res.headersSent) res.status(e instanceof require('../services/adsCanonicalScope').AdsScopeError?e.status:500).json({success:false,message:e instanceof require('../services/adsCanonicalScope').AdsScopeError?e.message:'Targets unavailable.'});
     }
 };
 

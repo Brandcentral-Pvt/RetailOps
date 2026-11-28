@@ -94,6 +94,8 @@ const dashboardPool = () => makeFakePool([
             AdSales:100,AdSpend:25,Orders:5,FactRows:1,AdSalesCount:1,AdSpendCount:1,TotalSalesCount:1,OrganicSalesCount:1,OrdersCount:1,ImpressionsCount:1,ClicksCount:1,acosPairCount:1,tacosPairCount:1,adSharePairCount:1,roasPairCount:1,ctrPairCount:1,cpcPairCount:1,TotalSales:500,
         }],
     },
+    // Manager assignments are looked up from the authoritative junction.
+    {match:/SELECT DISTINCT us\.SellerId FROM dbo\.UserSellers/,rows:entry=>entry.inputs.managerId==='m1'?[{SellerId:'s1'}]:entry.inputs.managerId==='m2'?[{SellerId:'s2'}]:[]},
     // /alerts endpoint
     { match: /FROM Alerts a/, rows: [] },
 ]);
@@ -218,5 +220,42 @@ describe('GET /api/dashboard — SQL binding & period correctness', () => {
         expect(Array.isArray(res.body.unitsSeries)).toBe(true);
         expect(Array.isArray(res.body.acosSeries)).toBe(true);
         expect(res.body.unitsSeries.reduce((a, b) => a + b, 0)).toBe(5);
+    });
+});
+
+describe('Dashboard Phase 2: manager intersections and route permissions',()=>{
+    test('manager scope is resolved on the server, not from client targets',async()=>{
+        mockState.user=mkUser({id:'admin',role:'admin'});
+        const response=await request(buildApp()).get('/api/dashboard?managerId=m1');
+        expect(response.status).toBe(200);
+        expect(response.body.scope).toEqual({sellerIds:['s1'],unrestricted:false,empty:false,managerId:'m1'});
+        expect(mockState.pool.callWhere(/TOP 200/).inputs.dashSeller_0).toBe('s1');
+    });
+    test('an empty manager intersection never becomes all sellers',async()=>{
+        mockState.user=mkUser({id:'admin',role:'admin'});
+        const response=await request(buildApp()).get('/api/dashboard?managerId=m2&sellerId=s1');
+        expect(response.status).toBe(200);
+        expect(response.body.scope.empty).toBe(true);
+        expect(response.body.scope.unrestricted).toBe(false);
+        expect(mockState.pool.callWhere(/FROM dbo\.AdsProductDailyFacts AP[\s\S]*GROUP BY AP\.Date/).sql).toMatch(/AND 1=0/);
+    });
+    test('unauthorized seller is rejected before resolving manager',async()=>{
+        mockState.user=mkUser({id:'restricted',permissions:['dashboard_view'],assignedSellers:['s1']});
+        const response=await request(buildApp()).get('/api/dashboard?managerId=m1&sellerId=s2');
+        expect(response.status).toBe(403);
+        expect(mockState.pool.calls).toHaveLength(0);
+    });
+    test('dashboard tasks require task permission',async()=>{
+        mockState.user=mkUser({id:'restricted',permissions:['dashboard_view'],assignedSellers:['s1']});
+        const response=await request(buildApp()).get('/api/dashboard/tasks');
+        expect(response.status).toBe(403);
+    });
+    test('alerts honor manager and seller filters and reject foreign seller',async()=>{
+        mockState.user=mkUser({id:'restricted',permissions:['dashboard_view'],assignedSellers:['s1']});
+        const empty=await request(buildApp()).get('/api/alerts?managerId=m2');
+        expect(empty.status).toBe(200);
+        expect(empty.body.data).toEqual([]);
+        expect(mockState.pool.callWhere(/FROM Alerts a/)).toBeNull();
+        expect((await request(buildApp()).get('/api/alerts?sellerId=s2')).status).toBe(403);
     });
 });
