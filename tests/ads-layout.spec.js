@@ -627,3 +627,17 @@ test('page transitions retain same-scope rows but seller changes discard them',a
  await expect(table.getByRole('button',{name:'B000000001',exact:true})).toBeVisible();
  await expect(table.getByRole('button',{name:'C000000001',exact:true})).toHaveCount(0);
 });
+
+test('TACoS remains visible in overview and every product preset',async({page})=>{
+ await mock(page);
+ await page.goto('/tests/fixtures/ads-layout.html');
+ const kpi=page.getByTestId('ads-kpi-tacos');
+ await expect(kpi).toBeVisible();
+ await expect(kpi.locator('.ads-kpi-value')).toHaveText('12.35%');
+ await goView(page,'products');
+ const table=page.getByTestId('ads-product-table');
+ await expect(table.getByRole('columnheader',{name:'TACoS',exact:true})).toBeVisible();
+ await page.getByRole('combobox',{name:'Product column set'}).click();
+ await page.getByRole('option',{name:'Traffic & conversion',exact:true}).click();
+ await expect(table.getByRole('columnheader',{name:'TACoS',exact:true})).toBeVisible();
+});
