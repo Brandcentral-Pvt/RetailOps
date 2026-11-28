@@ -1,13 +1,10 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useEffect, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import api, { marketSyncApi, userApi } from '../services/api';
 import { apiClient } from '../lib/api-client';
-import { db } from '../services/db';
 import { format } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
-import { useDateRange } from '../contexts/DateRangeContext';
 import { useDashboardOrchestration } from './useDashboardOrchestration';
-import { useTargetPermissions } from './useTargetPermissions';
+import { dashboardPrincipal,dashboardSellerParam,matchesDashboardScope,isDashboardGlobal } from '../utils/dashboardScope.mjs';
 import { useSocket } from '../contexts/SocketContext';
 import { computeBlendedAchievement, targetAchievementPct } from '../utils/targetMetrics';
 
@@ -64,129 +61,53 @@ export interface ModuleStats {
 }
 
 export function useDashboardData(filters: DashboardFilters) {
-    const { user } = useAuth();
-    const { isBrandManager } = useTargetPermissions();
-    const socket = useSocket();
-    const [sellers, setSellers] = useState<any[]>([]);
-    const [managers, setManagers] = useState<any[]>([]);
-    const [activityLogs, setActivityLogs] = useState<any[]>([]);
-    const [scrapeTasks, setScrapeTasks] = useState<any[]>([]);
-
-    const matchesManagerFilter = useCallback((target: any, managerId: string) => {
-        if (!managerId || managerId === 'all') return true;
-        if (String(target?.UserId || '') === String(managerId)) return true;
-        const mgr = managers.find((m: any) => String(m.id) === String(managerId));
-        if (mgr) {
-            return String(target?.BrandManager || '').toLowerCase() === String(mgr.name || '').toLowerCase();
-        }
-        return String(target?.BrandManager || '').toLowerCase() === String(managerId).toLowerCase();
-    }, [managers]);
-
-    // ✅ Seller filters may be a comma-separated id list (manager → seller
-    // resolution produces lists) — compare against every id, not the raw string.
-    const matchesSellerFilter = useCallback((target: any, sellerId: string) => {
-        if (!sellerId || sellerId === 'all') return true;
-        const ids = String(sellerId).split(',').map((s: string) => s.trim()).filter(Boolean);
-        if (ids.length === 0) return true;
-        return ids.includes(String(target?.SellerId ?? ''));
-    }, []);
-
-    // Use existing orchestration hook
-    const orch = useDashboardOrchestration({
-        sellerId: filters.sellerId === 'all' ? undefined : filters.sellerId,
-        managerId: filters.managerId === 'all' ? undefined : filters.managerId,
-        startDate: filters.dateRange.start 
-            ? format(filters.dateRange.start, 'yyyy-MM-dd') 
-            : undefined,
-        endDate: filters.dateRange.end 
-            ? format(filters.dateRange.end, 'yyyy-MM-dd') 
-            : undefined,
+    const { user,hasPermission }=useAuth();
+    const principal=dashboardPrincipal(user);
+    const socket=useSocket();
+    const orch=useDashboardOrchestration({
+        sellerId:filters.sellerId==='all'?undefined:filters.sellerId,
+        managerId:filters.managerId==='all'?undefined:filters.managerId,
+        startDate:filters.dateRange.start?format(filters.dateRange.start,'yyyy-MM-dd'):undefined,
+        endDate:filters.dateRange.end?format(filters.dateRange.end,'yyyy-MM-dd'):undefined,
     });
-
-    // Load sellers
-    useEffect(() => {
-        api.sellerApi.getAll({ page: 1, limit: 500 })
-            .then((res: any) => {
-                const list = res?.data?.sellers || res?.sellers || [];
-                setSellers(Array.isArray(list) ? list : []);
-            })
-            .catch(console.error);
-    }, []);
-
-    // Filter sellers list based on user role (RBAC)
-    const userSellers = useMemo(() => {
-        if (!user) return [];
-        const roleName = (user.role?.name || user.role || '').toString().toLowerCase().trim();
-        const isMgr = roleName === 'brand manager' || roleName === 'brand_manager' || isBrandManager;
-
-        if (isMgr) {
-            const assigned = user.assignedSellers || [];
-            return assigned.map((s: any) => {
-                const sid = s.sellerId || s.SellerId || s._id || s.Id || s;
-                const match = sellers.find(x => (x._id || x.id) === sid);
-                return {
-                    id: sid,
-                    name: match?.name || s.name || s.SellerName || sid
-                };
-            });
-        }
-
-        return sellers.map(s => ({
-            id: s._id || s.id,
-            name: s.name || s.SellerName || s._id || s.id
-        }));
-    }, [user, sellers, isBrandManager]);
-
-    // Load real managers from the user API; fall back to targets-derived names
-    useEffect(() => {
-        let cancelled = false;
-        const mgrMap = new Map<string, string>();
-
-        const load = async () => {
-            try {
-                const r: any = await userApi.getManagers();
-                const data = r?.data?.data ?? r?.data ?? r ?? [];
-                const list: any[] = Array.isArray(data) ? data : data?.users || [];
-                (list || []).forEach((m: any) => {
-                    const mid = m._id || m.id;
-                    if (!mid) return;
-                    const firstName = m.firstName || m.FirstName || '';
-                    const lastName = m.lastName || m.LastName || '';
-                    const name = `${firstName} ${lastName}`.trim() || m.displayName || m.name || m.email || mid;
-                    if (!mgrMap.has(String(mid))) mgrMap.set(String(mid), name);
-                });
-            } catch (err) {
-                console.warn('Failed to load managers:', err);
-            }
-
-            const targetsList = orch.targets || [];
-            targetsList.forEach((t: any) => {
-                if (t.BrandManager && !mgrMap.has(String(t.BrandManager))) {
-                    mgrMap.set(String(t.BrandManager), String(t.BrandManager));
-                }
-            });
-
-            if (cancelled) return;
-            setManagers(Array.from(mgrMap.entries()).map(([id, name]) => ({ id, name })));
-        };
-
-        load();
-        return () => { cancelled = true; };
-    }, [orch.targets]);
-
+    const scope=orch.scope;
+    const scopeKey=scope?JSON.stringify([scope.unrestricted,scope.empty,scope.sellerIds]):'unresolved';
+    const sellerParam=dashboardSellerParam(scope);
+    const canTasks=hasPermission('tasks_view');
+    const canPipeline=hasPermission('scraping_view');
+    // Logs are system-wide, not seller/date filtered. Never request them for
+    // a filtered or restricted dashboard even if the user has the permission.
+    const canLogs=!!principal&&isDashboardGlobal(user)&&hasPermission('activitylogs_view')&&!!scope?.unrestricted;
+    const optionsQuery=useQuery({
+        queryKey:['dashboard','options',principal],
+        enabled:!!principal,
+        queryFn:async({signal})=>(await apiClient.get('/dashboard/options',{signal})).data.data,
+        staleTime:60_000,gcTime:60_000,
+        retry:false,
+    });
+    const sellers=optionsQuery.isError?[]:optionsQuery.data?.sellers??[];
+    const userSellers=sellers;
+    const managers=optionsQuery.isError?[]:optionsQuery.data?.managers??[];
+    const matchesManagerFilter=useCallback((target:any,managerId:string)=>{
+        if(!managerId||managerId==='all')return true;
+        // Manager filter denotes current seller portfolio, not historic target creator.
+        return scope?.managerId===managerId&&matchesDashboardScope(scope,target?.SellerId??target?.sellerId);
+    },[scope]);
+    const matchesSellerFilter=useCallback((target:any,sellerId:string)=>{
+        if(!sellerId||sellerId==='all')return true;
+        return String(sellerId).split(',').includes(String(target?.SellerId??target?.sellerId??''));
+    },[]);
     // Load tasks from the task workspace (/tasks/tasks) — the single task
     // source the task workspace itself uses, so the dashboard's task counts
     // always match what users see when they click through.
     // ✅ Source-consistency fix: the dashboard previously read the `Tasks`
     // table while the workspace renders TaskInstances.
     const tasksQuery = useQuery({
-        queryKey: ['tasks', 'task-instances', filters.sellerId],
-        queryFn: async () => {
-            const params: any = { limit: 200 };
-            if (filters.sellerId && filters.sellerId !== 'all') {
-                params.sellerId = filters.sellerId;
-            }
-            const r = await apiClient.get('/pems/instances', { params });
+        queryKey: ['tasks','dashboard',principal,scopeKey,filters.managerId,filters.sellerId],
+        enabled:!!principal&&!!scope&&!scope.empty&&canTasks,
+        queryFn: async ({signal}) => {
+            const params:any={limit:200,sellerId:sellerParam};
+            const r=await apiClient.get('/pems/instances',{params,signal});
             const body: any = (r as any).data ?? r ?? {};
             const list = body?.data?.instances ?? body?.instances ?? body?.data ?? [];
             if (!Array.isArray(list)) return [];
@@ -233,77 +154,42 @@ export function useDashboardData(filters: DashboardFilters) {
         refetchOnWindowFocus: false,
     });
 
-    const optimizationTasks = tasksQuery.data ?? [];
+    const optimizationTasks=canTasks&&scope&&!scope.empty&&!tasksQuery.isError?(tasksQuery.data??[]).filter(t=>matchesDashboardScope(scope,t.sellerId)):[];
     // ✅ Explicit task-section state so the dashboard can render an
     // unavailable state instead of a silent zero count.
-    const tasksLoading = tasksQuery.isLoading;
+    const tasksLoading=canTasks&&!!scope&&!scope.empty&&tasksQuery.isPending;
     const tasksError = tasksQuery.isError
         ? ((tasksQuery.error as any)?.message ?? 'Tasks failed to load')
         : null;
 
-    // Load activity logs
-    // ✅ Envelope fix: /logs returns { success, data: [...] } but this hook
-    // checked Array.isArray on the whole payload, so activity logs NEVER
-    // rendered. Unwrap the envelope and tolerate both shapes.
-    const loadLogs = useCallback(async () => {
-        try {
-            const res: any = await db.getSystemLogs();
-            const payload = Array.isArray(res)
-                ? res
-                : res?.data ?? res?.logs ?? [];
-            if (Array.isArray(payload)) {
-                setActivityLogs(payload.slice(0, 10));
-            }
-        } catch (err) {
-            console.error('Failed to load logs:', err);
-        }
-    }, []);
-
-    // Load pipeline tasks
-    const loadPipeline = useCallback(async () => {
-        try {
-            const res = await marketSyncApi.getSyncTasks();
-            setScrapeTasks(res?.tasks || []);
-        } catch (err) {
-            console.error('Failed to load pipeline:', err);
-        }
-    }, []);
-
-    // Real-time socket sync for activity logs
-    useEffect(() => {
-        if (!socket) return;
-
-        const handleNewLog = (data: any) => {
-            if (!data) return;
-            const normalized = {
-                ...data,
-                _id: data._id || data.id || data.Id,
-                createdAt: data.createdAt || data.CreatedAt,
-                type: data.type || data.Type || '',
-                entityType: data.entityType || data.EntityType || '',
-                entityTitle: data.entityTitle || data.EntityTitle || '',
-                description: data.description || data.Description || '',
-                metadata: data.metadata || data.Metadata || null,
-                user: data.user || null,
-            };
-            setActivityLogs(prev => {
-                const next = [normalized, ...prev];
-                return next.slice(0, 10);
-            });
-        };
-
-        socket.on('new_system_log', handleNewLog);
-        return () => socket.off('new_system_log', handleNewLog);
-    }, [socket]);
-
-    useEffect(() => {
-        loadLogs();
-        loadPipeline();
-        const interval = setInterval(() => {
-            loadPipeline();
-        }, 30000);
-        return () => clearInterval(interval);
-    }, [loadLogs, loadPipeline]);
+    const logsQuery=useQuery({
+        queryKey:['dashboard','activity',principal],
+        enabled:canLogs,
+        queryFn:async({signal})=>{
+            const r=await apiClient.get('/logs',{params:{limit:10},signal});
+            return r.data?.data??[];
+        },
+        staleTime:30_000,gcTime:30_000,retry:false,
+    });
+    const pipelineQuery=useQuery({
+        queryKey:['dashboard','pipeline',principal,scopeKey,filters.sellerId,filters.managerId],
+        enabled:!!principal&&!!scope&&!scope.empty&&canPipeline,
+        queryFn:async({signal})=>{
+            const r=await apiClient.get('/market-sync/tasks',{params:{sellerId:sellerParam},signal});
+            return r.data?.tasks??[];
+        },
+        staleTime:30_000,gcTime:30_000,refetchInterval:30_000,retry:false,
+    });
+    const activityLogs=canLogs&&!logsQuery.isError?logsQuery.data??[]:[];
+    const scrapeTasks=canPipeline&&scope&&!scope.empty&&!pipelineQuery.isError?(pipelineQuery.data??[]).filter(t=>matchesDashboardScope(scope,t.sellerId)):[];
+    const loadLogs=useCallback(()=>canLogs?logsQuery.refetch():Promise.resolve(),[canLogs,logsQuery.refetch]);
+    const loadPipeline=useCallback(()=>canPipeline&&scope&&!scope.empty?pipelineQuery.refetch():Promise.resolve(),[canPipeline,scope,pipelineQuery.refetch]);
+    useEffect(()=>{
+        if(!socket||!canLogs)return;
+        const invalidate=()=>{void loadLogs();};
+        socket.on('system_log_changed',invalidate);
+        return ()=>{socket.off('system_log_changed',invalidate);};
+    },[socket,canLogs,loadLogs]);
 
     // Compute module stats
     const moduleStats: ModuleStats = useMemo(() => {
@@ -466,59 +352,10 @@ export function useDashboardData(filters: DashboardFilters) {
     }, [orch.targets, orch.dashboardRaw, optimizationTasks,
         activityLogs, scrapeTasks, filters, matchesManagerFilter]);
 
-    const managerSellers = useMemo(() => {
-        const targetsList = orch.targets || [];
-        return new Set(
-            targetsList
-                .filter((t: any) => matchesManagerFilter(t, filters.managerId))
-                .map((t: any) => t.SellerId)
-        );
-    }, [orch.targets, filters.managerId, matchesManagerFilter]);
-
-    const filteredTasks = useMemo(() => {
-        let tasks = optimizationTasks;
-        if (filters.managerId && filters.managerId !== 'all') {
-            tasks = tasks.filter((t: any) => managerSellers.has(t.sellerId));
-        }
-        return tasks;
-    }, [optimizationTasks, managerSellers, filters.managerId]);
-
-    const filteredScrapeTasks = useMemo(() => {
-        let tasks = scrapeTasks;
-        if (filters.sellerId && filters.sellerId !== 'all') {
-            tasks = tasks.filter((t: any) => matchesSellerFilter(t, filters.sellerId));
-        }
-        if (filters.managerId && filters.managerId !== 'all') {
-            tasks = tasks.filter((t: any) => managerSellers.has(t.sellerId));
-        }
-        return tasks;
-    }, [scrapeTasks, managerSellers, filters.sellerId, filters.managerId, matchesSellerFilter]);
-
-    const filteredActivityLogs = useMemo(() => {
-        let logs = activityLogs;
-        if (filters.sellerId && filters.sellerId !== 'all') {
-            logs = logs.filter((l: any) => {
-                const sId = l.SellerId || l.sellerId;
-                return !sId || sId === filters.sellerId;
-            });
-        }
-        if (filters.managerId && filters.managerId !== 'all') {
-            logs = logs.filter((l: any) => {
-                const sId = l.SellerId || l.sellerId;
-                return !sId || managerSellers.has(sId);
-            });
-        }
-        return logs;
-    }, [activityLogs, managerSellers, filters.sellerId, filters.managerId]);
-
-    const filteredTopProducts = useMemo(() => {
-        let list = orch.topProducts || [];
-        if (filters.managerId && filters.managerId !== 'all') {
-            list = list.filter((p: any) => managerSellers.has(p.sellerId || p.SellerId || p.brand));
-        }
-        return list;
-    }, [orch.topProducts, managerSellers, filters.managerId]);
-
+    const filteredTasks=optimizationTasks;
+    const filteredScrapeTasks=scrapeTasks;
+    const filteredActivityLogs=activityLogs;
+    const filteredTopProducts=scope&&!scope.empty?(orch.topProducts??[]).filter(p=>matchesDashboardScope(scope,p.sellerId)):[];
     return {
         // Raw & Filtered data
         sellers,
@@ -540,6 +377,10 @@ export function useDashboardData(filters: DashboardFilters) {
         isHydrated: orch.isHydrated,
         tasksLoading,
         tasksError,
+        canTasks,canPipeline,canLogs,
+        optionsError:optionsQuery.isError,
+        pipelineStatus:pipelineQuery.isError?'error':pipelineQuery.isPending?'loading':'ready',
+        activityStatus:logsQuery.isError?'error':logsQuery.isPending?'loading':'ready',
         sectionStatus: orch.sectionStatus,
         
         // Helpers
@@ -547,10 +388,8 @@ export function useDashboardData(filters: DashboardFilters) {
         matchesSellerFilter,
         
         // Actions
-        refresh: () => {
-            orch.forceRefresh?.();
-            loadLogs();
-            loadPipeline();
+        refresh:async()=>{
+            await Promise.all([orch.forceRefresh?.(),loadLogs(),loadPipeline(),optionsQuery.refetch(),...(canTasks&&scope&&!scope.empty?[tasksQuery.refetch()]:[])]);
         },
         loadPipeline,
     };
