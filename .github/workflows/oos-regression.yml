@@ -1,10 +1,27 @@
 name: OOS Regression
 
 on:
+  # Keep the OOS regression suite available, but do not run it for unrelated modules.
   push:
     branches: [main, develop, feat/oos-recon-001-remediation]
+    paths:
+      - '**/*[Oo][Oo][Ss]*'
+      - 'backend/services/oos/**'
+      - 'src/modules/tasks/views/oos/**'
+      - 'src/modules/tasks/view-registry/**'
+      - 'src/modules/tasks/components/TaskViewResolver.jsx'
+      - 'playwright.config.js'
+      - '.github/workflows/oos-regression.yml'
   pull_request:
     branches: [main, develop]
+    paths:
+      - '**/*[Oo][Oo][Ss]*'
+      - 'backend/services/oos/**'
+      - 'src/modules/tasks/views/oos/**'
+      - 'src/modules/tasks/view-registry/**'
+      - 'src/modules/tasks/components/TaskViewResolver.jsx'
+      - 'playwright.config.js'
+      - '.github/workflows/oos-regression.yml'
   workflow_dispatch:
 
 permissions:
