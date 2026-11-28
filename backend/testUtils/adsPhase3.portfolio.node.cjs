@@ -64,3 +64,19 @@ test('aligned trends use weighted source aggregates and missing buckets remain n
  assert.equal(trends[0].previousStart,'2026-04-29');assert.equal(trends[0].comparison.metrics.sales.percentChange,'300');assert.equal(trends[0].comparison.ratios.roas.delta,'2');
  assert.equal(trends[1].current,null);assert.equal(trends[1].previous,null);
 });
+
+test('segment efficiency matrix aggregates compatible rates and separately counts observed totals',async()=>{
+ const rows=[
+  row(1,{spend:'10',sales:'20',totalSales:'40',clicks:'10',conversions:'2',clicksRows:'2',conversionsRows:'2',cvrRows:'2'}),
+  row(2,{spend:'30',sales:'60',totalSales:'80',clicks:'30',conversions:'3',clicksRows:'2',conversionsRows:'2',cvrRows:'2'}),
+  row(3,{spend:'50',sales:null,totalSales:'90',clicks:'100',conversions:null,salesRows:'0',roasRows:'0',clicksRows:'2',conversionsRows:'0',cvrRows:'0'})
+ ];
+ const [g]=await summarize(rows);
+ const equal=g.segments.find(s=>s.code==='at_reference'),unknown=g.segments.find(s=>s.code==='insufficient_coverage');
+ assert.equal(equal.count,2);assert.deepEqual(equal.observed.spend,{value:'40',entities:2});
+ assert.deepEqual(equal.compatibleRoas,{value:'2',entities:2});
+ assert.deepEqual(equal.compatibleCvr,{value:'12.5',entities:2});
+ assert.deepEqual(unknown.observed.spend,{value:'50',entities:1});
+ assert.deepEqual(unknown.observed.sales,{value:null,entities:0});assert.equal(unknown.compatibleRoas.value,null);assert.equal(unknown.compatibleCvr.value,null);
+ assert.equal(g.reference.roas,'2');assert.equal(g.reference.eligibleEntities,2);
+});

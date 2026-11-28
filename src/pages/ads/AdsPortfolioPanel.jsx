@@ -32,7 +32,7 @@ function Concentration({group,onOpen}){
  return <>
   <div className="ads-analytics-toolbar">
    <div><strong>80% contribution analysis</strong><div className="ads-analytics-note">Positive observed product contributions, ranked by value.</div></div>
-   <Select aria-label="Concentration metric" value={m.metric} onChange={setMetric} options={metricOptions.slice(0,3).map(({value,label})=>({value,label}))} style={{width:165}}/>
+   <Select id="ads-portfolio-concentration-metric" aria-label="Concentration metric" value={m.metric} onChange={setMetric} options={metricOptions.slice(0,3).map(({value,label})=>({value,label}))} style={{width:165}}/>
   </div>
   <div className="ads-portfolio-stats">
    <Stat label="Positive contribution" value={amount(m.positiveTotal,currency)} note={n(m.positiveEntities)+' positive products'}/>
@@ -113,7 +113,7 @@ function Trends({rows,currency,granularity,onGranularity}){
   <div className="ads-analytics-toolbar">
    <div><strong>Aligned period trends</strong><div className="ads-analytics-note">Prior dates are aligned to equal-length current day, week or month slices.</div></div>
    <div className="ads-portfolio-controls">
-    <Select aria-label="Portfolio trend granularity" value={granularity} onChange={onGranularity} options={[{value:'day',label:'Daily'},{value:'week',label:'Weekly'},{value:'month',label:'Monthly'}]} style={{width:120}}/>
+    <Select id="ads-portfolio-trend-granularity" aria-label="Portfolio trend granularity" value={granularity} onChange={onGranularity} options={[{value:'day',label:'Daily'},{value:'week',label:'Weekly'},{value:'month',label:'Monthly'}]} style={{width:120}}/>
     <Select aria-label="Portfolio trend metric" value={metric} onChange={setMetric} options={metricOptions.map(({value,label})=>({value,label}))} style={{width:160}}/>
    </div>
   </div>
@@ -164,7 +164,7 @@ export default function AdsPortfolioPanel({portfolio,requested,onAnalyze,onOpen,
   </div>
   {!requested?<div className="ads-analytics-note">Run on demand. The analysis is independent of product table pagination.</div>:portfolio.isError?<Alert showIcon type="error" message={portfolio.error?.response?.data?.message||'Portfolio analytics could not be loaded.'}/>:portfolio.isPending?<div className="ads-inline-loading"><Spin size="small"/> Analyzing the authorized portfolio…</div>:data?.empty||!group?<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No matching products for portfolio analysis"/>:<>
    <div className="ads-analytics-toolbar"><div><strong>{n(group.totalEntities)} products</strong> · {n(group.currentEntities)} with current records</div>
-    {groups.length>1&&<Select aria-label="Portfolio currency" value={group.currency} onChange={setCurrency} options={groups.map(g=>({value:g.currency,label:g.currency}))} style={{width:130}}/>}
+    {groups.length>1&&<Select id="ads-portfolio-currency" aria-label="Portfolio currency" value={group.currency} onChange={setCurrency} options={groups.map(g=>({value:g.currency,label:g.currency}))} style={{width:130}}/>}
    </div>
    <Tabs activeKey={tab} onChange={setTab} items={[
     {key:'concentration',label:'80% concentration',children:<Concentration group={group} onOpen={onOpen}/>},

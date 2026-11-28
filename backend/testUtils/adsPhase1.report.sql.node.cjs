@@ -137,6 +137,28 @@ test('SQL: canonical scope, duplicate catalog protection, current/prior comparis
   await assert.rejects(()=>analyze({sellerId:'s1,s3'}),{code:'forbidden_seller'});
   await assert.rejects(()=>analyze({groupBy:'parent'}),{code:'invalid_ads_filter'});
   const noScope=await analyze({}, {...user,assignedSellers:[]});assert.equal(noScope.empty,true);
+  const optionsAfter=await readCanonicalOptions({pool,sql,user,sellerId:'s1'});
+  assert.deepEqual(optionsAfter.marketplaces,['amazon.in']);
+  const filteredMarket=await analyze({marketplace:'amazon.com'});assert.deepEqual(filteredMarket.groups.map(x=>x.currency),['USD']);
+  assert.equal(g.segments.find(x=>x.code==='spend_zero_sales').compatibleRoas.value,'0');
+  assert.equal(g.segments.find(x=>x.code==='spend_zero_sales').compatibleRoas.entities,13);
+  // Cross both entity and ranked-page boundaries. Brand sample must remain
+  // bounded while reporting all 25 matching groups.
+  const large=Array.from({length:2005},(_,i)=>({asin:'L'+String(i+1).padStart(9,'0'),brand:'Brand'+String(i%25).padStart(2,'0')}));
+  await pool.request().input('data',sql.NVarChar(sql.MAX),JSON.stringify(large)).query(
+    "INSERT dbo.Asins(AsinCode,SellerId,Brand) SELECT asin,'s1',brand FROM OPENJSON(@data) WITH(asin nvarchar(30),brand nvarchar(255)); "+
+    "INSERT dbo.AdsProductDailyFacts(SellerId,Marketplace,Currency,ReportType,Asin,[Date],SourceFileSha256,SourceRowNumber,SourceSchemaVersion,ImportedBy,AdSpend,AdSales,TotalSales,Clicks,Conversions) "+
+    "SELECT 's1','amazon.in','INR','daily',asin,'2026-06-01',REPLICATE('a',64),2,1,'test',1,2,4,10,1 FROM OPENJSON(@data) WITH(asin varchar(10));");
+  const many=await readCanonicalReport({pool,sql,user,query:{startDate:'2026-06-01',endDate:'2026-06-01',sellerId:'s1',limit:'1'},portfolioOnly:true});
+  const mg=many.groups[0],mc=mg.concentration.find(x=>x.metric==='totalSales');
+  assert.equal(mg.totalEntities,2005);assert.equal(mc.leadingCount,1604);assert.equal(mc.remainingCount,401);assert.equal(mc.positiveTotal,'8020');assert.equal(mc.leadingSharePct,'80');
+  assert.equal(mc.samples.length,10);assert.equal(mc.samples[0].entityKey,large[0].asin);
+  assert.equal(mg.segments.find(x=>x.code==='at_reference').count,2005);
+  assert.deepEqual(mg.segments.find(x=>x.code==='at_reference').compatibleCvr,{value:'10',entities:2005});
+  const brandMany=many.breakdowns.find(x=>x.dimension==='brand');
+  assert.equal(brandMany.totalGroups,'25');assert.equal(brandMany.items.length,20);
+  assert.equal(brandMany.items[0].label,'Brand00');assert.equal(brandMany.items[0].current.totals.totalSales,'324');
+
 
  }finally{if(pool)await pool.close();await admin.request().query('ALTER DATABASE ['+database+'] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE ['+database+'];').catch(()=>{});await admin.close();}
 });
