@@ -22,6 +22,7 @@ import { adsApi } from '../../services/api';
 import { Panel, MiniState, Segmented, fmtNum, timeAgo, useNow } from '../opsCenter/primitives';
 import { useAdsOverview, useAdsTable, useAdsReport, useAdsFilterOptions, useAiReview } from '../../hooks/useAdsModule';
 import AdsImportModal from '../../components/ads/AdsImportModal';
+import CanonicalAdsWorkspace from './CanonicalAdsWorkspace';
 import {
     KpiRow, TrendPanel, MixPanel, MoversPanel, EfficiencyPanel, TargetsPanel,
     FreshnessPanel, InsightRail, TablePanel, DrillModal, AiAnalystPanel, ReportPanel,
@@ -93,7 +94,7 @@ const AdsSkeleton = () => (
     </div>
 );
 
-const AdsManagerPage = () => {
+const LegacyAdsManagerPage = () => {
     const { setPageTitle } = usePageTitle();
     const { startDate, endDate, rangeType, updateDateRange, openPicker } = useDateRange();
     const { hasPermission } = useAuth();
@@ -609,4 +610,11 @@ const AdsManagerPage = () => {
     );
 };
 
+const AdsManagerPage = () => {
+    const [legacy,setLegacy]=useState(false);
+    if(!legacy)return <CanonicalAdsWorkspace onLegacy={()=>setLegacy(true)}/>;
+    return <><Alert style={{marginBottom:12}} type="warning" showIcon message="Legacy advertising data only"
+        description="This workspace uses the old AdsPerformance table. It does not read canonical facts; totals, exports and AI here are not canonical."
+        action={<Button onClick={()=>setLegacy(false)}>Back to canonical analytics</Button>}/><LegacyAdsManagerPage/></>;
+};
 export default AdsManagerPage;

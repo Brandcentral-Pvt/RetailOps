@@ -85,6 +85,7 @@ const pairSelect=Object.entries(RATIOS).flatMap(([key,[n,d]])=>{
     sumText('CASE WHEN '+condition+' THEN '+a+' END')+' AS ['+key+'PairNumerator]',
     sumText('CASE WHEN '+condition+' THEN '+b+' END')+' AS ['+key+'PairDenominator]'];
 });
+const aggregateProjection=[count('*')+' AS [rowCount]',...metricSelect,...pairSelect].join(',');
 async function readCanonicalSummary({pool,sql,user,sellerId,startDate,endDate}){
   const scope=strictScope(user,sellerId),period=validateWindow(startDate,endDate);
   if(scope.empty)return {period,reportType:'daily',currencies:[],empty:true,source:'canonical_v1'};
@@ -101,4 +102,4 @@ async function readCanonicalSummary({pool,sql,user,sellerId,startDate,endDate}){
   const currencies=result.recordset.map(shapeSummary);
   return {period,reportType:'daily',currencies,empty:currencies.length===0,source:'canonical_v1'};
 }
-module.exports={METRICS,RATIOS,ratio,shapeSummary,validateWindow,readCanonicalSummary};
+module.exports={METRICS,RATIOS,ratio,shapeSummary,validateWindow,readCanonicalSummary,aggregateProjection};
