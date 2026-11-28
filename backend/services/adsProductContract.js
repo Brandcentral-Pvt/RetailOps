@@ -11,8 +11,11 @@ const MAX_SOURCE_RECORDS = 1000000;
 const MAX_ISSUES = 100;
 const FIELDS = contract.fields;
 const HEADERS = FIELDS.map(f => f.header);
+// Match all 24 additive canonical analytics metrics, never ratio/snapshot fields.
 const ADDITIVE = ['sales','spend','clicks','impressions','orders','conversions','total_sales','total_orders',
-  'total_units','ordered_revenue','ordered_orders','units_ordered','organic_sales','organic_orders'].map(h => 'metrics.' + h);
+  'total_units','ordered_revenue','ordered_orders','units_ordered','organic_sales','organic_orders',
+  'page_views','sessions','same_sku_sales','same_sku_orders','new_to_brand_sales','new_to_brand_orders',
+  'new_to_brand_units','shipped_revenue','shipped_cogs','shipped_units'].map(h => 'metrics.' + h);
 
 class AdsValidationError extends Error {
   constructor(code, message, row = null, column = null) {

@@ -24,3 +24,23 @@ test('bounded detail count never conceals failure or claims a pass for no data',
  assert.equal(out.result().mismatchCount,100);assert.equal(out.result().mismatches.length,30);
  assert.equal(check('empty','Empty').result().status,'not_applicable');assert.equal(emptyReconciliation().status,'no_data');
 });
+
+test('CSV preview exposes exact totals and coverage for all 24 additive canonical metrics',()=>{
+ const {METRICS}=require('../services/adsCanonicalMetrics');
+ const {HEADERS,validateReport}=require('../services/adsProductContract');
+ const contract=require('../contracts/ads-product-daily-v1.json');
+ const additive=Object.values(METRICS).map(column=>contract.fields.find(f=>f.canonicalColumn===column));
+ const row={asin:'B000000001',date:'2026-04-01'};
+ for(const f of additive)row[f.header]=f.type==='integer'?'11':'7100.0300000001';
+ const blank={asin:'B000000001',date:'2026-04-02'};
+ const encode=r=>HEADERS.map(h=>r[h]??'').join(',');
+ const report=validateReport(Buffer.from(HEADERS.join(',')+'\n'+encode(row)+'\n'+encode(blank)+'\n'));
+ assert.equal(report.valid,true,JSON.stringify(report.issues));
+ assert.deepEqual(Object.keys(report.totals).sort(),additive.map(f=>f.header).sort());
+ for(const f of additive){
+  assert.equal(report.totals[f.header],row[f.header],f.header);
+  assert.equal(report.coverage[f.header].populated,1,f.header);
+ }
+ assert.equal(Object.hasOwn(report.totals,'metrics.acos'),false);
+ assert.equal(Object.hasOwn(report.totals,'product_detail.priceToPay.amount'),false);
+});
