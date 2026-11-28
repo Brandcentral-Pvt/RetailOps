@@ -21,6 +21,7 @@ on:
       - 'backend/testUtils/adsPhase2.*'
       - 'backend/testUtils/adsPhase3.*'
       - 'backend/testUtils/adsPhase5.*'
+      - 'backend/testUtils/adsPhase6.*'
       - 'backend/server.js'
       - 'Dockerfile.backend'
       - 'backend/services/ads*.js'
@@ -137,7 +138,7 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --prefix /tmp/ads-test-sql --ignore-scripts --no-audit --no-fund mssql@12.7.11
-      - run: node --test --test-concurrency=1 backend/testUtils/adsPhase1.sql.node.cjs backend/testUtils/adsPhase1.writer.sql.node.cjs backend/testUtils/adsPhase1.report.sql.node.cjs backend/testUtils/adsPhase2.jobs.sql.node.cjs backend/testUtils/adsPhase2.permissions.sql.node.cjs backend/testUtils/adsPhase2.load.sql.node.cjs
+      - run: node --test --test-concurrency=1 backend/testUtils/adsPhase1.sql.node.cjs backend/testUtils/adsPhase1.writer.sql.node.cjs backend/testUtils/adsPhase1.report.sql.node.cjs backend/testUtils/adsPhase2.jobs.sql.node.cjs backend/testUtils/adsPhase2.permissions.sql.node.cjs backend/testUtils/adsPhase2.load.sql.node.cjs backend/testUtils/adsPhase6.index.sql.node.cjs
         env:
           ADS_SQL_SMOKE: '1'
           ADS_TEST_SQL_PASSWORD: 'AdsDisposable#2026!'
