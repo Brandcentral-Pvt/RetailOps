@@ -60,6 +60,20 @@ const readerConfig = process.env.DB_READER_SERVER ? {
 
 let poolPromise = null;
 let readerPoolPromise = null;
+let adsWorkerPoolPromise = null;
+
+// Separate primary-database connections for durable Ads work. Never fall back
+// to the interactive pool: resource isolation must hold during outages.
+function getAdsWorkerPool(){
+ if(!adsWorkerPoolPromise){
+  const requested=Number(process.env.ADS_WORKER_POOL_MAX||6);
+  const max=Number.isInteger(requested)&&requested>=4&&requested<=16?requested:6;
+  const pool=new sql.ConnectionPool({...config,pool:{...config.pool,min:0,max,acquireTimeoutMillis:30000}});
+  pool.on('error',err=>logger.warn('Ads worker SQL pool error',{code:err.code}));
+  adsWorkerPoolPromise=pool.connect().catch(async err=>{adsWorkerPoolPromise=null;await pool.close().catch(()=>{});throw err;});
+ }
+ return adsWorkerPoolPromise;
+}
 
 async function initUdf(pool) {
     const tz = process.env.AUTOMATION_TIMEZONE || 'Asia/Kolkata';
@@ -206,6 +220,7 @@ module.exports = {
     sql,
     getPool,
     getReader,
+    getAdsWorkerPool,
     query,
     generateId,
     executeWithRetry,
