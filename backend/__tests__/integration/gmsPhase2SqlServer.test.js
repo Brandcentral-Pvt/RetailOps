@@ -231,6 +231,8 @@ real('staged reports commit exactly once, reject stale previews and recheck acce
     await mockPool.request().query(`
       ALTER TABLE Roles ADD Level int NULL;
       ALTER TABLE Users ADD FirstName nvarchar(100) NULL,LastName nvarchar(100) NULL;
+    `);
+    await mockPool.request().query(`
       INSERT INTO Sellers VALUES('S2','amazon.in',1,'Seller B');
       UPDATE Users SET FirstName='Test',LastName='Manager' WHERE Id='U1';
       INSERT INTO UserSellers VALUES('U1','S2');
