@@ -508,69 +508,23 @@ io.on('connection', async (socket) => {
 
   io.emit('user_status_change', { userId, status: 'online' });
 
-  socket.on('join_room', (roomId) => {
-    if (typeof roomId === 'string') {
-      socket.join(roomId);
-      logger.debug(`Socket ${socket.id} joined room: ${roomId}`);
-    }
+  socket.on('join_room',async(roomId)=>{
+    if(typeof roomId!=='string'||roomId.length>120||!roomId)return;
+    try{
+      if(roomId===userId)return;
+      if(roomId.startsWith('seller:')){
+        const allowed=await pool.request().input('roomUser',sql.VarChar,userId).input('roomSeller',sql.VarChar,roomId.slice(7)).query('SELECT 1 FROM dbo.UserSellers WHERE UserId=@roomUser AND SellerId=@roomSeller');
+        if(allowed.recordset.length)socket.join(roomId);
+        return;
+      }
+      const allowed=await pool.request().input('roomUser',sql.VarChar,userId).input('conversationId',sql.VarChar,roomId).query('SELECT 1 FROM dbo.ConversationParticipants WHERE UserId=@roomUser AND ConversationId=@conversationId');
+      if(allowed.recordset.length)socket.join(roomId);
+    }catch(err){logger.warn('Socket room authorization failed');}
   });
 
-  socket.on('update_role_permissions', async ({ roleId, permissions }) => {
-    try {
-      const pool = await getPool();
-
-      await pool.request()
-        .input('roleId', sql.VarChar, roleId)
-        .query('DELETE FROM RolePermissions WHERE RoleId = @roleId');
-
-      if (permissions && Array.isArray(permissions)) {
-        for (const permId of permissions) {
-          await pool.request()
-            .input('roleId', sql.VarChar, roleId)
-            .input('permId', sql.VarChar, permId)
-            .query('INSERT INTO RolePermissions (RoleId, PermissionId) VALUES (@roleId, @permId)');
-        }
-      }
-
-      const roleResult = await pool.request()
-        .input('roleId', sql.VarChar, roleId)
-        .query('SELECT * FROM Roles WHERE Id = @roleId');
-
-      if (roleResult.recordset.length > 0) {
-        const role = roleResult.recordset[0];
-        const perms = await pool.request()
-          .input('roleId', sql.VarChar, roleId)
-          .query('SELECT P.* FROM Permissions P JOIN RolePermissions RP ON P.Id = RP.PermissionId WHERE RP.RoleId = @roleId');
-
-        const formattedRole = {
-          _id: role.Id,
-          id: role.Id,
-          name: role.Name,
-          displayName: role.DisplayName,
-          description: role.Description,
-          level: role.Level || 0,
-          color: role.Color || '#4F46E5',
-          isSystem: role.IsSystem === 1 || role.IsSystem === true,
-          isActive: role.IsActive === 1 || role.IsActive === true,
-          createdAt: role.CreatedAt,
-          updatedAt: role.UpdatedAt,
-          permissions: perms.recordset.map(p => ({
-            _id: p.Id,
-            id: p.Id,
-            name: p.Name,
-            displayName: p.DisplayName,
-            description: p.Description,
-            category: p.Category,
-            action: p.Action
-          }))
-        };
-
-        io.emit('role_permissions_updated', formattedRole);
-      }
-    } catch (err) {
-      logger.error('Socket update_role_permissions error', { error: err.message });
-    }
-  });
+  // Role changes must use the authenticated, permission-checked HTTP route.
+  // The legacy socket event duplicated the write without authorization.
+  socket.on('update_role_permissions',()=>{ /* intentionally disabled */ });
 
   socket.on('typing', ({ conversationId, senderId, isTyping }) => {
     socket.to(conversationId).emit('typing', { conversationId, senderId, isTyping });
