@@ -1,9 +1,8 @@
 const { isGlobalUserRole } = require('../utils/roleUtils');
 const { sql, getPool } = require('../database/db');
 const { buildInClause } = require('../utils/sqlHelpers');
-const { BoundedCache } = require('../utils/memoryMonitor');
-
-const dashboardCache = new BoundedCache({ maxSize: 100, ttlMs: 60_000 });
+const { strictScope, AdsScopeError } = require('../services/adsCanonicalScope');
+const { projection:adsProjection, summarize:adsSummary, rounded:adsRound } = require('../services/adsConsumerMetrics');
 
 // Helper to parse period strings (e.g., '30d', '3M', '1y')
 const parsePeriod = (period) => {
@@ -34,10 +33,7 @@ exports.getDashboardData = async (req, res) => {
     const { period = '30d', startDate: startQuery, endDate: endQuery, sellerId } = req.query;
     const userId = req.user?.Id || req.user?._id?.toString() || '';
 
-    // Check cache
-    const cacheKey = `${userId}|${sellerId || 'all'}|${startQuery || ''}|${endQuery || ''}|${period}`;
-    const cached = dashboardCache.get(cacheKey);
-    if (cached) return res.json(cached);
+    const canonicalScope = strictScope(req.user,sellerId);
 
     const pool = await getPool();
 
@@ -59,8 +55,8 @@ exports.getDashboardData = async (req, res) => {
       }
     }
 
-    const safeSellerIds = finalSellerIds.length > 0 ? finalSellerIds : ['000000000000000000000000'];
-    const useWideFilters = isGlobalUser && (!sellerId || sellerId === 'all');
+    const safeSellerIds = canonicalScope.sellerIds.length ? canonicalScope.sellerIds : ['000000000000000000000000'];
+    const useWideFilters = canonicalScope.unrestricted;
 
     let sellerFilter = '';
     let asinFilter = '';
@@ -206,17 +202,11 @@ exports.getDashboardData = async (req, res) => {
       .query(`
         SELECT
           AP.Date,
-          SUM(ISNULL(AP.AdSales, 0)) AS AdSales,
-          SUM(ISNULL(AP.AdSpend, 0)) AS AdSpend,
-          SUM(ISNULL(AP.Orders, 0)) AS Orders,
-          SUM(ISNULL(AP.OrganicSales, 0)) AS OrganicSales,
-          SUM(ISNULL(AP.Impressions, 0)) AS Impressions,
-          SUM(ISNULL(AP.Clicks, 0)) AS Clicks
-        FROM AdsPerformance AP
-        JOIN Asins A ON AP.Asin = A.AsinCode
+          ${adsProjection('AP')}
+        FROM dbo.AdsProductDailyFacts AP
         WHERE AP.Date BETWEEN @prevStart AND @endDate
-        AND AP.ReportType = 'daily'
-        ${asinJoinFilter}
+        AND AP.ReportType = 'daily' AND AP.Currency = 'INR'
+        ${asinJoinFilter.replace(/A\.SellerId/g,'AP.SellerId')}
         GROUP BY AP.Date
       `);
 
@@ -224,12 +214,8 @@ exports.getDashboardData = async (req, res) => {
     const adsData = allAdsRows.filter(isCurrentRow);
     const prevAdsData = allAdsRows.filter(r => !isCurrentRow(r));
     const sumBy = (rows, key) => rows.reduce((sum, r) => sum + (Number(r[key]) || 0), 0);
-    const totalAdSales = sumBy(adsData, 'AdSales');
-    const totalAdSpend = sumBy(adsData, 'AdSpend');
-    const totalOrders = sumBy(adsData, 'Orders');
-    const totalOrganicSales = sumBy(adsData, 'OrganicSales');
-    const totalImpressions = sumBy(adsData, 'Impressions');
-    const totalClicks = sumBy(adsData, 'Clicks');
+    const currentAds=adsSummary(adsData),priorAds=adsSummary(prevAdsData);
+    const {AdSales:totalAdSales,AdSpend:totalAdSpend,Orders:totalOrders,OrganicSales:totalOrganicSales,Impressions:totalImpressions,Clicks:totalClicks}=currentAds.totals;
     const totalCatalogValue = (asinCounts.recordset && asinCounts.recordset[0]) ? asinCounts.recordset[0].PortfolioValue || 0 : 0;
 
     // 6b. GMS (ordered revenue / units) per day — the merchandise truth the
@@ -260,8 +246,8 @@ exports.getDashboardData = async (req, res) => {
 
     const activeAsinCount = (asinCounts.recordset && asinCounts.recordset[0]) ? asinCounts.recordset[0].Active || 0 : 0;
     const kpi = [
-      { id: 1, title: 'Total Ad Sales', value: `₹${totalAdSales.toLocaleString()}`, icon: 'bi-graph-up-arrow', trend: totalOrders, trendType: 'positive' },
-      { id: 2, title: 'Total Ad Spend', value: `₹${totalAdSpend.toLocaleString()}`, icon: 'bi-cash-stack', trend: 0, trendType: 'neutral' },
+      { id: 1, title: 'Total Ad Sales', value: totalAdSales==null?'N/A':`₹${totalAdSales.toLocaleString()}`, icon: 'bi-graph-up-arrow', trend: totalOrders, trendType: 'positive' },
+      { id: 2, title: 'Total Ad Spend', value: totalAdSpend==null?'N/A':`₹${totalAdSpend.toLocaleString()}`, icon: 'bi-cash-stack', trend: 0, trendType: 'neutral' },
       { id: 3, title: 'Active ASINs', value: activeAsinCount.toLocaleString(), icon: 'bi-box-seam', trend: activeAsinCount, trendType: 'positive' },
       { id: 4, title: 'Catalog Value', value: `₹${totalCatalogValue.toLocaleString()}`, icon: 'bi-currency-rupee', trend: 0, trendType: 'neutral' },
     ];
@@ -334,14 +320,13 @@ exports.getDashboardData = async (req, res) => {
       ),
       AdsAgg AS (
         SELECT
-          AP.Asin,
-          SUM(ISNULL(AP.AdSales, 0)) AS AdSales,
-          SUM(ISNULL(AP.AdSpend, 0)) AS AdSpend,
-          SUM(ISNULL(AP.Orders, 0)) AS AdOrders
-        FROM AdsPerformance AP
+          AP.Asin,AP.SellerId,
+          ${adsProjection('AP')}
+        FROM dbo.AdsProductDailyFacts AP
         WHERE AP.Date BETWEEN @startDate AND @endDate
-          AND AP.ReportType = 'daily'
-        GROUP BY AP.Asin
+          AND AP.ReportType = 'daily' AND AP.Currency = 'INR'
+          ${asinJoinFilter.replace(/A\.SellerId/g,'AP.SellerId')}
+        GROUP BY AP.Asin,AP.SellerId
       )
       SELECT TOP 200
         A.Id, A.AsinCode, A.Sku, A.Title, A.Category, A.Brand, A.ParentAsin,
@@ -349,13 +334,11 @@ exports.getDashboardData = async (req, res) => {
         S.Name AS SellerName, S.Marketplace,
         G.GmsRevenue, G.GmsUnits, G.ShippedRevenue, G.Returns,
         G.PrevGmsRevenue, G.PrevGmsUnits, G.ActiveDays,
-        ISNULL(AD.AdSales, 0) AS AdSales,
-        ISNULL(AD.AdSpend, 0) AS AdSpend,
-        ISNULL(AD.AdOrders, 0) AS AdOrders
+        AD.[FactRows],AD.[AdSales],AD.[AdSalesCount],AD.[AdSpend],AD.[AdSpendCount],AD.[TotalSales],AD.[TotalSalesCount],AD.[OrganicSales],AD.[OrganicSalesCount],AD.[Orders],AD.[OrdersCount],AD.[Impressions],AD.[ImpressionsCount],AD.[Clicks],AD.[ClicksCount],AD.[acosPairCount],AD.[tacosPairCount],AD.[adSharePairCount],AD.[roasPairCount],AD.[ctrPairCount],AD.[cpcPairCount]
       FROM GmsAgg G
       JOIN Asins A ON A.AsinCode = G.Asin
       JOIN Sellers S ON A.SellerId = S.Id
-      LEFT JOIN AdsAgg AD ON AD.Asin = G.Asin
+      LEFT JOIN AdsAgg AD ON AD.Asin = G.Asin AND AD.SellerId = A.SellerId
       WHERE (G.GmsRevenue > 0 OR G.GmsUnits > 0)
       ${asinJoinFilter}
       ORDER BY G.GmsRevenue DESC, G.GmsUnits DESC
@@ -435,10 +418,10 @@ exports.getDashboardData = async (req, res) => {
       const units = Number(asin.GmsUnits) || 0;
       const prevRevenue = Number(asin.PrevGmsRevenue) || 0;
       const prevUnits = Number(asin.PrevGmsUnits) || 0;
-      const adSales = Number(asin.AdSales) || 0;
-      const adSpend = Number(asin.AdSpend) || 0;
-      const returns = Number(asin.Returns) || 0;
-      const acos = pct(adSpend, adSales);
+      const ad=adsSummary([asin]);
+      const adSales=ad.totals.AdSales,adSpend=ad.totals.AdSpend;
+      const returns=Number(asin.Returns)||0;
+      const acos=ad.ratios.acos;
       const trend = trendByAsin[asin.AsinCode] || null;
       return {
         rank: i + 1,
@@ -459,7 +442,7 @@ exports.getDashboardData = async (req, res) => {
         // Legacy keys (consumed by the older dashboards) — now GMS-based.
         revenue: round2(revenue),
         units,
-        acos: acos.toFixed(1) + '%',
+        acos: acos==null?'N/A':acos.toFixed(1)+'%',
         // GMS block
         gmsRevenue: round2(revenue),
         gmsUnits: units,
@@ -474,12 +457,9 @@ exports.getDashboardData = async (req, res) => {
         share: round2(pct(revenue, shareBase)),
         activeDays: Number(asin.ActiveDays) || 0,
         // Ads context (never the ranking basis)
-        adSales: round2(adSales),
-        adSpend: round2(adSpend),
-        adOrders: Number(asin.AdOrders) || 0,
-        acosPct: round2(acos),
-        tacos: round2(pct(adSpend, revenue)),
-        adShare: round2(pct(adSales, revenue)),
+        adSales:adsRound(adSales),adSpend:adsRound(adSpend),adOrders:ad.totals.Orders,
+        adTotalSales:adsRound(ad.totals.TotalSales),adsCoverage:ad.coverage,adsRatioCoverage:ad.ratioCoverage,
+        acosPct:adsRound(acos),tacos:adsRound(ad.ratios.tacos),adShare:adsRound(ad.ratios.adShare),
         trend: trend ? trend.revenue : null,
         unitsTrend: trend ? trend.units : null,
       };
@@ -516,10 +496,7 @@ exports.getDashboardData = async (req, res) => {
       .map(m => ({ ...m, revenue: round2(m.revenue), prevRevenue: round2(m.prevRevenue), share: round2(pct(m.revenue, shareBase)) }))
       .sort((a, b) => b.revenue - a.revenue);
 
-    const prevAdSales = sumBy(prevAdsData, 'AdSales');
-    const prevAdSpend = sumBy(prevAdsData, 'AdSpend');
-    const prevOrders = sumBy(prevAdsData, 'Orders');
-    const prevOrganicSales = sumBy(prevAdsData, 'OrganicSales');
+    const {AdSales:prevAdSales,AdSpend:prevAdSpend,Orders:prevOrders,OrganicSales:prevOrganicSales}=priorAds.totals;
     const asinsWithSales = Number((sellingAsinsResult.recordset || [])[0]?.AsinsWithSales) || 0;
 
     const response = {
@@ -536,8 +513,8 @@ exports.getDashboardData = async (req, res) => {
       labels,
       category: categoryData,
       tableData,
-      roas: totalAdSpend > 0 ? (totalAdSales / totalAdSpend).toFixed(2) : '0.00',
-      dailySpend: days > 0 ? (totalAdSpend / days).toFixed(0) : 0,
+      roas: currentAds.ratios.roas==null?null:currentAds.ratios.roas.toFixed(2),
+      dailySpend: days>0&&totalAdSpend!=null?(totalAdSpend/days).toFixed(0):null,
       userStats,
       teamStats,
       alerts: alertsResult.recordset.map(a => ({
@@ -575,8 +552,7 @@ exports.getDashboardData = async (req, res) => {
         prevUnits: prevGmsUnits,
         deltaPct: deltaPct(gmsRevenue, prevGmsRevenue) === null ? null : round2(deltaPct(gmsRevenue, prevGmsRevenue)),
         unitsDeltaPct: deltaPct(gmsUnits, prevGmsUnits) === null ? null : round2(deltaPct(gmsUnits, prevGmsUnits)),
-        tacos: round2(pct(totalAdSpend, gmsRevenue)),
-        adShare: round2(pct(totalAdSales, gmsRevenue)),
+        tacos:adsRound(currentAds.ratios.tacos),adShare:adsRound(currentAds.ratios.adShare),
         asinsWithSales,
         activeDays: gmsRows.filter(r => (Number(r.Revenue) || 0) > 0).length,
         series: gmsSeries,
@@ -587,40 +563,31 @@ exports.getDashboardData = async (req, res) => {
         rankedRevenue: round2(rankedTotal),
       },
       ads: {
-        adSales: round2(totalAdSales),
-        adSpend: round2(totalAdSpend),
-        orders: totalOrders,
-        organicSales: round2(totalOrganicSales),
-        impressions: totalImpressions,
-        clicks: totalClicks,
-        ctr: round2(pct(totalClicks, totalImpressions)),
-        cpc: totalClicks > 0 ? round2(totalAdSpend / totalClicks) : 0,
-        acos: round2(pct(totalAdSpend, totalAdSales)),
-        roas: totalAdSpend > 0 ? round2(totalAdSales / totalAdSpend) : 0,
+        source:'canonical_v1',currency:'INR',coverage:currentAds.coverage,ratioCoverage:currentAds.ratioCoverage,
+        adSales:adsRound(totalAdSales),adSpend:adsRound(totalAdSpend),totalSales:adsRound(currentAds.totals.TotalSales),
+        orders:totalOrders,organicSales:adsRound(totalOrganicSales),impressions:totalImpressions,clicks:totalClicks,
+        ctr:adsRound(currentAds.ratios.ctr),cpc:adsRound(currentAds.ratios.cpc),acos:adsRound(currentAds.ratios.acos),
+        roas:adsRound(currentAds.ratios.roas),tacos:adsRound(currentAds.ratios.tacos),adShare:adsRound(currentAds.ratios.adShare),
       },
       previous: {
         startDate: prevStartKey,
         endDate: prevEndKey,
         days,
-        adSales: round2(prevAdSales),
-        adSpend: round2(prevAdSpend),
-        orders: prevOrders,
-        organicSales: round2(prevOrganicSales),
-        acos: round2(pct(prevAdSpend, prevAdSales)),
-        roas: prevAdSpend > 0 ? round2(prevAdSales / prevAdSpend) : 0,
+        adSales:adsRound(prevAdSales),adSpend:adsRound(prevAdSpend),orders:prevOrders,organicSales:adsRound(prevOrganicSales),
+        adsCoverage:priorAds.coverage,adsRatioCoverage:priorAds.ratioCoverage,
+        acos:adsRound(priorAds.ratios.acos),roas:adsRound(priorAds.ratios.roas),
         gmsRevenue: round2(prevGmsRevenue),
         gmsUnits: prevGmsUnits,
-        tacos: round2(pct(prevAdSpend, prevGmsRevenue)),
+        tacos:adsRound(priorAds.ratios.tacos),
       },
       gmsBySeller,
       gmsByMarketplace,
     };
 
-    dashboardCache.set(cacheKey, response);
     res.json(response);
   } catch (error) {
     if (!res.headersSent) {
-      res.status(500).json({ error: error.message });
+      res.status(error instanceof AdsScopeError?error.status:500).json({ error: error.message });
     }
   }
 };
@@ -668,11 +635,7 @@ function processChartData(days, adsData = [], endDate, gmsRows = []) {
       key: dateStr,
       ts: d.getTime(),
       index: buckets.length,
-      revenue: 0,
-      organic: 0,
-      ppc: 0,
-      adsSpend: 0,
-      orders: 0,
+      adsRows:[],
       gms: 0,
       gmsUnits: 0
     };
@@ -696,12 +659,7 @@ function processChartData(days, adsData = [], endDate, gmsRows = []) {
 
   adsData.forEach(ad => {
     const b = findBucket(rowKey(ad));
-    const rev = (Number(ad.AdSales) || 0) + (Number(ad.OrganicSales) || 0);
-    b.revenue += rev;
-    b.organic += Number(ad.OrganicSales) || 0;
-    b.ppc += Number(ad.AdSales) || 0;
-    b.adsSpend += Number(ad.AdSpend) || 0;
-    b.orders += Number(ad.Orders) || 0;
+    b.adsRows.push(ad);
   });
 
   gmsRows.forEach(g => {
@@ -710,35 +668,38 @@ function processChartData(days, adsData = [], endDate, gmsRows = []) {
     b.gmsUnits += Number(g.Units) || 0;
   });
 
+  const adsBuckets=buckets.map(b=>adsSummary(b.adsRows));
+  const values=k=>adsBuckets.map(b=>adsRound(b.totals[k]));
+  const ratios=k=>adsBuckets.map(b=>adsRound(b.ratios[k]));
   const labels = buckets.map(b => {
     const date = parseLocalDate(b.key);
     return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
   });
 
   return {
-    revenueData: [{ name: 'Revenue', data: buckets.map(b => Math.round(b.revenue)) }],
+    revenueData: [{ name: 'Revenue', data: values('TotalSales') }],
     stackedBarSeries: [
-      { name: 'Total Sales', data: buckets.map(b => Math.round(b.revenue)) },
-      { name: 'Ad Sales', data: buckets.map(b => Math.round(b.ppc)) },
-      { name: 'Organic Sales', data: buckets.map(b => Math.round(b.organic)) }
+      { name: 'Total Sales', data: values('TotalSales') },
+      { name: 'Ad Sales', data: values('AdSales') },
+      { name: 'Organic Sales', data: values('OrganicSales') }
     ],
     areaSeries: [
-      { name: 'Organic Sales', data: buckets.map(b => Math.round(b.organic)) },
-      { name: 'Ad Sales', data: buckets.map(b => Math.round(b.ppc)) }
+      { name: 'Organic Sales', data: values('OrganicSales') },
+      { name: 'Ad Sales', data: values('AdSales') }
     ],
     adsPerformanceSeries: [
-      { name: 'Ad Revenue', data: buckets.map(b => Math.round(b.ppc)) },
-      { name: 'Ad Spend', data: buckets.map(b => Math.round(b.adsSpend)) }
+      { name: 'Ad Revenue', data: values('AdSales') },
+      { name: 'Ad Spend', data: values('AdSpend') }
     ],
-    ordersSeries: buckets.map(b => b.orders),
+    ordersSeries: values('Orders'),
     // ✅ Fix: units were estimated as orders * 1.48 — report actual orders
     // instead of fabricating a conversion multiplier.
-    unitsSeries: buckets.map(b => Math.round(b.orders || 0)),
-    acosSeries: buckets.map(b => b.ppc > 0 ? Math.round((b.adsSpend / b.ppc) * 100) : 0),
+    unitsSeries: values('Orders'),
+    acosSeries: ratios('acos'),
     // GMS (merchandise) series, bucket-aligned with the ads series above.
     gmsSeries: buckets.map(b => Math.round(b.gms)),
     gmsUnitsSeries: buckets.map(b => Math.round(b.gmsUnits)),
-    tacosSeries: buckets.map(b => b.gms > 0 ? Math.round((b.adsSpend / b.gms) * 1000) / 10 : 0),
+    tacosSeries: ratios('tacos'),
     labels,
     bucketKeys: buckets.map(b => b.key),
     granularity: useWeekly ? 'week' : 'day',

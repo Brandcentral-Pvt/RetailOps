@@ -40,11 +40,11 @@ const buildPool = () => makeFakePool([
     { match: /FROM Actions/, rows: [{ Status: 'Pending', Count: 2 }] },
     {
         // Per-day ads aggregate over current + previous window.
-        match: /FROM AdsPerformance AP\s+JOIN Asins A/,
+        match: /FROM dbo\.AdsProductDailyFacts AP/,
         rows: [
-            { Date: NOW, AdSales: 100, AdSpend: 25, Orders: 5, OrganicSales: 150, Impressions: 900, Clicks: 40 },
+            { Date: NOW, AdSales: 100, AdSpend: 25, Orders: 5, OrganicSales: 150, Impressions: 900, Clicks:40,FactRows:1,AdSalesCount:1,AdSpendCount:1,TotalSalesCount:1,OrganicSalesCount:1,OrdersCount:1,ImpressionsCount:1,ClicksCount:1,acosPairCount:1,tacosPairCount:1,adSharePairCount:1,roasPairCount:1,ctrPairCount:1,cpcPairCount:1,TotalSales:500 },
             // previous-window row (must NOT leak into current KPIs / series)
-            { Date: daysAgo(45), AdSales: 80, AdSpend: 40, Orders: 9, OrganicSales: 20, Impressions: 500, Clicks: 10 },
+            { Date: daysAgo(45), AdSales: 80, AdSpend: 40, Orders: 9, OrganicSales: 20, Impressions: 500, Clicks:10,FactRows:1,AdSalesCount:1,AdSpendCount:1,TotalSalesCount:1,OrganicSalesCount:1,OrdersCount:1,ImpressionsCount:1,ClicksCount:1,acosPairCount:1,tacosPairCount:1,adSharePairCount:1,roasPairCount:1,ctrPairCount:1,cpcPairCount:1,TotalSales:500 },
         ],
     },
     {
@@ -68,7 +68,7 @@ const buildPool = () => makeFakePool([
                 Status: 'Active', AvailabilityStatus: 'In Stock', SellerId: 's1', SellerName: 'ACME', Marketplace: 'Amazon',
                 GmsRevenue: 700, GmsUnits: 7, ShippedRevenue: 650, Returns: 1,
                 PrevGmsRevenue: 350, PrevGmsUnits: 4, ActiveDays: 3,
-                AdSales: 0, AdSpend: 0, AdOrders: 0,
+                AdSales:null,AdSpend:null,Orders:null,FactRows:0,
             },
             {
                 Id: 'a1', AsinCode: 'B0TEST0001', Sku: 'SKU-1', Title: 'Widget',
@@ -76,7 +76,7 @@ const buildPool = () => makeFakePool([
                 Status: 'Active', AvailabilityStatus: 'In Stock', SellerId: 's1', SellerName: 'ACME', Marketplace: 'Amazon',
                 GmsRevenue: 300, GmsUnits: 3, ShippedRevenue: 250, Returns: 0,
                 PrevGmsRevenue: 0, PrevGmsUnits: 0, ActiveDays: 2,
-                AdSales: 100, AdSpend: 25, AdOrders: 5,
+                AdSales:100,AdSpend:25,Orders:5,FactRows:1,AdSalesCount:1,AdSpendCount:1,TotalSalesCount:1,OrganicSalesCount:1,OrdersCount:1,ImpressionsCount:1,ClicksCount:1,acosPairCount:1,tacosPairCount:1,adSharePairCount:1,roasPairCount:1,ctrPairCount:1,cpcPairCount:1,TotalSales:500,
             },
         ],
     },
@@ -143,7 +143,7 @@ describe('getDashboardData — top products are ranked by GMS, not ads', () => {
         expect(topAsins.sql).toMatch(/FROM GmsAgg G\s+JOIN Asins A ON A\.AsinCode = G\.Asin/);
         expect(topAsins.sql).toMatch(/ORDER BY G\.GmsRevenue DESC, G\.GmsUnits DESC/);
         // …ads is only LEFT JOINed, window + daily restricted.
-        expect(topAsins.sql).toMatch(/LEFT JOIN AdsAgg AD ON AD\.Asin = G\.Asin/);
+        expect(topAsins.sql).toMatch(/LEFT JOIN AdsAgg AD ON AD\.Asin = G\.Asin AND AD\.SellerId = A\.SellerId/);
         expect(topAsins.sql).toMatch(/AP\.Date BETWEEN @startDate AND @endDate\s+AND AP\.ReportType = 'daily'/);
         // Never ordered by ad orders again.
         expect(topAsins.sql).not.toMatch(/ORDER BY TotalOrders/);
@@ -163,9 +163,9 @@ describe('getDashboardData — top products are ranked by GMS, not ads', () => {
         expect(king.units).toBe(7);
         expect(king.asp).toBe(100);
         expect(king.deltaPct).toBe(100);       // 700 vs 350
-        expect(king.adSales).toBe(0);
-        expect(king.tacos).toBe(0);
-        expect(king.acos).toBe('0.0%');
+        expect(king.adSales).toBeNull();
+        expect(king.tacos).toBeNull();
+        expect(king.acos).toBe('N/A');
         expect(king.returnRate).toBeCloseTo(14.29, 1);
         expect(king.sellerName).toBe('ACME');
         expect(king.marketplace).toBe('Amazon');
@@ -178,8 +178,8 @@ describe('getDashboardData — top products are ranked by GMS, not ads', () => {
         expect(widget.deltaPct).toBeNull();    // no previous-period GMS → no fake 0%
         expect(widget.acos).toBe('25.0%');
         expect(widget.acosPct).toBe(25);
-        expect(widget.tacos).toBeCloseTo(8.33, 2);
-        expect(widget.adShare).toBeCloseTo(33.33, 2);
+        expect(widget.tacos).toBeCloseTo(5,2);
+        expect(widget.adShare).toBeCloseTo(20,2);
         expect(widget.share).toBe(30);         // 300 of the 1000 period GMS
     });
 
@@ -215,8 +215,8 @@ describe('getDashboardData — top products are ranked by GMS, not ads', () => {
         expect(payload.gms.units).toBe(10);
         expect(payload.gms.prevRevenue).toBe(800);
         expect(payload.gms.deltaPct).toBe(25);
-        expect(payload.gms.tacos).toBe(2.5);      // 25 spend ÷ 1000 GMS
-        expect(payload.gms.adShare).toBe(10);     // 100 ad sales ÷ 1000 GMS
+        expect(payload.gms.tacos).toBe(5);      // 25 spend ÷ 1000 GMS
+        expect(payload.gms.adShare).toBe(20);     // 100 ad sales ÷ 1000 GMS
         expect(payload.gms.asinsWithSales).toBe(2);
 
         expect(payload.ads.adSales).toBe(100);
