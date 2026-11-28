@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authApi } from '../services/api';
 import { AuthRequestError, safeAuthError } from '../services/authRequest';
+import { restoreSession } from '../services/sessionRestore.mjs';
 
 const AuthContext = createContext(null);
 
@@ -14,6 +15,8 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [sessionError,setSessionError]=useState(null);
+    const [sessionAttempt,setSessionAttempt]=useState(0);
     const [loadingPermissions, setLoadingPermissions] = useState(false);   // ← NEW
     const [bootstrapping, setBootstrapping] = useState(false);
     const [error, setError] = useState(null);
@@ -35,37 +38,44 @@ export const AuthProvider = ({ children }) => {
             : { name: raw.role, displayName: raw.role },
     });
 
-    // ----- Restore session on mount -----
+    // ----- Restore session on mount / deliberate retry -----
     useEffect(() => {
-        const initAuth = async () => {
-            try {
-                const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/me`, {
-                    credentials: 'include',
-                    headers: {
-                        // Token is now sent automatically via httpOnly cookie
-                    },
-                });
-                if (response.ok) {
-                    const result = await response.json();
-                    if (result.success && result.data) {
-                        const normalized = normalizeUser(result.data);
-                        setUser(normalized);
-                        localStorage.setItem('user', JSON.stringify(normalized));
-                    } else throw new Error('Invalid user data');
-                } else if (response.status === 401) {
-                    // Anonymous visitor (e.g. sign-in page): no session to restore.
+        const controller=new AbortController();
+        const initAuth=async()=>{
+            try{
+                const result=await restoreSession({url:`${import.meta.env.VITE_API_URL || '/api'}/auth/me`,signal:controller.signal});
+                if(controller.signal.aborted)return;
+                if(result.status==='authenticated'){
+                    const normalized=normalizeUser(result.user);
+                    setUser(normalized);
+                    localStorage.setItem('user',JSON.stringify(normalized));
+                    setSessionError(null);
+                }else if(result.status==='anonymous'){
                     localStorage.removeItem('user');
                     setUser(null);
-                } else throw new Error(`Session check failed (${response.status})`);
-            } catch (err) {
-                console.warn('Auth initialization warning:', err.message);
-                localStorage.removeItem('user');
-                setUser(null);
+                    setSessionError(null);
+                }else{
+                    // Cached profiles cannot authenticate a user during an outage.
+                    setUser(null);
+                    setSessionError('RetailOps could not verify your session. Retry when the service is available.');
+                }
+            }catch(error){
+                if(!controller.signal.aborted){
+                    setUser(null);
+                    setSessionError('RetailOps could not verify your session. Please retry.');
+                }
+            }finally{
+                if(!controller.signal.aborted)setLoading(false);
             }
-            setLoading(false);
         };
         initAuth();
-    }, []);
+        return ()=>controller.abort();
+    },[sessionAttempt]);
+    const retrySession=()=>{
+        setLoading(true);
+        setSessionError(null);
+        setSessionAttempt(n=>n+1);
+    };
 
     // ----- Login -----
     // The authentication screen defers session publication until its success
@@ -139,6 +149,7 @@ export const AuthProvider = ({ children }) => {
             console.warn('Logout API call failed:', e.message);
         }
         setUser(null);
+        setSessionError(null);
         setError(null);
         setNeedsPasswordReset(false);
         setRequiresSetup(false);
@@ -207,6 +218,7 @@ export const AuthProvider = ({ children }) => {
             const needsPwdReset = loginData.needsPasswordReset || loginData.data?.needsPasswordReset || rawUser.needsPasswordReset;
 
             setUser(normalized);
+            setSessionError(null);
             setRequiresSetup(needsSetup);
             setNeedsPasswordReset(needsPwdReset);
             localStorage.setItem('user', JSON.stringify(normalized));
@@ -241,6 +253,8 @@ export const AuthProvider = ({ children }) => {
     const value = {
         user,
         loading,
+        sessionError,
+        retrySession,
         loadingPermissions,
         bootstrapping,
         error,

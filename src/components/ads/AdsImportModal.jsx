@@ -7,7 +7,11 @@ const endpoint='/upload/ads-imports';
 const colors={READY:'processing',REJECTED:'error',COMPLETED:'success',FAILED:'error',CANCELLED:'default',EXPIRED:'default'};
 const count=v=>v==null?'Unknown':Number(v).toLocaleString('en-IN');
 const time=v=>v?new Date(v).toLocaleString():'N/A';
-const errText=(e,fallback)=>e.response?.data?.message||fallback;
+const errText=(e,fallback)=>{
+ const data=e.response?.data;
+ if(data?.code==='entity.parse.failed'||data?.code==='INVALID_JSON')return 'Invalid request format. Refresh the application and retry.';
+ return typeof data?.message==='string'?data.message:fallback;
+};
 const money=(v,c)=>v==null?'N/A':c+' '+v;
 
 export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete}){
@@ -59,18 +63,33 @@ export default function AdsImportModal({isOpen,onClose,selectedSeller,onComplete
   if(!job||job.status!=='READY'||!job.importsEnabled||busy)return;
   setBusy('confirm');setError(null);
   try{
-   const r=await apiClient.post(endpoint+'/'+encodeURIComponent(job.id)+'/confirm',null,{timeout:600000});
+   const r=await apiClient.post(endpoint+'/'+encodeURIComponent(job.id)+'/confirm',{},{timeout:600000});
    const next=r.data.data;setJob(next);
    if(next.status==='COMPLETED'&&next.result?.persisted)onComplete?.(next.result);
   }catch(e){
-   if(e.response?.data?.data)setJob(e.response.data.data);
-   setError(errText(e,'The result could not be confirmed. Refresh this job or reopen history before retrying.'));
+   const reported=e.response?.data?.data;
+   if(reported?.id===job.id)setJob(reported);
+   const status=e.response?.status;
+   if(!status||status===408||status>=500){
+    // Never automatically repeat a financial write after a lost response.
+    // Read the authoritative job once; the completed result is atomic.
+    try{
+     const check=await apiClient.get(endpoint+'/'+encodeURIComponent(job.id),{timeout:15000});
+     const current=check.data?.data;
+     if(current?.id===job.id){
+      setJob(current);
+      if(current.status==='COMPLETED'&&current.result?.persisted){onComplete?.(current.result);return;}
+      if(current.status==='FAILED'){setError(current.result?.message||'Import failed. Check import details.');return;}
+     }
+    }catch{/* Reopen history before retrying. */}
+    setError('The confirmation response was interrupted. Refresh status or reopen history before retrying. An identical retry is safe.');
+   }else setError(errText(e,'The result could not be confirmed. Refresh this job or reopen history before retrying.'));
   }finally{setBusy(null);}
  };
  const cancel=async()=>{
   if(!job||job.status!=='READY'||busy)return;
   setBusy('cancel');setError(null);
-  try{const r=await apiClient.post(endpoint+'/'+encodeURIComponent(job.id)+'/cancel');setJob(r.data.data);}
+  try{const r=await apiClient.post(endpoint+'/'+encodeURIComponent(job.id)+'/cancel',{});setJob(r.data.data);}
   catch(e){setError(errText(e,'Cancellation failed. Refresh the job to check its current state.'));}
   finally{setBusy(null);}
  };

@@ -372,6 +372,8 @@ app.get('/api/health/readiness', async (req, res) => {
 
 // Error handling
 app.use(async (err, req, res, next) => {
+  // Parse failures occur before controllers. Avoid logging raw rejected input.
+  if(err.type==='entity.parse.failed'&&(err.status===400||err.statusCode===400))return errorHandler(err,req,res,next);
   try {
     const SystemLogService = require('./services/SystemLogService');
     await SystemLogService.log({
